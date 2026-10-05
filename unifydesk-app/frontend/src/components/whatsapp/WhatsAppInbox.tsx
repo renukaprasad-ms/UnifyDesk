@@ -46,6 +46,7 @@ import {
 } from '../../store/workspace/workspaceSlice'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 import { templateVariableCounts } from './whatsappTemplateUtils'
+import { Skeleton } from '../ui/Skeleton'
 
 type WhatsAppInboxMessage = InboxMessage
 
@@ -810,7 +811,15 @@ export default function WhatsAppInbox() {
 
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/60 p-3 sm:p-5">
                 {detailLoading ? (
-                  <p className="py-10 text-center text-sm text-slate-500">Loading messages…</p>
+                  <div className="space-y-3" role="status" aria-label="Loading WhatsApp messages">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <div key={index} className={`max-w-[80%] rounded-2xl border border-slate-200 bg-white p-3 ${index % 2 ? 'ml-auto' : ''}`}>
+                        <Skeleton className="h-3 w-24" />
+                        <Skeleton className="mt-2 h-3 w-full" />
+                        <Skeleton className="mt-2 h-3 w-2/3" />
+                      </div>
+                    ))}
+                  </div>
                 ) : messages.length === 0 ? (
                   <p className="py-10 text-center text-sm text-slate-500">No messages yet.</p>
                 ) : (
