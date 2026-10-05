@@ -177,7 +177,7 @@ export default function CompanyPlan() {
   }
 
   const pay = async () => {
-    if (!companyId || !draft || !checkout || mutationPending) return
+    if (!companyId || !draft || draft.mode === 'DOWNGRADE' || !checkout || mutationPending) return
     const scope = captureScope()
     setMutationPending(true); setError('')
     try {
