@@ -12,6 +12,7 @@ import {
   selectWorkspaceEpoch,
 } from '../../store/workspace/workspaceSlice'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
+import { ListSkeleton } from '../../components/ui/Skeleton'
 
 export default function SegmentsPage() {
   const companyId = useAppSelector(selectSelectedCompanyId)
@@ -80,9 +81,7 @@ export default function SegmentsPage() {
         )}
 
         {loading ? (
-          <div className="panel mt-6 p-10 text-center text-sm text-slate-500" role="status">
-            Loading Segments…
-          </div>
+          <div className="mt-6"><ListSkeleton rows={6} /></div>
         ) : items.length === 0 ? (
           <div className="panel mt-6 p-10 text-center">
             <h2 className="font-bold text-slate-950">No Segments yet</h2>
