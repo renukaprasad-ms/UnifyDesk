@@ -14,15 +14,22 @@ public record EmailSendCommand(
     String replyToMessageId,
     boolean replyAll,
     String inReplyTo,
-    String references) {
+    String references,
+    List<Long> attachmentMediaIds) {
 
   public EmailSendCommand {
     to = immutable(to);
     cc = immutable(cc);
     bcc = immutable(bcc);
+    attachmentMediaIds = immutableLongs(attachmentMediaIds);
   }
 
   private static List<String> immutable(List<String> values) {
+    if (values == null || values.isEmpty()) return List.of();
+    return Collections.unmodifiableList(new ArrayList<>(values));
+  }
+
+  private static List<Long> immutableLongs(List<Long> values) {
     if (values == null || values.isEmpty()) return List.of();
     return Collections.unmodifiableList(new ArrayList<>(values));
   }
