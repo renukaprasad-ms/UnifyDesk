@@ -9,6 +9,7 @@ import {
   FiMessageSquare,
   FiPlus,
   FiRadio,
+  FiSearch,
   FiSend,
   FiServer,
   FiSmartphone,
@@ -30,6 +31,8 @@ import {
 import type { ChannelConnection, ChannelType, SenderIdentity } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
+import { inboxApi } from '../../features/inbox/inboxApi'
+import type { InboxConversation } from '../../features/inbox/types'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { fetchEmailConnections, fetchInboxConversations } from '../../store/inbox/inboxSlice'
@@ -120,6 +123,14 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const [localLoading, setLocalLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [conversationSearch, setConversationSearch] = useState('')
+  const [searchConversations, setSearchConversations] = useState<InboxConversation[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchLoadingMore, setSearchLoadingMore] = useState(false)
+  const [searchPage, setSearchPage] = useState(0)
+  const [searchTotalPages, setSearchTotalPages] = useState(0)
+  const [searchTotalElements, setSearchTotalElements] = useState(0)
+  const [searchError, setSearchError] = useState<string | null>(null)
 
   const search = useMemo(() => new URLSearchParams(location.search), [location.search])
   const selectedConnectionId = search.get('connectionId')
@@ -158,6 +169,16 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const conversationPage = sameConversationScope ? inbox.conversationPage : 0
   const conversationTotalPages = sameConversationScope ? inbox.conversationTotalPages : 0
   const conversationTotalElements = sameConversationScope ? inbox.conversationTotalElements : 0
+  const normalizedConversationSearch = conversationSearch.trim()
+  const searchActive = emailMode && normalizedConversationSearch.length > 0
+  const visibleConversations = searchActive ? searchConversations : conversations
+  const visibleConversationLoading = searchActive ? searchLoading : conversationLoading
+  const visibleConversationLoadingMore = searchActive ? searchLoadingMore : conversationLoadingMore
+  const visibleConversationPage = searchActive ? searchPage : conversationPage
+  const visibleConversationTotalPages = searchActive ? searchTotalPages : conversationTotalPages
+  const visibleConversationTotalElements = searchActive
+    ? searchTotalElements
+    : conversationTotalElements
 
   useEffect(() => {
     if (!menuOpen) return
@@ -297,6 +318,75 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     )
   }, [companyId, dispatch, emailMode, selectedConnectionId, selectedFolder, workspaceEpoch])
 
+  useEffect(() => {
+    setConversationSearch('')
+    setSearchConversations([])
+    setSearchPage(0)
+    setSearchTotalPages(0)
+    setSearchTotalElements(0)
+    setSearchError(null)
+  }, [companyId, selectedConnectionId, selectedFolder, workspaceEpoch])
+
+  useEffect(() => {
+    if (!companyId || !emailMode || !selectedConnectionId || normalizedConversationSearch.length === 0) {
+      setSearchConversations([])
+      setSearchPage(0)
+      setSearchTotalPages(0)
+      setSearchTotalElements(0)
+      setSearchLoading(false)
+      setSearchLoadingMore(false)
+      setSearchError(null)
+      return
+    }
+
+    let active = true
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
+    const current = () =>
+      active &&
+      isWorkspaceEpochCurrent(
+        token,
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      )
+
+    setSearchLoading(true)
+    setSearchError(null)
+    const timer = window.setTimeout(() => {
+      inboxApi
+        .search(companyId, selectedConnectionId, normalizedConversationSearch, selectedFolder, 0, 30)
+        .then((page) => {
+          if (!current()) return
+          setSearchConversations(page.items)
+          setSearchPage(page.page)
+          setSearchTotalPages(page.totalPages)
+          setSearchTotalElements(page.totalElements)
+        })
+        .catch((requestError) => {
+          if (!current()) return
+          setSearchConversations([])
+          setSearchPage(0)
+          setSearchTotalPages(0)
+          setSearchTotalElements(0)
+          setSearchError(apiErrorMessage(requestError, 'Unable to search conversations'))
+        })
+        .finally(() => {
+          if (current()) setSearchLoading(false)
+        })
+    }, 300)
+
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [
+    companyId,
+    emailMode,
+    normalizedConversationSearch,
+    selectedConnectionId,
+    selectedFolder,
+    workspaceEpoch,
+  ])
+
   const identities = useMemo<IdentityItem[]>(() => {
     if (broadcastMode && channelType !== 'WHATSAPP') {
       return broadcastSenders
@@ -405,12 +495,12 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }, [emailMode, identities, loading, location.pathname, location.search, navigate, selectedItem])
 
   useEffect(() => {
-    if (!desktop || !emailMode || selectedConversationId || conversations.length === 0) {
+    if (!desktop || !emailMode || selectedConversationId || visibleConversations.length === 0) {
       return
     }
 
     const params = new URLSearchParams(location.search)
-    params.set('conversationId', conversations[0].id)
+    params.set('conversationId', visibleConversations[0].id)
     navigate(
       {
         pathname: location.pathname,
@@ -419,7 +509,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       { replace: true },
     )
   }, [
-    conversations,
+    visibleConversations,
     desktop,
     emailMode,
     location.pathname,
@@ -537,14 +627,49 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }
 
   const loadMoreConversations = () => {
-    if (
-      !companyId ||
-      !selectedConnectionId ||
-      conversationLoadingMore ||
-      conversationPage + 1 >= conversationTotalPages
-    ) {
+    if (!companyId || !selectedConnectionId) return
+
+    if (searchActive) {
+      if (searchLoadingMore || searchPage + 1 >= searchTotalPages) return
+      const nextPage = searchPage + 1
+      const token = workspaceEpochToken(companyId, workspaceEpoch)
+      setSearchLoadingMore(true)
+      inboxApi
+        .search(
+          companyId,
+          selectedConnectionId,
+          normalizedConversationSearch,
+          selectedFolder,
+          nextPage,
+          30,
+        )
+        .then((page) => {
+          if (
+            !isWorkspaceEpochCurrent(
+              token,
+              workspaceScopeRef.current.companyId,
+              workspaceScopeRef.current.epoch,
+            )
+          ) {
+            return
+          }
+          setSearchConversations((current) => {
+            const byId = new Map(current.map((item) => [item.id, item]))
+            page.items.forEach((item) => byId.set(item.id, item))
+            return Array.from(byId.values())
+          })
+          setSearchPage(page.page)
+          setSearchTotalPages(page.totalPages)
+          setSearchTotalElements(page.totalElements)
+        })
+        .catch((requestError) => {
+          setSearchError(apiErrorMessage(requestError, 'Unable to load more search results'))
+        })
+        .finally(() => setSearchLoadingMore(false))
       return
     }
+
+    if (conversationLoadingMore || conversationPage + 1 >= conversationTotalPages) return
     void dispatch(
       fetchInboxConversations({
         companyId,
@@ -570,9 +695,10 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     error ||
     (!broadcastMode && channelType === 'EMAIL' && inbox.connectionsStatus === 'error'
       ? 'Unable to load connected email accounts.'
-      : emailMode && sameConversationScope && inbox.conversationsStatus === 'error'
-        ? 'Unable to load conversations.'
-        : null)
+      : searchError ||
+        (emailMode && sameConversationScope && inbox.conversationsStatus === 'error'
+          ? 'Unable to load conversations.'
+          : null))
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -848,28 +974,44 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
             {emptyListLabel}
           </p>
-          {emailMode && conversationTotalElements > 0 && (
+          {emailMode && visibleConversationTotalElements > 0 && (
             <span className="text-[10px] font-medium text-slate-400">
-              {conversationTotalElements}
+              {visibleConversationTotalElements}
             </span>
           )}
         </div>
 
         {emailMode ? (
-          <div className="-mx-3 min-h-0 flex-1 overflow-y-auto border-t border-slate-100">
-            <ConversationList
-              compact
-              conversations={conversations}
-              connections={connections}
-              selectedId={selectedConversationId}
-              loading={conversationLoading}
-              loadingMore={conversationLoadingMore}
-              totalElements={conversationTotalElements}
-              hasMore={conversationPage + 1 < conversationTotalPages}
-              onSelect={(conversation) => selectConversation(conversation.id)}
-              onLoadMore={loadMoreConversations}
-            />
-          </div>
+          <>
+            <label className="relative mb-3 block">
+              <FiSearch
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="search"
+                value={conversationSearch}
+                onChange={(event) => setConversationSearch(event.target.value)}
+                placeholder="Search chats"
+                aria-label="Search inbox conversations"
+                className="form-input w-full py-2 pl-9 pr-3 text-xs"
+              />
+            </label>
+            <div className="-mx-3 min-h-0 flex-1 overflow-y-auto border-t border-slate-100">
+              <ConversationList
+                compact
+                conversations={visibleConversations}
+                connections={connections}
+                selectedId={selectedConversationId}
+                loading={visibleConversationLoading}
+                loadingMore={visibleConversationLoadingMore}
+                totalElements={visibleConversationTotalElements}
+                hasMore={visibleConversationPage + 1 < visibleConversationTotalPages}
+                onSelect={(conversation) => selectConversation(conversation.id)}
+                onLoadMore={loadMoreConversations}
+              />
+            </div>
+          </>
         ) : broadcastMode && !legacyBroadcastMode ? (
           <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-5">
             <p className="text-xs font-semibold text-slate-800">Canonical audience</p>
