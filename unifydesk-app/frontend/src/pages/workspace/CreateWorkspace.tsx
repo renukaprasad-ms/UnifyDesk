@@ -118,7 +118,7 @@ export default function CreateWorkspace() {
       const companies = await workspaceApi.list()
       dispatch(setCompanies(companies))
       dispatch(selectCompany(company.companyId))
-      navigate('/workspace', { replace: true })
+      navigate(`/select-plan/${company.companyId}`, { replace: true })
     } catch (submitError) {
       setError(apiErrorMessage(submitError, 'Unable to create workspace'))
     } finally {
