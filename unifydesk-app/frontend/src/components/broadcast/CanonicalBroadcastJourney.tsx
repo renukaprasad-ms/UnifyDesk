@@ -567,7 +567,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
 
   return (
     <div className="channel-message-scroll min-h-[calc(100dvh-214px)] p-4 sm:p-5">
-      <div className="mx-auto grid max-w-5xl gap-4">
+      <div className="grid w-full gap-4">
         <section className="panel p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
