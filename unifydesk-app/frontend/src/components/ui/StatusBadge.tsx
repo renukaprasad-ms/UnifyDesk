@@ -14,11 +14,11 @@ const toneClasses: Record<StatusTone, string> = {
 
 export function semanticStatusTone(status: string): StatusTone {
   const value = status.trim().toUpperCase().replaceAll(' ', '_')
-  if (['ACTIVE', 'READY', 'HEALTHY', 'COMPLETED', 'DELIVERED', 'VERIFIED', 'APPROVED', 'SYNCED', 'SUCCESS'].includes(value)) return 'success'
-  if (['RUNNING', 'PROCESSING', 'SENDING', 'SYNCING', 'PROVIDER_SYNCING', 'PREPARING', 'UPLOADING'].includes(value)) return 'processing'
+  if (['ACTIVE', 'READY', 'HEALTHY', 'COMPLETED', 'DELIVERED', 'VERIFIED', 'APPROVED', 'SYNCED', 'SUCCESS', 'ACCEPTED', 'ACCEPTED_BY_PROVIDER', 'SENT'].includes(value)) return 'success'
+  if (['RUNNING', 'PROCESSING', 'SENDING', 'SYNCING', 'PROVIDER_SYNCING', 'PREPARING', 'UPLOADING', 'RETRY'].includes(value)) return 'processing'
   if (['QUEUED', 'SCHEDULED', 'RECEIVED', 'PENDING', 'PENDING_DNS', 'PENDING_REVIEW'].includes(value)) return 'info'
   if (['WARNING', 'ACTION_REQUIRED', 'EXPIRED', 'PARTIALLY_FAILED', 'THROTTLED', 'PAUSED'].includes(value)) return 'warning'
-  if (['FAILED', 'ERROR', 'REJECTED', 'BOUNCED', 'COMPLAINT', 'SUSPENDED', 'SUSPENDED_POLICY', 'CANCELLED'].includes(value)) return 'danger'
+  if (['FAILED', 'ERROR', 'REJECTED', 'BOUNCED', 'COMPLAINT', 'SUSPENDED', 'SUSPENDED_POLICY', 'CANCELLED', 'SUPPRESSED'].includes(value)) return 'danger'
   if (['OPENED'].includes(value)) return 'info'
   if (['CLICKED'].includes(value)) return 'accent'
   return 'neutral'
