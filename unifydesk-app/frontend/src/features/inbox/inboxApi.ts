@@ -30,6 +30,21 @@ export const inboxApi = {
     return unwrap(response.data)
   },
 
+  async search(
+    companyId: string,
+    connectionId: string,
+    query: string,
+    folder: 'INBOX' | 'SENT' = 'INBOX',
+    page = 0,
+    size = 30,
+  ) {
+    const response = await apiClient.get<ApiResponse<InboxPage<InboxConversation>>>(
+      `/api/v1/companies/${companyId}/inbox/search`,
+      { params: { connectionId, q: query, folder, page, size } },
+    )
+    return unwrap(response.data)
+  },
+
   async conversation(companyId: string, conversationId: string) {
     const response = await apiClient.get<ApiResponse<InboxConversation>>(
       `/api/v1/companies/${companyId}/inbox/conversations/${conversationId}`,
