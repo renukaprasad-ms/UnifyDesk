@@ -10,6 +10,7 @@ import com.messaging.common.exception.ForbiddenException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +24,16 @@ public class PlanEligibilityService {
 
   @Transactional(readOnly = true)
   public List<Plan> publicPlans() {
-    return planRepository.findByStatusAndVisibility(PlanStatus.PUBLISHED, PlanVisibility.PUBLIC);
+    LinkedHashMap<String, Plan> latestByCode = new LinkedHashMap<>();
+    planRepository.findByStatusAndVisibility(PlanStatus.PUBLISHED, PlanVisibility.PUBLIC)
+        .forEach(
+            plan ->
+                latestByCode.merge(
+                    plan.getCode().toUpperCase(Locale.ROOT),
+                    plan,
+                    (current, candidate) ->
+                        candidate.getVersion() > current.getVersion() ? candidate : current));
+    return List.copyOf(latestByCode.values());
   }
 
   @Transactional(readOnly = true)
@@ -44,7 +54,12 @@ public class PlanEligibilityService {
       throw new ForbiddenException("Plan is not available");
     }
     if (plan.getVisibility() == PlanVisibility.PUBLIC) {
-      return;
+      boolean latestPublishedVersion =
+          publicPlans().stream().anyMatch(candidate -> candidate.getId().equals(plan.getId()));
+      if (latestPublishedVersion) {
+        return;
+      }
+      throw new ForbiddenException("Plan is not available");
     }
     if (plan.getVisibility() == PlanVisibility.PRIVATE
         && assignmentRepository.isActive(plan.getId(), companyId, at)) {
