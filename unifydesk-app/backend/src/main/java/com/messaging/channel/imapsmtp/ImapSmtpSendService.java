@@ -1,5 +1,7 @@
 package com.messaging.channel.imapsmtp;
 
+import com.messaging.channel.email.EmailAttachment;
+import com.messaging.channel.email.EmailAttachmentService;
 import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.imapsmtp.ImapSmtpMailClient.MailboxMessage;
@@ -8,6 +10,9 @@ import com.messaging.channel.imapsmtp.dto.ImapSmtpSendRequest;
 import com.messaging.channel.imapsmtp.dto.ImapSmtpSendResponse;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.inbox.dto.InboxEmailChangedEvent;
+import com.messaging.inbox.entity.InboxMessageAttachment;
+import com.messaging.inbox.repository.InboxMessageAttachmentRepository;
+import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.realtime.service.RealtimeService;
 import java.util.List;
 import java.util.Locale;
@@ -20,8 +25,11 @@ import org.springframework.stereotype.Service;
 public class ImapSmtpSendService {
 
   private final ImapSmtpConnectionService connectionService;
+  private final EmailAttachmentService attachmentService;
   private final ImapSmtpMailClient mailClient;
   private final ImapSmtpInboxPersistenceService persistenceService;
+  private final InboxMessageRepository messageRepository;
+  private final InboxMessageAttachmentRepository attachmentRepository;
   private final RealtimeService realtimeService;
 
   public ImapSmtpSendResponse send(
@@ -29,7 +37,9 @@ public class ImapSmtpSendService {
     Long connectionId = connection.getId();
     ImapSmtpStoredCredentials credentials = connectionService.credentials(connection);
 
-    SentMessage sent = mailClient.send(credentials, request);
+    List<EmailAttachment> attachments =
+        attachmentService.resolve(connection.getCompanyId(), request.attachmentIds());
+    SentMessage sent = mailClient.send(credentials, request, attachments);
     String messageId =
         sent.messageId() == null || sent.messageId().isBlank()
             ? "<" + UUID.randomUUID() + "@local.messaging>"
@@ -57,6 +67,7 @@ public class ImapSmtpSendService {
             false,
             EmailFolder.SENT);
     var persisted = persistenceService.persist(connection, List.of(local));
+    persistLocalAttachments(connection, "smtp:" + messageId, attachments);
     realtimeService.sendToCompany(
         connection.getCompanyId(),
         "inbox.email.changed",
@@ -76,6 +87,33 @@ public class ImapSmtpSendService {
         sent.bcc(),
         sent.subject(),
         sent.sentAt());
+  }
+
+  private void persistLocalAttachments(
+      ChannelConnection connection, String externalMessageId, List<EmailAttachment> attachments) {
+    if (attachments == null || attachments.isEmpty()) return;
+
+    var message =
+        messageRepository
+            .findByConnectionIdAndExternalMessageId(connection.getId(), externalMessageId)
+            .orElse(null);
+    if (message == null) return;
+
+    for (EmailAttachment attachment : attachments) {
+      String externalAttachmentId = "media:" + attachment.mediaId();
+      InboxMessageAttachment entity =
+          attachmentRepository
+              .findByMessageIdAndExternalAttachmentId(message.getId(), externalAttachmentId)
+              .orElseGet(InboxMessageAttachment::new);
+      if (entity.getId() == null) {
+        entity.setMessage(message);
+        entity.setExternalAttachmentId(externalAttachmentId);
+      }
+      entity.setFilename(attachment.fileName());
+      entity.setMimeType(attachment.contentType());
+      entity.setSizeBytes(attachment.sizeBytes());
+      attachmentRepository.save(entity);
+    }
   }
 
   private String threadKey(String messageId, String inReplyTo, String references) {

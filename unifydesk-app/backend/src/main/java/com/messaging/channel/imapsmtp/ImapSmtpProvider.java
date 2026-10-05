@@ -47,7 +47,8 @@ public class ImapSmtpProvider
                 command.subject(),
                 command.bodyText(),
                 command.inReplyTo(),
-                command.references()));
+                command.references(),
+                command.attachmentMediaIds().stream().map(String::valueOf).toList()));
 
     return new EmailSendResult(
         response.connectionId(),

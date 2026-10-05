@@ -3,7 +3,11 @@ package com.messaging.media.provider;
 import com.messaging.media.config.MediaStorageProperties;
 import com.messaging.media.enums.StorageProviderType;
 import com.messaging.media.exception.MediaException;
+import java.io.InputStream;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -23,6 +27,7 @@ public class SupabaseStorageProvider implements StorageProvider {
 
   private final MediaStorageProperties properties;
   private final RestClient restClient;
+  private final HttpClient httpClient = HttpClient.newHttpClient();
 
   public SupabaseStorageProvider(MediaStorageProperties properties, RestClient storageRestClient) {
     this.properties = properties;
@@ -76,6 +81,34 @@ public class SupabaseStorageProvider implements StorageProvider {
               });
     } catch (RestClientException exception) {
       throw storageException("metadata lookup", exception);
+    }
+  }
+
+  @Override
+  public InputStream openObject(String bucket, String objectKey) {
+    String serviceRoleKey = properties.getSupabase().getServiceRoleKey();
+    if (!StringUtils.hasText(serviceRoleKey)) {
+      throw new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_NOT_CONFIGURED");
+    }
+    try {
+      HttpRequest request =
+          HttpRequest.newBuilder(storageUri("/object/authenticated/%s/%s", bucket, objectKey))
+              .header("apikey", serviceRoleKey)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceRoleKey)
+              .GET()
+              .build();
+      HttpResponse<InputStream> response =
+          httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+      if (response.statusCode() < 200 || response.statusCode() >= 300) {
+        response.body().close();
+        throw storageException("read", response.statusCode());
+      }
+      return response.body();
+    } catch (InterruptedException exception) {
+      Thread.currentThread().interrupt();
+      throw new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_ERROR", exception);
+    } catch (java.io.IOException exception) {
+      throw new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_ERROR", exception);
     }
   }
 

@@ -99,6 +99,107 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
   @Query(
       value =
           """
+          select distinct c
+          from InboxConversation c
+          where c.companyId = :companyId
+            and c.connection.id = :connectionId
+            and c.connection.status = :connectionStatus
+            and exists (
+              select fm.id from InboxMessage fm
+              where fm.conversation.id = c.id
+                and fm.providerFolderKey = :folderKey
+                and fm.status <> :excludedStatus
+            )
+            and (
+              lower(coalesce(c.subject, '')) like :term
+              or lower(coalesce(c.lastMessagePreview, '')) like :term
+              or exists (
+                select p.id from InboxParticipant p
+                where p.conversation.id = c.id
+                  and (
+                    lower(coalesce(p.address, '')) like :term
+                    or lower(coalesce(p.displayName, '')) like :term
+                  )
+              )
+              or exists (
+                select sm.id from InboxMessage sm
+                where sm.conversation.id = c.id
+                  and sm.status <> :excludedStatus
+                  and (
+                    lower(coalesce(sm.subject, '')) like :term
+                    or lower(coalesce(sm.snippet, '')) like :term
+                    or lower(coalesce(sm.bodyText, '')) like :term
+                    or lower(coalesce(sm.fromAddress, '')) like :term
+                    or lower(coalesce(sm.toAddresses, '')) like :term
+                    or lower(coalesce(sm.ccAddresses, '')) like :term
+                    or lower(coalesce(sm.bccAddresses, '')) like :term
+                    or exists (
+                      select a.id from InboxMessageAttachment a
+                      where a.message.id = sm.id
+                        and lower(coalesce(a.filename, '')) like :term
+                    )
+                  )
+              )
+            )
+          order by c.lastMessageAt desc, c.createdAt desc
+          """,
+      countQuery =
+          """
+          select count(distinct c.id)
+          from InboxConversation c
+          where c.companyId = :companyId
+            and c.connection.id = :connectionId
+            and c.connection.status = :connectionStatus
+            and exists (
+              select fm.id from InboxMessage fm
+              where fm.conversation.id = c.id
+                and fm.providerFolderKey = :folderKey
+                and fm.status <> :excludedStatus
+            )
+            and (
+              lower(coalesce(c.subject, '')) like :term
+              or lower(coalesce(c.lastMessagePreview, '')) like :term
+              or exists (
+                select p.id from InboxParticipant p
+                where p.conversation.id = c.id
+                  and (
+                    lower(coalesce(p.address, '')) like :term
+                    or lower(coalesce(p.displayName, '')) like :term
+                  )
+              )
+              or exists (
+                select sm.id from InboxMessage sm
+                where sm.conversation.id = c.id
+                  and sm.status <> :excludedStatus
+                  and (
+                    lower(coalesce(sm.subject, '')) like :term
+                    or lower(coalesce(sm.snippet, '')) like :term
+                    or lower(coalesce(sm.bodyText, '')) like :term
+                    or lower(coalesce(sm.fromAddress, '')) like :term
+                    or lower(coalesce(sm.toAddresses, '')) like :term
+                    or lower(coalesce(sm.ccAddresses, '')) like :term
+                    or lower(coalesce(sm.bccAddresses, '')) like :term
+                    or exists (
+                      select a.id from InboxMessageAttachment a
+                      where a.message.id = sm.id
+                        and lower(coalesce(a.filename, '')) like :term
+                    )
+                  )
+              )
+            )
+          """)
+  Page<InboxConversation> searchByFolder(
+      @Param("companyId") Long companyId,
+      @Param("connectionId") Long connectionId,
+      @Param("connectionStatus") ChannelConnectionStatus connectionStatus,
+      @Param("folderKey") String folderKey,
+      @Param("excludedStatus") com.messaging.inbox.enums.InboxMessageStatus excludedStatus,
+      @Param("term") String term,
+      Pageable pageable);
+
+  @Query(
+      value =
+          """
           select c
           from InboxConversation c
           where c.companyId = :companyId

@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -341,6 +342,164 @@ public class MicrosoftApiClient {
     }
   }
 
+  public GraphMessage createDraft(String accessToken, GraphSendMessage message) {
+    return execute(
+        "draft_create",
+        () ->
+            graph
+                .post()
+                .uri("/v1.0/me/messages")
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .header("Prefer", "IdType=\"ImmutableId\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(message)
+                .retrieve()
+                .body(GraphMessage.class));
+  }
+
+  public GraphMessage createReplyDraft(
+      String accessToken, String messageId, boolean replyAll) {
+    String action = replyAll ? "createReplyAll" : "createReply";
+    return execute(
+        "reply_draft_create",
+        () ->
+            graph
+                .post()
+                .uri("/v1.0/me/messages/{id}/" + action, messageId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .header("Prefer", "IdType=\"ImmutableId\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of())
+                .retrieve()
+                .body(GraphMessage.class));
+  }
+
+  public void updateDraftBody(String accessToken, String draftId, String bodyText) {
+    executeVoid(
+        "draft_body_update",
+        () ->
+            graph
+                .patch()
+                .uri("/v1.0/me/messages/{id}", draftId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .header("Prefer", "IdType=\"ImmutableId\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("body", Map.of("contentType", "Text", "content", bodyText == null ? "" : bodyText)))
+                .retrieve()
+                .toBodilessEntity());
+  }
+
+  public void addSmallFileAttachment(
+      String accessToken,
+      String draftId,
+      String name,
+      String contentType,
+      byte[] content) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("@odata.type", "#microsoft.graph.fileAttachment");
+    payload.put("name", name);
+    payload.put("contentType", contentType);
+    payload.put("isInline", false);
+    payload.put("contentBytes", Base64.getEncoder().encodeToString(content));
+
+    executeVoid(
+        "attachment_create",
+        () ->
+            graph
+                .post()
+                .uri("/v1.0/me/messages/{id}/attachments", draftId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .header("Prefer", "IdType=\"ImmutableId\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .toBodilessEntity());
+  }
+
+  public AttachmentUploadSession createAttachmentUploadSession(
+      String accessToken,
+      String draftId,
+      String name,
+      String contentType,
+      long sizeBytes) {
+    Map<String, Object> item = new LinkedHashMap<>();
+    item.put("attachmentType", "file");
+    item.put("name", name);
+    item.put("size", sizeBytes);
+    item.put("contentType", contentType);
+    item.put("isInline", false);
+
+    return execute(
+        "attachment_upload_session_create",
+        () ->
+            graph
+                .post()
+                .uri("/v1.0/me/messages/{id}/attachments/createUploadSession", draftId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .header("Prefer", "IdType=\"ImmutableId\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("AttachmentItem", item))
+                .retrieve()
+                .body(AttachmentUploadSession.class));
+  }
+
+  public void uploadAttachmentChunk(
+      String uploadUrl, byte[] content, long startInclusive, long totalBytes) {
+    if (content == null || content.length == 0) {
+      throw new BadRequestException("Microsoft attachment chunk is empty");
+    }
+    long endInclusive = startInclusive + content.length - 1;
+    try {
+      RestClient.create()
+          .put()
+          .uri(URI.create(uploadUrl))
+          .contentType(MediaType.APPLICATION_OCTET_STREAM)
+          .contentLength(content.length)
+          .header(
+              HttpHeaders.CONTENT_RANGE,
+              "bytes " + startInclusive + "-" + endInclusive + "/" + totalBytes)
+          .body(content)
+          .retrieve()
+          .toBodilessEntity();
+    } catch (RestClientResponseException exception) {
+      int status = exception.getStatusCode().value();
+      if (status == 429 || status >= 500) {
+        throw new ServiceUnavailableException(
+            "Microsoft attachment upload is temporarily unavailable", exception);
+      }
+      throw new BadRequestException(
+          "Microsoft attachment upload failed with HTTP " + status);
+    }
+  }
+
+  public void sendDraft(String accessToken, String draftId) {
+    executeVoid(
+        "draft_send",
+        () ->
+            graph
+                .post()
+                .uri("/v1.0/me/messages/{id}/send", draftId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .header("Prefer", "IdType=\"ImmutableId\"")
+                .retrieve()
+                .toBodilessEntity());
+  }
+
+  public void deleteDraftBestEffort(String accessToken, String draftId) {
+    if (!hasText(draftId)) return;
+    try {
+      graph
+          .delete()
+          .uri("/v1.0/me/messages/{id}", draftId)
+          .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+          .header("Prefer", "IdType=\"ImmutableId\"")
+          .retrieve()
+          .toBodilessEntity();
+    } catch (RuntimeException exception) {
+      log.warn("Microsoft draft cleanup failed draftId={}", draftId);
+    }
+  }
+
   public void sendMail(String accessToken, SendMailRequest request) {
     executeVoid(
         "send_mail",
@@ -643,6 +802,12 @@ public class MicrosoftApiClient {
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record GraphAttachment(
       String id, String name, String contentType, Long size, Boolean isInline) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record AttachmentUploadSession(
+      String uploadUrl,
+      String expirationDateTime,
+      List<String> nextExpectedRanges) {}
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record SendMailRequest(GraphSendMessage message, Boolean saveToSentItems) {}

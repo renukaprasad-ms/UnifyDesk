@@ -25,6 +25,7 @@ import com.messaging.redis.key.RedisKey;
 import com.messaging.redis.service.RedisService;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.storage.adapter.MediaStorageAccountingAdapter;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -515,6 +516,14 @@ public class MediaService {
       throw new MediaException(HttpStatus.CONFLICT, "MEDIA_NOT_ACTIVE");
     }
     return media;
+  }
+
+  @Transactional(readOnly = true)
+  public InputStream openTrustedObject(long mediaId, long companyId) {
+    Media media = requireActiveCompanyMedia(mediaId, companyId);
+    return storageProviderResolver
+        .resolve(media.getStorageProvider())
+        .openObject(media.getBucket(), media.getObjectKey());
   }
 
   @Transactional(readOnly = true)

@@ -3,6 +3,7 @@ package com.messaging.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.security.filter.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -64,7 +65,9 @@ public class SecurityConfig {
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers(
+                auth.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR)
+                    .permitAll()
+                    .requestMatchers(
                         "/api/auth/register",
                         "/api/auth/csrf",
                         "/api/v1/media/uploads",

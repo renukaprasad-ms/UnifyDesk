@@ -99,6 +99,48 @@ public class InboxQueryService {
   }
 
   @Transactional(readOnly = true)
+  public InboxPageResponse<InboxConversationResponse> searchConversations(
+      Long companyId,
+      Long connectionId,
+      EmailFolder folder,
+      String query,
+      int page,
+      int size) {
+    if (query == null || query.isBlank()) {
+      return listConversations(companyId, connectionId, folder, page, size, true, false);
+    }
+    if (connectionId == null) {
+      throw new BadRequestException("connectionId is required for inbox search");
+    }
+
+    EmailFolder resolvedFolder = folder == null ? EmailFolder.INBOX : folder;
+    String providerFolder = folderKey(companyId, connectionId, resolvedFolder);
+    String normalized = query.trim().toLowerCase(java.util.Locale.ROOT);
+    if (normalized.length() > 200) {
+      throw new BadRequestException("Search query is too long");
+    }
+    String term = "%" + normalized.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+
+    Page<InboxConversation> result =
+        conversationRepository.searchByFolder(
+            companyId,
+            connectionId,
+            ChannelConnectionStatus.ACTIVE,
+            providerFolder,
+            InboxMessageStatus.DELETED,
+            term,
+            PageRequest.of(page, size));
+
+    List<InboxConversationResponse> items = conversations(result.getContent());
+    return new InboxPageResponse<>(
+        items,
+        result.getNumber(),
+        result.getSize(),
+        result.getTotalElements(),
+        result.getTotalPages());
+  }
+
+  @Transactional(readOnly = true)
   public InboxConversationResponse getConversation(Long companyId, Long conversationId) {
     InboxConversation conversation = requireVisibleConversation(companyId, conversationId);
     return conversations(List.of(conversation)).getFirst();

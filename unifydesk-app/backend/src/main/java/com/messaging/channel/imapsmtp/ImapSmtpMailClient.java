@@ -1,11 +1,14 @@
 package com.messaging.channel.imapsmtp;
 
+import com.messaging.channel.email.EmailAttachment;
+import com.messaging.channel.email.EmailAttachmentDataSource;
 import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.email.EmailSyncMode;
 import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.imapsmtp.dto.ImapSmtpSendRequest;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ServiceUnavailableException;
+import jakarta.activation.DataHandler;
 import jakarta.mail.Address;
 import jakarta.mail.FetchProfile;
 import jakarta.mail.Flags;
@@ -18,7 +21,9 @@ import jakarta.mail.Store;
 import jakarta.mail.Transport;
 import jakarta.mail.UIDFolder;
 import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
 import jakarta.mail.search.AndTerm;
 import jakarta.mail.search.ComparisonTerm;
 import jakarta.mail.search.ReceivedDateTerm;
@@ -289,7 +294,14 @@ public class ImapSmtpMailClient {
   }
 
   public SentMessage send(ImapSmtpStoredCredentials credentials, ImapSmtpSendRequest request) {
-    return send(credentials, request, null, null);
+    return send(credentials, request, null, null, List.of());
+  }
+
+  public SentMessage send(
+      ImapSmtpStoredCredentials credentials,
+      ImapSmtpSendRequest request,
+      List<EmailAttachment> attachments) {
+    return send(credentials, request, null, null, attachments);
   }
 
   public SentMessage send(
@@ -297,6 +309,15 @@ public class ImapSmtpMailClient {
       ImapSmtpSendRequest request,
       String requestedMessageId,
       String broadcastCorrelationId) {
+    return send(credentials, request, requestedMessageId, broadcastCorrelationId, List.of());
+  }
+
+  public SentMessage send(
+      ImapSmtpStoredCredentials credentials,
+      ImapSmtpSendRequest request,
+      String requestedMessageId,
+      String broadcastCorrelationId,
+      List<EmailAttachment> attachments) {
     List<String> to = normalizeRecipients(request.to());
     List<String> cc = normalizeRecipients(request.cc());
     List<String> bcc = normalizeRecipients(request.bcc());
@@ -319,7 +340,22 @@ public class ImapSmtpMailClient {
       message.setSubject(
           request.subject() == null ? "" : request.subject().trim(),
           StandardCharsets.UTF_8.name());
-      message.setText(request.bodyText(), StandardCharsets.UTF_8.name());
+      if (attachments == null || attachments.isEmpty()) {
+        message.setText(request.bodyText(), StandardCharsets.UTF_8.name());
+      } else {
+        MimeMultipart multipart = new MimeMultipart("mixed");
+        MimeBodyPart bodyPart = new MimeBodyPart();
+        bodyPart.setText(request.bodyText(), StandardCharsets.UTF_8.name());
+        multipart.addBodyPart(bodyPart);
+        for (EmailAttachment attachment : attachments) {
+          MimeBodyPart attachmentPart = new MimeBodyPart();
+          attachmentPart.setDataHandler(new DataHandler(new EmailAttachmentDataSource(attachment)));
+          attachmentPart.setFileName(attachment.fileName());
+          attachmentPart.setDisposition(Part.ATTACHMENT);
+          multipart.addBodyPart(attachmentPart);
+        }
+        message.setContent(multipart);
+      }
 
       if (hasText(request.inReplyTo())) {
         message.setHeader("In-Reply-To", request.inReplyTo().trim());

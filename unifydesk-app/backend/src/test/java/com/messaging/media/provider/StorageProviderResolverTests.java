@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.messaging.media.enums.StorageProviderType;
 import com.messaging.media.exception.MediaException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,11 @@ class StorageProviderResolverTests {
 
     @Override
     public StorageObjectMetadata getObjectMetadata(String bucket, String objectKey) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public InputStream openObject(String bucket, String objectKey) {
       throw new UnsupportedOperationException();
     }
 

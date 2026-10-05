@@ -52,7 +52,8 @@ public class MicrosoftProvider
                 command.subject(),
                 command.bodyText(),
                 command.replyToMessageId(),
-                command.replyAll()));
+                command.replyAll(),
+                command.attachmentMediaIds().stream().map(String::valueOf).toList()));
 
     return new EmailSendResult(
         response.connectionId(),

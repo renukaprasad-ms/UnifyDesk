@@ -102,6 +102,28 @@ public class InboxController {
             "Inbox conversations fetched"));
   }
 
+  @GetMapping("/search")
+  public ResponseEntity<ApiResponse<InboxPageResponse<InboxConversationResponse>>> search(
+      @PathVariable Long companyId,
+      @RequestParam Long connectionId,
+      @RequestParam(defaultValue = "INBOX") EmailFolder folder,
+      @RequestParam String q,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "30") int size) {
+    Long userId = currentUserService.currentUserId();
+    ChannelConnection connection = requireConnection(companyId, connectionId);
+    requireRead(userId, companyId, connection);
+
+    int resolvedPage = Math.max(page, 0);
+    int resolvedSize = Math.min(Math.max(size, 1), 100);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            inboxQueryService.searchConversations(
+                companyId, connectionId, folder, q, resolvedPage, resolvedSize),
+            "Inbox search completed"));
+  }
+
   @GetMapping("/conversations/{conversationId}")
   public ResponseEntity<ApiResponse<InboxConversationResponse>> conversation(
       @PathVariable Long companyId, @PathVariable Long conversationId) {
