@@ -8,6 +8,7 @@ import { mediaApi } from '../../features/media/mediaApi'
 import type { InitiateMediaUploadResponse } from '../../features/media/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import AsyncButton from '../../components/ui/AsyncButton'
+import ProgressBar from '../../components/ui/ProgressBar'
 
 export default function CreateWorkspace() {
   const navigate = useNavigate()
@@ -184,9 +185,12 @@ export default function CreateWorkspace() {
               </div>
             )}
             {logo && logoUploadProgress > 0 && logoUploadProgress < 100 && (
-              <div className="upload-progress mt-2" aria-label="Company logo upload progress">
-                <span style={{ width: `${logoUploadProgress}%` }} />
-              </div>
+              <ProgressBar
+                className="mt-2"
+                value={logoUploadProgress}
+                label="Uploading company logo"
+                showValue
+              />
             )}
           </div>
           <label className="block">
