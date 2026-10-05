@@ -40,54 +40,71 @@
   }
 
   /*
-   * Application page layout contract
-   * --------------------------------
-   * Standard product screens use the full width available after navigation.
-   * Keep the outer gutter consistent across viewport sizes while allowing
-   * intentionally constrained controls, copy, dialogs and auth forms to keep
-   * their own local max-width.
+   * Application route layout contract
+   * ---------------------------------
+   * Layouts own page width and outer spacing. Routed screens should fill the
+   * available content area instead of centering themselves inside arbitrary
+   * desktop max-width containers.
    */
-  #main-content {
+  .app-route-content {
     --app-page-gutter-x: 1rem;
     --app-page-gutter-y: 1.5rem;
     --app-page-section-gap: 1.5rem;
     width: 100%;
     min-width: 0;
+    min-height: calc(100dvh - 72px);
+    padding: var(--app-page-gutter-y) var(--app-page-gutter-x);
   }
 
-  /* Normalize the legacy page-root gutter variants used across product pages. */
-  #main-content > [class*='px-4'][class*='sm:px-6'][class*='lg:px-8'] {
-    padding-left: var(--app-page-gutter-x);
-    padding-right: var(--app-page-gutter-x);
+  .app-route-content > * {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
   }
 
-  /* Remove legacy desktop page-width caps without changing deliberate
-     max-widths on text, form controls, modals, cards or auth surfaces. */
-  #main-content > [class~='mx-auto'][class~='max-w-4xl'],
-  #main-content > [class~='mx-auto'][class~='max-w-5xl'],
-  #main-content > [class~='mx-auto'][class~='max-w-6xl'],
-  #main-content > [class~='mx-auto'][class~='max-w-7xl'],
-  #main-content > * > [class~='mx-auto'][class~='max-w-4xl'],
-  #main-content > * > [class~='mx-auto'][class~='max-w-5xl'],
-  #main-content > * > [class~='mx-auto'][class~='max-w-6xl'],
-  #main-content > * > [class~='mx-auto'][class~='max-w-7xl'] {
+  /* Existing pages commonly carry their own outer responsive padding. The
+     layout now owns that gutter, so remove only the routed root padding. */
+  .app-route-content:not(.is-immersive) > [class*='px-4'][class*='sm:px-6'][class*='lg:px-8'],
+  .app-route-content:not(.is-immersive) > [class*='p-4'][class*='sm:p-6'][class*='lg:p-8'],
+  .app-route-content:not(.is-immersive) > [class~='p-8'] {
+    padding: 0;
+  }
+
+  /* Remove only the first legacy centered page wrapper. Local constraints on
+     paragraphs, controls, cards, forms and dialogs remain untouched. */
+  .app-route-content:not(.is-immersive) > * > [class~='mx-auto'] {
     width: 100%;
     max-width: none;
     margin-left: 0;
     margin-right: 0;
   }
 
+  /* Immersive Inbox/Broadcast workspaces manage their own viewport-height
+     surfaces and internal gutters. They still occupy all routed width. */
+  .app-route-content.is-immersive {
+    padding: 0;
+  }
+
+  .app-route-content.is-immersive > * {
+    width: 100%;
+    min-width: 0;
+  }
+
   @media (min-width: 640px) {
-    #main-content {
+    .app-route-content {
       --app-page-gutter-x: 1.5rem;
     }
   }
 
   @media (min-width: 1024px) {
-    #main-content {
+    .app-route-content {
       --app-page-gutter-x: 1.5rem;
+      --app-page-gutter-y: 1.5rem;
     }
   }
+
   .app-sidebar {
     position: fixed;
     inset: 0 auto 0 0;
