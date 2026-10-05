@@ -3,12 +3,14 @@ package com.messaging.billing.service;
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.EntitlementDefinition;
 import com.messaging.billing.entity.PlanEntitlement;
+import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.EntitlementDefinitionRepository;
 import com.messaging.billing.repository.PlanEntitlementRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,15 @@ public class EntitlementService {
 
   @Transactional(readOnly = true)
   public void assertWithinLimit(Long companyId, String key, long currentUsage) {
+    CompanySubscription subscription =
+        effectiveSubscription(companyId)
+            .orElseThrow(() -> new PlanEntitlementException("Company has no active plan"));
+    if (subscription.getStatus() == SubscriptionStatus.PAST_DUE
+        || subscription.getStatus() == SubscriptionStatus.SUSPENDED) {
+      throw new PlanEntitlementException(
+          "Net-new entitlement expansion is blocked while subscription is "
+              + subscription.getStatus());
+    }
     long limit = integerValue(companyId, key);
     if (limit >= 0 && currentUsage >= limit) {
       throw new PlanEntitlementException(
@@ -36,9 +47,7 @@ public class EntitlementService {
   public long integerValue(Long companyId, String key) {
     String raw = resolvedValue(companyId, key);
     String normalized = raw.trim().toLowerCase(Locale.ROOT);
-    if (normalized.equals("unlimited") || normalized.equals("-1")) {
-      return -1;
-    }
+    if (normalized.equals("unlimited") || normalized.equals("-1")) return -1;
     try {
       return Long.parseLong(normalized);
     } catch (NumberFormatException exception) {
@@ -86,12 +95,45 @@ public class EntitlementService {
 
   @Transactional(readOnly = true)
   public Optional<CompanySubscription> effectiveSubscription(Long companyId) {
+    return effectiveSubscription(companyId, Instant.now());
+  }
+
+  Optional<CompanySubscription> effectiveSubscription(Long companyId, Instant now) {
     Optional<CompanySubscription> active =
         subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
             companyId, SubscriptionStatus.ACTIVE);
-    if (active.isPresent()) return active;
-    return subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
-        companyId, SubscriptionStatus.TRIALING);
+    if (active.isPresent()) {
+      return activePaidPeriodIsEntitled(active.get(), now) ? active : Optional.empty();
+    }
+    Optional<CompanySubscription> trial =
+        subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+            companyId, SubscriptionStatus.TRIALING);
+    if (trial.isPresent()) return trial;
+    Optional<CompanySubscription> pastDue =
+        subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+            companyId, SubscriptionStatus.PAST_DUE);
+    if (pastDue.isPresent()
+        && pastDue.get().getGraceEndsAt() != null
+        && pastDue.get().getGraceEndsAt().isAfter(now)) {
+      return pastDue;
+    }
+    return Optional.empty();
+  }
+
+  private boolean activePaidPeriodIsEntitled(CompanySubscription subscription, Instant now) {
+    var price = subscription.getPlanPrice();
+    BillingCycle cycle =
+        price == null ? subscription.getPlan().getBillingCycle() : price.getBillingCycle();
+    BigDecimal amount =
+        price == null ? subscription.getPlan().getBasePrice() : price.getAmount();
+
+    boolean paid = cycle != BillingCycle.FREE && amount != null && amount.signum() > 0;
+    if (!paid) {
+      return true;
+    }
+
+    Instant currentPeriodEnd = subscription.getCurrentPeriodEnd();
+    return currentPeriodEnd != null && now != null && now.isBefore(currentPeriodEnd);
   }
 
   private String normalizeKey(String key) {

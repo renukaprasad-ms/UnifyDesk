@@ -8,4 +8,15 @@ public record ResolvedPrice(
     String currency,
     PricingSource source,
     String pricingRuleId,
-    String planId) {}
+    String planId,
+    String subscriptionId) {
+
+  public ResolvedPrice(
+      BigDecimal unitPrice,
+      String currency,
+      PricingSource source,
+      String pricingRuleId,
+      String planId) {
+    this(unitPrice, currency, source, pricingRuleId, planId, null);
+  }
+}

@@ -83,6 +83,7 @@ public class GmailInboxPersistenceService {
     Set<Long> touchedConversationIds = new HashSet<>();
     Set<Long> touchedMessageIds = new HashSet<>();
     List<StorageConsumption> storageConsumptions = new ArrayList<>();
+    List<InboxMessage> messagesForPostProcessing = new ArrayList<>();
     Map<Long, Map<String, InboxParticipant>> participantCache = new HashMap<>();
 
     List<GmailMessage> validMessages =
@@ -223,9 +224,7 @@ public class GmailInboxPersistenceService {
       if (created
           && emitNewMessageNotifications
           && message.getDirection() == InboxMessageDirection.INBOUND) {
-        for (InboxMessagePostProcessor processor : messagePostProcessors) {
-          processor.afterPersist(message);
-        }
+        messagesForPostProcessing.add(message);
       }
       messagesByExternalId.put(gmailMessage.id(), message);
       touchedMessageIds.add(message.getId());
@@ -249,8 +248,16 @@ public class GmailInboxPersistenceService {
     storageQuotaService.consumeBatch(
         connection.getCompanyId(), StorageUsageType.MESSAGE, storageConsumptions);
 
-    // One flush per Gmail batch instead of flushing every conversation and message individually.
+    // Flush the normalized Inbox rows before post-processors that persist dependent records
+    // through JDBC (for example participant-contact links with conversation foreign keys).
+    // Keeping this as one flush per Gmail batch preserves batch efficiency.
     messageRepository.flush();
+
+    for (InboxMessage message : messagesForPostProcessing) {
+      for (InboxMessagePostProcessor processor : messagePostProcessors) {
+        processor.afterPersist(message);
+      }
+    }
 
     for (Long conversationId : touchedConversationIds) {
       conversationRepository

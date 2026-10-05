@@ -1,6 +1,7 @@
 package com.messaging.billing.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 import com.messaging.billing.dto.ResolvedPrice;
@@ -17,6 +18,7 @@ import com.messaging.billing.enums.UsageUnit;
 import com.messaging.billing.repository.CompanyRateOverrideRepository;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.RateCardRepository;
+import com.messaging.common.exception.ConflictException;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
 import java.math.BigDecimal;
@@ -57,6 +59,38 @@ class PricingResolverTests {
     assertEquals(PricingSource.COMPANY_OVERRIDE, resolved.source());
     assertEquals(new BigDecimal("0.170000"), resolved.unitPrice());
     assertEquals("30", resolved.pricingRuleId());
+  }
+
+  @Test
+  void legacyActiveNullStartCompanyOverrideFailsClosedWithoutNpe() {
+    long companyId = 10L;
+    Instant now = Instant.parse("2026-10-03T06:00:00Z");
+    CompanyRateOverride override = override(30L, new BigDecimal("0.170000"), now);
+    override.setEffectiveFrom(null);
+    when(overrideRepository.findByCompanyIdAndStatus(companyId, RateCardStatus.ACTIVE))
+        .thenReturn(List.of(override));
+
+    assertThrows(ConflictException.class, () -> resolve(companyId, now));
+  }
+
+  @Test
+  void legacyActiveNullStartRateCardFailsClosedWithoutNpe() {
+    long companyId = 10L;
+    Instant now = Instant.parse("2026-10-03T06:00:00Z");
+    Plan plan = plan(20L);
+    CompanySubscription subscription = subscription(plan);
+    RateCard rateCard = rateCard(40L, plan, new BigDecimal("0.200000"), now);
+    rateCard.setEffectiveFrom(null);
+
+    when(overrideRepository.findByCompanyIdAndStatus(companyId, RateCardStatus.ACTIVE))
+        .thenReturn(List.of());
+    when(subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+            companyId, SubscriptionStatus.ACTIVE))
+        .thenReturn(Optional.of(subscription));
+    when(rateCardRepository.findByPlanIdAndStatus(plan.getId(), RateCardStatus.ACTIVE))
+        .thenReturn(List.of(rateCard));
+
+    assertThrows(ConflictException.class, () -> resolve(companyId, now));
   }
 
   @Test

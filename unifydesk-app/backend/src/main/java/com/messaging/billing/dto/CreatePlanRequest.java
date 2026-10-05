@@ -1,6 +1,7 @@
 package com.messaging.billing.dto;
 
 import com.messaging.billing.enums.BillingCycle;
+import com.messaging.billing.enums.PlanVisibility;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,4 +15,5 @@ public record CreatePlanRequest(
     @NotNull BillingCycle billingCycle,
     @NotNull @DecimalMin("0.000000") BigDecimal basePrice,
     @NotBlank @Size(min = 3, max = 3) String currency,
-    int version) {}
+    int version,
+    PlanVisibility visibility) {}

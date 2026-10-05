@@ -1,11 +1,14 @@
 package com.messaging.managedemail.metering;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.service.EntitlementService;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
+import com.messaging.billing.service.UsageBillingService;
 import com.messaging.managedemail.runtime.ManagedEmailIdGenerator;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -21,6 +24,8 @@ class ManagedEmailUsageServiceDatabaseTests {
   private JdbcTemplate jdbc;
   private TransactionTemplate transaction;
   private EntitlementService entitlement;
+  private ManagedFinancialExposureGuard exposure;
+  private UsageBillingService billing;
   private ManagedEmailUsageService usage;
 
   @BeforeAll
@@ -83,10 +88,36 @@ class ManagedEmailUsageServiceDatabaseTests {
     jdbc.update("delete from managed_email_usage_periods");
 
     entitlement = mock(EntitlementService.class);
+    exposure = mock(ManagedFinancialExposureGuard.class);
+    billing = mock(UsageBillingService.class);
     ManagedEmailIdGenerator ids = mock(ManagedEmailIdGenerator.class);
     AtomicLong sequence = new AtomicLong(1000);
     when(ids.nextId()).thenAnswer(invocation -> sequence.incrementAndGet());
-    usage = new ManagedEmailUsageService(jdbc, entitlement, ids);
+    usage =
+        new ManagedEmailUsageService(
+            jdbc,
+            entitlement,
+            ids,
+            billing,
+            exposure);
+  }
+
+  @Test
+  void blockedBillingStatusCreatesNoManagedEmailReservation() {
+    doThrow(new PlanEntitlementException(ManagedFinancialExposureGuard.BLOCKED))
+        .when(exposure)
+        .assertAllowed(10L);
+
+    assertThatThrownBy(() -> usage.reserve(10L, 70L, 60L, 1))
+        .isInstanceOf(PlanEntitlementException.class)
+        .hasMessage(ManagedFinancialExposureGuard.BLOCKED);
+
+    assertThat(
+            jdbc.queryForObject("select count(*) from managed_email_usage_events", Long.class))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject("select count(*) from managed_email_usage_periods", Long.class))
+        .isZero();
   }
 
   @Test

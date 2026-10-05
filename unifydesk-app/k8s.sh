@@ -68,6 +68,7 @@ build_and_load_service_image() {
       docker build \
         -t "${FRONTEND_IMAGE}" \
         --build-arg VITE_API_BASE_URL="${K8S_VITE_API_BASE_URL:-}" \
+        --build-arg VITE_CASHFREE_MODE="${VITE_CASHFREE_MODE:-sandbox}" \
         "${ROOT_DIR}/frontend"
       docker save "${FRONTEND_IMAGE}" -o /tmp/messaging-frontend.tar
       sudo k3s ctr images import /tmp/messaging-frontend.tar

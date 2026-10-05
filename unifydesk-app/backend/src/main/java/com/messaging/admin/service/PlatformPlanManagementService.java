@@ -62,7 +62,8 @@ public class PlatformPlanManagementService {
                 request.billingCycle(),
                 request.basePrice(),
                 request.currency(),
-                request.version()));
+                request.version(),
+                null));
     Long planId = Long.parseLong(created.planId());
     upsertEntitlements(planId, request.entitlements());
     return response(find(planId));
@@ -90,6 +91,7 @@ public class PlatformPlanManagementService {
             cycleChanged ? request.billingCycle() : null,
             priceChanged ? request.basePrice() : null,
             currencyChanged ? request.currency() : null,
+            null,
             null));
 
     Map<String, String> existing = entitlementMap(plan.getId());
@@ -104,7 +106,7 @@ public class PlatformPlanManagementService {
   public PlatformPlanResponse publish(Long id) {
     auth.requirePermission(currentUser.currentUserId(), PlatformPermission.PLAN_UPDATE);
     billingCatalogService.updatePlan(
-        id, new UpdatePlanRequest(null, null, null, null, null, PlanStatus.PUBLISHED));
+        id, new UpdatePlanRequest(null, null, null, null, null, PlanStatus.PUBLISHED, null));
     return response(find(id));
   }
 
@@ -112,7 +114,7 @@ public class PlatformPlanManagementService {
   public void archive(Long id) {
     auth.requirePermission(currentUser.currentUserId(), PlatformPermission.PLAN_DISABLE);
     billingCatalogService.updatePlan(
-        id, new UpdatePlanRequest(null, null, null, null, null, PlanStatus.RETIRED));
+        id, new UpdatePlanRequest(null, null, null, null, null, PlanStatus.RETIRED, null));
   }
 
   private Plan find(Long id) {

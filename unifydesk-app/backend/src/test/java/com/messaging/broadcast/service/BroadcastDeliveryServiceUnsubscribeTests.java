@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.broadcast.entity.BroadcastRecipient;
 import com.messaging.broadcast.entity.BroadcastRun;
 import com.messaging.broadcast.entity.BroadcastSender;
@@ -43,6 +44,7 @@ class BroadcastDeliveryServiceUnsubscribeTests {
         mock(ManagedEmailPostAcceptanceReconciler.class);
     ManagedEmailSuppressionGate suppression = mock(ManagedEmailSuppressionGate.class);
     ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
+    ManagedFinancialExposureGuard exposure = mock(ManagedFinancialExposureGuard.class);
     ContactEligibilityService eligibility = mock(ContactEligibilityService.class);
     BroadcastWhatsAppDeliveryService whatsapp = mock(BroadcastWhatsAppDeliveryService.class);
 
@@ -61,6 +63,7 @@ class BroadcastDeliveryServiceUnsubscribeTests {
             reconciler,
             suppression,
             budget,
+            exposure,
             eligibility,
             whatsapp);
 

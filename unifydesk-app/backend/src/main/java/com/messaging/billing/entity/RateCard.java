@@ -84,7 +84,6 @@ public class RateCard {
   private void beforeInsert() {
     if (id == null) id = IdGenerator.nextId();
     Instant now = Instant.now();
-    if (effectiveFrom == null) effectiveFrom = now;
     if (createdAt == null) createdAt = now;
     if (updatedAt == null) updatedAt = now;
   }

@@ -3,6 +3,7 @@ package com.messaging.managedsms.delivery;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.billing.exception.PlanEntitlementException;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.broadcast.entity.BroadcastMessage;
 import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
@@ -30,6 +31,7 @@ public class ManagedSmsLaunchGuard {
   private final ManagedSmsTemplateService templateService;
   private final ManagedSmsProviderSafetyService safetyService;
   private final ManagedSmsUsageService usageService;
+  private final ManagedFinancialExposureGuard financialExposureGuard;
   private final ManagedSmsSegmentCalculator segmentCalculator;
   private final ObjectMapper objectMapper;
 
@@ -43,6 +45,7 @@ public class ManagedSmsLaunchGuard {
         || sender.getProvider() != BroadcastSenderProvider.MSG91_SMS) {
       return null;
     }
+    financialExposureGuard.assertAllowed(companyId);
     if (connection.getProvider() != BroadcastSenderProvider.MSG91_SMS
         || !properties.providerConfigured()) {
       throw new BadRequestException("MANAGED_SMS_PROVIDER_CAPACITY_UNAVAILABLE");
