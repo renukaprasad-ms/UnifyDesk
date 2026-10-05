@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { FiChevronLeft, FiChevronRight, FiSearch, FiShield, FiUser } from 'react-icons/fi'
 import { platformApi } from '../../features/platform/platformApi'
 import type { Page, PlatformUser } from '../../features/platform/types'
+import { TableSkeleton } from '../../components/ui/Skeleton'
 
 const initials = (name: string) =>
   name
@@ -99,12 +100,7 @@ export default function PlatformUsers() {
               <tbody className="divide-y divide-slate-100">
                 {loading && users.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={4}
-                      className="px-5 py-14 text-center text-sm font-medium text-slate-500"
-                    >
-                      Loading users…
-                    </td>
+                    <td colSpan={4} className="p-4"><TableSkeleton rows={7} columns={4} /></td>
                   </tr>
                 ) : users.length === 0 ? (
                   <tr>

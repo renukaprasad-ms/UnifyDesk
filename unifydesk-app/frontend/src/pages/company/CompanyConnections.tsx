@@ -50,6 +50,7 @@ import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import { ListSkeleton } from '../../components/ui/Skeleton'
 
 const providerLabel = (
   providerType: ChannelConnection['providerType'],
@@ -627,7 +628,7 @@ export default function CompanyConnections() {
           </div>
 
           {loading ? (
-            <p className="px-5 py-10 text-center text-sm text-slate-500">Loading connections…</p>
+            <div className="p-4"><ListSkeleton rows={3} /></div>
           ) : emailConnections.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <FiMail className="mx-auto text-slate-300" size={28} />
@@ -752,7 +753,7 @@ export default function CompanyConnections() {
           </div>
 
           {loading ? (
-            <p className="px-5 py-10 text-center text-sm text-slate-500">Loading connections…</p>
+            <div className="p-4"><ListSkeleton rows={3} /></div>
           ) : smsConnections.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <FiSmartphone className="mx-auto text-slate-300" size={28} />
@@ -850,7 +851,7 @@ export default function CompanyConnections() {
           </div>
 
           {loading ? (
-            <p className="px-5 py-10 text-center text-sm text-slate-500">Loading connections…</p>
+            <div className="p-4"><ListSkeleton rows={3} /></div>
           ) : whatsAppConnections.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <FiMessageCircle className="mx-auto text-slate-300" size={28} />

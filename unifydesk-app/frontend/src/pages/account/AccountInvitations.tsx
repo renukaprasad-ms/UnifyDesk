@@ -7,6 +7,7 @@ import { workspaceApi } from '../../features/workspace/workspaceApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppDispatch } from '../../store/hooks'
 import { selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
+import { ListSkeleton } from '../../components/ui/Skeleton'
 
 const statusClass: Record<CompanyInvitation['status'], string> = {
   PENDING: 'bg-amber-50 text-amber-700',
@@ -146,7 +147,7 @@ export default function AccountInvitations() {
             <h2 className="text-sm font-bold text-slate-950">Pending invitations</h2>
           </div>
           {loading ? (
-            <p className="px-5 py-10 text-center text-sm text-slate-500">Loading invitations…</p>
+            <div className="p-4"><ListSkeleton rows={5} /></div>
           ) : actionable.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <FiMail className="mx-auto text-slate-400" size={24} />

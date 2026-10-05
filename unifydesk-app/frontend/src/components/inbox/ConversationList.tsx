@@ -3,6 +3,7 @@ import { FiMail } from 'react-icons/fi'
 import type { ChannelConnection } from '../../features/channel/types'
 import type { InboxConversation } from '../../features/inbox/types'
 import { conversationParticipant } from './conversationListUtils'
+import { Skeleton } from '../ui/Skeleton'
 
 type ConversationListProps = {
   conversations: InboxConversation[]
@@ -75,8 +76,17 @@ export default function ConversationList({
 
   if (loading) {
     return (
-      <div className="px-4 py-10 text-center text-xs text-slate-500">
-        Loading conversations...
+      <div className="divide-y divide-slate-100" role="status" aria-label="Loading conversations">
+        {Array.from({ length: 7 }).map((_, index) => (
+          <div key={index} className={compact ? 'px-3 py-3' : 'px-4 py-4'}>
+            <div className="flex items-start justify-between gap-3">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-12" />
+            </div>
+            <Skeleton className="mt-2 h-3 w-3/4" />
+            <Skeleton className="mt-2 h-3 w-full" />
+          </div>
+        ))}
       </div>
     )
   }

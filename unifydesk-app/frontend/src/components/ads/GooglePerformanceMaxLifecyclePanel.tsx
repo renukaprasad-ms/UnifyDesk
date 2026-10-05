@@ -9,6 +9,7 @@ import type {
   GoogleUserListCustomerType,
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { CardSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -301,7 +302,7 @@ export default function GooglePerformanceMaxLifecyclePanel({
         )}
 
         {loading ? (
-          <p className="text-sm text-slate-500">Loading Google lifecycle settings…</p>
+          <CardSkeleton rows={5} />
         ) : (
           <>
             <div className="flex flex-wrap gap-2">

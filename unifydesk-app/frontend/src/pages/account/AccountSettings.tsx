@@ -7,6 +7,8 @@ import type { User } from '../../features/user/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { selectAuthUser, sessionCleared } from '../../store/auth/authSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { CardSkeleton } from '../../components/ui/Skeleton'
 
 export default function AccountSettings() {
   const dispatch = useAppDispatch()
@@ -17,6 +19,7 @@ export default function AccountSettings() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const userId = authUser?.userId ?? null
 
   useEffect(() => {
@@ -62,7 +65,7 @@ export default function AccountSettings() {
   }
 
   const deleteAccount = async () => {
-    if (!userId || !window.confirm('Delete your account permanently?')) return
+    if (!userId) return
     setSaving(true)
     setError('')
     setNotice('')
@@ -102,6 +105,13 @@ export default function AccountSettings() {
           </div>
         )}
 
+        {loading ? (
+          <div className="mt-7 space-y-4">
+            <CardSkeleton rows={2} />
+            <CardSkeleton rows={2} />
+            <CardSkeleton rows={2} />
+          </div>
+        ) : (
         <div className="mt-7 space-y-4">
           <button
             type="button"
@@ -185,6 +195,7 @@ export default function AccountSettings() {
             <FiChevronRight className="shrink-0 text-slate-400" aria-hidden="true" />
           </button>
         </div>
+        )}
 
         <div className="mt-10">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-500">Danger zone</p>
@@ -204,7 +215,7 @@ export default function AccountSettings() {
               <button
                 type="button"
                 className="secondary-button inline-flex shrink-0 border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
-                onClick={() => void deleteAccount()}
+                onClick={() => setDeleteConfirmOpen(true)}
                 disabled={saving || loading}
               >
                 Delete account
@@ -212,6 +223,18 @@ export default function AccountSettings() {
             </div>
           </div>
         </div>
+        <ConfirmDialog
+          open={deleteConfirmOpen}
+          title="Delete your account permanently?"
+          description="Your UnifyDesk user account will be removed and this action cannot be undone."
+          confirmLabel="Yes, delete account"
+          cancelLabel="No, keep account"
+          tone="danger"
+          kind="delete"
+          working={saving}
+          onCancel={() => setDeleteConfirmOpen(false)}
+          onConfirm={() => void deleteAccount()}
+        />
       </div>
     </section>
   )

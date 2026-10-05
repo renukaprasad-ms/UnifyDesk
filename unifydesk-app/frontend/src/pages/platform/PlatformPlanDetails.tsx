@@ -23,6 +23,7 @@ import type {
   RateCardStatus,
   UsageUnit,
 } from '../../features/platformBilling/types'
+import { PageSkeleton } from '../../components/ui/Skeleton'
 
 type Tab = 'overview' | 'pricing' | 'entitlements' | 'usage'
 
@@ -397,7 +398,7 @@ export default function PlatformPlanDetails() {
       unit: defaultUsageUnitForChannel(channel),
     }))
 
-  if (loading) return <div className="p-6 text-sm text-slate-500">Loading plan configuration…</div>
+  if (loading) return <div className="p-6"><PageSkeleton /></div>
   if (!plan) return <div className="p-6 text-red-600">{error || 'Plan not found'}</div>
 
   return (

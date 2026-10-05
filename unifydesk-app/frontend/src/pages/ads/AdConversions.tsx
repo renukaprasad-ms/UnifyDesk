@@ -19,6 +19,7 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import { PageSkeleton } from '../../components/ui/Skeleton'
 
 const formatValue = (value?: string | null) =>
   value
@@ -310,9 +311,7 @@ export default function AdConversions() {
         </div>
 
         {loading ? (
-          <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
-            Loading conversions…
-          </div>
+          <div className="mt-6"><PageSkeleton /></div>
         ) : managedAccounts.length === 0 ? (
           <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
             Connect and manage an advertising account before using conversions.

@@ -10,6 +10,7 @@ import {
 } from 'react-icons/fi'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import { useSnackbar } from '../feedback/SnackbarProvider'
+import { CardSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -130,7 +131,7 @@ export default function Msg91SmsSetupGuideModal({ companyId, onClose, onContinue
     return (
       <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
         <div className="mobile-sheet w-full max-w-xl rounded-2xl bg-white p-6 text-center shadow-xl">
-          <p className="text-sm font-semibold text-slate-700">Loading SMS setup…</p>
+          <CardSkeleton rows={4} />
         </div>
       </div>
     )

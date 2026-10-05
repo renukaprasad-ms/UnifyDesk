@@ -3,6 +3,7 @@ import { FiBarChart2, FiRefreshCw } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type { ReachlyoCampaignAnalytics } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { PageSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -214,9 +215,7 @@ export default function ReachlyoCampaignAnalyticsPanel({
       )}
 
       {loading ? (
-        <div className="p-8 text-center text-sm text-slate-500">
-          Loading campaign analytics…
-        </div>
+        <div className="p-5"><PageSkeleton /></div>
       ) : analytics ? (
         <div className="grid gap-5 p-5">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">

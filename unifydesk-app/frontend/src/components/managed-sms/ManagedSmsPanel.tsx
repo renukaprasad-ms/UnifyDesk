@@ -10,6 +10,7 @@ import type {
 } from '../../features/managedSms/types'
 import { useSnackbar } from '../feedback/SnackbarProvider'
 import ManagedSmsStatusBadge from './ManagedSmsStatusBadge'
+import { CardSkeleton } from '../ui/Skeleton'
 
 export default function ManagedSmsPanel({
   companyId,
@@ -113,7 +114,7 @@ export default function ManagedSmsPanel({
       </div>
 
       {loading && !status ? (
-        <p className="px-5 py-8 text-center text-sm text-slate-500">Loading Managed SMS…</p>
+        <div className="p-5"><CardSkeleton rows={5} /></div>
       ) : !status ? (
         <div className="px-5 py-8 text-center">
           <p className="text-sm font-semibold text-slate-800">Managed SMS is not configured yet.</p>

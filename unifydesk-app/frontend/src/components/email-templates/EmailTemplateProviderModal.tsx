@@ -9,6 +9,7 @@ import type {
 } from '../../features/emailTemplate/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../feedback/SnackbarProvider'
+import { ListSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -177,7 +178,7 @@ export default function EmailTemplateProviderModal({
           </div>
 
           {loading ? (
-            <p className="py-8 text-center text-xs text-slate-500">Loading MSG91 status…</p>
+            <div className="py-4"><ListSkeleton rows={3} /></div>
           ) : senders.length === 0 ? (
             <div className="mt-3 rounded-xl border border-dashed border-slate-300 p-5 text-center">
               <p className="text-xs font-semibold text-slate-700">

@@ -4,6 +4,7 @@ import GoogleSearchDemographicSelector from './GoogleSearchDemographicSelector'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type { GoogleSearchDemographicTargeting } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { CardSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -95,7 +96,7 @@ export default function GoogleSearchDemographicTargetingPanel({
       )}
 
       {loading ? (
-        <p className="mt-4 text-sm text-slate-500">Loading Google Search demographics…</p>
+        <div className="mt-4"><CardSkeleton rows={4} /></div>
       ) : (
         <>
           <div className="mt-4">

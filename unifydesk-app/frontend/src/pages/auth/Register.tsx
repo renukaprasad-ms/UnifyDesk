@@ -8,6 +8,9 @@ import type { InitiateMediaUploadResponse } from '../../features/media/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { setAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch } from '../../store/hooks'
+import AsyncButton from '../../components/ui/AsyncButton'
+import ProgressBar from '../../components/ui/ProgressBar'
+import useBeforeUnloadGuard from '../../hooks/useBeforeUnloadGuard'
 
 const Register = () => {
   const dispatch = useAppDispatch()
@@ -29,9 +32,12 @@ const Register = () => {
     useState<InitiateMediaUploadResponse | null>(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [profileUploading, setProfileUploading] = useState(false)
   const profilePreviewUrlRef = useRef('')
   const profileUploadRunIdRef = useRef(0)
   const profileUploadPromiseRef = useRef<Promise<InitiateMediaUploadResponse> | null>(null)
+
+  useBeforeUnloadGuard(!submitting && Boolean(name.trim() || email.trim() || username.trim() || profilePicture))
 
   useEffect(
     () => () => {
@@ -44,6 +50,7 @@ const Register = () => {
     file: File,
     runId: number,
   ): Promise<InitiateMediaUploadResponse> => {
+    setProfileUploading(true)
     setProfileUploadStatus('Preparing upload...')
     setProfileUploadProgress(1)
     const upload = await mediaApi.initiateProfilePictureUpload(file)
@@ -56,6 +63,7 @@ const Register = () => {
       setProfileUploadProgress(100)
       setProfileUploadStatus('Uploaded. It will be saved when you register.')
       setProfileUploadResult(upload)
+      setProfileUploading(false)
     }
     return upload
   }
@@ -65,6 +73,7 @@ const Register = () => {
     profileUploadRunIdRef.current = runId
     profileUploadPromiseRef.current = null
     setProfileUploadResult(null)
+    setProfileUploading(Boolean(file))
     setProfileUploadProgress(0)
     if (profilePreviewUrlRef.current) {
       URL.revokeObjectURL(profilePreviewUrlRef.current)
@@ -84,6 +93,7 @@ const Register = () => {
         if (profileUploadRunIdRef.current === runId) {
           setProfileUploadProgress(0)
           setProfileUploadStatus(apiErrorMessage(uploadError, 'Profile picture upload failed'))
+          setProfileUploading(false)
         }
         throw uploadError
       })
@@ -243,15 +253,24 @@ const Register = () => {
             </div>
           )}
           {profilePicture && profileUploadProgress > 0 && profileUploadProgress < 100 && (
-            <div className="upload-progress mt-2" aria-label="Profile picture upload progress">
-              <span style={{ width: `${profileUploadProgress}%` }} />
-            </div>
+            <ProgressBar
+              className="mt-2"
+              value={profileUploadProgress}
+              label="Uploading profile picture"
+              showValue
+            />
           )}
         </div>
         {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
-        <button type="submit" className="primary-button flex w-full" disabled={submitting}>
-          {submitting ? 'Creating account...' : 'Register'}
-        </button>
+        <AsyncButton
+          type="submit"
+          className="primary-button flex w-full"
+          disabled={profileUploading}
+          loading={submitting}
+          loadingLabel="Creating account…"
+        >
+          {profileUploading ? 'Uploading profile picture…' : 'Register'}
+        </AsyncButton>
       </form>
       <p className="mt-5 text-center text-sm text-slate-500">
         Already registered?{' '}

@@ -7,6 +7,7 @@ import type {
   GoogleSearchAudienceTargeting,
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { CardSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -168,7 +169,7 @@ export default function GoogleSearchAudienceTargetingPanel({
         )}
 
         {loading ? (
-          <p className="text-sm text-slate-500">Loading Google targeting…</p>
+          <CardSkeleton rows={5} />
         ) : (
           <>
             <div className="grid gap-4 sm:grid-cols-2">

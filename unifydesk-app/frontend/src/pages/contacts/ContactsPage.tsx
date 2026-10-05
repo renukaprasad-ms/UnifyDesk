@@ -21,6 +21,7 @@ import type {
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAppSelector } from '../../store/hooks'
 import {
   selectSelectedCompanyId,
@@ -336,8 +337,8 @@ export default function ContactsPage() {
 
         <div className="panel mt-4 overflow-hidden">
           {contacts.loading ? (
-            <div className="p-10 text-center text-sm text-slate-500" role="status">
-              Loading contacts…
+            <div className="p-4 sm:p-5">
+              <TableSkeleton rows={8} columns={7} />
             </div>
           ) : contacts.items.length === 0 ? (
             <div className="p-10 text-center">

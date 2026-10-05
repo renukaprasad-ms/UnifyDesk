@@ -6,14 +6,8 @@ import type {
   PlatformWebhookCallback,
   WebhookCallbackStatus,
 } from '../../features/platform/types'
-
-const statusClasses: Record<WebhookCallbackStatus, string> = {
-  RECEIVED: 'bg-blue-50 text-blue-700 ring-blue-600/20',
-  PROCESSED: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-  IGNORED: 'bg-slate-100 text-slate-700 ring-slate-500/20',
-  FAILED: 'bg-rose-50 text-rose-700 ring-rose-600/20',
-  REJECTED: 'bg-amber-50 text-amber-700 ring-amber-600/20',
-}
+import StatusBadge from '../../components/ui/StatusBadge'
+import { TableSkeleton } from '../../components/ui/Skeleton'
 
 const formatDate = (value?: string | null) =>
   value
@@ -194,12 +188,7 @@ export default function PlatformWebhookCallbacks() {
               <tbody className="divide-y divide-slate-100">
                 {loading && callbacks.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-5 py-14 text-center text-sm font-medium text-slate-500"
-                    >
-                      Loading webhook callbacks…
-                    </td>
+                    <td colSpan={7} className="p-4"><TableSkeleton rows={7} columns={7} /></td>
                   </tr>
                 ) : callbacks.length === 0 ? (
                   <tr>
@@ -233,11 +222,7 @@ export default function PlatformWebhookCallbacks() {
                         </p>
                       </td>
                       <td className="px-5 py-4" data-label="Status">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClasses[callback.status]}`}
-                        >
-                          {callback.status}
-                        </span>
+                        <StatusBadge status={callback.status}>{callback.status}</StatusBadge>
                       </td>
                       <td
                         className="px-5 py-4 text-sm font-medium text-slate-700"
@@ -325,11 +310,7 @@ export default function PlatformWebhookCallbacks() {
               <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <p className="text-xs font-semibold text-slate-500">Status</p>
-                  <span
-                    className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClasses[selected.status]}`}
-                  >
-                    {selected.status}
-                  </span>
+                  <StatusBadge status={selected.status} className="mt-2">{selected.status}</StatusBadge>
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-500">HTTP response</p>

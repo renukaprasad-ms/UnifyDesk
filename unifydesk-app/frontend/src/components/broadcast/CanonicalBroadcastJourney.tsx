@@ -37,6 +37,7 @@ import {
   managedSmsVariableErrors,
 } from '../../features/managedSms/composePolicy'
 import { managedSmsErrorMessage } from '../../features/managedSms/copy'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import type {
   ManagedSmsHeader,
   ManagedSmsPreview,
@@ -208,6 +209,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   const [managedSmsLoading, setManagedSmsLoading] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('')
   const [busy, setBusy] = useState(false)
+  const [launchConfirmOpen, setLaunchConfirmOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -496,15 +498,6 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     if (!companyId || !selector || !currentPreview || !senderId || !canLaunch) return
     const confirmedPreview = currentPreview
 
-    const action = scheduledAt ? 'schedule' : 'send'
-    if (
-      !window.confirm(
-        `${action === 'send' ? 'Send' : 'Schedule'} to ${confirmedPreview.eligibleCount.toLocaleString()} eligible recipients? The audience shown here will be frozen for this Broadcast; consent and suppression are still rechecked at send time.`,
-      )
-    ) {
-      return
-    }
-
     const token = captureScope()
     setBusy(true)
     setError('')
@@ -566,6 +559,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
       }
     } finally {
       if (scopeIsCurrent(token)) setBusy(false)
+      setLaunchConfirmOpen(false)
     }
   }
 
@@ -939,12 +933,27 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
             <p className="text-xs leading-5 text-slate-500">
               Accepted means the provider accepted the request. Delivered/Read are shown only when supported by provider events.
             </p>
-            <button type="button" className="primary-button" disabled={!canLaunch} onClick={() => void launch()}>
+            <button type="button" className="primary-button" disabled={!canLaunch} onClick={() => setLaunchConfirmOpen(true)}>
               {busy ? 'Starting…' : scheduledAt ? 'Schedule Broadcast' : 'Send Broadcast'}
             </button>
           </div>
         </section>
       </div>
+      <ConfirmDialog
+        open={launchConfirmOpen}
+        title={scheduledAt ? 'Schedule this broadcast?' : 'Send this broadcast now?'}
+        description={
+          currentPreview
+            ? `${scheduledAt ? 'Schedule' : 'Send'} to ${currentPreview.eligibleCount.toLocaleString()} eligible recipients? The previewed audience will be frozen for this broadcast, while consent and suppression are rechecked at send time.`
+            : ''
+        }
+        confirmLabel={scheduledAt ? 'Yes, schedule broadcast' : 'Yes, send broadcast'}
+        cancelLabel="No, review again"
+        tone="warning"
+        working={busy}
+        onCancel={() => setLaunchConfirmOpen(false)}
+        onConfirm={() => void launch()}
+      />
     </div>
   )
 }

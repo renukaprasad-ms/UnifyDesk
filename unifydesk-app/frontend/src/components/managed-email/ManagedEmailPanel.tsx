@@ -11,6 +11,9 @@ import {
 } from 'react-icons/fi'
 import { managedEmailApi, type ManagedEmailApi } from '../../features/managedEmail/managedEmailApi'
 import { managedEmailErrorMessage } from '../../features/managedEmail/errors'
+import ConfirmDialog from '../ui/ConfirmDialog'
+import StatusBadge from '../ui/StatusBadge'
+import { CardSkeleton } from '../ui/Skeleton'
 import {
   deliverabilityCopy,
   domainStatusLabel,
@@ -59,6 +62,8 @@ export default function ManagedEmailPanel({
   const [loading, setLoading] = useState(true)
   const [workingId, setWorkingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [senderToDisable, setSenderToDisable] = useState<ManagedEmailSender | null>(null)
+  const [domainToRetire, setDomainToRetire] = useState<ManagedEmailDomain | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -107,14 +112,6 @@ export default function ManagedEmailPanel({
 
   const removeSender = async (sender: ManagedEmailSender) => {
     if (!canModify || workingId) return
-    if (
-      !window.confirm(
-        `Disable sender ${sender.fromAddress}? Existing Broadcast history will be kept.`,
-      )
-    ) {
-      return
-    }
-
     setWorkingId(sender.id)
     setError(null)
     try {
@@ -124,17 +121,12 @@ export default function ManagedEmailPanel({
       setError(managedEmailErrorMessage(requestError, 'Unable to disable this sender.'))
     } finally {
       setWorkingId(null)
+      setSenderToDisable(null)
     }
   }
 
   const retireDomain = async (domain: ManagedEmailDomain) => {
     if (!canModify || workingId) return
-    if (
-      !window.confirm(`Retire ${domain.domain}? Its Managed Email senders will become unavailable.`)
-    ) {
-      return
-    }
-
     setWorkingId(domain.id)
     setError(null)
     try {
@@ -148,6 +140,7 @@ export default function ManagedEmailPanel({
       setError(managedEmailErrorMessage(requestError, 'Unable to retire this domain.'))
     } finally {
       setWorkingId(null)
+      setDomainToRetire(null)
     }
   }
 
@@ -223,7 +216,7 @@ export default function ManagedEmailPanel({
       )}
 
       {loading ? (
-        <p className="px-5 py-10 text-center text-sm text-slate-500">Loading Managed Email…</p>
+        <div className="grid gap-4 p-5 md:grid-cols-2"><CardSkeleton rows={3} /><CardSkeleton rows={3} /></div>
       ) : (
         <>
           <div className="grid gap-3 border-b border-slate-100 p-5 md:grid-cols-2">
@@ -281,19 +274,9 @@ export default function ManagedEmailPanel({
               </p>
               {deliverability ? (
                 <>
-                  <span
-                    className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                      deliverability.status === 'HEALTHY'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : deliverability.status === 'INSUFFICIENT_DATA'
-                          ? 'bg-slate-100 text-slate-600'
-                          : deliverability.status === 'WARNING'
-                            ? 'bg-amber-50 text-amber-700'
-                            : 'bg-rose-50 text-rose-700'
-                    }`}
-                  >
+                  <StatusBadge status={deliverability.status} className="mt-3">
                     {deliverability.status.replaceAll('_', ' ')}
-                  </span>
+                  </StatusBadge>
                   <p className="mt-2 text-xs leading-5 text-slate-600">
                     {deliverability.notice || deliverabilityCopy(deliverability.status)}
                   </p>
@@ -371,7 +354,7 @@ export default function ManagedEmailPanel({
                           type="button"
                           className="secondary-button inline-flex items-center gap-1 text-xs text-rose-600"
                           disabled={workingId === domain.id}
-                          onClick={() => void retireDomain(domain)}
+                          onClick={() => setDomainToRetire(domain)}
                         >
                           <FiTrash2 aria-hidden="true" /> Retire
                         </button>
@@ -429,7 +412,7 @@ export default function ManagedEmailPanel({
                         type="button"
                         className="secondary-button inline-flex items-center gap-1 text-xs text-rose-600"
                         disabled={workingId === sender.id}
-                        onClick={() => void removeSender(sender)}
+                        onClick={() => setSenderToDisable(sender)}
                       >
                         <FiTrash2 aria-hidden="true" /> Disable
                       </button>
@@ -441,6 +424,29 @@ export default function ManagedEmailPanel({
           </div>
         </>
       )}
+      <ConfirmDialog
+        open={Boolean(senderToDisable)}
+        title="Disable this sender?"
+        description={senderToDisable ? `Broadcast history for ${senderToDisable.fromAddress} will be kept, but new sending will be unavailable.` : ''}
+        confirmLabel="Yes, disable sender"
+        cancelLabel="No, keep sender"
+        tone="warning"
+        working={Boolean(senderToDisable && workingId === senderToDisable.id)}
+        onCancel={() => setSenderToDisable(null)}
+        onConfirm={() => senderToDisable && void removeSender(senderToDisable)}
+      />
+      <ConfirmDialog
+        open={Boolean(domainToRetire)}
+        title="Retire this email domain?"
+        description={domainToRetire ? `Managed Email senders under ${domainToRetire.domain} will become unavailable.` : ''}
+        confirmLabel="Yes, retire domain"
+        cancelLabel="No, keep domain"
+        tone="danger"
+        kind="delete"
+        working={Boolean(domainToRetire && workingId === domainToRetire.id)}
+        onCancel={() => setDomainToRetire(null)}
+        onConfirm={() => domainToRetire && void retireDomain(domainToRetire)}
+      />
     </div>
   )
 }

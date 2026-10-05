@@ -3,6 +3,7 @@ import { FiRefreshCw, FiZap } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type { GoogleAiMaxCombinationReport as Report } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { TableSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -114,9 +115,7 @@ export default function GoogleAiMaxCombinationReport({ companyId, campaignId }: 
       )}
 
       {loading ? (
-        <div className="p-8 text-center text-sm text-slate-500">
-          Loading AI Max combinations…
-        </div>
+        <div className="p-4"><TableSkeleton rows={6} columns={5} /></div>
       ) : !report || report.rows.length === 0 ? (
         <div className="p-8 text-center text-sm text-slate-500">
           No AI Max search-term/ad combinations were reported for this range. This is

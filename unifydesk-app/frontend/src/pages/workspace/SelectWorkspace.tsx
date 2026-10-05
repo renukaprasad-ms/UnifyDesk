@@ -8,6 +8,7 @@ import { workspaceApi } from '../../features/workspace/workspaceApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectCompanies, selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
+import { Skeleton } from '../../components/ui/Skeleton'
 
 const mergeCompanies = (memberCompanies: Company[], adminCompanies: Company[]) => {
   const byId = new Map<string, Company>()
@@ -73,7 +74,19 @@ export default function SelectWorkspace() {
         <p className="mt-2 text-sm text-slate-500">
           Choose the company context you want to work in.
         </p>
-        {loading && <p className="mt-7 text-sm font-semibold text-slate-500">Loading...</p>}
+        {loading && (
+          <div className="mt-7 space-y-3" role="status" aria-label="Loading workspaces">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="flex min-h-[58px] items-center justify-between rounded-[8px] border border-slate-200 px-4">
+                <div className="flex-1">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="mt-2 h-3 w-24" />
+                </div>
+                <Skeleton className="h-4 w-10" />
+              </div>
+            ))}
+          </div>
+        )}
         {error && <p className="mt-7 text-sm font-semibold text-red-600">{error}</p>}
         {!loading && !error && (
           <div className="mt-7 space-y-3">

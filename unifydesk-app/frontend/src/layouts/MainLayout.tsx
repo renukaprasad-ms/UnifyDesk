@@ -5,6 +5,7 @@ import AdminSidebar from '../components/navigation/AdminSidebar'
 import ChannelContextSidebar from '../components/navigation/ChannelContextSidebar'
 import AdCenterSidebar from '../components/navigation/AdCenterSidebar'
 import AppSidebar from '../components/navigation/AppSidebar'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 import { authApi } from '../features/auth/authApi'
 import { platformApi } from '../features/platform/platformApi'
 import NotificationProvider from '../features/notifications/NotificationProvider'
@@ -21,6 +22,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   const [menuOpen, setMenuOpen] = useState(false)
   const [contextOpen, setContextOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
   const [platformAccess, setPlatformAccess] = useState<PlatformAccess | null>(null)
   const [railHovered, setRailHovered] = useState(false)
   const inboxMode = location.pathname.startsWith('/inbox/')
@@ -126,7 +128,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
                   <button
                     type="button"
                     className="sidebar-link w-full text-left"
-                    onClick={() => void logout()}
+                    onClick={() => setLogoutConfirmOpen(true)}
                     disabled={loggingOut}
                   >
                     {loggingOut ? 'Logging out...' : 'Logout'}
@@ -139,7 +141,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
                   compact
                   loggingOut={loggingOut}
                   onNavigate={closeNavigation}
-                  onLogout={() => void logout()}
+                  onLogout={() => setLogoutConfirmOpen(true)}
                   notificationPath={platform ? '/platform/notifications' : '/notifications'}
                 />
               </div>
@@ -151,7 +153,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
                 compact={compactNavigation}
                 loggingOut={loggingOut}
                 onNavigate={closeNavigation}
-                onLogout={() => void logout()}
+                onLogout={() => setLogoutConfirmOpen(true)}
                 notificationPath={platform ? '/platform/notifications' : '/notifications'}
               />
             </>
@@ -208,6 +210,18 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
             <Outlet />
           </main>
         </div>
+        <ConfirmDialog
+          open={logoutConfirmOpen}
+          title="Log out of UnifyDesk?"
+          description="You will need to sign in again to continue."
+          confirmLabel="Yes, log out"
+          cancelLabel="No, stay"
+          tone="warning"
+          kind="logout"
+          working={loggingOut}
+          onCancel={() => setLogoutConfirmOpen(false)}
+          onConfirm={() => void logout()}
+        />
       </div>
     </NotificationProvider>
   )
