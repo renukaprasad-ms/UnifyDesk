@@ -9,6 +9,7 @@ import type {
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import StatusBadge from '../ui/StatusBadge'
+import { TableSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -475,7 +476,7 @@ export default function GoogleExperimentsPanel({
       )}
 
       {loading ? (
-        <div className="p-10 text-center text-sm text-slate-500">Loading Google experiments…</div>
+        <div className="p-4"><TableSkeleton rows={5} columns={5} /></div>
       ) : experiments.length === 0 ? (
         <div className="p-10 text-center">
           <h3 className="text-sm font-bold text-slate-900">No Google experiments yet</h3>
