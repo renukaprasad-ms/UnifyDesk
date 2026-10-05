@@ -3,10 +3,15 @@ package com.messaging.channel.gmail;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.Base64Variants;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ServiceUnavailableException;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -403,6 +408,65 @@ public class GmailApiClient {
               .toBodilessEntity();
           return Boolean.TRUE;
         });
+  }
+
+  public void streamAttachment(
+      String accessToken, String messageId, String attachmentId, OutputStream outputStream) {
+    if (attachmentId == null || attachmentId.isBlank()) {
+      throw new BadRequestException("Gmail attachment id is required");
+    }
+
+    URI uri =
+        UriComponentsBuilder.fromPath(
+                "/gmail/v1/users/me/messages/{messageId}/attachments/{attachmentId}")
+            .buildAndExpand(messageId, attachmentId)
+            .encode()
+            .toUri();
+
+    try {
+      gmailApi
+          .get()
+          .uri(uri)
+          .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+          .exchange(
+              (request, response) -> {
+                if (!response.getStatusCode().is2xxSuccessful()) {
+                  throw new ServiceUnavailableException(
+                      "Google Gmail attachment download failed with HTTP "
+                          + response.getStatusCode().value());
+                }
+                try (JsonParser parser = objectMapper.getFactory().createParser(response.getBody())) {
+                  while (parser.nextToken() != null) {
+                    if (parser.currentToken() == JsonToken.FIELD_NAME
+                        && "data".equals(parser.currentName())) {
+                      if (parser.nextToken() != JsonToken.VALUE_STRING) {
+                        throw new ServiceUnavailableException(
+                            "Google returned an invalid Gmail attachment payload");
+                      }
+                      parser.readBinaryValue(Base64Variants.MODIFIED_FOR_URL, outputStream);
+                      outputStream.flush();
+                      return null;
+                    }
+                  }
+                  throw new ServiceUnavailableException(
+                      "Google returned Gmail attachment metadata without content");
+                } catch (IOException exception) {
+                  throw new ServiceUnavailableException(
+                      "Unable to stream Gmail attachment content", exception);
+                }
+              });
+    } catch (RestClientResponseException exception) {
+      int status = exception.getStatusCode().value();
+      if (status == 404) {
+        throw new BadRequestException("Gmail attachment is no longer available");
+      }
+      if (status == 401 || status == 403) {
+        throw new BadRequestException(
+            "Gmail mailbox authorization is invalid or missing required permissions");
+      }
+      throw new ServiceUnavailableException(
+          "Unable to download Gmail attachment", exception);
+    }
   }
 
   public GmailMessage message(String accessToken, String messageId) {

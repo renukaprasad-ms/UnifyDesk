@@ -1571,12 +1571,16 @@ function EmailInboxView() {
                       {message.attachments.length > 0 && (
                         <div className="mt-4 flex flex-wrap gap-2">
                           {message.attachments.map((attachment) => (
-                            <span
+                            <a
                               key={attachment.id}
-                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"
+                              href={inboxApi.attachmentContentUrl(companyId, attachment.id)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                              title="Download attachment"
                             >
                               {attachment.filename || 'Attachment'}
-                            </span>
+                            </a>
                           ))}
                         </div>
                       )}
