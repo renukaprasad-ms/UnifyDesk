@@ -12,7 +12,17 @@ type DisplayJob = AsyncJob & {
 
 const SYNC_TYPES = new Set(['GMAIL_SYNC', 'MICROSOFT_SYNC', 'IMAP_SMTP_SYNC'])
 const COMPLETED_RETENTION_MS = 25_000
-const STEP_MS = 200
+const ANIMATION_TICK_MS = 50
+const MAX_CATCH_UP_MS = 1_000
+const ANIMATION_FRAMES = Math.max(1, Math.floor(MAX_CATCH_UP_MS / ANIMATION_TICK_MS))
+
+const nextDisplayedUnits = (displayedUnits: number, targetUnits: number) => {
+  const delta = Math.max(0, targetUnits - displayedUnits)
+  if (delta === 0) return displayedUnits
+
+  const step = delta <= 25 ? 1 : Math.max(1, Math.ceil(delta / ANIMATION_FRAMES))
+  return Math.min(targetUnits, displayedUnits + step)
+}
 
 const labelFor = (job: AsyncJob) => {
   if (job.jobType === 'GMAIL_SYNC') return 'Gmail sync'
@@ -33,7 +43,12 @@ export default function GlobalSyncProgress() {
 
         setJobs((current) => {
           const existing = current[incoming.jobId]
-          const targetUnits = Math.max(existing?.targetUnits ?? 0, incoming.completedUnits ?? 0)
+          const reportedCompleted = Math.max(0, incoming.completedUnits ?? 0)
+          const reportedTotal = Math.max(0, incoming.totalUnits ?? 0)
+          const targetUnits =
+            incoming.status === 'COMPLETED' && reportedTotal > 0
+              ? Math.max(existing?.targetUnits ?? 0, reportedTotal)
+              : Math.max(existing?.targetUnits ?? 0, reportedCompleted)
           const displayedUnits = Math.min(existing?.displayedUnits ?? 0, targetUnits)
           const terminal = incoming.status === 'COMPLETED' || incoming.status === 'FAILED'
           return {
@@ -60,8 +75,7 @@ export default function GlobalSyncProgress() {
         const next: Record<string, DisplayJob> = {}
 
         for (const [jobId, job] of Object.entries(current)) {
-          const displayedUnits =
-            job.displayedUnits < job.targetUnits ? job.displayedUnits + 1 : job.displayedUnits
+          const displayedUnits = nextDisplayedUnits(job.displayedUnits, job.targetUnits)
           if (displayedUnits !== job.displayedUnits) changed = true
 
           const terminal = job.status === 'COMPLETED' || job.status === 'FAILED'
@@ -82,7 +96,7 @@ export default function GlobalSyncProgress() {
 
         return changed ? next : current
       })
-    }, STEP_MS)
+    }, ANIMATION_TICK_MS)
     return () => window.clearInterval(timer)
   }, [])
 
