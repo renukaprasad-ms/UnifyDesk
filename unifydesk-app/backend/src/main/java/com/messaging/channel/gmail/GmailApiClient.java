@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.StreamingHttpOutputMessage;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -324,6 +325,50 @@ public class GmailApiClient {
   private int httpStatus(String statusLine) {
     Matcher matcher = Pattern.compile("HTTP/\\S+\\s+(\\d{3})").matcher(statusLine);
     return matcher.find() ? Integer.parseInt(matcher.group(1)) : 500;
+  }
+
+  public SendMessageResponse sendMimeMessage(
+      String accessToken, String threadId, StreamingHttpOutputMessage.Body mimeBody) {
+    String boundary = "unifydesk_" + UUID.randomUUID().toString().replace("-", "");
+    String metadata;
+    try {
+      metadata =
+          objectMapper.writeValueAsString(
+              threadId == null || threadId.isBlank() ? Map.of() : Map.of("threadId", threadId));
+    } catch (JsonProcessingException exception) {
+      throw new BadRequestException("Unable to create Gmail send metadata");
+    }
+
+    StreamingHttpOutputMessage.Body multipartBody =
+        outputStream -> {
+          byte[] first =
+              ("--"
+                      + boundary
+                      + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"
+                      + metadata
+                      + "\r\n--"
+                      + boundary
+                      + "\r\nContent-Type: message/rfc822\r\n\r\n")
+                  .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+          outputStream.write(first);
+          mimeBody.writeTo(outputStream);
+          outputStream.write(
+              ("\r\n--" + boundary + "--\r\n")
+                  .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+          outputStream.flush();
+        };
+
+    return execute(
+        "gmail_message_send",
+        () ->
+            gmailApi
+                .post()
+                .uri("/upload/gmail/v1/users/me/messages/send?uploadType=multipart")
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.parseMediaType("multipart/related; boundary=" + boundary))
+                .body(multipartBody)
+                .retrieve()
+                .body(SendMessageResponse.class));
   }
 
   public SendMessageResponse sendMessage(String accessToken, String rawMessage) {
