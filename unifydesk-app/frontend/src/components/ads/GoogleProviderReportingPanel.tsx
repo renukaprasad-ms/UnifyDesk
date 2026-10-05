@@ -3,6 +3,7 @@ import { FiRefreshCw } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type { GoogleProviderReport } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { TableSkeleton } from '../ui/Skeleton'
 
 type Tab = 'LANDING' | 'PLACEMENT' | 'AUCTION' | 'CONVERSION' | 'CHANGES'
 
@@ -134,7 +135,7 @@ export default function GoogleProviderReportingPanel({
           {error}
         </div>
       ) : loading ? (
-        <div className="p-10 text-center text-sm text-slate-500">Loading Google reporting…</div>
+        <div className="p-4"><TableSkeleton rows={6} columns={6} /></div>
       ) : (
         <div className="overflow-x-auto">
           {tab === 'LANDING' && (
