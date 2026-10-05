@@ -8,6 +8,7 @@ import type { InitiateMediaUploadResponse } from '../../features/media/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { setAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch } from '../../store/hooks'
+import AsyncButton from '../../components/ui/AsyncButton'
 
 const Register = () => {
   const dispatch = useAppDispatch()
@@ -29,6 +30,7 @@ const Register = () => {
     useState<InitiateMediaUploadResponse | null>(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [profileUploading, setProfileUploading] = useState(false)
   const profilePreviewUrlRef = useRef('')
   const profileUploadRunIdRef = useRef(0)
   const profileUploadPromiseRef = useRef<Promise<InitiateMediaUploadResponse> | null>(null)
@@ -44,6 +46,7 @@ const Register = () => {
     file: File,
     runId: number,
   ): Promise<InitiateMediaUploadResponse> => {
+    setProfileUploading(true)
     setProfileUploadStatus('Preparing upload...')
     setProfileUploadProgress(1)
     const upload = await mediaApi.initiateProfilePictureUpload(file)
@@ -56,6 +59,7 @@ const Register = () => {
       setProfileUploadProgress(100)
       setProfileUploadStatus('Uploaded. It will be saved when you register.')
       setProfileUploadResult(upload)
+      setProfileUploading(false)
     }
     return upload
   }
@@ -65,6 +69,7 @@ const Register = () => {
     profileUploadRunIdRef.current = runId
     profileUploadPromiseRef.current = null
     setProfileUploadResult(null)
+    setProfileUploading(Boolean(file))
     setProfileUploadProgress(0)
     if (profilePreviewUrlRef.current) {
       URL.revokeObjectURL(profilePreviewUrlRef.current)
@@ -84,6 +89,7 @@ const Register = () => {
         if (profileUploadRunIdRef.current === runId) {
           setProfileUploadProgress(0)
           setProfileUploadStatus(apiErrorMessage(uploadError, 'Profile picture upload failed'))
+          setProfileUploading(false)
         }
         throw uploadError
       })
