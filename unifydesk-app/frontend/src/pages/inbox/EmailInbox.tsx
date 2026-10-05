@@ -397,13 +397,6 @@ function EmailInboxView() {
   }, [trackedSyncJobs])
   const activeMarkAllJob =
     markAllJob?.status === 'QUEUED' || markAllJob?.status === 'RUNNING' ? markAllJob : null
-  const overallSyncProgress = useMemo(() => {
-    if (trackedSyncJobs.length === 0) return 0
-    return Math.round(
-      trackedSyncJobs.reduce((total, job) => total + job.progressPercent, 0) /
-        trackedSyncJobs.length,
-    )
-  }, [trackedSyncJobs])
 
   useEffect(() => realtimeClient.subscribeConnection(setRealtimeConnected), [])
 
@@ -1084,45 +1077,6 @@ function EmailInboxView() {
               </div>
             </div>
             <ProgressBar className="mt-3" value={markAllJob.progressPercent} label="Read-state update" />
-          </div>
-        )}
-
-        {trackedSyncJobs.length > 0 && (
-          <div className="panel mb-4 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-900">
-                  {activeSyncJobs.length > 0
-                    ? 'Syncing email'
-                    : trackedSyncJobs.every((job) => job.status === 'COMPLETED')
-                      ? 'Email sync complete'
-                      : 'Email sync finished'}
-                </p>
-                <p className="mt-1 truncate text-xs text-slate-500">
-                  {activeSyncJobs[0]?.statusMessage ||
-                    trackedSyncJobs.at(-1)?.statusMessage ||
-                    'Preparing sync'}
-                </p>
-                {trackedSyncJobs.at(-1)?.totalUnits ? (
-                  <p className="mt-1 text-[11px] text-slate-400">
-                    {trackedSyncJobs.at(-1)?.completedUnits.toLocaleString()} of{' '}
-                    {trackedSyncJobs.at(-1)?.totalUnits.toLocaleString()} processed
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-2">
-                <StatusBadge status={activeSyncJobs[0]?.status ?? trackedSyncJobs.at(-1)?.status ?? 'UNKNOWN'}>
-                  {(activeSyncJobs[0]?.status ?? trackedSyncJobs.at(-1)?.status ?? 'UNKNOWN').replaceAll('_', ' ')}
-                </StatusBadge>
-                <span className="text-sm font-bold tabular-nums text-slate-700">{overallSyncProgress}%</span>
-              </div>
-            </div>
-            <ProgressBar className="mt-3" value={overallSyncProgress} label="Email sync" />
-            {selectedConnection?.externalAccountId && (
-              <p className="mt-2 text-[11px] text-slate-400">
-                {selectedConnection.externalAccountId}
-              </p>
-            )}
           </div>
         )}
 
