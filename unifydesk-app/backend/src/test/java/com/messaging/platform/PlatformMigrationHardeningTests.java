@@ -191,6 +191,29 @@ class PlatformMigrationHardeningTests {
   }
 
   @Test
+  void migrationFailsClosedWhenLegacyScheduledDowngradeDuplicatesExist() throws Exception {
+    withDatabase(
+        "billing_r1_scheduled_downgrade_legacy_duplicate",
+        url -> {
+          Flyway through94 = flyway(url, MigrationVersion.fromVersion("94"), false, "0");
+          through94.migrate();
+          seedScheduledDowngradeFixture(url);
+
+          Instant boundary = Instant.parse("2026-11-01T00:00:00Z");
+          try (Connection connection = DriverManager.getConnection(url, USER, PASSWORD)) {
+            insertScheduledDowngrade(connection, 610L, "legacy-first", boundary);
+            insertScheduledDowngrade(connection, 611L, "legacy-second", boundary);
+          }
+
+          Flyway latest = flyway(url, null, false, "0");
+          assertThatThrownBy(latest::migrate)
+              .isInstanceOf(FlywayException.class)
+              .hasMessageContaining(
+                  "Cannot enforce authoritative scheduled downgrade invariant");
+        });
+  }
+
+  @Test
   void authoritativeScheduledDowngradePartialUniqueIndexIsPresent() throws Exception {
     withDatabase(
         "billing_r1_scheduled_downgrade_index",
