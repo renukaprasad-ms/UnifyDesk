@@ -188,12 +188,7 @@ export default function PlatformWebhookCallbacks() {
               <tbody className="divide-y divide-slate-100">
                 {loading && callbacks.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-5 py-14 text-center text-sm font-medium text-slate-500"
-                    >
-                      Loading webhook callbacks…
-                    </td>
+                    <td colSpan={7} className="p-4"><TableSkeleton rows={7} columns={7} /></td>
                   </tr>
                 ) : callbacks.length === 0 ? (
                   <tr>
