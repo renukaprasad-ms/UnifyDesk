@@ -1059,6 +1059,7 @@ function EmailInboxView() {
               threadId: composeThreadId || null,
               inReplyTo: composeInReplyTo || null,
               references: composeReferences || null,
+              attachmentMediaIds,
             })
           : selectedConnection.providerType === 'MICROSOFT'
             ? await microsoftApi.send(companyId, selectedConnection.id, {
@@ -1072,6 +1073,7 @@ function EmailInboxView() {
                     ? composeProviderMessageId || null
                     : null,
                 replyAll: composeMode === 'replyAll',
+                attachmentMediaIds,
               })
             : await imapSmtpApi.send(companyId, selectedConnection.id, {
                 to,
@@ -1081,7 +1083,9 @@ function EmailInboxView() {
                 bodyText: composeBody,
                 inReplyTo: composeInReplyTo || null,
                 references: composeReferences || null,
+                attachmentMediaIds,
               })
+      cancelledComposeAttachmentsRef.current.clear()
       resetCompose()
       closeCompose()
       snackbar.success(
