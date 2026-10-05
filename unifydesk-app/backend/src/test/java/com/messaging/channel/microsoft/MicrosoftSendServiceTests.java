@@ -31,9 +31,10 @@ class MicrosoftSendServiceTests {
     service = new MicrosoftSendService(tokenService, apiClient, syncStateService, attachmentService);
     connection = new ChannelConnection();
     connection.setId(10L);
+    connection.setCompanyId(20L);
     connection.setExternalAccountId("owner@example.com");
     when(tokenService.accessToken(connection)).thenReturn("access-token");
-    when(attachmentService.resolve(0L, List.of())).thenReturn(List.of());
+    when(attachmentService.resolve(20L, List.of())).thenReturn(List.of());
   }
 
   @Test
