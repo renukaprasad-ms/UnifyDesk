@@ -9,12 +9,15 @@ import com.messaging.billing.entity.EntitlementDefinition;
 import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanEntitlement;
 import com.messaging.billing.enums.EntitlementCategory;
+import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.EntitlementValueType;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.EntitlementDefinitionRepository;
 import com.messaging.billing.repository.PlanEntitlementRepository;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,6 +73,77 @@ class EntitlementServiceTests {
 
     assertDoesNotThrow(
         () -> entitlementService.assertWithinLimit(companyId, "EMAIL_ACCOUNTS", 100_000));
+  }
+
+  @Test
+  void expiredActivePaidSubscriptionDoesNotGrantEntitlements() {
+    long companyId = 10L;
+    Instant now = Instant.parse("2026-11-01T00:00:00Z");
+    Plan plan = paidPlan(20L);
+    CompanySubscription subscription = subscription(plan);
+    subscription.setCurrentPeriodEnd(now.minusSeconds(1));
+
+    when(subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+            companyId, SubscriptionStatus.ACTIVE))
+        .thenReturn(Optional.of(subscription));
+
+    assertEquals(Optional.empty(), entitlementService.effectiveSubscription(companyId, now));
+  }
+
+  @Test
+  void activePaidSubscriptionInsideCurrentPeriodRemainsEntitled() {
+    long companyId = 10L;
+    Instant now = Instant.parse("2026-10-31T23:59:59Z");
+    Plan plan = paidPlan(20L);
+    CompanySubscription subscription = subscription(plan);
+    subscription.setCurrentPeriodEnd(Instant.parse("2026-11-01T00:00:00Z"));
+
+    when(subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+            companyId, SubscriptionStatus.ACTIVE))
+        .thenReturn(Optional.of(subscription));
+
+    assertEquals(Optional.of(subscription), entitlementService.effectiveSubscription(companyId, now));
+  }
+
+  @Test
+  void paidBoundaryEqualityIsEndExclusive() {
+    long companyId = 10L;
+    Instant boundary = Instant.parse("2026-11-01T00:00:00Z");
+    Plan plan = paidPlan(20L);
+    CompanySubscription subscription = subscription(plan);
+    subscription.setCurrentPeriodEnd(boundary);
+
+    when(subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+            companyId, SubscriptionStatus.ACTIVE))
+        .thenReturn(Optional.of(subscription));
+
+    assertEquals(Optional.empty(), entitlementService.effectiveSubscription(companyId, boundary));
+  }
+
+  @Test
+  void openEndedFreeSubscriptionRemainsEntitled() {
+    long companyId = 10L;
+    Plan plan = plan(20L);
+    plan.setBillingCycle(BillingCycle.FREE);
+    plan.setBasePrice(BigDecimal.ZERO);
+    CompanySubscription subscription = subscription(plan);
+    subscription.setCurrentPeriodEnd(null);
+
+    when(subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+            companyId, SubscriptionStatus.ACTIVE))
+        .thenReturn(Optional.of(subscription));
+
+    assertEquals(
+        Optional.of(subscription),
+        entitlementService.effectiveSubscription(
+            companyId, Instant.parse("2026-11-01T00:00:00Z")));
+  }
+
+  private Plan paidPlan(Long id) {
+    Plan plan = plan(id);
+    plan.setBillingCycle(BillingCycle.MONTHLY);
+    plan.setBasePrice(new BigDecimal("999.00"));
+    return plan;
   }
 
   private Plan plan(Long id) {
