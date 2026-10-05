@@ -38,6 +38,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class SubscriptionChangeServiceTests {
@@ -305,6 +306,99 @@ class SubscriptionChangeServiceTests {
     assertEquals(0, service.applyDueDowngrades(current.getCurrentPeriodEnd()));
     assertEquals(SubscriptionChangeStatus.FAILED, change.getStatus());
     verify(billingPeriodService, never()).ensurePlatformPeriod(any());
+  }
+
+  @Test
+  void secondScheduledDowngradeAtSameBoundaryConflictsWithoutMutation() {
+    commonNewCommandStubs("down-2");
+    when(planChangeClassifier.classify(currentPlan, currentPrice, targetPlan, targetPrice))
+        .thenReturn(PlanChangeDirection.DOWNGRADE);
+    SubscriptionChange authoritative =
+        prior(10L, "down-1", SubscriptionChangeType.DOWNGRADE, 31L);
+    authoritative.setStatus(SubscriptionChangeStatus.SCHEDULED);
+    authoritative.setEffectiveAt(periodEnd);
+    when(changeRepository.findBySubscriptionIdAndChangeTypeAndStatusAndEffectiveAt(
+            40L,
+            SubscriptionChangeType.DOWNGRADE,
+            SubscriptionChangeStatus.SCHEDULED,
+            periodEnd))
+        .thenReturn(Optional.of(authoritative));
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.scheduleDowngrade(10L, 30L, 31L, "down-2", 99L, now));
+
+    verify(changeRepository, never()).saveAndFlush(any());
+  }
+
+  @Test
+  void secondScheduledDowngradeWithDifferentTargetCannotReplaceWinner() {
+    commonNewCommandStubs("down-different-target");
+    when(planChangeClassifier.classify(currentPlan, currentPrice, targetPlan, targetPrice))
+        .thenReturn(PlanChangeDirection.DOWNGRADE);
+
+    Plan firstTargetPlan = plan(32L);
+    PlanPrice firstTargetPrice = price(33L, firstTargetPlan, "1500");
+    SubscriptionChange authoritative =
+        prior(10L, "down-first", SubscriptionChangeType.DOWNGRADE, 33L);
+    authoritative.setToPlan(firstTargetPlan);
+    authoritative.setToPlanPrice(firstTargetPrice);
+    authoritative.setStatus(SubscriptionChangeStatus.SCHEDULED);
+    authoritative.setEffectiveAt(periodEnd);
+    when(changeRepository.findBySubscriptionIdAndChangeTypeAndStatusAndEffectiveAt(
+            40L,
+            SubscriptionChangeType.DOWNGRADE,
+            SubscriptionChangeStatus.SCHEDULED,
+            periodEnd))
+        .thenReturn(Optional.of(authoritative));
+
+    assertThrows(
+        ConflictException.class,
+        () ->
+            service.scheduleDowngrade(
+                10L, 30L, 31L, "down-different-target", 99L, now));
+
+    assertEquals(32L, authoritative.getToPlan().getId());
+    assertEquals(33L, authoritative.getToPlanPrice().getId());
+    assertEquals(SubscriptionChangeStatus.SCHEDULED, authoritative.getStatus());
+    verify(changeRepository, never()).saveAndFlush(any());
+  }
+
+  @Test
+  void databaseUniquenessRaceIsTranslatedToCommercialConflict() {
+    commonNewCommandStubs("down-race");
+    when(planChangeClassifier.classify(currentPlan, currentPrice, targetPlan, targetPrice))
+        .thenReturn(PlanChangeDirection.DOWNGRADE);
+    when(changeRepository.findBySubscriptionIdAndChangeTypeAndStatusAndEffectiveAt(
+            40L,
+            SubscriptionChangeType.DOWNGRADE,
+            SubscriptionChangeStatus.SCHEDULED,
+            periodEnd))
+        .thenReturn(Optional.empty());
+    when(changeRepository.saveAndFlush(any(SubscriptionChange.class)))
+        .thenThrow(new DataIntegrityViolationException(
+            "duplicate key violates uk_subscription_changes_scheduled_downgrade_boundary"));
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.scheduleDowngrade(10L, 30L, 31L, "down-race", 99L, now));
+  }
+
+  @Test
+  void exactDowngradeIdempotentReplayReturnsOriginalScheduledChange() {
+    SubscriptionChange prior = prior(10L, "down-replay", SubscriptionChangeType.DOWNGRADE, 31L);
+    prior.setStatus(SubscriptionChangeStatus.SCHEDULED);
+    prior.setEffectiveAt(periodEnd);
+    when(companyRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(company));
+    when(changeRepository.findByCompanyIdAndIdempotencyKey(10L, "down-replay"))
+        .thenReturn(Optional.of(prior));
+
+    var response =
+        service.scheduleDowngrade(10L, 30L, 31L, "down-replay", 99L, now.plusSeconds(30));
+
+    assertEquals(prior.getId().toString(), response.changeId());
+    assertEquals(SubscriptionChangeStatus.SCHEDULED, response.status());
+    verify(lifecycleService, never()).currentForUpdate(any());
   }
 
   @Test

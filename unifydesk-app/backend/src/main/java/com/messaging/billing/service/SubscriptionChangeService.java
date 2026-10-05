@@ -31,6 +31,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SubscriptionChangeService {
   private static final int CLAIM_BATCH_SIZE = 100;
+  private static final String SCHEDULED_DOWNGRADE_BOUNDARY_INDEX =
+      "uk_subscription_changes_scheduled_downgrade_boundary";
 
   private final SubscriptionChangeRepository changeRepository;
   private final PlanRepository planRepository;
@@ -119,6 +122,7 @@ public class SubscriptionChangeService {
     if (planChangeClassifier.classify(schedule.fromPlan(), schedule.fromPlanPrice(), target, targetPrice) != PlanChangeDirection.DOWNGRADE) {
       throw new ConflictException("Selected target is not an authoritative downgrade; use the canonical change contract");
     }
+    assertNoAuthoritativeScheduledDowngrade(current.getId(), schedule.effectiveAt());
     SubscriptionChange change = baseChange(current, target, targetPrice, SubscriptionChangeType.DOWNGRADE, key, requestedByUserId, requestedAt, schedule.effectiveAt());
     change.setFromPlan(schedule.fromPlan());
     change.setFromPlanPrice(schedule.fromPlanPrice());
@@ -130,9 +134,17 @@ public class SubscriptionChangeService {
     change.setNetAmount(BigDecimal.ZERO);
     change.setAmountDue(BigDecimal.ZERO);
     change.setCreditAmount(BigDecimal.ZERO);
-    SubscriptionChange saved = changeRepository.saveAndFlush(change);
-    saved.setQuoteReference("DNG-" + saved.getId());
-    return toResponse(changeRepository.saveAndFlush(saved));
+    try {
+      SubscriptionChange saved = changeRepository.saveAndFlush(change);
+      saved.setQuoteReference("DNG-" + saved.getId());
+      return toResponse(changeRepository.saveAndFlush(saved));
+    } catch (DataIntegrityViolationException exception) {
+      if (!isScheduledDowngradeBoundaryViolation(exception)) {
+        throw exception;
+      }
+      throw new ConflictException(
+          "A scheduled downgrade already owns this subscription billing boundary");
+    }
   }
 
   @Transactional
@@ -229,6 +241,31 @@ public class SubscriptionChangeService {
       throw new ConflictException("Owned renewal boundary has inconsistent commercial truth");
     }
     return new DowngradeScheduleSource(renewalOwner.getPlan(), renewalOwner.getPlanPrice(), renewalOwner.getStartAt(), renewalOwner.getEndAt(), renewalOwner.getEndAt());
+  }
+
+  private void assertNoAuthoritativeScheduledDowngrade(Long subscriptionId, Instant effectiveAt) {
+    if (changeRepository
+        .findBySubscriptionIdAndChangeTypeAndStatusAndEffectiveAt(
+            subscriptionId,
+            SubscriptionChangeType.DOWNGRADE,
+            SubscriptionChangeStatus.SCHEDULED,
+            effectiveAt)
+        .isPresent()) {
+      throw new ConflictException(
+          "A scheduled downgrade already owns this subscription billing boundary");
+    }
+  }
+
+  private boolean isScheduledDowngradeBoundaryViolation(Throwable exception) {
+    Throwable current = exception;
+    while (current != null) {
+      String message = current.getMessage();
+      if (message != null && message.contains(SCHEDULED_DOWNGRADE_BOUNDARY_INDEX)) {
+        return true;
+      }
+      current = current.getCause();
+    }
+    return false;
   }
 
   private void assertCanonicalFreeToPaidPeriod(

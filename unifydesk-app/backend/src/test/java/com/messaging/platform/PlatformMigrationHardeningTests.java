@@ -5,11 +5,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
@@ -24,10 +28,10 @@ class PlatformMigrationHardeningTests {
   private static final String ADMIN_URL = "jdbc:postgresql://127.0.0.1:55432/postgres";
   private static final String USER = "test";
   private static final String PASSWORD = "test";
-  private static final MigrationVersion CURRENT_HEAD = MigrationVersion.fromVersion("94");
+  private static final MigrationVersion CURRENT_HEAD = MigrationVersion.fromVersion("95");
 
   @Test
-  void cleanDatabaseMigratesToV94AndHibernateValidatesSchema() throws Exception {
+  void cleanDatabaseMigratesToV95AndHibernateValidatesSchema() throws Exception {
     withDatabase(
         "platform_clean",
         url -> {
@@ -40,7 +44,7 @@ class PlatformMigrationHardeningTests {
   }
 
   @Test
-  void representativeV79DatabaseUpgradesToV94() throws Exception {
+  void representativeV79DatabaseUpgradesToV95() throws Exception {
     withDatabase(
         "platform_from79",
         url -> {
@@ -131,6 +135,167 @@ class PlatformMigrationHardeningTests {
                   "uk_subscription_checkout_intents_invoice",
                   "uk_subscription_checkout_intents_subscription");
         });
+  }
+
+  @Test
+  void authoritativeScheduledDowngradeIndexRejectsConcurrentReplicaRace() throws Exception {
+    withDatabase(
+        "billing_r1_scheduled_downgrade",
+        url -> {
+          flyway(url, null, false, "0").migrate();
+          seedScheduledDowngradeFixture(url);
+
+          Instant boundary = Instant.parse("2026-11-01T00:00:00Z");
+          try (Connection winner = DriverManager.getConnection(url, USER, PASSWORD);
+              Connection loser = DriverManager.getConnection(url, USER, PASSWORD)) {
+            winner.setAutoCommit(false);
+            loser.setAutoCommit(false);
+            insertScheduledDowngrade(winner, 600L, "winner", boundary);
+
+            try (var executor = Executors.newSingleThreadExecutor()) {
+              var losingInsert =
+                  executor.submit(
+                      () -> {
+                        insertScheduledDowngrade(loser, 601L, "loser", boundary);
+                        loser.commit();
+                        return null;
+                      });
+
+              Thread.sleep(100);
+              winner.commit();
+
+              assertThatThrownBy(() -> losingInsert.get(5, TimeUnit.SECONDS))
+                  .hasCauseInstanceOf(SQLException.class);
+              loser.rollback();
+            }
+          }
+
+          try (Connection connection = DriverManager.getConnection(url, USER, PASSWORD);
+              var statement =
+                  connection.prepareStatement(
+                      """
+                      select count(*)
+                        from subscription_changes
+                       where subscription_id = 400
+                         and change_type = 'DOWNGRADE'
+                         and status = 'SCHEDULED'
+                         and effective_at = ?
+                      """)) {
+            statement.setObject(1, java.time.OffsetDateTime.parse("2026-11-01T00:00:00Z"));
+            try (var rs = statement.executeQuery()) {
+              assertThat(rs.next()).isTrue();
+              assertThat(rs.getInt(1)).isEqualTo(1);
+            }
+          }
+        });
+  }
+
+  @Test
+  void migrationFailsClosedWhenLegacyScheduledDowngradeDuplicatesExist() throws Exception {
+    withDatabase(
+        "billing_r1_scheduled_downgrade_legacy_duplicate",
+        url -> {
+          Flyway through94 = flyway(url, MigrationVersion.fromVersion("94"), false, "0");
+          through94.migrate();
+          seedScheduledDowngradeFixture(url);
+
+          Instant boundary = Instant.parse("2026-11-01T00:00:00Z");
+          try (Connection connection = DriverManager.getConnection(url, USER, PASSWORD)) {
+            insertScheduledDowngrade(connection, 610L, "legacy-first", boundary);
+            insertScheduledDowngrade(connection, 611L, "legacy-second", boundary);
+          }
+
+          Flyway latest = flyway(url, null, false, "0");
+          assertThatThrownBy(latest::migrate)
+              .isInstanceOf(FlywayException.class)
+              .hasMessageContaining(
+                  "Cannot enforce authoritative scheduled downgrade invariant");
+        });
+  }
+
+  @Test
+  void authoritativeScheduledDowngradePartialUniqueIndexIsPresent() throws Exception {
+    withDatabase(
+        "billing_r1_scheduled_downgrade_index",
+        url -> {
+          flyway(url, null, false, "0").migrate();
+          try (Connection connection = DriverManager.getConnection(url, USER, PASSWORD);
+              var statement =
+                  connection.prepareStatement(
+                      """
+                      select indexdef
+                        from pg_indexes
+                       where indexname = 'uk_subscription_changes_scheduled_downgrade_boundary'
+                      """);
+              var rs = statement.executeQuery()) {
+            assertThat(rs.next()).isTrue();
+            assertThat(rs.getString(1))
+                .contains("(subscription_id, effective_at)")
+                .contains("change_type")
+                .contains("DOWNGRADE")
+                .contains("SCHEDULED");
+          }
+        });
+  }
+
+  private static void seedScheduledDowngradeFixture(String url) throws Exception {
+    try (Connection connection = DriverManager.getConnection(url, USER, PASSWORD);
+        Statement statement = connection.createStatement()) {
+      statement.execute(
+          """
+          insert into companies
+            (id, name, slug, business_email, country, timezone, status, created_by_user_id, created_at, updated_at)
+          values
+            (100, 'Billing Test', 'billing-test-final-003', 'billing@example.com', 'IN', 'UTC', 'ACTIVE', 1, now(), now())
+          """);
+      statement.execute(
+          """
+          insert into plans
+            (id, code, name, status, billing_cycle, base_price, currency, version, created_at, updated_at)
+          values
+            (200, 'CURRENT', 'Current', 'PUBLISHED', 'MONTHLY', 999, 'INR', 1, now(), now()),
+            (201, 'TARGET', 'Target', 'PUBLISHED', 'MONTHLY', 499, 'INR', 1, now(), now())
+          """);
+      statement.execute(
+          """
+          insert into plan_prices
+            (id, plan_id, billing_cycle, amount, currency, effective_from, status, created_at, updated_at)
+          values
+            (300, 200, 'MONTHLY', 999, 'INR', '2026-01-01T00:00:00Z', 'ACTIVE', now(), now()),
+            (301, 201, 'MONTHLY', 499, 'INR', '2026-01-01T00:00:00Z', 'ACTIVE', now(), now())
+          """);
+      statement.execute(
+          """
+          insert into company_subscriptions
+            (id, company_id, plan_id, plan_price_id, status, started_at, current_period_start,
+             current_period_end, cancel_at_period_end, created_at, updated_at)
+          values
+            (400, 100, 200, 300, 'ACTIVE', '2026-10-01T00:00:00Z',
+             '2026-10-01T00:00:00Z', '2026-11-01T00:00:00Z', false, now(), now())
+          """);
+    }
+  }
+
+  private static void insertScheduledDowngrade(
+      Connection connection, long id, String idempotencyKey, Instant boundary) throws SQLException {
+    try (var statement =
+        connection.prepareStatement(
+            """
+            insert into subscription_changes
+              (id, company_id, subscription_id, from_plan_id, to_plan_id, from_plan_price_id,
+               to_plan_price_id, change_type, status, requested_at, effective_at, idempotency_key,
+               currency, current_price_snapshot, target_price_snapshot, current_period_start,
+               current_period_end, net_amount, amount_due, credit_amount, created_at, updated_at)
+            values
+              (?, 100, 400, 200, 201, 300, 301, 'DOWNGRADE', 'SCHEDULED',
+               '2026-10-15T00:00:00Z', ?, ?, 'INR', 999, 499,
+               '2026-10-01T00:00:00Z', '2026-11-01T00:00:00Z', 0, 0, 0, now(), now())
+            """)) {
+      statement.setLong(1, id);
+      statement.setObject(2, java.time.OffsetDateTime.ofInstant(boundary, java.time.ZoneOffset.UTC));
+      statement.setString(3, idempotencyKey);
+      statement.executeUpdate();
+    }
   }
 
   private static void createV1EquivalentLegacySchema(String url) throws Exception {
