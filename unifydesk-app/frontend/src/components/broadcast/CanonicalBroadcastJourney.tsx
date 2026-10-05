@@ -498,8 +498,6 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     if (!companyId || !selector || !currentPreview || !senderId || !canLaunch) return
     const confirmedPreview = currentPreview
 
-    const action = scheduledAt ? 'schedule' : 'send'
-
     const token = captureScope()
     setBusy(true)
     setError('')
