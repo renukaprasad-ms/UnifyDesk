@@ -7,6 +7,8 @@ import type {
   CreateGoogleExperimentInput,
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import ConfirmDialog from '../ui/ConfirmDialog'
+import StatusBadge from '../ui/StatusBadge'
 
 type Props = {
   companyId: string
@@ -43,23 +45,6 @@ const moneyMicros = (micros: number, currency?: string | null) => {
   }
 }
 
-const statusClass = (status?: string | null) => {
-  switch (status) {
-    case 'ENABLED':
-      return 'bg-emerald-100 text-emerald-700'
-    case 'SETUP':
-    case 'INITIATED':
-      return 'bg-amber-100 text-amber-700'
-    case 'PROMOTED':
-    case 'GRADUATED':
-      return 'bg-indigo-100 text-indigo-700'
-    case 'HALTED':
-      return 'bg-slate-200 text-slate-600'
-    default:
-      return 'bg-slate-100 text-slate-600'
-  }
-}
-
 export default function GoogleExperimentsPanel({
   companyId,
   accountId,
@@ -74,6 +59,7 @@ export default function GoogleExperimentsPanel({
   const [error, setError] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [showCampaignMix, setShowCampaignMix] = useState(false)
+  const [pendingAction, setPendingAction] = useState<{ experiment: GoogleExperiment; type: 'promote' | 'end' | 'graduate' } | null>(null)
   const [mixName, setMixName] = useState('')
   const [mixControlId, setMixControlId] = useState('')
   const [mixTreatmentId, setMixTreatmentId] = useState('')
@@ -169,6 +155,7 @@ export default function GoogleExperimentsPanel({
       setError(apiErrorMessage(createError, 'Unable to create Google experiment'))
     } finally {
       setBusy('')
+      setPendingAction(null)
     }
   }
 
@@ -203,26 +190,6 @@ export default function GoogleExperimentsPanel({
     experiment: GoogleExperiment,
     type: 'schedule' | 'promote' | 'end' | 'graduate',
   ) => {
-    if (
-      type === 'promote' &&
-      !window.confirm(
-        'Promote this Google experiment? Google will apply the treatment changes to the base campaign. This is a provider mutation and should only be done after reviewing the experiment results.',
-      )
-    ) {
-      return
-    }
-    if (type === 'end' && !window.confirm('End this Google experiment now?')) {
-      return
-    }
-    if (
-      type === 'graduate' &&
-      !window.confirm(
-        'Graduate the treatment campaign? Google will create a production campaign budget mapping for the treatment campaign.',
-      )
-    ) {
-      return
-    }
-
     setBusy(`${type}:${experiment.id}`)
     setError('')
     try {
@@ -566,7 +533,7 @@ export default function GoogleExperimentsPanel({
                           type="button"
                           className="secondary-button inline-flex items-center gap-2"
                           disabled={Boolean(busy)}
-                          onClick={() => void action(experiment, 'end')}
+                          onClick={() => setPendingAction({ experiment, type: 'end' })}
                         >
                           <FiSquare aria-hidden="true" />
                           End
@@ -575,7 +542,7 @@ export default function GoogleExperimentsPanel({
                           type="button"
                           className="primary-button inline-flex items-center gap-2"
                           disabled={Boolean(busy)}
-                          onClick={() => void action(experiment, 'promote')}
+                          onClick={() => setPendingAction({ experiment, type: 'promote' })}
                         >
                           <FiArrowUpCircle aria-hidden="true" />
                           Promote treatment
@@ -584,7 +551,7 @@ export default function GoogleExperimentsPanel({
                           type="button"
                           className="secondary-button"
                           disabled={Boolean(busy)}
-                          onClick={() => void action(experiment, 'graduate')}
+                          onClick={() => setPendingAction({ experiment, type: 'graduate' })}
                         >
                           Graduate
                         </button>
@@ -680,6 +647,35 @@ export default function GoogleExperimentsPanel({
           })}
         </div>
       )}
+      <ConfirmDialog
+        open={Boolean(pendingAction)}
+        title={
+          pendingAction?.type === 'promote'
+            ? 'Promote this Google experiment?'
+            : pendingAction?.type === 'graduate'
+              ? 'Graduate the treatment campaign?'
+              : 'End this Google experiment now?'
+        }
+        description={
+          pendingAction?.type === 'promote'
+            ? 'Google will apply the treatment changes to the base campaign. Continue only after reviewing the experiment results.'
+            : pendingAction?.type === 'graduate'
+              ? 'Google will create a production campaign budget mapping for the treatment campaign.'
+              : 'The experiment will be ended at the provider.'
+        }
+        confirmLabel={
+          pendingAction?.type === 'promote'
+            ? 'Yes, promote'
+            : pendingAction?.type === 'graduate'
+              ? 'Yes, graduate'
+              : 'Yes, end experiment'
+        }
+        cancelLabel="No, cancel"
+        tone="warning"
+        working={Boolean(pendingAction && busy === `${pendingAction.type}:${pendingAction.experiment.id}`)}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={() => pendingAction && void action(pendingAction.experiment, pendingAction.type)}
+      />
     </section>
   )
 }
