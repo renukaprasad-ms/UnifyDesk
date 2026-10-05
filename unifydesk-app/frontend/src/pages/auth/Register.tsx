@@ -9,6 +9,7 @@ import { apiErrorMessage } from '../../lib/api/apiClient'
 import { setAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch } from '../../store/hooks'
 import AsyncButton from '../../components/ui/AsyncButton'
+import ProgressBar from '../../components/ui/ProgressBar'
 
 const Register = () => {
   const dispatch = useAppDispatch()
@@ -249,9 +250,12 @@ const Register = () => {
             </div>
           )}
           {profilePicture && profileUploadProgress > 0 && profileUploadProgress < 100 && (
-            <div className="upload-progress mt-2" aria-label="Profile picture upload progress">
-              <span style={{ width: `${profileUploadProgress}%` }} />
-            </div>
+            <ProgressBar
+              className="mt-2"
+              value={profileUploadProgress}
+              label="Uploading profile picture"
+              showValue
+            />
           )}
         </div>
         {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
