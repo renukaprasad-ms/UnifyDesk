@@ -54,6 +54,7 @@ import {
   isWorkspaceEpochCurrent,
   workspaceEpochToken,
 } from '../../features/workspace/workspaceEpoch'
+import { Skeleton } from '../../components/ui/Skeleton'
 
 const messageTitle = (message: InboxMessage) =>
   message.subject || message.snippet || (message.direction === 'OUTBOUND' ? 'Sent email' : 'Email')
@@ -1504,7 +1505,20 @@ function EmailInboxView() {
 
               <div className="channel-message-scroll space-y-4 p-3 sm:p-5">
                 {messagesLoading ? (
-                  <p className="py-10 text-center text-sm text-slate-500">Loading messages...</p>
+                  <div className="space-y-4" role="status" aria-label="Loading messages">
+                    {Array.from({ length: 3 }).map((_, index) => (
+                      <div key={index} className="max-w-4xl rounded-xl border border-slate-200 bg-white p-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <Skeleton className="h-4 w-28" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                        <Skeleton className="mt-4 h-4 w-2/3" />
+                        <Skeleton className="mt-3 h-3 w-full" />
+                        <Skeleton className="mt-2 h-3 w-5/6" />
+                        <Skeleton className="mt-2 h-3 w-3/4" />
+                      </div>
+                    ))}
+                  </div>
                 ) : messages.length === 0 ? (
                   <p className="py-10 text-center text-sm text-slate-500">
                     No messages found in this conversation.
