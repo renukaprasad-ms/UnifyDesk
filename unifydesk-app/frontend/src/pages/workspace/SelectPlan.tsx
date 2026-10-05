@@ -22,6 +22,7 @@ import type {
 import type { Company } from '../../features/company/types'
 import { workspaceApi } from '../../features/workspace/workspaceApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { CardSkeleton } from '../../components/ui/Skeleton'
 import { useAppDispatch } from '../../store/hooks'
 import { selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
 
@@ -280,7 +281,13 @@ export default function SelectPlan() {
           confirmed checkout. Managed Email and SMS provider usage is billed separately.
         </p>
 
-        {loading && <p className="mt-8 text-sm font-semibold text-slate-500">Loading plans…</p>}
+        {loading && (
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            <CardSkeleton rows={5} />
+            <CardSkeleton rows={5} />
+            <CardSkeleton rows={5} />
+          </div>
+        )}
         {error && (
           <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
             {error}
