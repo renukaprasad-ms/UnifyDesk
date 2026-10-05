@@ -14,10 +14,21 @@ public record GmailSendRequest(
     @NotBlank @Size(max = 100000) String bodyText,
     @Size(max = 255) String threadId,
     @Size(max = 998) String inReplyTo,
-    @Size(max = 10000) String references) {
+    @Size(max = 10000) String references,
+    @Size(max = 10) List<@Size(max = 32) String> attachmentMediaIds) {
 
   public EmailSendCommand toCommand() {
     return new EmailSendCommand(
-        to, cc, bcc, subject, bodyText, threadId, null, false, inReplyTo, references);
+        to, cc, bcc, subject, bodyText, threadId, null, false, inReplyTo, references, attachmentIds());
   }
+  private List<Long> attachmentIds() {
+    if (attachmentMediaIds == null || attachmentMediaIds.isEmpty()) return List.of();
+    try {
+      return attachmentMediaIds.stream().map(Long::valueOf).toList();
+    } catch (NumberFormatException exception) {
+      throw new IllegalArgumentException("Invalid attachment media id", exception);
+    }
+  }
+
+
 }
