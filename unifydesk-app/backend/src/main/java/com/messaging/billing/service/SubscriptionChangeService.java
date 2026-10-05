@@ -39,6 +39,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SubscriptionChangeService {
   private static final int CLAIM_BATCH_SIZE = 100;
+  private static final String SCHEDULED_DOWNGRADE_BOUNDARY_INDEX =
+      "uk_subscription_changes_scheduled_downgrade_boundary";
 
   private final SubscriptionChangeRepository changeRepository;
   private final PlanRepository planRepository;
@@ -137,6 +139,9 @@ public class SubscriptionChangeService {
       saved.setQuoteReference("DNG-" + saved.getId());
       return toResponse(changeRepository.saveAndFlush(saved));
     } catch (DataIntegrityViolationException exception) {
+      if (!isScheduledDowngradeBoundaryViolation(exception)) {
+        throw exception;
+      }
       throw new ConflictException(
           "A scheduled downgrade already owns this subscription billing boundary");
     }
@@ -249,6 +254,18 @@ public class SubscriptionChangeService {
       throw new ConflictException(
           "A scheduled downgrade already owns this subscription billing boundary");
     }
+  }
+
+  private boolean isScheduledDowngradeBoundaryViolation(Throwable exception) {
+    Throwable current = exception;
+    while (current != null) {
+      String message = current.getMessage();
+      if (message != null && message.contains(SCHEDULED_DOWNGRADE_BOUNDARY_INDEX)) {
+        return true;
+      }
+      current = current.getCause();
+    }
+    return false;
   }
 
   private void assertCanonicalFreeToPaidPeriod(
