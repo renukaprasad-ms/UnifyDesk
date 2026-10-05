@@ -17,6 +17,17 @@ public record MicrosoftSendRequest(
     Boolean replyAll,
     @Size(max = 10) List<@Size(max = 32) String> attachmentMediaIds) {
 
+  public MicrosoftSendRequest(
+      List<String> to,
+      List<String> cc,
+      List<String> bcc,
+      String subject,
+      String bodyText,
+      String replyToMessageId,
+      Boolean replyAll) {
+    this(to, cc, bcc, subject, bodyText, replyToMessageId, replyAll, List.of());
+  }
+
   public EmailSendCommand toCommand() {
     return new EmailSendCommand(
         to,
