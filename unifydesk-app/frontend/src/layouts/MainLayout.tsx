@@ -206,7 +206,10 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
             }}
             notificationPath={platform ? '/platform/notifications' : '/notifications'}
           />
-          <main id="main-content">
+          <main
+            id="main-content"
+            className={inboxMode || broadcastMode ? 'app-route-content is-immersive' : 'app-route-content'}
+          >
             <Outlet />
           </main>
         </div>
