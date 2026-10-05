@@ -574,6 +574,18 @@ export default function CompanyRoles() {
           </div>
         </div>
       )}
+        <ConfirmDialog
+          open={Boolean(roleToDelete)}
+          title="Delete this role?"
+          description={roleToDelete ? `Existing assignments using “${roleToDelete.name}” will lose this role.` : ''}
+          confirmLabel="Yes, delete role"
+          cancelLabel="No, cancel"
+          tone="danger"
+          kind="delete"
+          working={saving}
+          onCancel={() => setRoleToDelete(null)}
+          onConfirm={() => roleToDelete && void deleteRole(roleToDelete)}
+        />
     </section>
   )
 }
