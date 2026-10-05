@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import ExportJobButton from '../../components/contacts/ExportJobButton'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import { DEFAULT_CONTACT_EXPORT_FIELDS } from '../../features/contacts/contactModel'
 import type { ContactSummary, ListSummary } from '../../features/contacts/types'
@@ -36,6 +37,7 @@ export default function ListDetailPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false)
 
   const load = async (
     reset = true,
@@ -120,6 +122,24 @@ export default function ListDetailPage() {
     if (changed) setMemberIds('')
   }
 
+  const archiveList = async () => {
+    if (!companyId || !listId) return
+    const scope = captureScope()
+    setBusy(true)
+    setError('')
+    try {
+      await contactsApi.archiveList(companyId, listId)
+      if (scopeIsCurrent(scope)) navigate('/contacts/lists', { replace: true })
+    } catch (archiveError) {
+      if (scopeIsCurrent(scope)) {
+        setError(apiErrorMessage(archiveError, 'Unable to archive List.'))
+      }
+    } finally {
+      if (scopeIsCurrent(scope)) setBusy(false)
+      setArchiveConfirmOpen(false)
+    }
+  }
+
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
@@ -156,31 +176,7 @@ export default function ListDetailPage() {
                 <button
                   className="secondary-button text-rose-700"
                   disabled={busy}
-                  onClick={() => {
-                    if (
-                      !window.confirm(
-                        'Archive this List? Existing historical references remain intact.',
-                      )
-                    )
-                      return
-                    const scope = captureScope()
-                    setBusy(true)
-                    contactsApi
-                      .archiveList(companyId, listId)
-                      .then(() => {
-                        if (scopeIsCurrent(scope)) {
-                          navigate('/contacts/lists', { replace: true })
-                        }
-                      })
-                      .catch((archiveError) => {
-                        if (scopeIsCurrent(scope)) {
-                          setError(apiErrorMessage(archiveError, 'Unable to archive List.'))
-                        }
-                      })
-                      .finally(() => {
-                        if (scopeIsCurrent(scope)) setBusy(false)
-                      })
-                  }}
+                  onClick={() => setArchiveConfirmOpen(true)}
                 >
                   Archive List
                 </button>
@@ -337,6 +333,17 @@ export default function ListDetailPage() {
           </button>
         )}
       </div>
+        <ConfirmDialog
+          open={archiveConfirmOpen}
+          title="Archive this list?"
+          description="Historical references will remain intact, but the list will no longer be available for normal active use."
+          confirmLabel="Yes, archive list"
+          cancelLabel="No, keep list"
+          tone="warning"
+          working={busy}
+          onCancel={() => setArchiveConfirmOpen(false)}
+          onConfirm={() => void archiveList()}
+        />
     </section>
   )
 }
