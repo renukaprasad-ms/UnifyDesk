@@ -195,8 +195,6 @@ export default function AccountSettings() {
             <FiChevronRight className="shrink-0 text-slate-400" aria-hidden="true" />
           </button>
         </div>
-
-        </div>
         )}
 
         <div className="mt-10">
