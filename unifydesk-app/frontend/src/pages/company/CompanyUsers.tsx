@@ -639,6 +639,17 @@ export default function CompanyUsers() {
           </div>
         </div>
       )}
+        <ConfirmDialog
+          open={Boolean(invitationToRevoke)}
+          title="Revoke this invitation?"
+          description={invitationToRevoke ? `${invitationToRevoke.email} will no longer be able to use this invitation.` : ''}
+          confirmLabel="Yes, revoke"
+          cancelLabel="No, keep invitation"
+          tone="warning"
+          working={Boolean(invitationToRevoke && workingInvitationId === invitationToRevoke.invitationId)}
+          onCancel={() => setInvitationToRevoke(null)}
+          onConfirm={() => invitationToRevoke && void revoke(invitationToRevoke)}
+        />
     </section>
   )
 }
