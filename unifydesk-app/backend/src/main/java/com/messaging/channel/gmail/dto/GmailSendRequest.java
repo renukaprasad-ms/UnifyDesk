@@ -18,6 +18,18 @@ public record GmailSendRequest(
     @Size(max = 10000) String references,
     @Size(max = 10) List<@Size(max = 32) String> attachmentMediaIds) {
 
+  public GmailSendRequest(
+      List<String> to,
+      List<String> cc,
+      List<String> bcc,
+      String subject,
+      String bodyText,
+      String threadId,
+      String inReplyTo,
+      String references) {
+    this(to, cc, bcc, subject, bodyText, threadId, inReplyTo, references, List.of());
+  }
+
   public EmailSendCommand toCommand() {
     return new EmailSendCommand(
         to, cc, bcc, subject, bodyText, threadId, null, false, inReplyTo, references, attachmentIds());
