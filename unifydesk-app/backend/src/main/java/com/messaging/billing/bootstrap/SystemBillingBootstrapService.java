@@ -4,8 +4,10 @@ import com.messaging.common.id.IdGenerator;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -16,7 +18,46 @@ import org.springframework.transaction.annotation.Transactional;
 public class SystemBillingBootstrapService {
 
   public static final String FREE_PLAN_CODE = "FREE";
-  public static final int FREE_PLAN_VERSION = 1;
+  public static final int FREE_PLAN_VERSION = 2;
+
+  /**
+   * Canonical system FREE plan entitlements.
+   *
+   * <p>FREE is a bootstrap-owned commercial version. When these defaults change materially, publish
+   * a new FREE version instead of rewriting an already-published version.
+   */
+  private static final Map<String, String> FREE_PLAN_ENTITLEMENTS =
+      Map.ofEntries(
+          Map.entry("MAX_WORKSPACE_USERS", "3"),
+          Map.entry("CONTACT_LIMIT", "1000"),
+          Map.entry("SEGMENT_LIMIT", "25"),
+          Map.entry("BROADCAST_GROUP_LIMIT", "25"),
+          Map.entry("EMAIL_ACCOUNTS", "1"),
+          Map.entry("WHATSAPP_ACCOUNTS", "1"),
+          Map.entry("WHATSAPP_NUMBERS", "1"),
+          Map.entry("SMS_ACCOUNTS", "1"),
+          Map.entry("SMS_SENDER_IDS", "1"),
+          Map.entry("BROADCAST_BATCH_LIMIT", "500"),
+          Map.entry("BROADCASTS_PER_DAY", "25"),
+          Map.entry("BROADCASTS_PER_MONTH", "250"),
+          Map.entry("BROADCAST_RECIPIENTS_PER_DAY", "1000"),
+          Map.entry("BROADCAST_RECIPIENTS_PER_MONTH", "10000"),
+          Map.entry("SCHEDULED_BROADCASTS_ENABLED", "false"),
+          Map.entry("EMAIL_TEMPLATE_LIMIT", "25"),
+          Map.entry("WHATSAPP_TEMPLATE_LIMIT", "25"),
+          Map.entry("SMS_TEMPLATE_LIMIT", "25"),
+          Map.entry("STORAGE_GB", "1"),
+          Map.entry("AUTO_REPLY_ENABLED", "false"),
+          Map.entry("USER_SIGNATURE_ENABLED", "true"),
+          Map.entry("API_ACCESS_ENABLED", "false"),
+          Map.entry("MANAGED_EMAIL_ENABLED", "true"),
+          Map.entry("MANAGED_EMAIL_DOMAINS", "1"),
+          Map.entry("MANAGED_EMAIL_SENDERS", "3"),
+          Map.entry("MANAGED_EMAIL_MESSAGES_MONTHLY", "10000"),
+          Map.entry("MANAGED_SMS_SEGMENTS_MONTHLY", "10000"),
+          Map.entry("CONTACT_CUSTOM_FIELD_LIMIT", "25"),
+          Map.entry("CONTACT_LIST_LIMIT", "50"),
+          Map.entry("CONTACT_IMPORT_ROWS_LIMIT", "5000"));
 
   private final JdbcTemplate jdbcTemplate;
   private final SystemEntitlementCatalogInitializer entitlementCatalogInitializer;
@@ -99,18 +140,33 @@ public class SystemBillingBootstrapService {
   }
 
   private void ensureDefaultEntitlements(Long planId) {
-    List<Map<String, Object>> definitions =
-        jdbcTemplate.queryForList(
-            """
-            select entitlement_key, default_value
-            from entitlement_definitions
-            where active = true
-            order by entitlement_key
-            """);
+    Set<String> activeDefinitions =
+        new LinkedHashSet<>(
+            jdbcTemplate.queryForList(
+                """
+                select entitlement_key
+                from entitlement_definitions
+                where active = true
+                order by entitlement_key
+                """,
+                String.class));
 
-    for (Map<String, Object> definition : definitions) {
-      String key = String.valueOf(definition.get("entitlement_key"));
-      String value = String.valueOf(definition.get("default_value"));
+    Set<String> missingFromFreePlan = new LinkedHashSet<>(activeDefinitions);
+    missingFromFreePlan.removeAll(FREE_PLAN_ENTITLEMENTS.keySet());
+
+    Set<String> unknownFreePlanKeys = new LinkedHashSet<>(FREE_PLAN_ENTITLEMENTS.keySet());
+    unknownFreePlanKeys.removeAll(activeDefinitions);
+
+    if (!missingFromFreePlan.isEmpty() || !unknownFreePlanKeys.isEmpty()) {
+      throw new IllegalStateException(
+          "FREE plan entitlement seed is out of sync with the active entitlement catalog"
+              + " missing="
+              + missingFromFreePlan
+              + " unknown="
+              + unknownFreePlanKeys);
+    }
+
+    for (Map.Entry<String, String> entitlement : FREE_PLAN_ENTITLEMENTS.entrySet()) {
       jdbcTemplate.update(
           """
           insert into plan_entitlements
@@ -120,8 +176,8 @@ public class SystemBillingBootstrapService {
           """,
           IdGenerator.nextId(),
           planId,
-          key,
-          value);
+          entitlement.getKey(),
+          entitlement.getValue());
     }
   }
 }
