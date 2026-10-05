@@ -20,6 +20,7 @@ import com.messaging.inbox.controller.InboxController;
 import com.messaging.inbox.dto.InboxPageResponse;
 import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
+import com.messaging.inbox.service.InboxAttachmentStreamingService;
 import com.messaging.inbox.service.InboxQueryService;
 import com.messaging.inbox.service.InboxReadStateQueueService;
 import com.messaging.inbox.service.InboxReadStateService;
@@ -99,6 +100,7 @@ class InboxControllerWhatsAppTests {
     InboxController controller =
         new InboxController(
             queryService,
+            mock(InboxAttachmentStreamingService.class),
             mock(InboxReadStateService.class),
             mock(InboxReadStateQueueService.class),
             mock(MetaWhatsAppInboxReadStateService.class),
