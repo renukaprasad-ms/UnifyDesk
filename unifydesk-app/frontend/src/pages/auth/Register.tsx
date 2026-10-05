@@ -10,6 +10,7 @@ import { setAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch } from '../../store/hooks'
 import AsyncButton from '../../components/ui/AsyncButton'
 import ProgressBar from '../../components/ui/ProgressBar'
+import useBeforeUnloadGuard from '../../hooks/useBeforeUnloadGuard'
 
 const Register = () => {
   const dispatch = useAppDispatch()
@@ -35,6 +36,8 @@ const Register = () => {
   const profilePreviewUrlRef = useRef('')
   const profileUploadRunIdRef = useRef(0)
   const profileUploadPromiseRef = useRef<Promise<InitiateMediaUploadResponse> | null>(null)
+
+  useBeforeUnloadGuard(!submitting && Boolean(name.trim() || email.trim() || username.trim() || profilePicture))
 
   useEffect(
     () => () => {
