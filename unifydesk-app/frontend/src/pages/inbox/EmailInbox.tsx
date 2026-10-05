@@ -5,10 +5,12 @@ import {
   FiCheckCircle,
   FiCornerUpLeft,
   FiMail,
+  FiPaperclip,
   FiRefreshCw,
   FiSend,
   FiShare2,
   FiUsers,
+  FiX,
 } from 'react-icons/fi'
 import ConversationList from '../../components/inbox/ConversationList'
 import { conversationParticipant } from '../../components/inbox/conversationListUtils'
@@ -27,6 +29,7 @@ import type {
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { inboxApi } from '../../features/inbox/inboxApi'
+import { mediaApi } from '../../features/media/mediaApi'
 import type {
   InboxConversation,
   InboxEmailChangedEvent,
@@ -107,6 +110,21 @@ const createContactHref = (participant: InboxParticipant) => {
   return `/contacts?${params.toString()}`
 }
 
+type ComposeAttachment = {
+  clientId: string
+  file: File
+  mediaId?: string
+  progress: number
+  status: 'UPLOADING' | 'READY' | 'FAILED'
+  error?: string
+}
+
+const formatFileSize = (size: number) => {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
 const defaultSyncRange = () => {
   const to = new Date()
   const from = new Date()
@@ -150,6 +168,8 @@ function EmailInboxView() {
   const [composeInReplyTo, setComposeInReplyTo] = useState('')
   const [composeReferences, setComposeReferences] = useState('')
   const [composeProviderMessageId, setComposeProviderMessageId] = useState('')
+  const [composeAttachments, setComposeAttachments] = useState<ComposeAttachment[]>([])
+  const cancelledComposeAttachmentsRef = useRef(new Set<string>())
   const initialSyncRange = useMemo(() => defaultSyncRange(), [])
   const [syncFrom, setSyncFrom] = useState(initialSyncRange.from)
   const [syncTo, setSyncTo] = useState(initialSyncRange.to)
@@ -795,6 +815,7 @@ function EmailInboxView() {
     setComposeInReplyTo('')
     setComposeReferences('')
     setComposeProviderMessageId('')
+    setComposeAttachments([])
   }
 
   const showCompose = () => {
@@ -812,6 +833,101 @@ function EmailInboxView() {
     const params = new URLSearchParams(searchParams)
     params.delete('compose')
     setSearchParams(params, { replace: true })
+  }
+
+  const uploadComposeAttachment = async (clientId: string, file: File) => {
+    if (!companyId) return
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
+    let mediaId: string | undefined
+
+    const patch = (value: Partial<ComposeAttachment>) => {
+      if (
+        cancelledComposeAttachmentsRef.current.has(clientId) ||
+        !isWorkspaceEpochCurrent(
+          token,
+          workspaceScopeRef.current.companyId,
+          workspaceScopeRef.current.epoch,
+        )
+      ) {
+        return
+      }
+      setComposeAttachments((current) =>
+        current.map((item) => (item.clientId === clientId ? { ...item, ...value } : item)),
+      )
+    }
+
+    try {
+      const upload = await mediaApi.initiateEmailAttachmentUpload(file, companyId)
+      mediaId = upload.mediaId
+      if (cancelledComposeAttachmentsRef.current.has(clientId)) {
+        await mediaApi.delete(mediaId).catch(() => undefined)
+        return
+      }
+      patch({ mediaId, progress: 1 })
+      await mediaApi.uploadFileToStorage(upload, file, (progress) => patch({ progress }))
+      if (cancelledComposeAttachmentsRef.current.has(clientId)) {
+        await mediaApi.delete(mediaId).catch(() => undefined)
+        return
+      }
+      await mediaApi.completeUpload(mediaId)
+      patch({ progress: 100, status: 'READY', error: undefined })
+    } catch (requestError) {
+      patch({
+        status: 'FAILED',
+        error: apiErrorMessage(requestError, 'Attachment upload failed'),
+      })
+    }
+  }
+
+  const addComposeAttachments = (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const available = Math.max(0, 10 - composeAttachments.length)
+    const selected = Array.from(files).slice(0, available)
+    if (selected.length < files.length) {
+      snackbar.warning('You can attach up to 10 files to one email.')
+    }
+
+    const items = selected.map((file) => ({
+      clientId: crypto.randomUUID(),
+      file,
+      progress: 0,
+      status: 'UPLOADING' as const,
+    }))
+    setComposeAttachments((current) => [...current, ...items])
+    items.forEach((item) => void uploadComposeAttachment(item.clientId, item.file))
+  }
+
+  const removeComposeAttachment = (clientId: string) => {
+    cancelledComposeAttachmentsRef.current.add(clientId)
+    const item = composeAttachments.find((attachment) => attachment.clientId === clientId)
+    setComposeAttachments((current) =>
+      current.filter((attachment) => attachment.clientId !== clientId),
+    )
+    if (item?.mediaId) void mediaApi.delete(item.mediaId).catch(() => undefined)
+  }
+
+  const retryComposeAttachment = (clientId: string) => {
+    const item = composeAttachments.find((attachment) => attachment.clientId === clientId)
+    if (!item) return
+    cancelledComposeAttachmentsRef.current.delete(clientId)
+    if (item.mediaId) void mediaApi.delete(item.mediaId).catch(() => undefined)
+    setComposeAttachments((current) =>
+      current.map((attachment) =>
+        attachment.clientId === clientId
+          ? { ...attachment, mediaId: undefined, progress: 0, status: 'UPLOADING', error: undefined }
+          : attachment,
+      ),
+    )
+    void uploadComposeAttachment(clientId, item.file)
+  }
+
+  const discardCompose = () => {
+    composeAttachments.forEach((item) => {
+      cancelledComposeAttachmentsRef.current.add(item.clientId)
+      if (item.mediaId) void mediaApi.delete(item.mediaId).catch(() => undefined)
+    })
+    resetCompose()
+    closeCompose()
   }
 
   const openCompose = () => {
@@ -858,6 +974,7 @@ function EmailInboxView() {
       return
     }
 
+    setComposeAttachments([])
     setComposeMode(replyAll ? 'replyAll' : 'reply')
     setComposeTo(recipientInput(recipients.to))
     setComposeCc(recipientInput(recipients.cc))
@@ -878,6 +995,7 @@ function EmailInboxView() {
     const to = message.to.join(', ')
     const originalBody = message.bodyText || message.snippet || ''
 
+    setComposeAttachments([])
     setComposeMode('forward')
     setComposeTo('')
     setComposeCc('')
@@ -920,6 +1038,13 @@ function EmailInboxView() {
       snackbar.warning('Add at least one To, CC, or BCC recipient.')
       return
     }
+    if (composeAttachments.some((attachment) => attachment.status !== 'READY')) {
+      snackbar.warning('Wait for attachments to finish uploading or remove failed attachments.')
+      return
+    }
+    const attachmentMediaIds = composeAttachments
+      .map((attachment) => attachment.mediaId)
+      .filter((mediaId): mediaId is string => Boolean(mediaId))
 
     setSending(true)
     try {
@@ -1085,7 +1210,7 @@ function EmailInboxView() {
             className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
             role="presentation"
             onMouseDown={(event) => {
-              if (event.currentTarget === event.target && !sending) closeCompose()
+              if (event.currentTarget === event.target && !sending) discardCompose()
             }}
           >
             <form
@@ -1167,6 +1292,94 @@ function EmailInboxView() {
                     maxLength={100000}
                   />
                 </label>
+
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-slate-600">Attachments</p>
+                    <label className="secondary-button cursor-pointer gap-2 px-3 py-2 text-xs">
+                      <FiPaperclip aria-hidden="true" />
+                      Attach files
+                      <input
+                        type="file"
+                        multiple
+                        className="sr-only"
+                        disabled={sending || composeAttachments.length >= 10}
+                        onChange={(event) => {
+                          addComposeAttachments(event.target.files)
+                          event.currentTarget.value = ''
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {composeAttachments.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {composeAttachments.map((attachment) => (
+                        <div
+                          key={attachment.clientId}
+                          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"
+                        >
+                          <div className="flex items-start gap-3">
+                            <FiPaperclip
+                              aria-hidden="true"
+                              className="mt-0.5 shrink-0 text-slate-400"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="truncate text-xs font-semibold text-slate-800">
+                                    {attachment.file.name}
+                                  </p>
+                                  <p className="mt-0.5 text-[10px] text-slate-500">
+                                    {formatFileSize(attachment.file.size)}
+                                    {' · '}
+                                    {attachment.status === 'READY'
+                                      ? 'Ready'
+                                      : attachment.status === 'FAILED'
+                                        ? 'Upload failed'
+                                        : `${attachment.progress}% uploaded`}
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="rounded-md p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                                  aria-label={`Remove ${attachment.file.name}`}
+                                  onClick={() => removeComposeAttachment(attachment.clientId)}
+                                  disabled={sending}
+                                >
+                                  <FiX aria-hidden="true" />
+                                </button>
+                              </div>
+
+                              {attachment.status === 'UPLOADING' && (
+                                <ProgressBar
+                                  className="mt-2"
+                                  value={attachment.progress}
+                                  label={`Uploading ${attachment.file.name}`}
+                                />
+                              )}
+                              {attachment.status === 'FAILED' && (
+                                <div className="mt-2 flex items-center justify-between gap-3">
+                                  <p className="text-[10px] text-rose-600">
+                                    {attachment.error || 'Unable to upload attachment'}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700"
+                                    onClick={() => retryComposeAttachment(attachment.clientId)}
+                                    disabled={sending}
+                                  >
+                                    Retry
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -1174,7 +1387,7 @@ function EmailInboxView() {
                   type="button"
                   className="secondary-button justify-center"
                   disabled={sending}
-                  onClick={closeCompose}
+                  onClick={discardCompose}
                 >
                   Cancel
                 </button>
@@ -1183,6 +1396,7 @@ function EmailInboxView() {
                   className="primary-button justify-center gap-2"
                   disabled={
                     sending ||
+                    composeAttachments.some((attachment) => attachment.status !== 'READY') ||
                     (!composeTo.trim() && !composeCc.trim() && !composeBcc.trim()) ||
                     !composeBody.trim()
                   }
