@@ -3,6 +3,7 @@ import { FiBox, FiPlus, FiRefreshCw, FiShoppingBag, FiTrash2 } from 'react-icons
 import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
 import GoogleMerchantDataSourceModal from '../../components/ads/GoogleMerchantDataSourceModal'
 import GoogleMerchantProductModal from '../../components/ads/GoogleMerchantProductModal'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -44,6 +45,9 @@ export default function AdMerchantCenter() {
   const [editingProduct, setEditingProduct] = useState<GoogleMerchantProduct | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [sourceToDelete, setSourceToDelete] = useState<GoogleMerchantDataSource | null>(null)
+  const [productToDelete, setProductToDelete] = useState<GoogleMerchantProduct | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const googleAccounts = useMemo(
     () =>
@@ -209,16 +213,7 @@ export default function AdMerchantCenter() {
 
   const deleteSource = async (source: GoogleMerchantDataSource) => {
     if (!selectedCompany || !selectedAccount || !merchantId) return
-    const label = source.displayName || source.dataSourceId
-    if (
-      !window.confirm(
-        'Delete ' +
-          label +
-          '? Products owned by a primary source can also disappear from Merchant Center.',
-      )
-    ) {
-      return
-    }
+    setDeleting(true)
     setError('')
     try {
       await adCenterApi.deleteGoogleMerchantDataSource(
@@ -231,6 +226,9 @@ export default function AdMerchantCenter() {
       await refresh()
     } catch (deleteError) {
       setError(apiErrorMessage(deleteError, 'Unable to delete Merchant data source'))
+    } finally {
+      setDeleting(false)
+      setSourceToDelete(null)
     }
   }
 
@@ -263,13 +261,7 @@ export default function AdMerchantCenter() {
     if (!selectedCompany || !selectedAccount || !merchantId || !product.dataSource) {
       return
     }
-    if (
-      !window.confirm(
-        'Delete ' + (product.title || product.offerId) + ' from this API data source?',
-      )
-    ) {
-      return
-    }
+    setDeleting(true)
     setError('')
     try {
       await adCenterApi.deleteGoogleMerchantProduct(
@@ -296,6 +288,9 @@ export default function AdMerchantCenter() {
       setNotice('Product input deleted. Merchant processing can take a few minutes.')
     } catch (deleteError) {
       setError(apiErrorMessage(deleteError, 'Unable to delete Merchant product'))
+    } finally {
+      setDeleting(false)
+      setProductToDelete(null)
     }
   }
 
@@ -489,7 +484,7 @@ export default function AdMerchantCenter() {
                           <button
                             type="button"
                             className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                            onClick={() => void deleteSource(source)}
+                            onClick={() => setSourceToDelete(source)}
                           >
                             <FiTrash2 aria-hidden="true" />
                           </button>
@@ -580,7 +575,7 @@ export default function AdMerchantCenter() {
                             <button
                               type="button"
                               className="secondary-button text-xs"
-                              onClick={() => void deleteProduct(product)}
+                              onClick={() => setProductToDelete(product)}
                             >
                               Delete
                             </button>
@@ -623,6 +618,30 @@ export default function AdMerchantCenter() {
         defaultCurrency={selectedAccount?.currency}
         onClose={() => setProductOpen(false)}
         onSave={saveProduct}
+      />
+      <ConfirmDialog
+        open={Boolean(sourceToDelete)}
+        title="Delete this Merchant data source?"
+        description={sourceToDelete ? `Deleting ${sourceToDelete.displayName || sourceToDelete.dataSourceId} can also remove products owned by a primary source from Merchant Center.` : ''}
+        confirmLabel="Yes, delete source"
+        cancelLabel="No, keep source"
+        tone="danger"
+        kind="delete"
+        working={deleting}
+        onCancel={() => setSourceToDelete(null)}
+        onConfirm={() => sourceToDelete && void deleteSource(sourceToDelete)}
+      />
+      <ConfirmDialog
+        open={Boolean(productToDelete)}
+        title="Delete this Merchant product?"
+        description={productToDelete ? `Delete ${productToDelete.title || productToDelete.offerId} from this API data source?` : ''}
+        confirmLabel="Yes, delete product"
+        cancelLabel="No, keep product"
+        tone="danger"
+        kind="delete"
+        working={deleting}
+        onCancel={() => setProductToDelete(null)}
+        onConfirm={() => productToDelete && void deleteProduct(productToDelete)}
       />
     </section>
   )

@@ -13,6 +13,7 @@ import {
 } from '../../store/workspace/workspaceSlice'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 import type { WorkspaceEpochToken } from '../../features/workspace/workspaceEpoch'
+import { ListSkeleton } from '../../components/ui/Skeleton'
 
 export default function ListsPage() {
   const companyId = useAppSelector(selectSelectedCompanyId)
@@ -115,9 +116,7 @@ export default function ListsPage() {
         )}
 
         {loading ? (
-          <div className="panel mt-6 p-10 text-center text-sm text-slate-500" role="status">
-            Loading Lists…
-          </div>
+          <div className="mt-6"><ListSkeleton rows={6} /></div>
         ) : items.length === 0 ? (
           <div className="panel mt-6 p-10 text-center">
             <h2 className="font-bold text-slate-950">No Lists yet</h2>

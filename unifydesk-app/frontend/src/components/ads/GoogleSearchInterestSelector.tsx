@@ -6,6 +6,7 @@ import type {
   GoogleSearchInterestOption,
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { Skeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -134,7 +135,11 @@ export default function GoogleSearchInterestSelector({
       )}
 
       {loading ? (
-        <p className="mt-4 text-xs text-slate-500">Loading Google segments…</p>
+        <div className="mt-4 space-y-2" role="status" aria-label="Loading Google segments">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+      </div>
       ) : interests.length === 0 && accountId ? (
         <p className="mt-4 text-xs text-slate-500">
           No Search-compatible Affinity or In-market segments matched this search.

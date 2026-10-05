@@ -14,6 +14,7 @@ import {
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import { useSnackbar } from '../feedback/SnackbarProvider'
 import type { BroadcastSenderProvider, BroadcastSetupStatus } from '../../features/broadcast/types'
+import { CardSkeleton } from '../ui/Skeleton'
 
 export type BroadcastEmailProviderChoice = 'AMAZON_SES' | 'SENDGRID' | 'AZURE_EMAIL' | 'MSG91_EMAIL'
 
@@ -370,7 +371,7 @@ export default function BroadcastEmailProviderPickerModal({
     return (
       <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
         <div className="mobile-sheet w-full max-w-xl rounded-2xl bg-white p-6 text-center shadow-xl">
-          <p className="text-sm font-semibold text-slate-700">Loading setup…</p>
+          <CardSkeleton rows={4} />
         </div>
       </div>
     )

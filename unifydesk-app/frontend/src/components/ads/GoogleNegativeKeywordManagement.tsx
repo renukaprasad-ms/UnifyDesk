@@ -9,6 +9,7 @@ import type {
   GoogleNegativeKeywordList,
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { ListSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -321,9 +322,7 @@ export default function GoogleNegativeKeywordManagement({
 
           <div className="mt-4 grid gap-2">
             {loading ? (
-              <p className="rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
-                Loading campaign negative keywords…
-              </p>
+              <ListSkeleton rows={3} />
             ) : campaignKeywords.length === 0 ? (
               <p className="rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
                 No campaign-level negative keywords.
@@ -383,9 +382,7 @@ export default function GoogleNegativeKeywordManagement({
 
           <div className="mt-4 grid gap-2">
             {loading ? (
-              <p className="rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
-                Loading shared lists…
-              </p>
+              <ListSkeleton rows={3} />
             ) : lists.length === 0 ? (
               <p className="rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
                 No reusable negative keyword lists on this account.

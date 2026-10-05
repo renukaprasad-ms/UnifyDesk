@@ -8,6 +8,7 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import { TableSkeleton } from '../../components/ui/Skeleton'
 
 const pretty = (value: string) =>
   value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (character) => character.toUpperCase())
@@ -92,7 +93,7 @@ export default function ReachlyoCampaigns() {
             </div>
 
             {loading ? (
-              <div className="p-10 text-center text-sm text-slate-500">Loading unified campaigns…</div>
+              <div className="p-4"><TableSkeleton rows={7} columns={5} /></div>
             ) : campaigns.length === 0 ? (
               <div className="p-12 text-center">
                 <FiLayers className="mx-auto text-3xl text-slate-300" aria-hidden="true" />

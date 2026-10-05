@@ -5,6 +5,7 @@ import type { AdAccount, AdActivityLog, PageResponse } from '../../features/ads/
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import { ListSkeleton } from '../../components/ui/Skeleton'
 
 const pretty = (value: string) =>
   value.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase())
@@ -143,7 +144,7 @@ export default function AdActivity() {
           </div>
 
           {loading ? (
-            <div className="p-10 text-center text-sm text-slate-500">Loading activity…</div>
+            <div className="p-4"><ListSkeleton rows={7} /></div>
           ) : !pageData || pageData.content.length === 0 ? (
             <div className="p-10 text-center">
               <FiActivity className="mx-auto text-3xl text-slate-300" aria-hidden="true" />

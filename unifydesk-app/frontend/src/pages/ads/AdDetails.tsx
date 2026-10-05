@@ -8,6 +8,7 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import { PageSkeleton } from '../../components/ui/Skeleton'
 
 export default function AdDetails() {
   const { adId = '' } = useParams()
@@ -121,7 +122,7 @@ export default function AdDetails() {
         </Link>
 
         {loading ? (
-          <div className="panel mt-6 p-10 text-center text-sm text-slate-500">Loading ad…</div>
+          <div className="mt-6"><PageSkeleton /></div>
         ) : ad ? (
           <>
             <header className="mt-5 flex flex-wrap items-end justify-between gap-4">

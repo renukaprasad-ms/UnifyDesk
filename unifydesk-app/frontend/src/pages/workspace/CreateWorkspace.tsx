@@ -7,6 +7,9 @@ import { selectCompany, setCompanies } from '../../store/workspace/workspaceSlic
 import { mediaApi } from '../../features/media/mediaApi'
 import type { InitiateMediaUploadResponse } from '../../features/media/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import AsyncButton from '../../components/ui/AsyncButton'
+import ProgressBar from '../../components/ui/ProgressBar'
+import useBeforeUnloadGuard from '../../hooks/useBeforeUnloadGuard'
 
 export default function CreateWorkspace() {
   const navigate = useNavigate()
@@ -21,10 +24,13 @@ export default function CreateWorkspace() {
   const [logoUploadProgress, setLogoUploadProgress] = useState(0)
   const [logoUploadResult, setLogoUploadResult] = useState<InitiateMediaUploadResponse | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [logoUploading, setLogoUploading] = useState(false)
   const [error, setError] = useState('')
   const logoPreviewUrlRef = useRef('')
   const logoUploadRunIdRef = useRef(0)
   const logoUploadPromiseRef = useRef<Promise<InitiateMediaUploadResponse> | null>(null)
+
+  useBeforeUnloadGuard(!submitting && Boolean(name.trim() || businessEmail.trim() || logo))
 
   const companyInitials =
     name
@@ -46,6 +52,7 @@ export default function CreateWorkspace() {
     file: File,
     runId: number,
   ): Promise<InitiateMediaUploadResponse> => {
+    setLogoUploading(true)
     setLogoUploadStatus('Preparing upload...')
     setLogoUploadProgress(1)
     const upload = await mediaApi.initiateCompanyLogoUpload(file)
@@ -58,6 +65,7 @@ export default function CreateWorkspace() {
       setLogoUploadProgress(100)
       setLogoUploadStatus('Uploaded. It will be saved when you create.')
       setLogoUploadResult(upload)
+      setLogoUploading(false)
     }
     return upload
   }
@@ -67,6 +75,7 @@ export default function CreateWorkspace() {
     logoUploadRunIdRef.current = runId
     logoUploadPromiseRef.current = null
     setLogoUploadResult(null)
+    setLogoUploading(Boolean(file))
     setLogoUploadProgress(0)
     if (logoPreviewUrlRef.current) {
       URL.revokeObjectURL(logoPreviewUrlRef.current)
@@ -86,6 +95,7 @@ export default function CreateWorkspace() {
         if (logoUploadRunIdRef.current === runId) {
           setLogoUploadProgress(0)
           setLogoUploadStatus(apiErrorMessage(uploadError, 'Logo upload failed'))
+          setLogoUploading(false)
         }
         throw uploadError
       })
@@ -178,9 +188,12 @@ export default function CreateWorkspace() {
               </div>
             )}
             {logo && logoUploadProgress > 0 && logoUploadProgress < 100 && (
-              <div className="upload-progress mt-2" aria-label="Company logo upload progress">
-                <span style={{ width: `${logoUploadProgress}%` }} />
-              </div>
+              <ProgressBar
+                className="mt-2"
+                value={logoUploadProgress}
+                label="Uploading company logo"
+                showValue
+              />
             )}
           </div>
           <label className="block">
@@ -223,13 +236,15 @@ export default function CreateWorkspace() {
             />
           </label>
           {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
-          <button
+          <AsyncButton
             type="submit"
-            className="mt-5 flex h-10 w-full items-center justify-center rounded-[8px] bg-indigo-500 text-xs font-semibold text-white"
-            disabled={submitting}
+            className="mt-5 h-10 w-full rounded-[8px] bg-indigo-500 text-xs font-semibold text-white"
+            disabled={logoUploading}
+            loading={submitting}
+            loadingLabel="Creating workspace…"
           >
-            {submitting ? 'Creating...' : 'Create workspace'}
-          </button>
+            {logoUploading ? 'Uploading logo…' : 'Create workspace'}
+          </AsyncButton>
         </form>
         <p className="mt-5 text-[11px] text-slate-500">You become the workspace OWNER</p>
       </main>

@@ -3,6 +3,7 @@ import { FiSearch } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type { GoogleDetailedDemographicOption } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { Skeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -246,7 +247,11 @@ export default function GoogleSearchDemographicSelector(props: Props) {
         )}
 
         {loading ? (
-          <p className="mt-3 text-xs text-slate-500">Loading demographics…</p>
+          <div className="mt-3 space-y-2" role="status" aria-label="Loading demographics">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
         ) : options.length === 0 && props.accountId ? (
           <p className="mt-3 text-xs text-slate-500">
             No Search-compatible detailed demographics matched this search.

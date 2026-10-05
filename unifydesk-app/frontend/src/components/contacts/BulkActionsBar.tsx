@@ -11,6 +11,7 @@ import type {
   TagSummary,
 } from '../../features/contacts/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 type Props = {
   companyId: string
@@ -45,6 +46,7 @@ export default function BulkActionsBar({
   const [targetId, setTargetId] = useState('')
   const [fieldValue, setFieldValue] = useState('')
   const [busy, setBusy] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   useEffect(() => {
     if (!allowModify && allowDelete) setAction('DELETE')
@@ -96,13 +98,10 @@ export default function BulkActionsBar({
 
   const run = async () => {
     if (action !== 'DELETE' && !targetId) return
-    if (
-      action === 'DELETE' &&
-      !window.confirm(
-        'Delete the selected contacts? This queues permanent cleanup and cannot be undone.',
-      )
-    )
+    if (action === 'DELETE' && !deleteConfirmOpen) {
+      setDeleteConfirmOpen(true)
       return
+    }
     setBusy(true)
     onError('')
     try {
@@ -126,6 +125,7 @@ export default function BulkActionsBar({
       onError(apiErrorMessage(error, 'Unable to start bulk operation.'))
     } finally {
       setBusy(false)
+      setDeleteConfirmOpen(false)
     }
   }
 
@@ -231,6 +231,18 @@ export default function BulkActionsBar({
           {busy ? 'Starting…' : 'Apply'}
         </button>
       </div>
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="Delete the selected contacts?"
+        description="This queues permanent cleanup for the selected contacts and cannot be undone."
+        confirmLabel="Yes, delete contacts"
+        cancelLabel="No, keep contacts"
+        tone="danger"
+        kind="delete"
+        working={busy}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => void run()}
+      />
     </div>
   )
 }

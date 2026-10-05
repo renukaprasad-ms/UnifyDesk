@@ -8,6 +8,7 @@ import { notificationPresentation } from '../../features/notifications/notificat
 import { useNotifications } from '../../features/notifications/notificationContext'
 import { isSafeAppRoute } from '../../features/notifications/notificationUtils'
 import type { NotificationItem } from '../../features/notifications/types'
+import { ListSkeleton } from '../../components/ui/Skeleton'
 
 const formatWhen = (value: string) =>
   new Intl.DateTimeFormat(undefined, {
@@ -241,7 +242,7 @@ export default function NotificationsPage() {
           </div>
         ) : (
           <div className="panel mt-6 overflow-hidden">
-            {loading && <p className="notification-state p-8">Loading notifications…</p>}
+            {loading && <div className="p-4"><ListSkeleton rows={7} /></div>}
 
             {!loading && items.length === 0 && (
               <div className="p-10 text-center">

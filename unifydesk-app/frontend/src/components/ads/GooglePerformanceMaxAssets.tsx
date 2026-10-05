@@ -11,6 +11,7 @@ import type {
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import GooglePerformanceMaxListingGroups from './GooglePerformanceMaxListingGroups'
+import { ListSkeleton } from '../ui/Skeleton'
 
 type FieldType = GoogleAssetGroupAssetInput['fieldType']
 type SourceMode = 'NEW' | 'EXISTING'
@@ -446,7 +447,7 @@ export default function GooglePerformanceMaxAssets({
       </div>
 
       {loading ? (
-        <div className="mt-4 text-xs text-slate-400">Loading assets…</div>
+        <div className="mt-4"><ListSkeleton rows={4} /></div>
       ) : groupedAssets.length === 0 ? (
         <div className="mt-4 text-xs text-slate-400">
           Google returned no linked assets for this Asset Group.

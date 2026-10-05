@@ -12,6 +12,7 @@ import {
   selectSelectedCompanyId,
   setCompanies,
 } from '../store/workspace/workspaceSlice'
+import { Skeleton } from './ui/Skeleton'
 
 const companyInitials = (name: string) =>
   name
@@ -143,7 +144,10 @@ export default function WorkspaceSwitcher({ platformAdmin = false }: { platformA
       {open && (
         <div className="workspace-menu left-0 right-auto" role="menu">
           {loading && (
-            <div className="px-3 py-3 text-xs font-semibold text-slate-500">Loading...</div>
+            <div className="space-y-2 px-3 py-3" role="status" aria-label="Loading workspaces">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+            </div>
           )}
           {!loading &&
             companies.map((company) => (

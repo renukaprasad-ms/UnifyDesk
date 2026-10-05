@@ -23,6 +23,7 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import { PageSkeleton } from '../../components/ui/Skeleton'
 
 const emptyHealth = (account: AdAccount): AdAccountHealth => ({
   synced: false,
@@ -350,9 +351,7 @@ export default function AdSettings() {
             Connect an advertising provider and enable at least one managed ad account before using Settings.
           </div>
         ) : loading || !selectedAccount ? (
-          <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
-            Loading account settings…
-          </div>
+          <div className="mt-6"><PageSkeleton /></div>
         ) : (
           <>
             <div className="mt-6 grid gap-6 lg:grid-cols-2">

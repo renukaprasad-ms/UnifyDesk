@@ -31,6 +31,7 @@ import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpo
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
+import { PageSkeleton } from '../../components/ui/Skeleton'
 
 const date = (value?: string | null) =>
   value ? new Date(value).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—'
@@ -253,7 +254,7 @@ export default function CompanyPlan() {
   }
 
   if (!selectedCompany) return <section className="p-8"><div className="panel p-8 text-center">Select a workspace to view Billing.</div></section>
-  if (loading) return <section className="p-8"><div className="panel p-8">Loading Billing…</div></section>
+  if (loading) return <section className="p-8"><PageSkeleton /></section>
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">

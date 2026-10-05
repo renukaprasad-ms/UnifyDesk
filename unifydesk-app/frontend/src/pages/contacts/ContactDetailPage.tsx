@@ -5,6 +5,8 @@ import ContactFormDialog from '../../components/contacts/ContactFormDialog'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import IdentityManager from '../../components/contacts/IdentityManager'
 import ManualSuppressionForm from '../../components/contacts/ManualSuppressionForm'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { CardSkeleton } from '../../components/ui/Skeleton'
 import {
   contactPrimaryIdentityValue,
   createIdempotencyKey,
@@ -70,6 +72,8 @@ export default function ContactDetailPage() {
   >(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [pendingPreferenceState, setPendingPreferenceState] = useState<CommunicationPreference['state'] | null>(null)
+  const [suppressionToLift, setSuppressionToLift] = useState<Suppression | null>(null)
 
   const load = async (scope: WorkspaceEpochToken | null = captureScope()) => {
     if (!companyId || !contactId || !scopeIsCurrent(scope)) return
@@ -182,12 +186,6 @@ export default function ContactDetailPage() {
   const changePreference = async (state: CommunicationPreference['state']) => {
     const channel = editingPreference
     if (!companyId || !channel) return
-    if (
-      !window.confirm('Record ' + state.replaceAll('_', ' ') + ' for ' + channel + ' marketing?')
-    ) {
-      return
-    }
-
     const changed = await mutate(
       () =>
         contactsApi
@@ -196,6 +194,7 @@ export default function ContactDetailPage() {
       channel + ' marketing preference updated.',
     )
     if (changed) setEditingPreference(null)
+    setPendingPreferenceState(null)
   }
 
   if (contact?.status === 'MERGED' && contact.mergedIntoContactId) {
@@ -207,9 +206,7 @@ export default function ContactDetailPage() {
       <section className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <ContactsNav />
-          <div className="panel p-10 text-center text-sm text-slate-500" role="status">
-            Loading Contact…
-          </div>
+          <div className="mt-4"><CardSkeleton rows={7} /></div>
         </div>
       </section>
     )
@@ -476,25 +473,7 @@ export default function ContactDetailPage() {
                         <button
                           className="secondary-button"
                           disabled={busy}
-                          onClick={() => {
-                            if (
-                              !window.confirm(
-                                'Lift this suppression? This action is recorded for audit.',
-                              )
-                            ) {
-                              return
-                            }
-                            void mutate(
-                              () =>
-                                contactsApi
-                                  .liftSuppression(companyId, contactId, item.id, {
-                                    reason: 'Lifted by workspace user after review',
-                                    idempotencyKey: createIdempotencyKey(),
-                                  })
-                                  .then(() => undefined),
-                              'Suppression lifted.',
-                            )
-                          }}
+                          onClick={() => setSuppressionToLift(item)}
                         >
                           Lift suppression
                         </button>
@@ -583,7 +562,7 @@ export default function ContactDetailPage() {
                     key={state}
                     className="secondary-button justify-start"
                     disabled={busy}
-                    onClick={() => void changePreference(state)}
+                    onClick={() => setPendingPreferenceState(state)}
                   >
                     {state.replaceAll('_', ' ')}
                   </button>
@@ -596,6 +575,44 @@ export default function ContactDetailPage() {
           </div>
         )}
       </div>
+        <ConfirmDialog
+          open={Boolean(pendingPreferenceState && editingPreference)}
+          title="Record this marketing preference?"
+          description={
+            pendingPreferenceState && editingPreference
+              ? `Record ${pendingPreferenceState.replaceAll('_', ' ')} for ${editingPreference} marketing? This creates an auditable preference event.`
+              : ''
+          }
+          confirmLabel="Yes, record preference"
+          cancelLabel="No, cancel"
+          tone={pendingPreferenceState === 'OPTED_OUT' ? 'warning' : 'default'}
+          working={busy}
+          onCancel={() => setPendingPreferenceState(null)}
+          onConfirm={() => pendingPreferenceState && void changePreference(pendingPreferenceState)}
+        />
+        <ConfirmDialog
+          open={Boolean(suppressionToLift)}
+          title="Lift this suppression?"
+          description="This changes the contact's sending eligibility and will be recorded for audit."
+          confirmLabel="Yes, lift suppression"
+          cancelLabel="No, keep suppression"
+          tone="warning"
+          working={busy}
+          onCancel={() => setSuppressionToLift(null)}
+          onConfirm={() => {
+            if (!suppressionToLift || !companyId) return
+            void mutate(
+              () =>
+                contactsApi
+                  .liftSuppression(companyId, contactId, suppressionToLift.id, {
+                    reason: 'Lifted by workspace user after review',
+                    idempotencyKey: createIdempotencyKey(),
+                  })
+                  .then(() => undefined),
+              'Suppression lifted.',
+            ).finally(() => setSuppressionToLift(null))
+          }}
+        />
     </section>
   )
 }
