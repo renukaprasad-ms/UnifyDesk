@@ -15,14 +15,15 @@ const toneClasses: Record<StatusTone, string> = {
 
 export function semanticStatusTone(status: string): StatusTone {
   const value = status.trim().toUpperCase().replaceAll(' ', '_')
-  if (['ACTIVE', 'READY', 'HEALTHY', 'COMPLETED', 'DELIVERED', 'VERIFIED', 'APPROVED', 'SYNCED', 'SUCCESS', 'ACCEPTED', 'ACCEPTED_BY_PROVIDER', 'SENT'].includes(value)) return 'success'
+  if (['ACTIVE', 'READY', 'HEALTHY', 'COMPLETED', 'DELIVERED', 'VERIFIED', 'APPROVED', 'SYNCED', 'SUCCESS', 'ACCEPTED', 'ACCEPTED_BY_PROVIDER'].includes(value)) return 'success'
   if (['RUNNING', 'PROCESSING', 'SENDING', 'SYNCING', 'PROVIDER_SYNCING', 'PREPARING', 'UPLOADING', 'RETRY', 'IN_PROGRESS'].includes(value)) return 'processing'
-  if (['QUEUED', 'SCHEDULED', 'RECEIVED', 'PENDING', 'PENDING_DNS', 'PENDING_REVIEW'].includes(value)) return 'info'
+  if (['QUEUED', 'SCHEDULED', 'RECEIVED', 'PENDING', 'PENDING_DNS', 'PENDING_REVIEW', 'SENT'].includes(value)) return 'info'
   if (['PARTIALLY_FAILED'].includes(value)) return 'partial'
-  if (['WARNING', 'ACTION_REQUIRED', 'EXPIRED', 'THROTTLED', 'PAUSED', 'WAITING_EXTERNAL_ACTION'].includes(value)) return 'warning'
+  if (['READ'].includes(value)) return 'accent'
+  if (['WARNING', 'ACTION_REQUIRED', 'EXPIRED', 'THROTTLED', 'PAUSED', 'WAITING_EXTERNAL_ACTION', 'UNKNOWN'].includes(value)) return 'warning'
   if (['FAILED', 'ERROR', 'REJECTED', 'BOUNCED', 'COMPLAINT', 'SUSPENDED_POLICY'].includes(value)) return 'danger'
   if (['SUSPENDED'].includes(value)) return 'warning'
-  if (['CANCELLED', 'SUPPRESSED', 'SKIPPED', 'UNKNOWN', 'DRAFT', 'DISABLED', 'DELETED', 'RETIRED'].includes(value)) return 'neutral'
+  if (['CANCELLED', 'SUPPRESSED', 'SKIPPED', 'DRAFT', 'DISABLED', 'DELETED', 'RETIRED'].includes(value)) return 'neutral'
   if (['OPENED'].includes(value)) return 'info'
   if (['CLICKED'].includes(value)) return 'accent'
   return 'neutral'
