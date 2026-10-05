@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 import Header from '../components/Header'
 import AdminSidebar from '../components/navigation/AdminSidebar'
 import ChannelContextSidebar from '../components/navigation/ChannelContextSidebar'
+import GlobalSyncProgress from '../components/inbox/GlobalSyncProgress'
 import AdCenterSidebar from '../components/navigation/AdCenterSidebar'
 import AppSidebar from '../components/navigation/AppSidebar'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
@@ -213,6 +214,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
             <Outlet />
           </main>
         </div>
+        {!platform && <GlobalSyncProgress />}
         <ConfirmDialog
           open={logoutConfirmOpen}
           title="Log out of UnifyDesk?"
