@@ -3,6 +3,7 @@ package com.messaging.billing.service;
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.EntitlementDefinition;
 import com.messaging.billing.entity.PlanEntitlement;
+import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
@@ -94,10 +95,16 @@ public class EntitlementService {
 
   @Transactional(readOnly = true)
   public Optional<CompanySubscription> effectiveSubscription(Long companyId) {
+    return effectiveSubscription(companyId, Instant.now());
+  }
+
+  Optional<CompanySubscription> effectiveSubscription(Long companyId, Instant now) {
     Optional<CompanySubscription> active =
         subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
             companyId, SubscriptionStatus.ACTIVE);
-    if (active.isPresent()) return active;
+    if (active.isPresent()) {
+      return activePaidPeriodIsEntitled(active.get(), now) ? active : Optional.empty();
+    }
     Optional<CompanySubscription> trial =
         subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
             companyId, SubscriptionStatus.TRIALING);
@@ -107,10 +114,26 @@ public class EntitlementService {
             companyId, SubscriptionStatus.PAST_DUE);
     if (pastDue.isPresent()
         && pastDue.get().getGraceEndsAt() != null
-        && pastDue.get().getGraceEndsAt().isAfter(Instant.now())) {
+        && pastDue.get().getGraceEndsAt().isAfter(now)) {
       return pastDue;
     }
     return Optional.empty();
+  }
+
+  private boolean activePaidPeriodIsEntitled(CompanySubscription subscription, Instant now) {
+    var price = subscription.getPlanPrice();
+    BillingCycle cycle =
+        price == null ? subscription.getPlan().getBillingCycle() : price.getBillingCycle();
+    BigDecimal amount =
+        price == null ? subscription.getPlan().getBasePrice() : price.getAmount();
+
+    boolean paid = cycle != BillingCycle.FREE && amount != null && amount.signum() > 0;
+    if (!paid) {
+      return true;
+    }
+
+    Instant currentPeriodEnd = subscription.getCurrentPeriodEnd();
+    return currentPeriodEnd != null && now != null && now.isBefore(currentPeriodEnd);
   }
 
   private String normalizeKey(String key) {
