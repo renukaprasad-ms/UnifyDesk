@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import ExportJobButton from '../../components/contacts/ExportJobButton'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import SegmentBuilder from '../../components/contacts/SegmentBuilder'
 import { contactsApi, isContactVersionConflict } from '../../features/contacts/contactsApi'
 import { DEFAULT_CONTACT_EXPORT_FIELDS } from '../../features/contacts/contactModel'
@@ -50,6 +51,7 @@ export default function SegmentEditorPage() {
   const [serverErrors, setServerErrors] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [segmentVersion, setSegmentVersion] = useState<number | null>(null)
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false)
   const canModify = can(PERMISSIONS.CONTACT_MODIFY)
 
   useEffect(() => {
@@ -195,10 +197,6 @@ export default function SegmentEditorPage() {
 
   const archive = async () => {
     if (!companyId || !segmentId || !canModify) return
-    if (!window.confirm('Archive this Segment? Historical references remain intact.')) {
-      return
-    }
-
     const scope = captureScope()
     setSaving(true)
     try {
@@ -212,6 +210,7 @@ export default function SegmentEditorPage() {
       }
     } finally {
       if (scopeIsCurrent(scope)) setSaving(false)
+      setArchiveConfirmOpen(false)
     }
   }
 
@@ -256,7 +255,7 @@ export default function SegmentEditorPage() {
                   type="button"
                   className="secondary-button text-rose-700"
                   disabled={saving}
-                  onClick={() => void archive()}
+                  onClick={() => setArchiveConfirmOpen(true)}
                 >
                   Archive Segment
                 </button>
@@ -350,6 +349,17 @@ export default function SegmentEditorPage() {
           </section>
         )}
       </div>
+        <ConfirmDialog
+          open={archiveConfirmOpen}
+          title="Archive this segment?"
+          description="Historical references will remain intact. The segment will stop appearing as an active audience."
+          confirmLabel="Yes, archive segment"
+          cancelLabel="No, keep segment"
+          tone="warning"
+          working={saving}
+          onCancel={() => setArchiveConfirmOpen(false)}
+          onConfirm={() => void archive()}
+        />
     </section>
   )
 }
