@@ -332,6 +332,39 @@ class SubscriptionChangeServiceTests {
   }
 
   @Test
+  void secondScheduledDowngradeWithDifferentTargetCannotReplaceWinner() {
+    commonNewCommandStubs("down-different-target");
+    when(planChangeClassifier.classify(currentPlan, currentPrice, targetPlan, targetPrice))
+        .thenReturn(PlanChangeDirection.DOWNGRADE);
+
+    Plan firstTargetPlan = plan(32L);
+    PlanPrice firstTargetPrice = price(33L, firstTargetPlan, "1500");
+    SubscriptionChange authoritative =
+        prior(10L, "down-first", SubscriptionChangeType.DOWNGRADE, 33L);
+    authoritative.setToPlan(firstTargetPlan);
+    authoritative.setToPlanPrice(firstTargetPrice);
+    authoritative.setStatus(SubscriptionChangeStatus.SCHEDULED);
+    authoritative.setEffectiveAt(periodEnd);
+    when(changeRepository.findBySubscriptionIdAndChangeTypeAndStatusAndEffectiveAt(
+            40L,
+            SubscriptionChangeType.DOWNGRADE,
+            SubscriptionChangeStatus.SCHEDULED,
+            periodEnd))
+        .thenReturn(Optional.of(authoritative));
+
+    assertThrows(
+        ConflictException.class,
+        () ->
+            service.scheduleDowngrade(
+                10L, 30L, 31L, "down-different-target", 99L, now));
+
+    assertEquals(32L, authoritative.getToPlan().getId());
+    assertEquals(33L, authoritative.getToPlanPrice().getId());
+    assertEquals(SubscriptionChangeStatus.SCHEDULED, authoritative.getStatus());
+    verify(changeRepository, never()).saveAndFlush(any());
+  }
+
+  @Test
   void databaseUniquenessRaceIsTranslatedToCommercialConflict() {
     commonNewCommandStubs("down-race");
     when(planChangeClassifier.classify(currentPlan, currentPrice, targetPlan, targetPrice))
