@@ -376,7 +376,8 @@ class SubscriptionChangeServiceTests {
             periodEnd))
         .thenReturn(Optional.empty());
     when(changeRepository.saveAndFlush(any(SubscriptionChange.class)))
-        .thenThrow(new DataIntegrityViolationException("scheduled downgrade boundary"));
+        .thenThrow(new DataIntegrityViolationException(
+            "duplicate key violates uk_subscription_changes_scheduled_downgrade_boundary"));
 
     assertThrows(
         ConflictException.class,
