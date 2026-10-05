@@ -22,6 +22,7 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import { TableSkeleton } from '../../components/ui/Skeleton'
 
 const objectiveLabel = (objective?: string | null) =>
   (objective ?? 'Unknown')
@@ -459,7 +460,7 @@ export default function AdCampaigns() {
             </div>
 
             {loading ? (
-              <div className="p-8 text-center text-sm text-slate-500">Loading campaigns…</div>
+              <div className="p-4"><TableSkeleton rows={7} columns={6} /></div>
             ) : error && campaigns.length === 0 ? (
               <div className="p-10 text-center text-sm text-slate-500">
                 Campaign data could not be refreshed. Resolve the issue above and try again.
