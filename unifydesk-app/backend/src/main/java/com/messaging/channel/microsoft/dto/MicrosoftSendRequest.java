@@ -13,7 +13,8 @@ public record MicrosoftSendRequest(
     @Size(max = 998) String subject,
     @NotBlank @Size(max = 100000) String bodyText,
     @Size(max = 255) String replyToMessageId,
-    Boolean replyAll) {
+    Boolean replyAll,
+    @Size(max = 10) List<@Size(max = 32) String> attachmentMediaIds) {
 
   public EmailSendCommand toCommand() {
     return new EmailSendCommand(
@@ -26,6 +27,17 @@ public record MicrosoftSendRequest(
         replyToMessageId,
         Boolean.TRUE.equals(replyAll),
         null,
-        null);
+        null,
+        attachmentIds());
   }
+  private List<Long> attachmentIds() {
+    if (attachmentMediaIds == null || attachmentMediaIds.isEmpty()) return List.of();
+    try {
+      return attachmentMediaIds.stream().map(Long::valueOf).toList();
+    } catch (NumberFormatException exception) {
+      throw new IllegalArgumentException("Invalid attachment media id", exception);
+    }
+  }
+
+
 }
