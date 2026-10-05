@@ -47,6 +47,7 @@ import {
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 import { templateVariableCounts } from './whatsappTemplateUtils'
 import { Skeleton } from '../ui/Skeleton'
+import StatusBadge from '../ui/StatusBadge'
 
 type WhatsAppInboxMessage = InboxMessage
 
@@ -867,10 +868,10 @@ export default function WhatsAppInbox() {
                             <time>{new Date(message.sentAt).toLocaleTimeString()}</time>
                           )}
                           {status && (
-                            <span className="inline-flex items-center gap-1 font-semibold" aria-label={statusLabel[status]}>
+                            <StatusBadge status={status} className="gap-1" >
                               <StatusIcon status={status} />
                               {statusLabel[status]}
-                            </span>
+                            </StatusBadge>
                           )}
                         </div>
 
