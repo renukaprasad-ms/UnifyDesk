@@ -17,6 +17,31 @@ public record EmailSendCommand(
     String references,
     List<Long> attachmentMediaIds) {
 
+  public EmailSendCommand(
+      List<String> to,
+      List<String> cc,
+      List<String> bcc,
+      String subject,
+      String bodyText,
+      String threadId,
+      String replyToMessageId,
+      boolean replyAll,
+      String inReplyTo,
+      String references) {
+    this(
+        to,
+        cc,
+        bcc,
+        subject,
+        bodyText,
+        threadId,
+        replyToMessageId,
+        replyAll,
+        inReplyTo,
+        references,
+        List.of());
+  }
+
   public EmailSendCommand {
     to = immutable(to);
     cc = immutable(cc);
