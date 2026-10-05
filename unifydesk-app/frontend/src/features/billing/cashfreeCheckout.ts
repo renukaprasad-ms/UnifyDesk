@@ -14,9 +14,10 @@ const SCRIPT_ID = 'cashfree-js-v3'
 const SCRIPT_SOURCE = 'https://sdk.cashfree.com/js/v3/cashfree.js'
 
 const configuredMode = (): CashfreeMode => {
-  const value = import.meta.env.VITE_CASHFREE_MODE
+  const value = import.meta.env.VITE_CASHFREE_MODE?.trim().toLowerCase()
+  if (!value) return 'sandbox'
   if (value === 'sandbox' || value === 'production') return value
-  throw new Error('Cashfree checkout mode is not configured')
+  throw new Error('Cashfree checkout mode must be sandbox or production')
 }
 
 const loadCashfree = async () => {
