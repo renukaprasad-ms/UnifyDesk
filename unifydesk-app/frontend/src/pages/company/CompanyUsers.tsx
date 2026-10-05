@@ -263,7 +263,7 @@ export default function CompanyUsers() {
                 {loading ? (
                   <tr>
                     <td
-                      className="px-4 py-8 text-center text-slate-500"
+                      className="p-4"
                       colSpan={
                         canAll([
                           PERMISSIONS.USER_MODIFY,
@@ -274,7 +274,18 @@ export default function CompanyUsers() {
                           : 4
                       }
                     >
-                      Loading users…
+                      <TableSkeleton
+                        rows={6}
+                        columns={
+                          canAll([
+                            PERMISSIONS.USER_MODIFY,
+                            PERMISSIONS.ROLE_READ,
+                            PERMISSIONS.ROLE_ASSIGN,
+                          ])
+                            ? 5
+                            : 4
+                        }
+                      />
                     </td>
                   </tr>
                 ) : sortedUsers.length === 0 ? (
