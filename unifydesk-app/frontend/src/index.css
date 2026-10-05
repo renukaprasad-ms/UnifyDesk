@@ -38,6 +38,56 @@
   .app-content {
     min-width: 0;
   }
+
+  /*
+   * Application page layout contract
+   * --------------------------------
+   * Standard product screens use the full width available after navigation.
+   * Keep the outer gutter consistent across viewport sizes while allowing
+   * intentionally constrained controls, copy, dialogs and auth forms to keep
+   * their own local max-width.
+   */
+  #main-content {
+    --app-page-gutter-x: 1rem;
+    --app-page-gutter-y: 1.5rem;
+    --app-page-section-gap: 1.5rem;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Normalize the legacy page-root gutter variants used across product pages. */
+  #main-content > [class*='px-4'][class*='sm:px-6'][class*='lg:px-8'] {
+    padding-left: var(--app-page-gutter-x);
+    padding-right: var(--app-page-gutter-x);
+  }
+
+  /* Remove legacy desktop page-width caps without changing deliberate
+     max-widths on text, form controls, modals, cards or auth surfaces. */
+  #main-content > [class~='mx-auto'][class~='max-w-4xl'],
+  #main-content > [class~='mx-auto'][class~='max-w-5xl'],
+  #main-content > [class~='mx-auto'][class~='max-w-6xl'],
+  #main-content > [class~='mx-auto'][class~='max-w-7xl'],
+  #main-content > * > [class~='mx-auto'][class~='max-w-4xl'],
+  #main-content > * > [class~='mx-auto'][class~='max-w-5xl'],
+  #main-content > * > [class~='mx-auto'][class~='max-w-6xl'],
+  #main-content > * > [class~='mx-auto'][class~='max-w-7xl'] {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  @media (min-width: 640px) {
+    #main-content {
+      --app-page-gutter-x: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    #main-content {
+      --app-page-gutter-x: 1.5rem;
+    }
+  }
   .app-sidebar {
     position: fixed;
     inset: 0 auto 0 0;
