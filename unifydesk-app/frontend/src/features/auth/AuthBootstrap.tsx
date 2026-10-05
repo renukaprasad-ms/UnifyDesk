@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import Spinner from '../../components/ui/Spinner'
 import { useLocation } from 'react-router'
 import { workspaceApi } from '../workspace/workspaceApi'
 import { authApi } from './authApi'
@@ -56,8 +57,16 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
 
   if (!bootstrapped) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-white text-sm font-semibold text-slate-500">
-        Loading...
+      <div
+        className="flex min-h-dvh items-center justify-center bg-white"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading UnifyDesk"
+      >
+        <div className="flex flex-col items-center gap-3 text-slate-500">
+          <Spinner size="lg" label="Loading UnifyDesk" className="text-blue-600" />
+          <p className="text-sm font-semibold">Loading UnifyDesk…</p>
+        </div>
       </div>
     )
   }
