@@ -9,6 +9,7 @@ import type { InitiateMediaUploadResponse } from '../../features/media/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import AsyncButton from '../../components/ui/AsyncButton'
 import ProgressBar from '../../components/ui/ProgressBar'
+import useBeforeUnloadGuard from '../../hooks/useBeforeUnloadGuard'
 
 export default function CreateWorkspace() {
   const navigate = useNavigate()
@@ -28,6 +29,8 @@ export default function CreateWorkspace() {
   const logoPreviewUrlRef = useRef('')
   const logoUploadRunIdRef = useRef(0)
   const logoUploadPromiseRef = useRef<Promise<InitiateMediaUploadResponse> | null>(null)
+
+  useBeforeUnloadGuard(!submitting && Boolean(name.trim() || businessEmail.trim() || logo))
 
   const companyInitials =
     name
