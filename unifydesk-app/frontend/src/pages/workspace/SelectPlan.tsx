@@ -222,7 +222,21 @@ export default function SelectPlan() {
           phone: billingPhone.trim(),
         },
       })
+      if (!prepared.paymentSessionId) {
+        throw new Error('Backend checkout did not include a payment session.')
+      }
+      savePendingBillingCheckout({
+        companyId,
+        targetPlanId: selectedPlan.planId,
+        kind: 'UPGRADE',
+        paymentId: prepared.paymentId,
+        invoiceId: prepared.invoiceId,
+        recurringAuthorizationActionUrl: prepared.recurringAuthorizationActionUrl,
+        previousSubscriptionId: details.subscription.subscriptionId,
+        createdAt: new Date().toISOString(),
+      })
       setCheckout(prepared)
+      await launchCashfreeCheckout(prepared.paymentSessionId)
     } catch (selectionError) {
       setError(apiErrorMessage(selectionError, 'Unable to prepare plan checkout'))
     } finally {
@@ -442,9 +456,9 @@ export default function SelectPlan() {
                 ) : (
                   <button className="primary-button w-full justify-center" disabled={submitting}>
                     {submitting
-                      ? 'Preparing…'
+                      ? 'Opening Cashfree…'
                       : quote
-                        ? 'Prepare Cashfree checkout'
+                        ? `Continue to Cashfree · ${money(quote.amountDue, quote.currency ?? selectedPrice.currency)}`
                         : 'Review upgrade amount'}
                   </button>
                 )}

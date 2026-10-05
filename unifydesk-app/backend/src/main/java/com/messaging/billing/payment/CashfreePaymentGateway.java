@@ -3,7 +3,9 @@ package com.messaging.billing.payment;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.ConflictException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -15,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 @Component
 @RequiredArgsConstructor
@@ -34,7 +37,7 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
       String idempotencyKey) {
     Map<String, Object> body = new LinkedHashMap<>();
     body.put("order_id", orderId);
-    body.put("order_amount", amount);
+    body.put("order_amount", cashfreeMoney(amount));
     body.put("order_currency", currency);
     body.put("customer_details", customer(customer));
     body.put(
@@ -77,7 +80,7 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
             "/pg/orders/" + encode(orderId) + "/refunds",
             Map.of(
                 "refund_id", refundId,
-                "refund_amount", amount,
+                "refund_amount", cashfreeMoney(amount),
                 "refund_note", note == null ? "UnifyDesk refund" : note),
             idempotencyKey);
     return refund(json, refundId);
@@ -103,8 +106,8 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
     plan.put("plan_name", "UnifyDesk recurring invoice authorization");
     plan.put("plan_type", "ON_DEMAND");
     plan.put("plan_currency", currency);
-    plan.put("plan_amount", BigDecimal.ONE);
-    plan.put("plan_max_amount", maxAmount);
+    plan.put("plan_amount", cashfreeMoney(BigDecimal.ONE));
+    plan.put("plan_max_amount", cashfreeMoney(maxAmount));
     plan.put("plan_max_cycles", 0);
     plan.put("plan_note", "UnifyDesk on-demand billing mandate");
     JsonNode json =
@@ -114,7 +117,7 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
                 "subscription_id", subscriptionId,
                 "customer_details", customer(customer),
                 "plan_details", plan,
-                "authorization_details", Map.of("authorization_amount", BigDecimal.ONE),
+                "authorization_details", Map.of("authorization_amount", cashfreeMoney(BigDecimal.ONE)),
                 "subscription_meta", Map.of("return_url", returnUrl)),
             idempotencyKey);
     return authorization(json, subscriptionId);
@@ -157,7 +160,7 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
     body.put("subscription_id", subscriptionId);
     body.put("payment_id", paymentId);
     body.put("payment_type", "CHARGE");
-    body.put("payment_amount", amount);
+    body.put("payment_amount", cashfreeMoney(amount));
     Instant schedule = scheduledAt == null ? Instant.now() : scheduledAt;
     body.put(
         "payment_schedule_date",
@@ -254,19 +257,25 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
 
   private JsonNode post(String path, Object body, String idempotencyKey, String apiVersion) {
     assertConfigured(apiVersion);
-    String response =
-        client()
-            .post()
-            .uri(path)
-            .contentType(MediaType.APPLICATION_JSON)
-            .header("x-client-id", properties.getClientId())
-            .header("x-client-secret", properties.getClientSecret())
-            .header("x-api-version", apiVersion)
-            .header("x-idempotency-key", idempotencyKey)
-            .body(body)
-            .retrieve()
-            .body(String.class);
-    return read(response);
+    try {
+      String response =
+          client()
+              .post()
+              .uri(path)
+              .contentType(MediaType.APPLICATION_JSON)
+              .header("x-client-id", properties.getClientId())
+              .header("x-client-secret", properties.getClientSecret())
+              .header("x-api-version", apiVersion)
+              .header("x-idempotency-key", idempotencyKey)
+              .body(body)
+              .retrieve()
+              .body(String.class);
+      return read(response);
+    } catch (RestClientResponseException exception) {
+      throw new ServiceUnavailableException(
+          "Cashfree rejected the payment request. Please retry or check provider configuration.",
+          exception);
+    }
   }
 
   private JsonNode get(String path, String apiVersion) {
@@ -326,6 +335,11 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
 
   private String encode(String value) {
     return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8);
+  }
+
+  static BigDecimal cashfreeMoney(BigDecimal amount) {
+    if (amount == null) throw new IllegalArgumentException("Cashfree amount is required");
+    return amount.setScale(2, RoundingMode.HALF_UP);
   }
 
   private boolean blank(String value) {
