@@ -45,11 +45,11 @@ Brand indigo is not an operational status color.
 - Green: completed, active, ready, delivered, accepted, verified.
 - Blue: running, processing, sending, syncing, retrying.
 - Light blue: queued, scheduled, received, pending.
-- Amber: action required, warning, paused, throttled, expired.
+- Amber: action required, warning, paused, throttled, expired, uncertain/unknown delivery.
 - Orange: partial failure.
 - Red: failed, rejected, bounced, complaint, policy suspension.
-- Violet: clicked/engagement accent where applicable.
-- Grey: cancelled, skipped, suppressed, disabled, retired, deleted, unknown, draft.
+- Violet: clicked/read engagement accent where applicable.
+- Grey: cancelled, skipped, suppressed, disabled, retired, deleted, draft.
 
 Use `StatusBadge` rather than defining status color maps in feature pages.
 
