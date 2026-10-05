@@ -149,7 +149,7 @@ public class InboxController {
                     .filename(filename, StandardCharsets.UTF_8)
                     .build()
                     .toString())
-            .header(HttpHeaders.X_CONTENT_TYPE_OPTIONS, "nosniff");
+            .header("X-Content-Type-Options", "nosniff");
     if (descriptor.sizeBytes() != null && descriptor.sizeBytes() >= 0) {
       response.contentLength(descriptor.sizeBytes());
     }
