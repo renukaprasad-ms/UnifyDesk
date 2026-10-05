@@ -58,6 +58,7 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import { PageSkeleton } from '../../components/ui/Skeleton'
 
 const STEPS = [
   { label: 'Goal', icon: FiTarget },
@@ -2466,9 +2467,7 @@ export default function ReachlyoCampaignWizard() {
   if (loading) {
     return (
       <section className="px-4 py-6 sm:px-6 lg:px-8">
-        <div className="panel mx-auto max-w-7xl p-12 text-center text-sm text-slate-500">
-          Loading unified campaign…
-        </div>
+        <div className="mx-auto max-w-7xl"><PageSkeleton /></div>
       </section>
     )
   }
