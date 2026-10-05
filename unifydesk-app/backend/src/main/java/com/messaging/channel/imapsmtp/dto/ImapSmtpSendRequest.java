@@ -17,6 +17,17 @@ public record ImapSmtpSendRequest(
     @Size(max = 10000) String references,
     @Size(max = 10) List<@Size(max = 32) String> attachmentMediaIds) {
 
+  public ImapSmtpSendRequest(
+      List<String> to,
+      List<String> cc,
+      List<String> bcc,
+      String subject,
+      String bodyText,
+      String inReplyTo,
+      String references) {
+    this(to, cc, bcc, subject, bodyText, inReplyTo, references, List.of());
+  }
+
   public EmailSendCommand toCommand() {
     return new EmailSendCommand(
         to, cc, bcc, subject, bodyText, null, null, false, inReplyTo, references, attachmentIds());
