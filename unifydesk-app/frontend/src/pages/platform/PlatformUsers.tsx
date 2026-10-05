@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { FiChevronLeft, FiChevronRight, FiSearch, FiShield, FiUser } from 'react-icons/fi'
 import { platformApi } from '../../features/platform/platformApi'
 import type { Page, PlatformUser } from '../../features/platform/types'
+import { TableSkeleton } from '../../components/ui/Skeleton'
 
 const initials = (name: string) =>
   name
