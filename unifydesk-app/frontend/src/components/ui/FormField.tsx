@@ -17,16 +17,22 @@ export default function FormField({
   children: ReactNode
   className?: string
 }) {
-  const Label = htmlFor ? 'label' : 'div'
+  const labelContent = (
+    <>
+      {label}
+      {required && <span className="ml-1 text-rose-600" aria-hidden="true">*</span>}
+    </>
+  )
+
   return (
     <div className={className}>
-      <Label
-        {...(htmlFor ? { htmlFor } : {})}
-        className="mb-1.5 block text-xs font-semibold text-slate-700"
-      >
-        {label}
-        {required && <span className="ml-1 text-rose-600" aria-hidden="true">*</span>}
-      </Label>
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-semibold text-slate-700">
+          {labelContent}
+        </label>
+      ) : (
+        <div className="mb-1.5 block text-xs font-semibold text-slate-700">{labelContent}</div>
+      )}
       {children}
       {error ? (
         <p className="mt-1.5 text-xs font-semibold text-rose-600" role="alert">{error}</p>
