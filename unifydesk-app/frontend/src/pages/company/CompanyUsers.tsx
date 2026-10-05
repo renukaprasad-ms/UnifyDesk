@@ -17,6 +17,8 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import type { CompanyRole, MemberRoleAssignment } from '../../features/iam/types'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
@@ -49,6 +51,7 @@ export default function CompanyUsers() {
   const [memberAssignments, setMemberAssignments] = useState<MemberRoleAssignment[]>([])
   const [roleActionId, setRoleActionId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [invitationToRevoke, setInvitationToRevoke] = useState<CompanyInvitation | null>(null)
 
   const sortedUsers = useMemo(
     () =>
@@ -129,7 +132,6 @@ export default function CompanyUsers() {
 
   const revoke = async (invitation: CompanyInvitation) => {
     if (!selectedCompany) return
-    if (!window.confirm(`Revoke the invitation for ${invitation.email}?`)) return
     setWorkingInvitationId(invitation.invitationId)
     setError('')
     try {
@@ -139,6 +141,7 @@ export default function CompanyUsers() {
       setError(apiErrorMessage(inviteError, 'Unable to revoke invitation'))
     } finally {
       setWorkingInvitationId(null)
+      setInvitationToRevoke(null)
     }
   }
 
@@ -388,7 +391,7 @@ export default function CompanyUsers() {
           </div>
 
           {loading ? (
-            <p className="px-5 py-8 text-center text-sm text-slate-500">Loading invitations…</p>
+            <div className="p-4"><TableSkeleton rows={4} columns={3} /></div>
           ) : activeInvitations.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <FiMail className="mx-auto text-slate-400" size={24} />
@@ -449,7 +452,7 @@ export default function CompanyUsers() {
                         type="button"
                         className="rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
                         disabled={workingInvitationId === invitation.invitationId}
-                        onClick={() => void revoke(invitation)}
+                        onClick={() => setInvitationToRevoke(invitation)}
                       >
                         Revoke
                       </button>
