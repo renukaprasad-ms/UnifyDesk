@@ -46,7 +46,8 @@ export default function ManualSuppressionForm({ busy, onCreate }: Props) {
   }
 
   return (
-    <form
+    <>
+      <form
       className="mt-4 grid gap-2 rounded-xl border border-rose-100 bg-rose-50 p-4 md:grid-cols-[160px_200px_minmax(0,1fr)_auto]"
       onSubmit={submit}
     >
@@ -92,7 +93,7 @@ export default function ManualSuppressionForm({ busy, onCreate }: Props) {
       <button className="secondary-button self-end text-rose-700" disabled={busy}>
         Add suppression
       </button>
-    </form>
+      </form>
       <ConfirmDialog
         open={confirmOpen}
         title="Create this manual suppression?"
@@ -104,5 +105,6 @@ export default function ManualSuppressionForm({ busy, onCreate }: Props) {
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => void createSuppression()}
       />
+    </>
   )
 }
