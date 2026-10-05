@@ -207,6 +207,7 @@ export default function GoogleExperimentsPanel({
       setError(apiErrorMessage(actionError, `Unable to ${type} Google experiment`))
     } finally {
       setBusy('')
+      setPendingAction(null)
     }
   }
 
