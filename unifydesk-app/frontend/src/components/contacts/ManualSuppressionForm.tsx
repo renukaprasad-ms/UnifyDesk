@@ -5,6 +5,7 @@ import type {
   CreateSuppressionInput,
   SuppressionReasonCode,
 } from '../../features/contacts/types'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 type Props = {
   busy: boolean
@@ -23,17 +24,9 @@ export default function ManualSuppressionForm({ busy, onCreate }: Props) {
   const [channel, setChannel] = useState<ContactChannel>('EMAIL')
   const [reasonCode, setReasonCode] = useState<SuppressionReasonCode>('MANUAL')
   const [note, setNote] = useState('')
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (
-      !window.confirm(
-        'Create this manual suppression? It can make this Contact ineligible for delivery.',
-      )
-    ) {
-      return
-    }
-
+  const createSuppression = async () => {
     await onCreate({
       channel,
       identityId: null,
@@ -44,6 +37,12 @@ export default function ManualSuppressionForm({ busy, onCreate }: Props) {
       idempotencyKey: createIdempotencyKey(),
     })
     setNote('')
+    setConfirmOpen(false)
+  }
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    setConfirmOpen(true)
   }
 
   return (
@@ -94,5 +93,16 @@ export default function ManualSuppressionForm({ busy, onCreate }: Props) {
         Add suppression
       </button>
     </form>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Create this manual suppression?"
+        description="This can make the contact ineligible for delivery on the selected channel and will be recorded for audit."
+        confirmLabel="Yes, add suppression"
+        cancelLabel="No, cancel"
+        tone="danger"
+        working={busy}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => void createSuppression()}
+      />
   )
 }
