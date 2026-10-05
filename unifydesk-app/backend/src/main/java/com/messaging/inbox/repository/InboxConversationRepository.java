@@ -99,52 +99,6 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
   @Query(
       value =
           """
-          select c
-          from InboxConversation c
-          where c.companyId = :companyId
-            and c.connection.status = :connectionStatus
-            and (
-              (:emailAllowed = true
-                and c.connection.channelType = :emailChannel
-                and exists (
-                  select em.id from InboxMessage em
-                  where em.conversation.id = c.id and em.providerFolderKey = :emailFolderKey
-                ))
-              or
-              (:whatsappAllowed = true
-                and c.providerType = :whatsappProvider
-                and exists (
-                  select wm.id from InboxMessage wm
-                  where wm.conversation.id = c.id and wm.providerFolderKey = 'WHATSAPP'
-                ))
-            )
-          order by c.lastMessageAt desc, c.createdAt desc
-          """,
-      countQuery =
-          """
-          select count(c)
-          from InboxConversation c
-          where c.companyId = :companyId
-            and c.connection.status = :connectionStatus
-            and (
-              (:emailAllowed = true
-                and c.connection.channelType = :emailChannel
-                and exists (
-                  select em.id from InboxMessage em
-                  where em.conversation.id = c.id and em.providerFolderKey = :emailFolderKey
-                ))
-              or
-              (:whatsappAllowed = true
-                and c.providerType = :whatsappProvider
-                and exists (
-                  select wm.id from InboxMessage wm
-                  where wm.conversation.id = c.id and wm.providerFolderKey = 'WHATSAPP'
-                ))
-            )
-          """)
-  @Query(
-      value =
-          """
           select distinct c
           from InboxConversation c
           where c.companyId = :companyId
@@ -243,6 +197,52 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
       @Param("term") String term,
       Pageable pageable);
 
+  @Query(
+      value =
+          """
+          select c
+          from InboxConversation c
+          where c.companyId = :companyId
+            and c.connection.status = :connectionStatus
+            and (
+              (:emailAllowed = true
+                and c.connection.channelType = :emailChannel
+                and exists (
+                  select em.id from InboxMessage em
+                  where em.conversation.id = c.id and em.providerFolderKey = :emailFolderKey
+                ))
+              or
+              (:whatsappAllowed = true
+                and c.providerType = :whatsappProvider
+                and exists (
+                  select wm.id from InboxMessage wm
+                  where wm.conversation.id = c.id and wm.providerFolderKey = 'WHATSAPP'
+                ))
+            )
+          order by c.lastMessageAt desc, c.createdAt desc
+          """,
+      countQuery =
+          """
+          select count(c)
+          from InboxConversation c
+          where c.companyId = :companyId
+            and c.connection.status = :connectionStatus
+            and (
+              (:emailAllowed = true
+                and c.connection.channelType = :emailChannel
+                and exists (
+                  select em.id from InboxMessage em
+                  where em.conversation.id = c.id and em.providerFolderKey = :emailFolderKey
+                ))
+              or
+              (:whatsappAllowed = true
+                and c.providerType = :whatsappProvider
+                and exists (
+                  select wm.id from InboxMessage wm
+                  where wm.conversation.id = c.id and wm.providerFolderKey = 'WHATSAPP'
+                ))
+            )
+          """)
   Page<InboxConversation> findByPermittedChannels(
       @Param("companyId") Long companyId,
       @Param("connectionStatus") ChannelConnectionStatus connectionStatus,
