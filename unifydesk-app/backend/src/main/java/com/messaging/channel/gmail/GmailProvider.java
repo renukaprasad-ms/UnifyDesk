@@ -54,7 +54,7 @@ public class GmailProvider
                 command.threadId(),
                 command.inReplyTo(),
                 command.references(),
-                command.attachmentMediaIds()));
+                command.attachmentMediaIds().stream().map(String::valueOf).toList()));
 
     return new EmailSendResult(
         response.connectionId(),
