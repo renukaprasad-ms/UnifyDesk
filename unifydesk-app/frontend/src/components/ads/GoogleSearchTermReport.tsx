@@ -8,6 +8,7 @@ import type {
   GoogleSearchTermRow,
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { TableSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -349,9 +350,7 @@ export default function GoogleSearchTermReport({
       </div>
 
       {loading ? (
-        <div className="p-8 text-center text-sm text-slate-500">
-          Loading Google search-term performance…
-        </div>
+        <div className="p-4"><TableSkeleton rows={7} columns={6} /></div>
       ) : filtered.length === 0 ? (
         <div className="p-8 text-center text-sm text-slate-500">
           No search terms match this range and filter. Search-term visibility is
