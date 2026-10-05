@@ -1,5 +1,7 @@
 package com.messaging.channel.imapsmtp;
 
+import com.messaging.channel.email.EmailAttachment;
+import com.messaging.channel.email.EmailAttachmentService;
 import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.imapsmtp.ImapSmtpMailClient.MailboxMessage;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Service;
 public class ImapSmtpSendService {
 
   private final ImapSmtpConnectionService connectionService;
+  private final EmailAttachmentService attachmentService;
   private final ImapSmtpMailClient mailClient;
   private final ImapSmtpInboxPersistenceService persistenceService;
   private final RealtimeService realtimeService;
@@ -29,7 +32,9 @@ public class ImapSmtpSendService {
     Long connectionId = connection.getId();
     ImapSmtpStoredCredentials credentials = connectionService.credentials(connection);
 
-    SentMessage sent = mailClient.send(credentials, request);
+    List<EmailAttachment> attachments =
+        attachmentService.resolve(connection.getCompanyId(), request.attachmentIds());
+    SentMessage sent = mailClient.send(credentials, request, attachments);
     String messageId =
         sent.messageId() == null || sent.messageId().isBlank()
             ? "<" + UUID.randomUUID() + "@local.messaging>"
