@@ -32,6 +32,7 @@ import type {
   UsageUnit,
 } from '../../features/platformBilling/types'
 import { workspaceApi } from '../../features/workspace/workspaceApi'
+import { PageSkeleton } from '../../components/ui/Skeleton'
 
 const providersByChannel: Record<ChannelType, ProviderType[]> = {
   EMAIL: ['AMAZON_SES', 'SENDGRID', 'AZURE_EMAIL', 'MSG91_EMAIL', 'GMAIL', 'MICROSOFT', 'IMAP_SMTP', 'SMTP'],
@@ -249,7 +250,7 @@ export default function PlatformBilling() {
     }
   }
 
-  if (loading) return <div className="p-6 text-sm text-slate-500">Loading billing operations…</div>
+  if (loading) return <div className="p-6"><PageSkeleton /></div>
   if (superAdmin === false) {
     return <section className="p-6"><div className="panel p-6"><h1 className="font-bold">Super Admin access required</h1></div></section>
   }
