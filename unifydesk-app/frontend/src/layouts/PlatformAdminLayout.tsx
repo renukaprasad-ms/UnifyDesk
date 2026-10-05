@@ -58,7 +58,7 @@ const PlatformAdminLayout = () => {
           {loggingOut ? 'Logging out…' : 'Logout'}
         </button>
       </aside>
-      <main className="min-w-0 flex-1 p-6 lg:p-8">
+      <main className="app-route-content min-w-0 flex-1">
         <Outlet />
       </main>
     </div>
