@@ -15,6 +15,13 @@ public interface SubscriptionChangeRepository extends JpaRepository<Subscription
   Optional<SubscriptionChange> findByCompanyIdAndIdempotencyKey(
       Long companyId, String idempotencyKey);
 
+  Optional<SubscriptionChange>
+      findBySubscriptionIdAndChangeTypeAndStatusAndEffectiveAt(
+          Long subscriptionId,
+          com.messaging.billing.enums.SubscriptionChangeType changeType,
+          com.messaging.billing.enums.SubscriptionChangeStatus status,
+          Instant effectiveAt);
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select c from SubscriptionChange c where c.id = :id")
   Optional<SubscriptionChange> findByIdForUpdate(@Param("id") Long id);
