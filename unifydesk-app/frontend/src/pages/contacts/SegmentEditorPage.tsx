@@ -89,10 +89,15 @@ export default function SegmentEditorPage() {
         .getSegment(companyId, segmentId)
         .then((segment) => {
           if (!scopeIsCurrent(scope)) return
+          const nextFilter = segment.normalizedFilter ?? segment.filter
+          const nextDescription = segment.description ?? ''
           setName(segment.name)
-          setDescription(segment.description ?? '')
-          setFilter(segment.normalizedFilter ?? segment.filter)
+          setDescription(nextDescription)
+          setFilter(nextFilter)
           setSegmentVersion(segment.version)
+          setSavedSnapshot(
+            JSON.stringify({ name: segment.name, description: nextDescription, filter: nextFilter }),
+          )
         })
         .catch((loadError) => {
           if (scopeIsCurrent(scope)) {
@@ -173,7 +178,17 @@ export default function SegmentEditorPage() {
         return
       }
 
+      setName(payload.name)
+      setDescription(payload.description ?? '')
+      setFilter(payload.filter)
       setSegmentVersion(saved.version)
+      setSavedSnapshot(
+        JSON.stringify({
+          name: payload.name,
+          description: payload.description ?? '',
+          filter: payload.filter,
+        }),
+      )
       navigate('/contacts/segments/' + saved.id, { replace: true })
     } catch (saveError) {
       if (!scopeIsCurrent(scope)) return
@@ -181,10 +196,19 @@ export default function SegmentEditorPage() {
         try {
           const latest = await contactsApi.getSegment(companyId, segmentId)
           if (!scopeIsCurrent(scope)) return
+          const latestFilter = latest.normalizedFilter ?? latest.filter
+          const latestDescription = latest.description ?? ''
           setName(latest.name)
-          setDescription(latest.description ?? '')
-          setFilter(latest.normalizedFilter ?? latest.filter)
+          setDescription(latestDescription)
+          setFilter(latestFilter)
           setSegmentVersion(latest.version)
+          setSavedSnapshot(
+            JSON.stringify({
+              name: latest.name,
+              description: latestDescription,
+              filter: latestFilter,
+            }),
+          )
           setPreview(null)
           setServerErrors([
             'This Segment changed after you opened it. The latest version has been reloaded; review it before saving again.',
@@ -233,8 +257,8 @@ export default function SegmentEditorPage() {
             <p className="eyebrow">Dynamic audience</p>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="mt-2 text-3xl font-bold text-slate-950">
-              {creating ? 'New Segment' : canModify ? 'Edit Segment' : 'Segment'}
-            </h1>
+                {creating ? 'New Segment' : canModify ? 'Edit Segment' : 'Segment'}
+              </h1>
               {dirty && (
                 <span className="mt-2 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
                   Unsaved changes
