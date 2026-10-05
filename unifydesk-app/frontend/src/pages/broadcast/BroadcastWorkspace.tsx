@@ -2254,7 +2254,7 @@ function BroadcastDetail({
   const managedSms = isManagedSmsSender(sender)
   return (
     <div className="channel-message-scroll min-h-[calc(100dvh-214px)] p-4 sm:p-5">
-      <div className="mx-auto max-w-5xl">
+      <div className="w-full">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <button type="button" className="secondary-button gap-2" onClick={onBack}>
             <FiArrowLeft aria-hidden="true" />
