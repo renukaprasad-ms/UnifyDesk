@@ -255,9 +255,15 @@ const Register = () => {
           )}
         </div>
         {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
-        <button type="submit" className="primary-button flex w-full" disabled={submitting}>
-          {submitting ? 'Creating account...' : 'Register'}
-        </button>
+        <AsyncButton
+          type="submit"
+          className="primary-button flex w-full"
+          disabled={profileUploading}
+          loading={submitting}
+          loadingLabel="Creating account…"
+        >
+          {profileUploading ? 'Uploading profile picture…' : 'Register'}
+        </AsyncButton>
       </form>
       <p className="mt-5 text-center text-sm text-slate-500">
         Already registered?{' '}
