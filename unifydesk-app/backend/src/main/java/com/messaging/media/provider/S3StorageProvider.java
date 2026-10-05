@@ -3,6 +3,7 @@ package com.messaging.media.provider;
 import com.messaging.media.config.MediaStorageProperties;
 import com.messaging.media.enums.StorageProviderType;
 import com.messaging.media.exception.MediaException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -92,6 +93,17 @@ public class S3StorageProvider implements StorageProvider {
       if (exception.statusCode() == HttpStatus.NOT_FOUND.value()) {
         return StorageObjectMetadata.missing();
       }
+      throw storageException(exception);
+    }
+  }
+
+  @Override
+  public InputStream openObject(String bucket, String objectKey) {
+    ensureConfigured();
+    try {
+      return client().getObject(
+          GetObjectRequest.builder().bucket(bucket).key(objectKey).build());
+    } catch (S3Exception exception) {
       throw storageException(exception);
     }
   }

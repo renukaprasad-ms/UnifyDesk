@@ -147,6 +147,7 @@ export type GmailSendRequest = {
   threadId?: string | null
   inReplyTo?: string | null
   references?: string | null
+  attachmentMediaIds?: string[]
 }
 
 export type GmailSendResponse = {
@@ -173,6 +174,7 @@ export type MicrosoftSendRequest = {
   bodyText: string
   replyToMessageId?: string | null
   replyAll?: boolean
+  attachmentMediaIds?: string[]
 }
 
 export type MicrosoftSendResponse = {
@@ -223,6 +225,7 @@ export type ImapSmtpSendRequest = {
   bodyText: string
   inReplyTo?: string | null
   references?: string | null
+  attachmentMediaIds?: string[]
 }
 
 export type ImapSmtpSendResponse = {
