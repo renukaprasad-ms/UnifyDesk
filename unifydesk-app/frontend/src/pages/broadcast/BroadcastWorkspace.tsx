@@ -1352,8 +1352,10 @@ export default function BroadcastWorkspace() {
                     </div>
 
                     {broadcast.historyStatus === 'loading' && history.length === 0 ? (
-                      <div className="panel px-5 py-12 text-center text-sm text-slate-500">
-                        Loading broadcasts…
+                      <div className="space-y-3">
+                        <CardSkeleton rows={4} />
+                        <CardSkeleton rows={4} />
+                        <CardSkeleton rows={4} />
                       </div>
                     ) : history.length === 0 ? (
                       <div className="panel px-5 py-12 text-center">
@@ -2397,9 +2399,7 @@ function BroadcastDetail({
                   <tbody className="divide-y divide-slate-100">
                     {recipientsLoading && recipients.content.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
-                          Loading recipients…
-                        </td>
+                        <td colSpan={5} className="p-4"><TableSkeleton rows={6} columns={5} /></td>
                       </tr>
                     ) : recipients.content.length === 0 ? (
                       <tr>
