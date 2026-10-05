@@ -22,14 +22,19 @@ import com.messaging.inbox.dto.InboxRealtimeSnapshotRequest;
 import com.messaging.inbox.dto.InboxRealtimeSnapshotResponse;
 import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
+import com.messaging.inbox.service.InboxAttachmentStreamingService;
 import com.messaging.inbox.service.InboxQueryService;
 import com.messaging.inbox.service.InboxReadStateQueueService;
 import com.messaging.inbox.service.InboxReadStateService;
 import com.messaging.security.service.CurrentUserService;
 import jakarta.validation.Valid;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +44,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 @RequestMapping("/api/v1/companies/{companyId}/inbox")
@@ -46,6 +52,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class InboxController {
 
   private final InboxQueryService inboxQueryService;
+  private final InboxAttachmentStreamingService attachmentStreamingService;
   private final InboxReadStateService readStateService;
   private final InboxReadStateQueueService readStateQueueService;
   private final MetaWhatsAppInboxReadStateService whatsappReadStateService;
@@ -105,6 +112,48 @@ public class InboxController {
             HttpStatus.OK.value(),
             inboxQueryService.getConversation(companyId, conversationId),
             "Inbox conversation fetched"));
+  }
+
+  @GetMapping("/attachments/{attachmentId}/content")
+  public ResponseEntity<StreamingResponseBody> attachmentContent(
+      @PathVariable Long companyId, @PathVariable Long attachmentId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requireActiveMembership(userId, companyId);
+    if (!authorizationService.hasPermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ)) {
+      throw new NotFoundException("Inbox attachment not found");
+    }
+
+    var descriptor = attachmentStreamingService.descriptor(companyId, attachmentId);
+    String filename =
+        descriptor.filename() == null || descriptor.filename().isBlank()
+            ? "attachment"
+            : descriptor.filename();
+    MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+    if (descriptor.mimeType() != null && !descriptor.mimeType().isBlank()) {
+      try {
+        mediaType = MediaType.parseMediaType(descriptor.mimeType());
+      } catch (IllegalArgumentException ignored) {
+        // Fall back to a safe binary content type for malformed provider metadata.
+      }
+    }
+
+    StreamingResponseBody body =
+        outputStream -> attachmentStreamingService.stream(companyId, attachmentId, outputStream);
+
+    ResponseEntity.BodyBuilder response =
+        ResponseEntity.ok()
+            .contentType(mediaType)
+            .header(
+                HttpHeaders.CONTENT_DISPOSITION,
+                ContentDisposition.attachment()
+                    .filename(filename, StandardCharsets.UTF_8)
+                    .build()
+                    .toString())
+            .header("X-Content-Type-Options", "nosniff");
+    if (descriptor.sizeBytes() != null && descriptor.sizeBytes() >= 0) {
+      response.contentLength(descriptor.sizeBytes());
+    }
+    return response.body(body);
   }
 
   @PutMapping("/messages/{messageId}/read-state")

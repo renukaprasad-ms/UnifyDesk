@@ -68,6 +68,11 @@ export const inboxApi = {
     return unwrap(response.data)
   },
 
+  attachmentContentUrl(companyId: string, attachmentId: string) {
+    const base = String(apiClient.defaults.baseURL ?? '').replace(/\/$/, '')
+    return `${base}/api/v1/companies/${encodeURIComponent(companyId)}/inbox/attachments/${encodeURIComponent(attachmentId)}/content`
+  },
+
   async setMessageReadState(companyId: string, messageId: string, read: boolean) {
     const response = await apiClient.put<ApiResponse<InboxReadStateResponse>>(
       `/api/v1/companies/${companyId}/inbox/messages/${messageId}/read-state`,

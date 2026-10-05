@@ -8,6 +8,8 @@ import com.messaging.channel.email.EmailSyncMode;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.common.exception.TooManyRequestsException;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -229,6 +231,56 @@ public class MicrosoftApiClient {
         .buildAndExpand(folder.microsoftFolderKey())
         .encode()
         .toUri();
+  }
+
+  public void streamAttachment(
+      String accessToken, String messageId, String attachmentId, OutputStream outputStream) {
+    if (!hasText(messageId) || !hasText(attachmentId)) {
+      throw new BadRequestException("Microsoft attachment identifiers are required");
+    }
+
+    try {
+      graph
+          .get()
+          .uri(
+              "/v1.0/me/messages/{messageId}/attachments/{attachmentId}/$value",
+              messageId,
+              attachmentId)
+          .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+          .header("Prefer", "IdType=\\\"ImmutableId\\\"")
+          .exchange(
+              (request, response) -> {
+                int status = response.getStatusCode().value();
+                if (status == 404) {
+                  throw new GraphResourceNotFoundException();
+                }
+                if (!response.getStatusCode().is2xxSuccessful()) {
+                  throw new ServiceUnavailableException(
+                      "Microsoft attachment download failed with HTTP " + status);
+                }
+                try {
+                  response.getBody().transferTo(outputStream);
+                  outputStream.flush();
+                  return null;
+                } catch (IOException exception) {
+                  throw new ServiceUnavailableException(
+                      "Unable to stream Microsoft attachment content", exception);
+                }
+              });
+    } catch (GraphResourceNotFoundException exception) {
+      throw new BadRequestException("Microsoft attachment is no longer available");
+    } catch (RestClientResponseException exception) {
+      int status = exception.getStatusCode().value();
+      if (status == 404) {
+        throw new BadRequestException("Microsoft attachment is no longer available");
+      }
+      if (status == 401 || status == 403) {
+        throw new BadRequestException(
+            "Microsoft mailbox authorization is invalid or missing required permissions");
+      }
+      throw new ServiceUnavailableException(
+          "Unable to download Microsoft attachment", exception);
+    }
   }
 
   public void updateReadState(
