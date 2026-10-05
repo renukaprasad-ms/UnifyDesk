@@ -1,5 +1,6 @@
 package com.messaging.channel.imapsmtp.dto;
 
+import com.messaging.common.exception.BadRequestException;
 import com.messaging.channel.email.EmailSendCommand;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -20,12 +21,12 @@ public record ImapSmtpSendRequest(
     return new EmailSendCommand(
         to, cc, bcc, subject, bodyText, null, null, false, inReplyTo, references, attachmentIds());
   }
-  private List<Long> attachmentIds() {
+  public List<Long> attachmentIds() {
     if (attachmentMediaIds == null || attachmentMediaIds.isEmpty()) return List.of();
     try {
       return attachmentMediaIds.stream().map(Long::valueOf).toList();
     } catch (NumberFormatException exception) {
-      throw new IllegalArgumentException("Invalid attachment media id", exception);
+      throw new BadRequestException("Invalid attachment media id");
     }
   }
 
