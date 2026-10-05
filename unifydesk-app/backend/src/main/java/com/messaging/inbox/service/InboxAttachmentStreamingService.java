@@ -8,6 +8,8 @@ import com.messaging.channel.microsoft.MicrosoftTokenService;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.inbox.entity.InboxMessageAttachment;
 import com.messaging.inbox.repository.InboxMessageAttachmentRepository;
+import com.messaging.media.service.MediaService;
+import java.io.IOException;
 import java.io.OutputStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class InboxAttachmentStreamingService {
   private final GmailTokenService gmailTokenService;
   private final MicrosoftApiClient microsoftApiClient;
   private final MicrosoftTokenService microsoftTokenService;
+  private final MediaService mediaService;
 
   @Transactional(readOnly = true)
   public AttachmentDescriptor descriptor(Long companyId, Long attachmentId) {
@@ -37,6 +40,18 @@ public class InboxAttachmentStreamingService {
   public void stream(Long companyId, Long attachmentId, OutputStream outputStream) {
     InboxMessageAttachment attachment = requireAttachment(companyId, attachmentId);
     var message = attachment.getMessage();
+    String externalAttachmentId = attachment.getExternalAttachmentId();
+    if (externalAttachmentId != null && externalAttachmentId.startsWith("media:")) {
+      long mediaId = parseMediaId(externalAttachmentId);
+      try (var input = mediaService.openTrustedObject(mediaId, companyId)) {
+        input.transferTo(outputStream);
+        outputStream.flush();
+        return;
+      } catch (IOException exception) {
+        throw new NotFoundException("Inbox attachment is not available");
+      }
+    }
+
     var connection = message.getConnection();
     ProviderType providerType = connection.getProviderType();
 
@@ -54,6 +69,14 @@ public class InboxAttachmentStreamingService {
               attachment.getExternalAttachmentId(),
               outputStream);
       default -> throw new NotFoundException("Inbox attachment is not available for this provider");
+    }
+  }
+
+  private long parseMediaId(String externalAttachmentId) {
+    try {
+      return Long.parseLong(externalAttachmentId.substring("media:".length()));
+    } catch (RuntimeException exception) {
+      throw new NotFoundException("Inbox attachment is not available");
     }
   }
 
