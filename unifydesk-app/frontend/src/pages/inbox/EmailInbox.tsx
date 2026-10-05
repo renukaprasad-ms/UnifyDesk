@@ -55,6 +55,8 @@ import {
   workspaceEpochToken,
 } from '../../features/workspace/workspaceEpoch'
 import { Skeleton } from '../../components/ui/Skeleton'
+import ProgressBar from '../../components/ui/ProgressBar'
+import StatusBadge from '../../components/ui/StatusBadge'
 
 const messageTitle = (message: InboxMessage) =>
   message.subject || message.snippet || (message.direction === 'OUTBOUND' ? 'Sent email' : 'Email')
@@ -1076,16 +1078,12 @@ function EmailInboxView() {
                   </p>
                 )}
               </div>
-              <span className="text-sm font-bold text-indigo-600">
-                {markAllJob.progressPercent}%
-              </span>
+              <div className="flex items-center gap-2">
+                <StatusBadge status={markAllJob.status}>{markAllJob.status.replaceAll('_', ' ')}</StatusBadge>
+                <span className="text-sm font-bold tabular-nums text-slate-700">{markAllJob.progressPercent}%</span>
+              </div>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-indigo-500 transition-[width] duration-300"
-                style={{ width: `${markAllJob.progressPercent}%` }}
-              />
-            </div>
+            <ProgressBar className="mt-3" value={markAllJob.progressPercent} label="Read-state update" />
           </div>
         )}
 
@@ -1112,14 +1110,14 @@ function EmailInboxView() {
                   </p>
                 ) : null}
               </div>
-              <span className="text-sm font-bold text-indigo-600">{overallSyncProgress}%</span>
+              <div className="flex items-center gap-2">
+                <StatusBadge status={activeSyncJobs[0]?.status ?? trackedSyncJobs.at(-1)?.status ?? 'UNKNOWN'}>
+                  {(activeSyncJobs[0]?.status ?? trackedSyncJobs.at(-1)?.status ?? 'UNKNOWN').replaceAll('_', ' ')}
+                </StatusBadge>
+                <span className="text-sm font-bold tabular-nums text-slate-700">{overallSyncProgress}%</span>
+              </div>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-indigo-500 transition-[width] duration-300"
-                style={{ width: `${overallSyncProgress}%` }}
-              />
-            </div>
+            <ProgressBar className="mt-3" value={overallSyncProgress} label="Email sync" />
             {selectedConnection?.externalAccountId && (
               <p className="mt-2 text-[11px] text-slate-400">
                 {selectedConnection.externalAccountId}
