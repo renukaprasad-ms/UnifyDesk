@@ -1439,3 +1439,33 @@
     position: relative;
   }
 }
+
+
+/*
+ * Routed page geometry override
+ * -----------------------------
+ * This block intentionally sits outside Tailwind cascade layers so the shared
+ * layout contract wins over legacy utility classes such as max-w-7xl,
+ * mx-auto, px-4, sm:px-6 and lg:px-8 that still exist on older pages.
+ */
+.app-route-content:not(.is-immersive) > [class*='px-4'][class*='sm:px-6'][class*='lg:px-8'],
+.app-route-content:not(.is-immersive) > [class*='p-4'][class*='sm:p-6'][class*='lg:p-8'],
+.app-route-content:not(.is-immersive) > [class~='p-8'] {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.app-route-content:not(.is-immersive) > * > [class~='mx-auto'][class*='max-w-'],
+.app-route-content:not(.is-immersive) > [class~='mx-auto'][class*='max-w-'] {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.app-route-content:not(.is-immersive) > *,
+.app-route-content:not(.is-immersive) > * > [class~='mx-auto'][class*='max-w-'] {
+  min-width: 0;
+}
