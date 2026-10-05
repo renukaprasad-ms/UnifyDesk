@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import ExportJobButton from '../../components/contacts/ExportJobButton'
@@ -21,6 +21,7 @@ import type {
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import useBeforeUnloadGuard from '../../hooks/useBeforeUnloadGuard'
 import { useAppSelector } from '../../store/hooks'
 import {
   selectSelectedCompanyId,
@@ -52,6 +53,14 @@ export default function SegmentEditorPage() {
   const [saving, setSaving] = useState(false)
   const [segmentVersion, setSegmentVersion] = useState<number | null>(null)
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false)
+  const [savedSnapshot, setSavedSnapshot] = useState('')
+  const currentSnapshot = useMemo(
+    () => JSON.stringify({ name, description, filter }),
+    [description, filter, name],
+  )
+  const dirty = savedSnapshot ? currentSnapshot !== savedSnapshot : Boolean(name.trim() || description.trim())
+  useBeforeUnloadGuard(dirty && !saving)
+
   const canModify = can(PERMISSIONS.CONTACT_MODIFY)
 
   useEffect(() => {
@@ -222,9 +231,16 @@ export default function SegmentEditorPage() {
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow">Dynamic audience</p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-950">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="mt-2 text-3xl font-bold text-slate-950">
               {creating ? 'New Segment' : canModify ? 'Edit Segment' : 'Segment'}
             </h1>
+              {dirty && (
+                <span className="mt-2 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+                  Unsaved changes
+                </span>
+              )}
+            </div>
             <p className="mt-2 text-sm text-slate-500">
               The browser builds the frozen AST only. Validation, counts and matching are
               server-side.
