@@ -38,6 +38,7 @@ export default function ListDetailPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false)
+  const [memberToRemove, setMemberToRemove] = useState<ContactSummary | null>(null)
 
   const load = async (
     reset = true,
@@ -304,14 +305,7 @@ export default function ListDetailPage() {
                         <button
                           className="secondary-button"
                           disabled={busy}
-                          onClick={() => {
-                            if (!companyId || !window.confirm('Remove this Contact from the List?'))
-                              return
-                            void action(
-                              () => contactsApi.removeListMember(companyId, listId, member.id),
-                              'List member removed.',
-                            )
-                          }}
+                          onClick={() => setMemberToRemove(member)}
                         >
                           Remove
                         </button>
@@ -343,6 +337,23 @@ export default function ListDetailPage() {
           working={busy}
           onCancel={() => setArchiveConfirmOpen(false)}
           onConfirm={() => void archiveList()}
+        />
+        <ConfirmDialog
+          open={Boolean(memberToRemove)}
+          title="Remove this contact from the list?"
+          description={memberToRemove ? `${memberToRemove.displayName} will be removed from this list only. The contact record will remain.` : ''}
+          confirmLabel="Yes, remove"
+          cancelLabel="No, keep contact"
+          tone="warning"
+          working={busy}
+          onCancel={() => setMemberToRemove(null)}
+          onConfirm={() => {
+            if (!memberToRemove || !companyId) return
+            void action(
+              () => contactsApi.removeListMember(companyId, listId, memberToRemove.id),
+              'List member removed.',
+            ).finally(() => setMemberToRemove(null))
+          }}
         />
     </section>
   )
