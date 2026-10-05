@@ -86,6 +86,7 @@ export default function PlatformPlanDetails() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [priceForm, setPriceForm] = useState(blankPrice)
   const [priceFrom, setPriceFrom] = useState('')
   const [priceTo, setPriceTo] = useState('')
@@ -97,6 +98,7 @@ export default function PlatformPlanDetails() {
   const [editingRateId, setEditingRateId] = useState<string | null>(null)
   const [rateStatus, setRateStatus] = useState<RateCardStatus>('ACTIVE')
   const [entitlementValues, setEntitlementValues] = useState<Record<string, string>>({})
+  const [savedEntitlementValues, setSavedEntitlementValues] = useState<Record<string, string>>({})
   const [overview, setOverview] = useState({
     name: '',
     description: '',
@@ -131,14 +133,14 @@ export default function PlatformPlanDetails() {
         currency: current.currency,
         visibility: current.visibility,
       })
-      setEntitlementValues(
-        Object.fromEntries(
-          defs.map((definition) => [
-            definition.key,
-            current.entitlements.find((item) => item.key === definition.key)?.value ?? definition.defaultValue,
-          ]),
-        ),
+      const loadedEntitlements = Object.fromEntries(
+        defs.map((definition) => [
+          definition.key,
+          current.entitlements.find((item) => item.key === definition.key)?.value ?? definition.defaultValue,
+        ]),
       )
+      setEntitlementValues(loadedEntitlements)
+      setSavedEntitlementValues(loadedEntitlements)
       setPriceForm((value) => ({ ...value, currency: current.currency }))
       setRateForm((value) => ({ ...value, planId, currency: current.currency }))
     } catch (cause) {
@@ -160,6 +162,40 @@ export default function PlatformPlanDetails() {
     }, {}),
     [definitions],
   )
+  const dirtyEntitlementKeys = useMemo(
+    () =>
+      definitions
+        .filter(
+          (definition) =>
+            (entitlementValues[definition.key] ?? definition.defaultValue) !==
+            (savedEntitlementValues[definition.key] ?? definition.defaultValue),
+        )
+        .map((definition) => definition.key),
+    [definitions, entitlementValues, savedEntitlementValues],
+  )
+
+  const updateEntitlementValue = (key: string, value: string) => {
+    setNotice('')
+    setError('')
+    setEntitlementValues((current) => ({ ...current, [key]: value }))
+  }
+
+  const validateEntitlementValue = (definition: EntitlementDefinition, value: string) => {
+    const normalized = value.trim()
+    if (definition.valueType === 'BOOLEAN') {
+      return normalized === 'true' || normalized === 'false'
+    }
+    if (definition.valueType === 'INTEGER') {
+      if (normalized.toLowerCase() === 'unlimited') return true
+      const parsed = Number(normalized)
+      return Number.isInteger(parsed) && parsed >= -1
+    }
+    if (definition.valueType === 'DECIMAL') {
+      const parsed = Number(normalized)
+      return Number.isFinite(parsed) && parsed >= 0
+    }
+    return normalized.length > 0
+  }
 
   const saveOverview = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -181,6 +217,10 @@ export default function PlatformPlanDetails() {
   }
 
   const setStatus = async (status: 'PUBLISHED' | 'RETIRED') => {
+    if (status === 'PUBLISHED' && dirtyEntitlementKeys.length > 0) {
+      setError('Save all entitlement changes before publishing this plan.')
+      return
+    }
     setSaving(true)
     try {
       await adminBillingApi.updatePlan(planId, { status })
@@ -292,18 +332,42 @@ export default function PlatformPlanDetails() {
     }
   }
 
-  const saveEntitlement = async (definition: EntitlementDefinition) => {
-    if (!mutable) return
+  const saveAllEntitlements = async () => {
+    if (!mutable || dirtyEntitlementKeys.length === 0 || saving) return
+    const changedDefinitions = definitions.filter((definition) =>
+      dirtyEntitlementKeys.includes(definition.key),
+    )
+    const invalid = changedDefinitions.find(
+      (definition) =>
+        !validateEntitlementValue(
+          definition,
+          entitlementValues[definition.key] ?? definition.defaultValue,
+        ),
+    )
+    if (invalid) {
+      setError(`Invalid value for ${invalid.name}`)
+      return
+    }
+
     setSaving(true)
+    setError('')
+    setNotice('')
     try {
-      await adminBillingApi.saveEntitlement(
-        planId,
-        definition.key,
-        entitlementValues[definition.key] ?? definition.defaultValue,
+      await Promise.all(
+        changedDefinitions.map((definition) =>
+          adminBillingApi.saveEntitlement(
+            planId,
+            definition.key,
+            (entitlementValues[definition.key] ?? definition.defaultValue).trim(),
+          ),
+        ),
       )
       await load()
+      setNotice(
+        `Saved ${changedDefinitions.length} entitlement${changedDefinitions.length === 1 ? '' : 's'}.`,
+      )
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to save entitlement')
+      setError(cause instanceof Error ? cause.message : 'Unable to save entitlements')
     } finally {
       setSaving(false)
     }
@@ -374,6 +438,11 @@ export default function PlatformPlanDetails() {
         {error && (
           <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
+          </div>
+        )}
+        {notice && (
+          <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+            {notice}
           </div>
         )}
 
@@ -468,19 +537,89 @@ export default function PlatformPlanDetails() {
 
         {tab === 'entitlements' && (
           <div className="mt-6 space-y-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-bold">Limits & features</h2>
+                <p className="text-xs text-slate-500">
+                  {mutable
+                    ? 'Edit multiple limits and feature switches, then save the complete set of changes.'
+                    : 'This published plan version is read-only.'}
+                </p>
+              </div>
+              {mutable && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-slate-500">
+                    {dirtyEntitlementKeys.length === 0
+                      ? 'No unsaved changes'
+                      : `${dirtyEntitlementKeys.length} unsaved change${dirtyEntitlementKeys.length === 1 ? '' : 's'}`}
+                  </span>
+                  <button
+                    type="button"
+                    className="primary-button gap-2"
+                    disabled={saving || dirtyEntitlementKeys.length === 0}
+                    onClick={() => void saveAllEntitlements()}
+                  >
+                    <FiSave /> {saving ? 'Saving…' : 'Save all'}
+                  </button>
+                </div>
+              )}
+            </div>
             {Object.entries(entitlementsByCategory).map(([category, items]) => (
               <div key={category} className="panel">
                 <h2 className="border-b p-4 font-bold">{category}</h2>
                 {items.map((definition) => {
                   const assigned = plan.entitlements.some((item) => item.key === definition.key)
+                  const value = entitlementValues[definition.key] ?? definition.defaultValue
                   return (
                     <div key={definition.key} className="grid gap-3 border-b p-4 lg:grid-cols-[1fr_260px_auto]">
-                      <div><strong>{definition.name}</strong><p className="text-xs text-slate-500">{definition.description || definition.key}</p></div>
-                      <input disabled={!mutable} className="form-input" value={entitlementValues[definition.key] ?? definition.defaultValue} onChange={(e) => setEntitlementValues({ ...entitlementValues, [definition.key]: e.target.value })} />
+                      <div>
+                        <strong>{definition.name}</strong>
+                        <p className="text-xs text-slate-500">{definition.description || definition.key}</p>
+                        <p className="mt-1 font-mono text-[10px] text-slate-400">{definition.key}</p>
+                      </div>
+                      {definition.valueType === 'BOOLEAN' ? (
+                        <select
+                          aria-label={definition.name}
+                          disabled={!mutable || saving}
+                          className="form-input"
+                          value={value}
+                          onChange={(event) => updateEntitlementValue(definition.key, event.target.value)}
+                        >
+                          <option value="true">Enabled</option>
+                          <option value="false">Disabled</option>
+                        </select>
+                      ) : definition.valueType === 'INTEGER' || definition.valueType === 'DECIMAL' ? (
+                        <input
+                          aria-label={definition.name}
+                          disabled={!mutable || saving}
+                          className="form-input"
+                          type="number"
+                          min={definition.valueType === 'INTEGER' ? -1 : 0}
+                          step={definition.valueType === 'INTEGER' ? 1 : 'any'}
+                          value={value}
+                          onChange={(event) => updateEntitlementValue(definition.key, event.target.value)}
+                        />
+                      ) : (
+                        <input
+                          aria-label={definition.name}
+                          disabled={!mutable || saving}
+                          className="form-input"
+                          value={value}
+                          onChange={(event) => updateEntitlementValue(definition.key, event.target.value)}
+                        />
+                      )}
                       {mutable && (
-                        <div className="flex gap-2">
-                          <button type="button" className="secondary-button" onClick={() => void saveEntitlement(definition)}>Save</button>
-                          {assigned && <button type="button" className="secondary-button text-rose-600" onClick={() => void removeEntitlement(definition.key)}><FiTrash2 /> Remove</button>}
+                        <div className="flex items-center justify-end gap-2">
+                          {assigned && (
+                            <button
+                              type="button"
+                              className="secondary-button text-rose-600"
+                              disabled={saving}
+                              onClick={() => void removeEntitlement(definition.key)}
+                            >
+                              <FiTrash2 /> Remove
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

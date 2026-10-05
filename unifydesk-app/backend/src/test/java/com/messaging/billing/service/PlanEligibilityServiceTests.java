@@ -1,5 +1,6 @@
 package com.messaging.billing.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
@@ -10,6 +11,7 @@ import com.messaging.billing.repository.PlanCompanyAssignmentRepository;
 import com.messaging.billing.repository.PlanRepository;
 import com.messaging.common.exception.ForbiddenException;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -23,6 +25,33 @@ class PlanEligibilityServiceTests {
   @Mock private PlanCompanyAssignmentRepository assignmentRepository;
 
   @InjectMocks private PlanEligibilityService service;
+
+
+  @Test
+  void publicDiscoveryAndDirectSelectionUseOnlyLatestPublishedVersionPerCode() {
+    Plan freeV1 = new Plan();
+    freeV1.setId(101L);
+    freeV1.setCode("FREE");
+    freeV1.setVersion(1);
+    freeV1.setStatus(PlanStatus.PUBLISHED);
+    freeV1.setVisibility(PlanVisibility.PUBLIC);
+
+    Plan freeV2 = new Plan();
+    freeV2.setId(102L);
+    freeV2.setCode("FREE");
+    freeV2.setVersion(2);
+    freeV2.setStatus(PlanStatus.PUBLISHED);
+    freeV2.setVisibility(PlanVisibility.PUBLIC);
+
+    when(planRepository.findByStatusAndVisibility(PlanStatus.PUBLISHED, PlanVisibility.PUBLIC))
+        .thenReturn(List.of(freeV1, freeV2));
+
+    assertEquals(List.of(freeV2), service.publicPlans());
+    assertThrows(
+        ForbiddenException.class,
+        () -> service.assertCustomerEligible(10L, freeV1, Instant.parse("2026-10-05T07:00:00Z")));
+    service.assertCustomerEligible(10L, freeV2, Instant.parse("2026-10-05T07:00:00Z"));
+  }
 
   @Test
   void privatePlanAssignmentIsTenantScopedAndGuessedIdIsDenied() {

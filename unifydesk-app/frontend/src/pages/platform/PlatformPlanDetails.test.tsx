@@ -65,6 +65,18 @@ const definition: EntitlementDefinition = {
   active: true,
 }
 
+
+const booleanDefinition: EntitlementDefinition = {
+  entitlementDefinitionId: 'definition-2',
+  key: 'AUTO_REPLY_ENABLED',
+  name: 'Auto reply',
+  description: 'Enable automatic replies',
+  valueType: 'BOOLEAN',
+  category: 'FEATURE',
+  defaultValue: 'false',
+  active: true,
+}
+
 const plan = (status: BillingPlan['status']): BillingPlan => ({
   planId: 'plan-1',
   code: 'GROWTH',
@@ -80,9 +92,14 @@ const plan = (status: BillingPlan['status']): BillingPlan => ({
   entitlements: [{ entitlementId: 'entitlement-1', key: definition.key, value: '500' }],
 })
 
-const renderPlan = async (status: BillingPlan['status'] = 'DRAFT') => {
-  vi.mocked(adminBillingApi.plans).mockResolvedValue([plan(status)])
-  vi.mocked(adminBillingApi.entitlementDefinitions).mockResolvedValue([definition])
+const renderPlan = async (
+  status: BillingPlan['status'] = 'DRAFT',
+  definitions: EntitlementDefinition[] = [definition],
+  entitlements = plan(status).entitlements,
+) => {
+  const configuredPlan = { ...plan(status), entitlements }
+  vi.mocked(adminBillingApi.plans).mockResolvedValue([configuredPlan])
+  vi.mocked(adminBillingApi.entitlementDefinitions).mockResolvedValue(definitions)
   vi.mocked(adminBillingApi.planPrices).mockResolvedValue([price])
   vi.mocked(adminBillingApi.rateCards).mockResolvedValue([rate])
   vi.mocked(adminBillingApi.updatePlanPrice).mockResolvedValue(price)
@@ -158,6 +175,55 @@ describe('PlatformPlanDetails Billing Admin regressions', () => {
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Add rate|Update rate/ })).not.toBeInTheDocument()
     expect(adminBillingApi.updateRateCard).not.toHaveBeenCalled()
+  })
+
+
+  it('shows Save all for DRAFT entitlements and only saves changed values', async () => {
+    vi.mocked(adminBillingApi.saveEntitlement).mockResolvedValue({
+      entitlementId: 'entitlement-1',
+      key: definition.key,
+      value: '750',
+    })
+    await renderPlan()
+    openTab('Limits & features')
+
+    const saveAll = screen.getByRole('button', { name: 'Save all' })
+    expect(saveAll).toBeDisabled()
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Broadcast limit' }), {
+      target: { value: '750' },
+    })
+    expect(saveAll).toBeEnabled()
+    fireEvent.click(saveAll)
+
+    await waitFor(() =>
+      expect(adminBillingApi.saveEntitlement).toHaveBeenCalledWith(
+        'plan-1',
+        definition.key,
+        '750',
+      ),
+    )
+    expect(adminBillingApi.saveEntitlement).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders BOOLEAN entitlements as Enabled/Disabled controls', async () => {
+    await renderPlan(
+      'DRAFT',
+      [booleanDefinition],
+      [{ entitlementId: 'entitlement-2', key: booleanDefinition.key, value: 'false' }],
+    )
+    openTab('Limits & features')
+
+    const control = screen.getByRole('combobox', { name: 'Auto reply' })
+    expect(within(control).getByRole('option', { name: 'Enabled' })).toBeInTheDocument()
+    expect(within(control).getByRole('option', { name: 'Disabled' })).toBeInTheDocument()
+    expect((control as HTMLSelectElement).value).toBe('false')
+  })
+
+  it('does not expose Save all for a PUBLISHED plan', async () => {
+    await renderPlan('PUBLISHED')
+    openTab('Limits & features')
+    expect(screen.queryByRole('button', { name: 'Save all' })).not.toBeInTheDocument()
   })
 
   it('removes the exact assigned entitlement on a DRAFT plan and reloads authoritative data', async () => {
