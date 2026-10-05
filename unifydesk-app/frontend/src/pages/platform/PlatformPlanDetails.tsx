@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FiArrowLeft, FiArchive, FiCheck, FiPlus, FiSave, FiTrash2 } from 'react-icons/fi'
+import { FiArrowLeft, FiArchive, FiCheck, FiSave, FiTrash2 } from 'react-icons/fi'
 import { useNavigate, useParams } from 'react-router'
 import { adminBillingApi } from '../../features/platformBilling/adminBillingApi'
 import {
