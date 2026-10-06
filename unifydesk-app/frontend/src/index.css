@@ -15,6 +15,7 @@
 @layer base {
   :root {
     --theme-primary: #2563eb;
+    --theme-primary-contrast: #ffffff;
     --theme-primary-hover: #1d4ed8;
     --theme-primary-soft: #dbeafe;
     --theme-primary-softer: #eff6ff;
@@ -473,7 +474,7 @@
     justify-content: center;
     border-radius: 9px;
     background: var(--theme-primary);
-    color: white;
+    color: var(--theme-primary-contrast);
     padding: 11px 18px;
     font-size: 13px;
     font-weight: 600;
@@ -721,13 +722,13 @@
     background: color-mix(in srgb, #ef4444 16%, var(--theme-surface));
     color: #e11d48;
   }
-  .confirm-dialog-button-default,
   .confirm-dialog-button-warning,
   .confirm-dialog-button-danger {
     color: #ffffff;
   }
   .confirm-dialog-button-default {
     background: var(--theme-primary);
+    color: var(--theme-primary-contrast);
   }
   .confirm-dialog-button-default:hover:not(:disabled),
   .confirm-dialog-button-default:focus-visible {
