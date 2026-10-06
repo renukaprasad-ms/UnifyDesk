@@ -66,6 +66,7 @@ public class CompanyService {
   private final CompanySystemRoleService companySystemRoleService;
   private final BillingCatalogService billingCatalogService;
   private final EntitlementService entitlementService;
+  private final CompanyIamPermissionService iamPermissionService;
   private final ChannelConnectionService channelConnectionService;
   private final DeletionPurgeService deletionPurgeService;
   private final DeletionLifecycleProperties deletionProperties;
@@ -195,7 +196,10 @@ public class CompanyService {
   @Transactional(readOnly = true)
   public List<CompanyResponse> companiesForUser(Long userId) {
     return memberRepository.findByUserIdAndStatus(userId, CompanyMemberStatus.ACTIVE).stream()
-        .filter(member -> member.getCompany().getStatus() == CompanyStatus.ACTIVE)
+        .filter(
+            member ->
+                member.getCompany().getStatus() == CompanyStatus.ACTIVE
+                    || member.getCompany().getStatus() == CompanyStatus.SUSPENDED)
         .map(member -> toResponse(member.getCompany(), member.getRole()))
         .toList();
   }
@@ -211,9 +215,14 @@ public class CompanyService {
 
   @Transactional
   public CompanyUserResponse updateMemberRole(
-      Long companyId, Long targetUserId, CompanyRole role) {
+      Long companyId, Long actorUserId, Long targetUserId, CompanyRole role) {
     if (role == CompanyRole.OWNER) {
       throw new BadRequestException("Use ownership transfer to make a member the company owner");
+    }
+    if (!iamPermissionService.canDelegate(
+        actorUserId, companyId, com.messaging.company.iam.CompanyPermissionKeys.defaultsFor(role))) {
+      throw new BadRequestException(
+          "You cannot assign a base role with permissions you do not possess");
     }
     CompanyMember member = requireMembership(companyId, targetUserId);
     if (member.getRole() == CompanyRole.OWNER) {
@@ -298,7 +307,10 @@ public class CompanyService {
   @Transactional(readOnly = true)
   public long companyCountForUser(Long userId) {
     return memberRepository.findByUserIdAndStatus(userId, CompanyMemberStatus.ACTIVE).stream()
-        .filter(member -> member.getCompany().getStatus() == CompanyStatus.ACTIVE)
+        .filter(
+            member ->
+                member.getCompany().getStatus() == CompanyStatus.ACTIVE
+                    || member.getCompany().getStatus() == CompanyStatus.SUSPENDED)
         .count();
   }
 
