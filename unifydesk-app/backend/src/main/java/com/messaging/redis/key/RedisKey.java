@@ -80,6 +80,18 @@ public final class RedisKey {
     return join("auth", "2fa-settings", "enabled", normalize(challengeId));
   }
 
+  public static String emailChangeOtp(String challengeId) {
+    return join("auth", "email-change", "otp", normalize(challengeId));
+  }
+
+  public static String emailChangeTarget(String challengeId) {
+    return join("auth", "email-change", "target", normalize(challengeId));
+  }
+
+  public static String emailChangeUser(String challengeId) {
+    return join("auth", "email-change", "user", normalize(challengeId));
+  }
+
   public static String rateLimitOtp(String identifier) {
     return join("rate-limit", "otp", normalize(identifier));
   }
