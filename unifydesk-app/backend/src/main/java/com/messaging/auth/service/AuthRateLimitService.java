@@ -32,8 +32,7 @@ public class AuthRateLimitService {
         "Too many login attempts. Try again later");
   }
 
-  public void clearLogin(String ipAddress, String identifier) {
-    deleteIfPresent(RedisKey::rateLimitLoginIp, ipAddress);
+  public void clearLoginIdentifier(String identifier) {
     deleteIfPresent(RedisKey::rateLimitLoginIdentifier, normalizeIdentifier(identifier));
   }
 
