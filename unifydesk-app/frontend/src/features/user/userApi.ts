@@ -3,7 +3,6 @@ import type { ApiResponse } from '../../lib/api/types'
 import type {
   CreateUserPayload,
   ResetPasswordPayload,
-  ToggleTwoFactorPayload,
   UpdateOwnProfilePayload,
   UpdateUserPayload,
   User,
@@ -52,11 +51,6 @@ export const userApi = {
       `/api/users/${userId}/password`,
       payload,
     )
-    return unwrap(response.data)
-  },
-
-  async toggleTwoFactor(userId: string, payload: ToggleTwoFactorPayload) {
-    const response = await apiClient.patch<ApiResponse<User>>(`/api/users/${userId}/2fa`, payload)
     return unwrap(response.data)
   },
 
