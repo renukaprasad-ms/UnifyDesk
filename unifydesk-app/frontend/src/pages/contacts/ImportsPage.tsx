@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import { contactsApi } from '../../features/contacts/contactsApi'
@@ -12,6 +12,32 @@ export default function ImportsPage() {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const [dragging, setDragging] = useState(false)
+
+  const chooseFile = (nextFile: File | null) => {
+    if (!nextFile) return
+    if (!nextFile.name.toLowerCase().endsWith('.csv')) {
+      setFile(null)
+      setError('Choose a CSV file.')
+      return
+    }
+    setError('')
+    setFile(nextFile)
+  }
+
+  const downloadSample = () => {
+    const sample = [
+      'display_name,first_name,last_name,email,phone,email_marketing_consent,sms_marketing_consent,whatsapp_marketing_consent,consent_source,consent_occurred_at',
+      'Anita Rao,Anita,Rao,anita@example.com,+919876543210,true,false,true,website-form,2026-10-01T10:00:00Z',
+    ].join('\n')
+    const url = URL.createObjectURL(new Blob([sample], { type: 'text/csv;charset=utf-8' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'unifydesk-contacts-sample.csv'
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
 
   const start = async () => {
     if (!companyId || !file) return
@@ -40,35 +66,63 @@ export default function ImportsPage() {
         </p>
 
         <div className="panel mt-6 p-6">
-          <h2 className="text-lg font-bold text-slate-950">Choose a CSV file</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            You'll review the column mapping and import options on the next screen.
-          </p>
-
-          <label className="mt-5 block text-sm font-semibold text-slate-700">
-            CSV file
-            <input
-              className="form-input mt-2"
-              type="file"
-              accept=".csv,text/csv"
-              onChange={(event) => setFile(event.target.files?.[0] || null)}
-            />
-          </label>
-
-          {file && (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
-              <p className="font-semibold text-slate-900">{file.name}</p>
-              <p className="mt-1 text-slate-500">
-                {(file.size / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} KB
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-slate-950">Upload your contacts</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                We'll detect common columns automatically, then let you review everything before
+                importing.
               </p>
             </div>
-          )}
+            <button type="button" className="secondary-button" onClick={downloadSample}>
+              Download sample CSV
+            </button>
+          </div>
+
+          <input
+            ref={inputRef}
+            className="sr-only"
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(event) => chooseFile(event.target.files?.[0] || null)}
+          />
+
+          <button
+            type="button"
+            className={
+              'mt-5 flex min-h-52 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 text-center transition ' +
+              (dragging
+                ? 'border-indigo-400 bg-indigo-50'
+                : 'border-slate-200 bg-slate-50 hover:border-indigo-300 hover:bg-indigo-50/60')
+            }
+            onClick={() => inputRef.current?.click()}
+            onDragEnter={(event) => {
+              event.preventDefault()
+              setDragging(true)
+            }}
+            onDragOver={(event) => event.preventDefault()}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(event) => {
+              event.preventDefault()
+              setDragging(false)
+              chooseFile(event.dataTransfer.files?.[0] || null)
+            }}
+          >
+            <span className="text-base font-bold text-slate-950">
+              {file ? file.name : 'Drop your CSV here'}
+            </span>
+            <span className="mt-2 text-sm text-slate-500">
+              {file
+                ? (file.size / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' KB'
+                : 'or click to choose a file'}
+            </span>
+            {file && <span className="mt-3 text-xs font-semibold text-indigo-700">Choose another file</span>}
+          </button>
 
           <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-slate-700">
-            <strong className="text-slate-950">Marketing consent is separate.</strong> Adding
-            someone to Contacts does not automatically opt them into Email, SMS or WhatsApp
-            marketing. If your CSV contains verified consent data, you can map it under Advanced
-            settings.
+            <strong className="text-slate-950">Marketing permissions stay safe.</strong> Importing a
+            person never opts them in automatically. When your CSV contains explicit Email, SMS or
+            WhatsApp consent columns, UnifyDesk will detect them for review.
           </div>
 
           {error && (
