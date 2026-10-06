@@ -24,19 +24,30 @@ public class CompanyAuthorizationService {
 
   @Transactional(readOnly = true)
   public void requireActiveMembership(Long userId, Long companyId) {
-    requireWorkspaceAvailable(companyId);
-    boolean member =
+    CompanyStatus status = companyStatus(companyId);
+    boolean activeMember =
         memberRepository.existsByCompanyIdAndUserIdAndStatus(
             companyId, userId, CompanyMemberStatus.ACTIVE);
-    if (!member && !hasPlatformWorkspaceAccess(userId, companyId)) {
-      throw new ForbiddenException("Company access denied");
+    if (activeMember) {
+      if (status != CompanyStatus.ACTIVE) {
+        throw new ForbiddenException("Company is suspended or unavailable");
+      }
+      return;
     }
+    if (platformCanView(userId, companyId)
+        && (status == CompanyStatus.ACTIVE || status == CompanyStatus.SUSPENDED)) {
+      return;
+    }
+    throw new ForbiddenException("Company access denied");
   }
 
   public void requirePermission(Long userId, Long companyId, CompanyPermission permission) {
-    requireWorkspaceAvailable(companyId);
-    if (hasPlatformWorkspaceAccess(userId, companyId)) {
-      return;
+    CompanyStatus status = companyStatus(companyId);
+    boolean activeMember =
+        memberRepository.existsByCompanyIdAndUserIdAndStatus(
+            companyId, userId, CompanyMemberStatus.ACTIVE);
+    if (!activeMember || status != CompanyStatus.ACTIVE) {
+      throw new ForbiddenException("Company permission denied");
     }
     if (!permissionService.hasPermission(userId, companyId, permission)) {
       throw new ForbiddenException("Company permission denied");
@@ -44,39 +55,59 @@ public class CompanyAuthorizationService {
   }
 
   public void requirePermission(Long userId, Long companyId, String permissionKey) {
-    requireWorkspaceAvailable(companyId);
-    if (hasPlatformWorkspaceAccess(userId, companyId)) {
+    CompanyStatus status = companyStatus(companyId);
+    boolean activeMember =
+        memberRepository.existsByCompanyIdAndUserIdAndStatus(
+            companyId, userId, CompanyMemberStatus.ACTIVE);
+
+    if (activeMember) {
+      if (status != CompanyStatus.ACTIVE
+          || !iamPermissionService.hasPermission(userId, companyId, permissionKey)) {
+        throw new ForbiddenException("Company permission denied: " + permissionKey);
+      }
       return;
     }
-    if (!iamPermissionService.hasPermission(userId, companyId, permissionKey)) {
-      throw new ForbiddenException("Company permission denied: " + permissionKey);
+
+    if ((status == CompanyStatus.ACTIVE || status == CompanyStatus.SUSPENDED)
+        && platformCanView(userId, companyId)
+        && iamPermissionService.hasPermission(userId, companyId, permissionKey)) {
+      return;
     }
+    throw new ForbiddenException("Company permission denied: " + permissionKey);
   }
 
   public boolean hasPermission(Long userId, Long companyId, String permissionKey) {
-    if (!workspaceAvailable(companyId)) {
-      return false;
+    CompanyStatus status = companyStatusOrNull(companyId);
+    if (status == null) return false;
+
+    boolean activeMember =
+        memberRepository.existsByCompanyIdAndUserIdAndStatus(
+            companyId, userId, CompanyMemberStatus.ACTIVE);
+    if (activeMember) {
+      return status == CompanyStatus.ACTIVE
+          && iamPermissionService.hasPermission(userId, companyId, permissionKey);
     }
-    if (hasPlatformWorkspaceAccess(userId, companyId)) {
-      return true;
-    }
-    return iamPermissionService.hasPermission(userId, companyId, permissionKey);
+    return (status == CompanyStatus.ACTIVE || status == CompanyStatus.SUSPENDED)
+        && platformCanView(userId, companyId)
+        && iamPermissionService.hasPermission(userId, companyId, permissionKey);
   }
 
-  private void requireWorkspaceAvailable(Long companyId) {
-    if (!workspaceAvailable(companyId)) {
+  private CompanyStatus companyStatus(Long companyId) {
+    CompanyStatus status = companyStatusOrNull(companyId);
+    if (status == null
+        || status == CompanyStatus.DELETION_PENDING
+        || status == CompanyStatus.PURGING
+        || status == CompanyStatus.PURGED) {
       throw new ForbiddenException("Company is pending deletion or has been purged");
     }
+    return status;
   }
 
-  private boolean workspaceAvailable(Long companyId) {
-    return companyRepository
-        .findById(companyId)
-        .map(company -> company.getStatus() == CompanyStatus.ACTIVE || company.getStatus() == CompanyStatus.SUSPENDED)
-        .orElse(false);
+  private CompanyStatus companyStatusOrNull(Long companyId) {
+    return companyRepository.findById(companyId).map(company -> company.getStatus()).orElse(null);
   }
 
-  private boolean hasPlatformWorkspaceAccess(Long userId, Long companyId) {
+  private boolean platformCanView(Long userId, Long companyId) {
     return platformAdminAuthorizationService.canAccessCompany(userId, companyId)
         && platformAdminAuthorizationService.hasPermission(userId, PlatformPermission.COMPANY_VIEW);
   }
