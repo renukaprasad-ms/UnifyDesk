@@ -216,6 +216,9 @@ public class CompanyService {
   @Transactional
   public CompanyUserResponse updateMemberRole(
       Long companyId, Long actorUserId, Long targetUserId, CompanyRole role) {
+    if (actorUserId.equals(targetUserId)) {
+      throw new BadRequestException("Use another owner or manager to change your base role");
+    }
     if (role == CompanyRole.OWNER) {
       throw new BadRequestException("Use ownership transfer to make a member the company owner");
     }
@@ -238,7 +241,10 @@ public class CompanyService {
 
   @Transactional
   public CompanyUserResponse updateMemberStatus(
-      Long companyId, Long targetUserId, CompanyMemberStatus status) {
+      Long companyId, Long actorUserId, Long targetUserId, CompanyMemberStatus status) {
+    if (actorUserId.equals(targetUserId)) {
+      throw new BadRequestException("Use Leave workspace to remove your own access");
+    }
     if (status != CompanyMemberStatus.ACTIVE && status != CompanyMemberStatus.SUSPENDED) {
       throw new BadRequestException("Member status can only be ACTIVE or SUSPENDED here");
     }
@@ -262,7 +268,10 @@ public class CompanyService {
   }
 
   @Transactional
-  public void removeMember(Long companyId, Long targetUserId) {
+  public void removeMember(Long companyId, Long actorUserId, Long targetUserId) {
+    if (actorUserId.equals(targetUserId)) {
+      throw new BadRequestException("Use Leave workspace to remove your own access");
+    }
     CompanyMember member = requireMembership(companyId, targetUserId);
     if (member.getRole() == CompanyRole.OWNER) {
       throw new BadRequestException("Transfer ownership before removing the company owner");
