@@ -2,6 +2,15 @@ export type UserAppearanceMode = 'LIGHT' | 'DARK'
 
 export const DEFAULT_BRAND_COLOR = '#2563EB'
 
+export const brandContrastColor = (hex: string | null | undefined) => {
+  const value = normalizeHex(hex).slice(1)
+  const red = Number.parseInt(value.slice(0, 2), 16)
+  const green = Number.parseInt(value.slice(2, 4), 16)
+  const blue = Number.parseInt(value.slice(4, 6), 16)
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255
+  return luminance > 0.62 ? '#0F172A' : '#FFFFFF'
+}
+
 const normalizeHex = (value: string | null | undefined) => {
   const candidate = value?.trim().toUpperCase() ?? ''
   return /^#[0-9A-F]{6}$/.test(candidate) ? candidate : DEFAULT_BRAND_COLOR
@@ -30,6 +39,7 @@ export const applyCompanyTheme = (
 
   root.style.setProperty('--color-indigo-500', primary)
   root.style.setProperty('--theme-primary', primary)
+  root.style.setProperty('--theme-primary-contrast', brandContrastColor(primary))
   root.style.setProperty('--theme-primary-hover', adjust(primary, appearanceMode === 'DARK' ? 24 : -24))
   root.style.setProperty(
     '--theme-primary-soft',
