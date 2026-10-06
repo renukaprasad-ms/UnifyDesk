@@ -101,7 +101,8 @@ public class CompanyController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            companyService.updateMemberRole(companyId, userId, request.role()),
+            companyService.updateMemberRole(
+                companyId, currentUserService.currentUserId(), userId, request.role()),
             "Member role updated"));
   }
 
