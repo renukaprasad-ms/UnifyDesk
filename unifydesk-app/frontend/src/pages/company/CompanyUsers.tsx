@@ -212,6 +212,8 @@ export default function CompanyUsers() {
         await companyApi.removeMember(selectedCompany.companyId, user.userId)
       } else {
         await companyApi.transferOwnership(selectedCompany.companyId, user.userId)
+        window.location.assign('/workspace')
+        return
       }
       setManagingUser(null)
       setMemberAssignments([])
@@ -352,11 +354,10 @@ export default function CompanyUsers() {
                       <TableSkeleton
                         rows={6}
                         columns={
-                          canAll([
-                            PERMISSIONS.USER_MODIFY,
-                            PERMISSIONS.ROLE_READ,
-                            PERMISSIONS.ROLE_ASSIGN,
-                          ])
+                          can(PERMISSIONS.USER_MODIFY) ||
+                          can(PERMISSIONS.USER_REMOVE) ||
+                          can(PERMISSIONS.ROLE_ASSIGN) ||
+                          can(PERMISSIONS.COMPANY_TRANSFER_OWNERSHIP)
                             ? 5
                             : 4
                         }
