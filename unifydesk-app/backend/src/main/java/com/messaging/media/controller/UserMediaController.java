@@ -6,6 +6,7 @@ import com.messaging.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,5 +25,12 @@ public class UserMediaController {
     ProfilePictureResponse response = userService.attachCurrentUserProfilePicture(mediaId);
     return ResponseEntity.ok(
         ApiResponse.success(HttpStatus.OK.value(), response, "Profile picture updated"));
+  }
+
+  @DeleteMapping("/profile-picture")
+  public ResponseEntity<ApiResponse<Void>> removeProfilePicture() {
+    userService.removeCurrentUserProfilePicture();
+    return ResponseEntity.ok(
+        ApiResponse.success(HttpStatus.OK.value(), "Profile picture removed"));
   }
 }

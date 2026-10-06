@@ -1,8 +1,11 @@
 package com.messaging.auth.service;
 
 import com.messaging.auth.dto.AuthUserResponse;
+import com.messaging.auth.dto.CompleteEmailChangeRequest;
 import com.messaging.auth.dto.CompletePasswordResetRequest;
 import com.messaging.auth.dto.CompleteTwoFactorSettingsRequest;
+import com.messaging.auth.dto.EmailChangeChallengeRequest;
+import com.messaging.auth.dto.EmailChangeChallengeResponse;
 import com.messaging.auth.dto.LoginRequest;
 import com.messaging.auth.dto.LoginResponse;
 import com.messaging.auth.dto.PasswordResetChallengeResponse;
@@ -20,6 +23,7 @@ import com.messaging.media.entity.Media;
 import com.messaging.media.service.MediaService;
 import com.messaging.redis.key.RedisKey;
 import com.messaging.redis.service.RedisService;
+import com.messaging.realtime.service.RealtimeConnectionRegistry;
 import com.messaging.security.jwt.TokenPair;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.session.dto.CreateOrUpdateSessionRequest;
@@ -51,6 +55,7 @@ public class AuthService {
   private static final int MAX_USER_AGENT_LENGTH = 512;
   private static final long PASSWORD_RESET_OTP_EXPIRES_SECONDS = 300;
   private static final long TWO_FACTOR_SETTINGS_EXPIRES_SECONDS = 300;
+  private static final long EMAIL_CHANGE_EXPIRES_SECONDS = 300;
 
   private final UserService userService;
   private final UserSessionService userSessionService;
@@ -63,6 +68,7 @@ public class AuthService {
   private final CompanyService companyService;
   private final CurrentUserService currentUserService;
   private final RedisService redisService;
+  private final RealtimeConnectionRegistry realtimeConnectionRegistry;
 
   @Value("${app.security.trust-forwarded-headers:false}")
   private boolean trustForwardedHeaders;
@@ -198,6 +204,7 @@ public class AuthService {
     long userId = parseUserId(claims, "Password reset session expired");
     userService.resetForgottenPassword(userId, request.password());
     userSessionService.revokeAllForUser(userId);
+    realtimeConnectionRegistry.closeForUser(userId);
     authTokenService.clearPasswordResetTokenCookie(headers);
     authTokenService.clearTokenCookies(headers);
   }
@@ -251,6 +258,34 @@ public class AuthService {
     authOtpService.issueEmailVerificationOtp(user.getEmail());
   }
 
+  public EmailChangeChallengeResponse beginEmailChange(EmailChangeChallengeRequest request) {
+    long userId = currentUserService.currentUserId();
+    User user = userService.getUser(userId);
+    if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+      throw new UnauthorizedException("Current password is incorrect");
+    }
+
+    String normalizedEmail = userService.validateEmailChangeCandidate(userId, request.newEmail());
+    String challengeId = UUID.randomUUID().toString();
+    authOtpService.issueEmailChangeOtp(challengeId, normalizedEmail, userId);
+    return new EmailChangeChallengeResponse(challengeId, EMAIL_CHANGE_EXPIRES_SECONDS);
+  }
+
+  @Transactional
+  public void completeEmailChange(CompleteEmailChangeRequest request, HttpHeaders headers) {
+    AuthOtpService.EmailChangeVerification verification =
+        authOtpService.verifyEmailChangeOtp(request.challengeId(), request.otp());
+    long currentUserId = currentUserService.currentUserId();
+    if (verification.userId() != currentUserId) {
+      throw new UnauthorizedException("Invalid email change challenge");
+    }
+
+    userService.completeEmailChange(currentUserId, verification.email());
+    userSessionService.revokeAllForUser(currentUserId);
+    realtimeConnectionRegistry.closeForUser(currentUserId);
+    authTokenService.clearTokenCookies(headers);
+  }
+
   public TwoFactorSettingsChallengeResponse beginTwoFactorSettingsChange(
       TwoFactorSettingsChallengeRequest request) {
     long userId = currentUserService.currentUserId();
@@ -292,6 +327,7 @@ public class AuthService {
     boolean enabled = authOtpService.verifyTwoFactorSettingsOtp(challengeId, request.otp());
     userService.setTwoFactorEnabled(userId, enabled);
     userSessionService.revokeAllForUser(userId);
+    realtimeConnectionRegistry.closeForUser(userId);
     authTokenService.clearTokenCookies(headers);
   }
 

@@ -149,14 +149,12 @@ export default function AppSidebar({
       [section]: !current[section],
     }))
   const hasWorkspacePermission = (permission?: PermissionKey) =>
-    platformWorkspaceAccess || !permission || can(permission)
+    !permission || can(permission)
   const visible = (links: WorkspaceLink[]) =>
     links.filter(
       (link) =>
         hasWorkspacePermission(link.permission) &&
-        (!link.anyOf ||
-          platformWorkspaceAccess ||
-          link.anyOf.some((permission) => can(permission))),
+        (!link.anyOf || link.anyOf.some((permission) => can(permission))),
     )
 
   const renderSection = (key: string, label: string, icon: ReactNode, links: WorkspaceLink[]) => {

@@ -4,6 +4,7 @@ import com.messaging.admin.service.PlatformAdminAuthorizationService;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.user.dto.CreateUserRequest;
+import com.messaging.user.dto.DeleteOwnAccountRequest;
 import com.messaging.user.dto.ResetPasswordRequest;
 import com.messaging.user.dto.UpdateOwnProfileRequest;
 import com.messaging.user.dto.UpdateUserRequest;
@@ -108,10 +109,18 @@ public class UserController {
             HttpStatus.OK.value(), userService.resetPassword(userId, request), "Password reset"));
   }
 
+  @DeleteMapping("/me")
+  public ResponseEntity<ApiResponse<Void>> deleteCurrentUser(
+      @Valid @RequestBody DeleteOwnAccountRequest request) {
+    userService.deleteUser(currentUserService.currentUserId(), request.currentPassword());
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "User deletion scheduled"));
+  }
+
   @DeleteMapping("/{userId}")
-  public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable long userId) {
-    userService.deleteUser(userId);
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "User deleted"));
+  public ResponseEntity<ApiResponse<Void>> deleteUser(
+      @PathVariable long userId, @Valid @RequestBody DeleteOwnAccountRequest request) {
+    userService.deleteUser(userId, request.currentPassword());
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "User deletion scheduled"));
   }
 
   private void requireSuperAdmin() {

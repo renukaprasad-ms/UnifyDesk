@@ -78,6 +78,47 @@ public class AuthOtpService {
     return Boolean.parseBoolean(enabled);
   }
 
+  public void issueEmailChangeOtp(String challengeId, String email, long userId) {
+    String normalizedEmail = normalizeEmail(email);
+    enforceOtpRateLimit(normalizedEmail);
+    String otp = newOtp();
+    redisService.set(RedisKey.emailChangeOtp(challengeId), hash(otp), ttlProperties.getOtp());
+    redisService.set(
+        RedisKey.emailChangeTarget(challengeId), normalizedEmail, ttlProperties.getOtp());
+    redisService.set(
+        RedisKey.emailChangeUser(challengeId), Long.toString(userId), ttlProperties.getOtp());
+    publishTemplatedOtp(normalizedEmail, EmailTemplateType.EMAIL_CHANGE_OTP, otp);
+  }
+
+  public EmailChangeVerification verifyEmailChangeOtp(String challengeId, String otp) {
+    String targetKey = RedisKey.emailChangeTarget(challengeId);
+    String userKey = RedisKey.emailChangeUser(challengeId);
+    String targetEmail = redisService.get(targetKey, String.class);
+    String userId = redisService.get(userKey, String.class);
+    if (targetEmail == null || userId == null) {
+      throw new BadRequestException("Invalid or expired OTP");
+    }
+
+    try {
+      verifyOtp(
+          RedisKey.emailChangeOtp(challengeId),
+          RedisKey.rateLimitOtpVerify("email-change:" + challengeId),
+          otp);
+    } catch (TooManyRequestsException exception) {
+      redisService.delete(targetKey);
+      redisService.delete(userKey);
+      throw exception;
+    }
+
+    redisService.delete(targetKey);
+    redisService.delete(userKey);
+    try {
+      return new EmailChangeVerification(Long.parseLong(userId), targetEmail);
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("Invalid or expired OTP");
+    }
+  }
+
   public void enforcePasswordResetRateLimit(String identifier) {
     enforceOtpRateLimit(normalizeIdentifier(identifier));
   }
@@ -196,6 +237,8 @@ public class AuthOtpService {
     }
     return identifier.trim().toLowerCase(Locale.ROOT);
   }
+
+  public record EmailChangeVerification(long userId, String email) {}
 
   private String hash(String value) {
     try {

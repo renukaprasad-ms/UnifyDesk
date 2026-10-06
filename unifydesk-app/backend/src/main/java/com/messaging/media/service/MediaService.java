@@ -246,6 +246,31 @@ public class MediaService {
   }
 
   @Transactional
+  public void retirePersonalProfilePicture(long mediaId, long ownerUserId) {
+    Media media = mediaRepository.findById(mediaId).orElse(null);
+    if (media == null
+        || media.getPurpose() != MediaPurpose.USER_PROFILE
+        || media.getCompanyId() != null
+        || media.getOwnerUserId() != ownerUserId
+        || media.getStatus() == MediaStatus.DELETED) {
+      return;
+    }
+    if (media.getStatus() == MediaStatus.ACTIVE) {
+      storageAccounting.release(media);
+      media.setStatus(MediaStatus.DELETE_PENDING);
+      mediaRepository.saveAndFlush(media);
+    }
+    try {
+      storageProviderResolver
+          .resolve(media.getStorageProvider())
+          .delete(media.getBucket(), media.getObjectKey());
+      markDeleted(media.getId());
+    } catch (RuntimeException ignored) {
+      // Best effort: keep DELETE_PENDING rather than fail a profile update.
+    }
+  }
+
+  @Transactional
   public void retireCompanyLogo(long mediaId, long companyId) {
     Media media = mediaRepository.findById(mediaId).orElse(null);
     if (media == null

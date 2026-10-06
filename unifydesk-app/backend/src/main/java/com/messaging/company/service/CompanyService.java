@@ -69,6 +69,7 @@ public class CompanyService {
   private final BillingCatalogService billingCatalogService;
   private final EntitlementService entitlementService;
   private final CompanyIamPermissionService iamPermissionService;
+  private final CompanyAccessRealtimeService accessRealtimeService;
   private final PasswordEncoder passwordEncoder;
   private final ChannelConnectionService channelConnectionService;
   private final DeletionPurgeService deletionPurgeService;
@@ -249,6 +250,8 @@ public class CompanyService {
     }
     member.setRole(role);
     memberRepository.saveAndFlush(member);
+    accessRealtimeService.notifyAfterCommit(
+        targetUserId, companyId, "BASE_ROLE_CHANGED", CompanyMemberStatus.ACTIVE);
     return toCompanyUserResponse(member);
   }
 
@@ -277,6 +280,8 @@ public class CompanyService {
     }
     member.setStatus(status);
     memberRepository.saveAndFlush(member);
+    accessRealtimeService.notifyAfterCommit(
+        targetUserId, companyId, "MEMBERSHIP_STATUS_CHANGED", status);
     return toCompanyUserResponse(member);
   }
 
@@ -290,6 +295,8 @@ public class CompanyService {
       throw new BadRequestException("Transfer ownership before removing the company owner");
     }
     leaveMembership(member);
+    accessRealtimeService.notifyAfterCommit(
+        targetUserId, companyId, "MEMBER_REMOVED", CompanyMemberStatus.LEFT);
   }
 
   @Transactional
@@ -299,6 +306,8 @@ public class CompanyService {
       throw new BadRequestException("Transfer ownership before leaving this company");
     }
     leaveMembership(member);
+    accessRealtimeService.notifyAfterCommit(
+        userId, companyId, "MEMBER_LEFT", CompanyMemberStatus.LEFT);
   }
 
   @Transactional
@@ -328,6 +337,10 @@ public class CompanyService {
     actor.setRole(CompanyRole.MANAGER);
     memberRepository.saveAll(List.of(target, actor));
     memberRepository.flush();
+    accessRealtimeService.notifyAfterCommit(
+        actorUserId, companyId, "OWNERSHIP_TRANSFERRED", CompanyMemberStatus.ACTIVE);
+    accessRealtimeService.notifyAfterCommit(
+        targetUserId, companyId, "OWNERSHIP_TRANSFERRED", CompanyMemberStatus.ACTIVE);
   }
 
   @Transactional(readOnly = true)
