@@ -91,7 +91,7 @@ public class EmailBaseLayout {
                   <tr>
                     <td style="padding:20px 28px;border-top:1px solid #eef2f7;background:#fbfdff;">
                       <p style="margin:0 0 6px;font-size:12px;line-height:18px;color:#64748b;">%s</p>
-                      <p style="margin:0;font-size:11px;line-height:17px;color:#94a3b8;">© %s %s. All rights reserved.</p>
+                      <p style="margin:0;font-size:11px;line-height:17px;color:#94a3b8;">Copyright %s %s. All rights reserved.</p>
                     </td>
                   </tr>
                 </table>

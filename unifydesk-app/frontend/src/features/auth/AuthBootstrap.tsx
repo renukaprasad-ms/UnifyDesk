@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import Spinner from '../../components/ui/Spinner'
 import { useLocation } from 'react-router'
 import { workspaceApi } from '../workspace/workspaceApi'
+import { userApi } from '../user/userApi'
 import { authApi } from './authApi'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
@@ -28,7 +29,15 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
       try {
         const user = await authApi.refresh()
         if (!active) return
-        dispatch(setAuthUser(user))
+
+        const preferences = await userApi.preferences().catch(() => null)
+        if (!active) return
+        dispatch(
+          setAuthUser({
+            ...user,
+            appearanceMode: preferences?.appearanceMode ?? user.appearanceMode ?? 'LIGHT',
+          }),
+        )
 
         const companies = await workspaceApi.list()
         if (!active) return

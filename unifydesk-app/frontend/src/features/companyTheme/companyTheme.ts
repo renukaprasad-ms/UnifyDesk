@@ -1,6 +1,22 @@
 export type UserAppearanceMode = 'LIGHT' | 'DARK'
 
 export const DEFAULT_BRAND_COLOR = '#2563EB'
+export const APPEARANCE_STORAGE_KEY = 'unifydesk.appearanceMode'
+
+export const normalizeAppearanceMode = (
+  value: string | null | undefined,
+): UserAppearanceMode => (value === 'DARK' ? 'DARK' : 'LIGHT')
+
+export const readStoredAppearanceMode = () => {
+  if (typeof window === 'undefined') return null
+  const stored = window.localStorage.getItem(APPEARANCE_STORAGE_KEY)
+  return stored ? normalizeAppearanceMode(stored) : null
+}
+
+const persistAppearanceMode = (appearanceMode: UserAppearanceMode) => {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(APPEARANCE_STORAGE_KEY, appearanceMode)
+}
 
 export const brandContrastColor = (hex: string | null | undefined) => {
   const value = normalizeHex(hex).slice(1)
@@ -33,22 +49,28 @@ export const applyCompanyTheme = (
   if (typeof document === 'undefined') return
 
   const primary = normalizeHex(brandColor)
+  const mode = normalizeAppearanceMode(appearanceMode)
   const root = document.documentElement
-  root.dataset.colorScheme = appearanceMode.toLowerCase()
-  root.style.colorScheme = appearanceMode.toLowerCase()
+  root.dataset.colorScheme = mode.toLowerCase()
+  root.style.colorScheme = mode.toLowerCase()
+  persistAppearanceMode(mode)
 
   root.style.setProperty('--color-indigo-500', primary)
   root.style.setProperty('--theme-primary', primary)
   root.style.setProperty('--theme-primary-contrast', brandContrastColor(primary))
-  root.style.setProperty('--theme-primary-hover', adjust(primary, appearanceMode === 'DARK' ? 24 : -24))
+  root.style.setProperty('--theme-primary-hover', adjust(primary, mode === 'DARK' ? 24 : -24))
   root.style.setProperty(
     '--theme-primary-soft',
-    `color-mix(in srgb, ${primary} ${appearanceMode === 'DARK' ? '28%' : '18%'}, ${appearanceMode === 'DARK' ? '#111827' : '#ffffff'})`,
+    `color-mix(in srgb, ${primary} ${mode === 'DARK' ? '28%' : '18%'}, ${mode === 'DARK' ? '#111827' : '#ffffff'})`,
   )
   root.style.setProperty(
     '--theme-primary-softer',
-    `color-mix(in srgb, ${primary} ${appearanceMode === 'DARK' ? '18%' : '9%'}, ${appearanceMode === 'DARK' ? '#0f172a' : '#ffffff'})`,
+    `color-mix(in srgb, ${primary} ${mode === 'DARK' ? '18%' : '9%'}, ${mode === 'DARK' ? '#0f172a' : '#ffffff'})`,
   )
-  root.style.setProperty('--theme-primary-ring', adjust(primary, appearanceMode === 'DARK' ? 36 : 42))
+  root.style.setProperty('--theme-primary-ring', adjust(primary, mode === 'DARK' ? 36 : 42))
   root.style.setProperty('--color-indigo-50', 'var(--theme-primary-softer)')
+
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', mode === 'DARK' ? '#0f172a' : primary)
 }

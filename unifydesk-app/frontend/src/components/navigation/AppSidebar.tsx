@@ -141,7 +141,13 @@ export default function AppSidebar({
   const nestedLinkClass = ({ isActive }: { isActive: boolean }) =>
     `sidebar-link sidebar-link-nested ${isActive ? 'sidebar-link-active' : ''}`
   const toggleSection = (section: string) =>
-    setOpenSections((current) => ({ ...current, [section]: !current[section] }))
+    setOpenSections((current) => ({
+      inbox: false,
+      broadcast: false,
+      company: false,
+      account: false,
+      [section]: !current[section],
+    }))
   const hasWorkspacePermission = (permission?: PermissionKey) =>
     platformWorkspaceAccess || !permission || can(permission)
   const visible = (links: WorkspaceLink[]) =>
