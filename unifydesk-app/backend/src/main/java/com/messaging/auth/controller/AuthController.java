@@ -1,8 +1,11 @@
 package com.messaging.auth.controller;
 
 import com.messaging.auth.dto.AuthUserResponse;
+import com.messaging.auth.dto.CompleteEmailChangeRequest;
 import com.messaging.auth.dto.CompletePasswordResetRequest;
 import com.messaging.auth.dto.CompleteTwoFactorSettingsRequest;
+import com.messaging.auth.dto.EmailChangeChallengeRequest;
+import com.messaging.auth.dto.EmailChangeChallengeResponse;
 import com.messaging.auth.dto.LoginRequest;
 import com.messaging.auth.dto.LoginResponse;
 import com.messaging.auth.dto.PasswordResetChallengeResponse;
@@ -69,6 +72,28 @@ public class AuthController {
     return ResponseEntity.ok()
         .headers(headers)
         .body(ApiResponse.success(HttpStatus.OK.value(), response, "Login successful"));
+  }
+
+  @PostMapping("/email-change/challenge")
+  public ResponseEntity<ApiResponse<EmailChangeChallengeResponse>> beginEmailChange(
+      @Valid @RequestBody EmailChangeChallengeRequest request) {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            authService.beginEmailChange(request),
+            "Verification code sent to the new email"));
+  }
+
+  @PostMapping("/email-change/complete")
+  public ResponseEntity<ApiResponse<Void>> completeEmailChange(
+      @Valid @RequestBody CompleteEmailChangeRequest request) {
+    HttpHeaders headers = new HttpHeaders();
+    authService.completeEmailChange(request, headers);
+    return ResponseEntity.ok()
+        .headers(headers)
+        .body(
+            ApiResponse.success(
+                HttpStatus.OK.value(), "Email updated. Please sign in again."));
   }
 
   @PostMapping("/2fa/settings/challenge")
