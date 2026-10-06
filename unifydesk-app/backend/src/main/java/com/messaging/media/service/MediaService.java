@@ -246,6 +246,30 @@ public class MediaService {
   }
 
   @Transactional
+  public void retireCompanyLogo(long mediaId, long companyId) {
+    Media media = mediaRepository.findById(mediaId).orElse(null);
+    if (media == null
+        || media.getPurpose() != MediaPurpose.COMPANY_LOGO
+        || !Long.valueOf(companyId).equals(media.getCompanyId())
+        || media.getStatus() == MediaStatus.DELETED) {
+      return;
+    }
+    if (media.getStatus() == MediaStatus.ACTIVE) {
+      storageAccounting.release(media);
+      media.setStatus(MediaStatus.DELETE_PENDING);
+      mediaRepository.saveAndFlush(media);
+    }
+    try {
+      storageProviderResolver
+          .resolve(media.getStorageProvider())
+          .delete(media.getBucket(), media.getObjectKey());
+      markDeleted(media.getId());
+    } catch (RuntimeException ignored) {
+      // Best effort: keep DELETE_PENDING rather than fail the company profile update.
+    }
+  }
+
+  @Transactional
   public MediaResponse delete(String mediaId) {
     long userId = currentUserService.currentUserId();
     Media media = loadOwnedMedia(parseMediaId(mediaId), userId);
