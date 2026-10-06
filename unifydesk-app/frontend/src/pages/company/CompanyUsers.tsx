@@ -53,6 +53,7 @@ export default function CompanyUsers() {
   const [error, setError] = useState('')
   const [invitationToRevoke, setInvitationToRevoke] = useState<CompanyInvitation | null>(null)
   const [memberActionUserId, setMemberActionUserId] = useState<string | null>(null)
+  const [ownershipPassword, setOwnershipPassword] = useState('')
   const [memberConfirmation, setMemberConfirmation] = useState<{
     kind: 'REMOVE' | 'TRANSFER'
     user: CompanyUser
@@ -178,6 +179,7 @@ export default function CompanyUsers() {
     } catch (memberError) {
       setError(apiErrorMessage(memberError, 'Unable to update member access'))
     } finally {
+      if (kind === 'TRANSFER') setOwnershipPassword('')
       setMemberActionUserId(null)
     }
   }
@@ -211,7 +213,12 @@ export default function CompanyUsers() {
       if (kind === 'REMOVE') {
         await companyApi.removeMember(selectedCompany.companyId, user.userId)
       } else {
-        await companyApi.transferOwnership(selectedCompany.companyId, user.userId)
+        await companyApi.transferOwnership(
+          selectedCompany.companyId,
+          user.userId,
+          ownershipPassword,
+        )
+        setOwnershipPassword('')
         window.location.assign('/workspace')
         return
       }
@@ -635,15 +642,32 @@ export default function CompanyUsers() {
                 </div>
                 {can(PERMISSIONS.COMPANY_TRANSFER_OWNERSHIP) &&
                   managingUser.status === 'ACTIVE' && (
-                    <button
-                      type="button"
-                      className="mt-3 w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"
-                      onClick={() =>
-                        setMemberConfirmation({ kind: 'TRANSFER', user: managingUser })
-                      }
-                    >
-                      Transfer company ownership to {managingUser.name}
-                    </button>
+                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-xs font-semibold text-amber-900">
+                        Transfer ownership
+                      </p>
+                      <p className="mt-1 text-[11px] leading-5 text-amber-800">
+                        Re-enter your current password before transferring this company.
+                      </p>
+                      <input
+                        type="password"
+                        className="form-input mt-2"
+                        autoComplete="current-password"
+                        placeholder="Current password"
+                        value={ownershipPassword}
+                        onChange={(event) => setOwnershipPassword(event.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="mt-2 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                        disabled={!ownershipPassword || memberActionUserId === managingUser.userId}
+                        onClick={() =>
+                          setMemberConfirmation({ kind: 'TRANSFER', user: managingUser })
+                        }
+                      >
+                        Transfer company ownership to {managingUser.name}
+                      </button>
+                    </div>
                   )}
               </div>
 
@@ -828,7 +852,10 @@ export default function CompanyUsers() {
           working={Boolean(
             memberConfirmation && memberActionUserId === memberConfirmation.user.userId,
           )}
-          onCancel={() => setMemberConfirmation(null)}
+          onCancel={() => {
+            if (memberConfirmation?.kind === 'TRANSFER') setOwnershipPassword('')
+            setMemberConfirmation(null)
+          }}
           onConfirm={() => void confirmMemberAction()}
         />
         <ConfirmDialog
