@@ -527,7 +527,7 @@ export default function ImportDetailPage() {
               </div>
             </section>
 
-            <details className="panel mt-4 p-5">
+            <details className="panel mt-4 p-5" open={consentMappings.length > 0}>
               <summary className="cursor-pointer text-sm font-bold text-slate-950">
                 Marketing permissions
                 {consentMappings.length > 0 && (
@@ -626,10 +626,18 @@ export default function ImportDetailPage() {
                 Step 3 of 3
               </p>
               <h2 className="mt-1 text-lg font-bold text-slate-950">Ready to import</h2>
-              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-xl bg-slate-50 p-4">
                   <p className="text-slate-500">Columns</p>
                   <p className="mt-1 font-bold text-slate-950">{mappedCount} will be imported</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-slate-500">Marketing permissions</p>
+                  <p className="mt-1 font-bold text-slate-950">
+                    {consentMappings.length > 0
+                      ? consentMappings.length + ' channel' + (consentMappings.length === 1 ? '' : 's') + ' mapped'
+                      : 'No consent columns mapped'}
+                  </p>
                 </div>
                 <div className="rounded-xl bg-slate-50 p-4">
                   <p className="text-slate-500">Existing contacts</p>

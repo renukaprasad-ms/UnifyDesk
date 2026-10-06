@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.repository.CompanyMemberRepository;
+import com.messaging.contacts.consent.ConsentTypes.Channel;
 import com.messaging.contacts.core.domain.ContactTypes.ContactSort;
 import com.messaging.contacts.core.domain.ContactTypes.ContactStatus;
 import com.messaging.contacts.core.domain.ContactTypes.CoreField;
@@ -430,6 +431,10 @@ public class ContactService {
         contact.organization(),
         row.primaryEmail(),
         row.primaryPhone(),
+        Map.of(
+            Channel.EMAIL, row.emailMarketingPreference(),
+            Channel.SMS, row.smsMarketingPreference(),
+            Channel.WHATSAPP, row.whatsappMarketingPreference()),
         contact.status(),
         contact.updatedAt(),
         contact.version());
