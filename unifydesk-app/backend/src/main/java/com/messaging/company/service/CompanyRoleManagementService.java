@@ -22,6 +22,7 @@ import com.messaging.company.enums.CompanyRole;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.repository.CompanyCustomRolePermissionRepository;
 import com.messaging.company.repository.CompanyCustomRoleRepository;
+import com.messaging.company.repository.CompanyInvitationRepository;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyMemberRoleAssignmentRepository;
 import com.messaging.company.repository.PermissionDefinitionRepository;
@@ -49,6 +50,7 @@ public class CompanyRoleManagementService {
   private final SystemPermissionCatalogService permissionCatalogService;
   private final CompanySystemRoleService companySystemRoleService;
   private final CompanyMemberRepository memberRepository;
+  private final CompanyInvitationRepository invitationRepository;
   private final PermissionDefinitionRepository permissionDefinitionRepository;
   private final CompanyCustomRoleRepository roleRepository;
   private final CompanyCustomRolePermissionRepository rolePermissionRepository;
@@ -153,6 +155,8 @@ public class CompanyRoleManagementService {
         assignmentRepository.findByRoleIdAndRevokedAtIsNull(roleId);
     assignments.forEach(assignment -> assignment.setRevokedAt(now));
     assignmentRepository.saveAll(assignments);
+
+    invitationRepository.deletePendingRoleLinks(roleId);
 
     role.setDeletedAt(now);
     role.setDeletedByUserId(actorId);
