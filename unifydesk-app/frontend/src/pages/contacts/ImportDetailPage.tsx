@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import {
   buildImportCommitInput,
+  buildSuggestedConsentMappings,
   buildSuggestedImportMappings,
   createIdempotencyKey,
 } from '../../features/contacts/contactModel'
@@ -148,6 +149,7 @@ export default function ImportDetailPage() {
           const nextPreview = await contactsApi.previewImport(companyId, importId)
           setPreview(nextPreview)
           setMappings(buildSuggestedImportMappings(nextPreview.headers))
+          setConsentMappings(buildSuggestedConsentMappings(nextPreview.headers))
         }
       })
       .catch((loadError) => setError(apiErrorMessage(loadError, 'Unable to load import.')))
@@ -441,6 +443,13 @@ export default function ImportDetailPage() {
                 ))}
               </div>
 
+              {ignoredCount > 0 && (
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <strong>{ignoredCount} column{ignoredCount === 1 ? '' : 's'} won't be imported.</strong>{' '}
+                  That is usually fine for IDs or source metadata. Review only the fields you need.
+                </div>
+              )}
+
               <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <summary className="cursor-pointer text-sm font-semibold text-slate-800">
                   Preview sample rows
@@ -520,12 +529,17 @@ export default function ImportDetailPage() {
 
             <details className="panel mt-4 p-5">
               <summary className="cursor-pointer text-sm font-bold text-slate-950">
-                Advanced: import marketing consent
+                Marketing permissions
+                {consentMappings.length > 0 && (
+                  <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+                    {consentMappings.length} detected
+                  </span>
+                )}
               </summary>
               <p className="mt-2 max-w-3xl text-sm text-slate-500">
-                Leave this closed unless your CSV contains explicit consent or preference evidence.
-                Importing contact details alone does not grant permission to send marketing
-                messages.
+                UnifyDesk never opts contacts in automatically. If your CSV contains explicit Email,
+                SMS or WhatsApp permission columns, we detect them here so you can verify the
+                mapping before importing.
               </p>
               <div className="mt-4 space-y-4">
                 {channels.map((channel) => {

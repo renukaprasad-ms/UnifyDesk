@@ -138,8 +138,7 @@ export default function ContactsPage() {
             <p className="eyebrow">Audience</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Contacts</h1>
             <p className="mt-2 text-sm text-slate-500">
-              Search and manage first-party customer records without loading the full audience into
-              your browser.
+              Keep customer details, permissions, Lists and Segments in one place.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -167,7 +166,7 @@ export default function ContactsPage() {
             )}
             {can(PERMISSIONS.CONTACT_CREATE) && (
               <button className="primary-button" onClick={() => setCreating(true)}>
-                New contact
+                + Add contact
               </button>
             )}
           </div>
@@ -341,11 +340,48 @@ export default function ContactsPage() {
               <TableSkeleton rows={8} columns={7} />
             </div>
           ) : contacts.items.length === 0 ? (
-            <div className="p-10 text-center">
-              <h2 className="font-bold text-slate-900">No contacts found</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Adjust search or create your first contact.
-              </p>
+            <div className="p-6 sm:p-10">
+              {query.q ||
+              query.status ||
+              query.tagId ||
+              query.listId ||
+              query.createdAfter ||
+              query.createdBefore ? (
+                <div className="text-center">
+                  <h2 className="font-bold text-slate-900">No contacts match these filters</h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Try changing your search, tag, List or date filters.
+                  </p>
+                </div>
+              ) : (
+                <div className="mx-auto max-w-3xl text-center">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                    Start your audience
+                  </p>
+                  <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                    Add your first customers
+                  </h2>
+                  <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
+                    Add one person manually or import a CSV. Contacts power your Lists, Segments and
+                    Email, SMS and WhatsApp audiences.
+                  </p>
+                  <div className="mt-6 flex flex-wrap justify-center gap-3">
+                    {can(PERMISSIONS.CONTACT_CREATE) && (
+                      <button className="primary-button" onClick={() => setCreating(true)}>
+                        Add one contact
+                      </button>
+                    )}
+                    {can(PERMISSIONS.CONTACT_IMPORT) && (
+                      <Link className="secondary-button" to="/contacts/imports">
+                        Import CSV
+                      </Link>
+                    )}
+                  </div>
+                  <p className="mt-5 text-xs text-slate-400">
+                    Adding a contact never opts them into marketing automatically.
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
