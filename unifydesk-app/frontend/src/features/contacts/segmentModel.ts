@@ -146,7 +146,7 @@ export const fieldOptionFor = (fields: SegmentFieldOption[], predicate: SegmentP
     (field) =>
       field.descriptor.kind === predicate.field.kind &&
       field.descriptor.key === predicate.field.key &&
-      field.descriptor.fieldId === predicate.field.fieldId,
+      (field.descriptor.fieldId ?? null) === (predicate.field.fieldId ?? null),
   )
 
 export const operatorNeedsValue = (operator: SegmentOperator) =>
