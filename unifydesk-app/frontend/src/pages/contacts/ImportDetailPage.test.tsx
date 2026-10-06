@@ -37,7 +37,7 @@ describe('ImportDetailPage', () => {
     vi.mocked(contactsApi.customFields).mockResolvedValue([])
   })
 
-  it('auto-maps common columns and keeps consent settings advanced', async () => {
+  it('auto-maps common columns and shows marketing permission controls', async () => {
     vi.mocked(contactsApi.getImport).mockResolvedValue({
       id: 'import-1',
       status: 'PREVIEWED',
@@ -67,10 +67,10 @@ describe('ImportDetailPage', () => {
     expect(screen.getByLabelText('Import email as')).toHaveValue('IDENTITY:EMAIL')
     expect(screen.getByLabelText('Import phone as')).toHaveValue('IDENTITY:PHONE')
     expect(screen.getByLabelText('Import external_id as')).toHaveValue('IGNORE')
-    expect(screen.getByText(/Advanced: import marketing consent/i)).toBeInTheDocument()
+    expect(screen.getByText(/Marketing permissions/i)).toBeInTheDocument()
   })
 
-  it('allows explicit consent evidence mapping when the advanced option is used', async () => {
+  it('allows explicit consent evidence mapping when marketing permissions are enabled', async () => {
     vi.mocked(contactsApi.getImport).mockResolvedValue({
       id: 'import-1',
       status: 'PREVIEWED',
@@ -82,12 +82,49 @@ describe('ImportDetailPage', () => {
 
     renderPage()
 
-    fireEvent.click(await screen.findByText(/Advanced: import marketing consent/i))
+    fireEvent.click(await screen.findByText(/Marketing permissions/i))
     fireEvent.click(screen.getByLabelText(/Import EMAIL marketing preference/i))
 
     expect(screen.getByText('Preference column')).toBeInTheDocument()
     expect(screen.getByText('Evidence column')).toBeInTheDocument()
     expect(screen.getByText('Consent date column')).toBeInTheDocument()
+  })
+
+  it('auto-detects explicit consent columns and includes them in the import summary', async () => {
+    vi.mocked(contactsApi.getImport).mockResolvedValue({
+      id: 'import-1',
+      status: 'PREVIEWED',
+    })
+    vi.mocked(contactsApi.previewImport).mockResolvedValue({
+      headers: [
+        'display_name',
+        'email',
+        'email_marketing_consent',
+        'sms_marketing_consent',
+        'whatsapp_marketing_consent',
+        'consent_source',
+        'consent_occurred_at',
+      ],
+      sampleRows: [
+        [
+          'Alice',
+          'alice@example.com',
+          'TRUE',
+          'FALSE',
+          'TRUE',
+          'website-form',
+          '2026-10-01T10:00:00Z',
+        ],
+      ],
+    })
+
+    renderPage()
+
+    expect(await screen.findByText(/3 detected/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Import EMAIL marketing preference/i)).toBeChecked()
+    expect(screen.getByLabelText(/Import SMS marketing preference/i)).toBeChecked()
+    expect(screen.getByLabelText(/Import WhatsApp marketing preference/i)).toBeChecked()
+    expect(screen.getByText(/3 channels mapped/i)).toBeInTheDocument()
   })
 
   it('announces asynchronous progress in business-friendly language', async () => {
