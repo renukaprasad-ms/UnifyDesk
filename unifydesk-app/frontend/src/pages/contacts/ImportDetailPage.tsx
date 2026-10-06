@@ -257,10 +257,27 @@ export default function ImportDetailPage() {
       return
     }
 
-    const invalidConsent = consentMappings.some((mapping) => !mapping.stateColumn)
-    if (invalidConsent) {
-      setError('Choose a preference column for every enabled consent channel.')
-      return
+    if (consentMode === 'CSV') {
+      const invalidConsent = consentMappings.some((mapping) => !mapping.stateColumn)
+      if (invalidConsent) {
+        setError('Choose a preference column for every enabled consent channel.')
+        return
+      }
+    }
+
+    if (consentMode === 'SIMPLE') {
+      if (simpleConsentChannels.length === 0) {
+        setError('Choose at least one marketing channel these contacts consented to.')
+        return
+      }
+      if (!simpleConsentEvidence.trim()) {
+        setError('Choose how marketing permission was collected.')
+        return
+      }
+      if (!simpleConsentConfirmed) {
+        setError('Confirm that these contacts gave permission for the selected channels.')
+        return
+      }
     }
 
     setCommitting(true)
@@ -272,7 +289,8 @@ export default function ImportDetailPage() {
         buildImportCommitInput({
           mappings,
           duplicateStrategy: strategy,
-          consentMappings,
+          consentMappings: consentMode === 'CSV' ? consentMappings : [],
+          consentDeclarations: consentMode === 'SIMPLE' ? simpleConsentDeclarations() : [],
           targetListId: targetListId || null,
           idempotencyKey: createIdempotencyKey(),
         }),
