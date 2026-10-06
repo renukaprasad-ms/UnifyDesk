@@ -5,6 +5,8 @@ import com.messaging.contacts.core.domain.ContactTypes.ContactSort;
 import com.messaging.contacts.core.domain.ContactTypes.ContactStatus;
 import com.messaging.contacts.core.domain.ContactTypes.CoreField;
 import com.messaging.contacts.core.domain.ContactTypes.IdentityType;
+import com.messaging.contacts.consent.ConsentTypes.Channel;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceState;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -140,6 +142,7 @@ public final class ContactDtos {
       String organization,
       String primaryEmail,
       String primaryPhone,
+      Map<Channel, PreferenceState> preferenceSummary,
       ContactStatus status,
       Instant updatedAt,
       long version) {}
