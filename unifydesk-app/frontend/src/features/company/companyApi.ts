@@ -58,8 +58,11 @@ export const companyApi = {
     await apiClient.post(`/api/v1/companies/${companyId}/members/me/leave`)
   },
 
-  async transferOwnership(companyId: string, targetUserId: string) {
-    await apiClient.post(`/api/v1/companies/${companyId}/ownership-transfer`, { targetUserId })
+  async transferOwnership(companyId: string, targetUserId: string, currentPassword: string) {
+    await apiClient.post(`/api/v1/companies/${companyId}/ownership-transfer`, {
+      targetUserId,
+      currentPassword,
+    })
   },
 
   async users(companyId: string) {
