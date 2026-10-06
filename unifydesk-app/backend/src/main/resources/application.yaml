@@ -83,6 +83,8 @@ spring:
         heartbeat.interval.ms: ${KAFKA_HEARTBEAT_INTERVAL_MS:15000}
 
 app:
+  company:
+    max-owned-workspaces: ${APP_COMPANY_MAX_OWNED_WORKSPACES:3}
   billing:
     cashfree:
       enabled: ${APP_BILLING_CASHFREE_ENABLED:false}
