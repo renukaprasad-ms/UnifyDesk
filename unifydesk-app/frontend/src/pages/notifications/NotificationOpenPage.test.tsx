@@ -27,6 +27,7 @@ const company = {
   slug: 'acme',
   status: 'ACTIVE' as const,
   role: 'OWNER' as const,
+  brandColor: '#2563EB',
 }
 
 describe('NotificationOpenPage', () => {
