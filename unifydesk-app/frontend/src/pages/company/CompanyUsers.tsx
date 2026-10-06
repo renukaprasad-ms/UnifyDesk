@@ -408,7 +408,7 @@ export default function CompanyUsers() {
                           <span className="min-w-0">
                             <span className="block font-semibold text-slate-950">{user.name}</span>
                             <span className="block truncate text-xs text-slate-500">
-                              @{user.username} · {user.email}
+                              @{user.username} - {user.email}
                             </span>
                           </span>
                         </div>
@@ -696,7 +696,7 @@ export default function CompanyUsers() {
                 <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center">
                   <p className="text-sm font-semibold text-slate-800">No custom roles</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Create roles from Company → Roles & permissions first.
+                    Create roles from Company &gt; Roles &amp; permissions first.
                   </p>
                 </div>
               ) : (
