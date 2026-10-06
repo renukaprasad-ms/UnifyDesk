@@ -9,6 +9,7 @@ import {
 } from '../../features/contacts/contactModel'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import type {
+  ConsentImportDeclaration,
   ConsentImportMapping,
   ContactChannel,
   ContactImport,
@@ -23,6 +24,17 @@ import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
 
 const channels: ContactChannel[] = ['EMAIL', 'SMS', 'WHATSAPP']
+
+const consentEvidenceOptions = [
+  { value: 'Website form', label: 'Website form' },
+  { value: 'Existing customer list', label: 'Existing customer list' },
+  { value: 'Previous marketing platform', label: 'Previous marketing platform' },
+  { value: 'Offline consent', label: 'Offline / in-person consent' },
+  { value: 'Other documented consent', label: 'Other documented consent' },
+] as const
+
+const channelLabel = (channel: ContactChannel) =>
+  channel === 'WHATSAPP' ? 'WhatsApp' : channel
 
 const targetKey = (target: ImportFieldTarget) => {
   if (target.type === 'IGNORE') return 'IGNORE'
@@ -122,6 +134,11 @@ export default function ImportDetailPage() {
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [mappings, setMappings] = useState<ImportFieldMapping[]>([])
   const [consentMappings, setConsentMappings] = useState<ConsentImportMapping[]>([])
+  const [consentMode, setConsentMode] = useState<'NONE' | 'SIMPLE' | 'CSV'>('NONE')
+  const [simpleConsentChannels, setSimpleConsentChannels] = useState<ContactChannel[]>([])
+  const [simpleConsentEvidence, setSimpleConsentEvidence] = useState('Website form')
+  const [simpleConsentDate, setSimpleConsentDate] = useState('')
+  const [simpleConsentConfirmed, setSimpleConsentConfirmed] = useState(false)
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([])
   const [strategy, setStrategy] = useState<'SKIP' | 'MERGE_EXACT' | 'FAIL'>('SKIP')
   const [targetListId, setTargetListId] = useState('')
@@ -149,7 +166,9 @@ export default function ImportDetailPage() {
           const nextPreview = await contactsApi.previewImport(companyId, importId)
           setPreview(nextPreview)
           setMappings(buildSuggestedImportMappings(nextPreview.headers))
-          setConsentMappings(buildSuggestedConsentMappings(nextPreview.headers))
+          const suggestedConsent = buildSuggestedConsentMappings(nextPreview.headers)
+          setConsentMappings(suggestedConsent)
+          setConsentMode(suggestedConsent.length > 0 ? 'CSV' : 'NONE')
         }
       })
       .catch((loadError) => setError(apiErrorMessage(loadError, 'Unable to load import.')))
@@ -210,6 +229,25 @@ export default function ImportDetailPage() {
     setConsentMappings((current) =>
       current.map((mapping) => (mapping.channel === channel ? { ...mapping, ...patch } : mapping)),
     )
+
+  const toggleSimpleConsentChannel = (channel: ContactChannel) =>
+    setSimpleConsentChannels((current) =>
+      current.includes(channel)
+        ? current.filter((item) => item !== channel)
+        : [...current, channel],
+    )
+
+  const simpleConsentDeclarations = (): ConsentImportDeclaration[] =>
+    simpleConsentChannels.map((channel) => ({
+      channel,
+      state: 'OPTED_IN',
+      source: 'IMPORT',
+      evidence: simpleConsentEvidence,
+      occurredAt: simpleConsentDate
+        ? new Date(simpleConsentDate + 'T00:00:00.000Z').toISOString()
+        : null,
+      confirmed: simpleConsentConfirmed,
+    }))
 
   const commit = async () => {
     if (!companyId || !preview) return
