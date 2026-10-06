@@ -179,7 +179,6 @@ export default function CompanyUsers() {
     } catch (memberError) {
       setError(apiErrorMessage(memberError, 'Unable to update member access'))
     } finally {
-      if (kind === 'TRANSFER') setOwnershipPassword('')
       setMemberActionUserId(null)
     }
   }
@@ -234,6 +233,7 @@ export default function CompanyUsers() {
         ),
       )
     } finally {
+      if (kind === 'TRANSFER') setOwnershipPassword('')
       setMemberActionUserId(null)
     }
   }
