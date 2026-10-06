@@ -1,5 +1,24 @@
 import type {Metadata} from "next";
-export const metadata:Metadata={title:"Solutions for Support, Marketing & Growing Teams",description:"Unify customer support, marketing, broadcasts and advertising workflows in one shared workspace for business teams.",alternates:{canonical:"/solutions"}};
-import {Building2,Headphones,Megaphone,BriefcaseBusiness,Check} from "lucide-react";import {Header,Footer} from "../components";
-const teams=[["Business owners","See customer communication and growth workflows from one workspace instead of stitching together separate dashboards.",Building2,["Shared visibility","Company-level controls","Connected activity"]],["Customer support","Give the team a shared place to work through conversations while keeping customer context close.",Headphones,["Shared inbox","Customer context","Team collaboration"]],["Marketing teams","Move between broadcasts and advertising workflows without losing the audience and campaign context.",Megaphone,["Broadcast workflows","Ad Center","Performance context"]],["Agencies & growing teams","Organize company access and connected providers as the number of people and workflows grows.",BriefcaseBusiness,["Role-based access","Provider connections","Scalable workspace"]]];
-export default function Solutions(){return <><Header/><main><section className="pageHero"><p className="kicker">SOLUTIONS</p><h1>Different teams. One customer context.</h1><p>Give each team the workflow it needs while keeping customer work connected across the business.</p></section><section className="teamCards">{teams.map(([t,d,I,pts]:any)=><article key={t}><div className="icon big"><I/></div><h2>{t}</h2><p>{d}</p>{pts.map((x:string)=><span className="micro" key={x}><Check/>{x}</span>)}</article>)}</section><section className="centerCta"><h2>Bring your teams into one operating layer.</h2><p className="ctaSupport">Public access is coming soon.</p><span className="button disabledCta">Coming soon</span></section></main><Footer/></>}
+import {BriefcaseBusiness,Building2,Check,Headphones,Megaphone} from "lucide-react";
+import {Footer,Header} from "../components";
+
+export const metadata:Metadata={
+  title:"Solutions | UnifyDesk",
+  description:"Unify customer support, marketing and business workflows around shared customer context.",
+  alternates:{canonical:"/solutions"}
+};
+
+const teams=[
+  ["Business owners","VISIBILITY","See customer communication and growth workflows without stitching dashboards together.",Building2,["Company-level visibility","Connected activity","Plan and access controls"]],
+  ["Customer support","CONVERSATIONS","Give the team a shared place to work through conversations with context.",Headphones,["Shared inbox","Customer profile context","Channel workflows"]],
+  ["Marketing teams","CAMPAIGNS","Move between broadcasts and advertising without losing audience context.",Megaphone,["Broadcast workflows","Ad Center","Performance context"]],
+  ["Growing teams","CONTROL","Organize workspace access and providers as the team grows.",BriefcaseBusiness,["Roles & permissions","Provider connections","Company controls"]]
+] as const;
+
+export default function Solutions(){
+  return <><Header/><main className="routePage">
+    <section className="routeHero"><div className="statusBadge"><span/>SOLUTIONS</div><h1>Different teams. One customer context.</h1><p>Give business, support and marketing teams the workflows they need while keeping customer work connected across the company.</p></section>
+    <section className="routeSection soft"><h2 className="sectionTitle">Designed around the teams doing the work.</h2><div className="routeCardGrid four">{teams.map(([title,tag,description,Icon,points],i)=><article className={"routeCard reveal delay"+((i%3)+1)} key={title}><div className="featureIcon"><Icon size={21}/></div><span className="softBadge">{tag}</span><h3>{title}</h3><p>{description}</p><div className="pointList">{points.map(p=><span key={p}><Check size={15}/>{p}</span>)}</div></article>)}</div></section>
+    <section className="journeySection"><p className="kicker">ONE CUSTOMER JOURNEY</p><h2 className="sectionTitle">Support, marketing and growth should not operate from isolated customer records.</h2><div className="journeyFlow">{[["01","Conversation"],["02","Customer context"],["03","Audience"],["04","Broadcast"],["05","Paid campaign"],["06","Performance"]].map(([n,t])=><div className="reveal" key={n}><span>{n}</span><b>{t}</b></div>)}</div></section>
+  </main><Footer/></>
+}
