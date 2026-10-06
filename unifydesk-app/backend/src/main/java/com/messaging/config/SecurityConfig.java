@@ -49,10 +49,6 @@ public class SecurityConfig {
                 csrf.csrfTokenRepository(csrfTokenRepository)
                     .csrfTokenRequestHandler(csrfTokenRequestHandler)
                     .ignoringRequestMatchers(
-                        "/api/auth/register",
-                        "/api/auth/login",
-                        "/api/auth/2fa/verify",
-                        "/api/auth/refresh",
                         "/api/v1/media/uploads",
                         "/api/v1/webhooks/meta/whatsapp",
                         "/api/v1/webhooks/meta/ads",
@@ -90,8 +86,13 @@ public class SecurityConfig {
                         "/api/v1/oauth/google-ads/callback",
                         "/api/v1/email-assets/**")
                     .permitAll()
+                    .requestMatchers(
+                        "/api/auth/verify-email",
+                        "/api/auth/verify-email/resend",
+                        "/api/auth/logout")
+                    .authenticated()
                     .anyRequest()
-                    .authenticated())
+                    .hasAuthority("VERIFIED"))
         .exceptionHandling(
             exception ->
                 exception.authenticationEntryPoint(
