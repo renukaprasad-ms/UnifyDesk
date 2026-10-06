@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.contacts.core.api.ContactDtos.ContactDetail;
+import com.messaging.contacts.core.api.ContactDtos.ContactSummary;
 import com.messaging.contacts.core.api.ContactDtos.CustomFieldApiType;
 import com.messaging.contacts.core.api.ContactDtos.CustomFieldDefinitionResponse;
 import java.lang.reflect.RecordComponent;
@@ -40,6 +41,17 @@ class ContactApiContractTests {
     assertThat(json.get("options").isArray()).isTrue();
     assertThat(json.get("status").asText()).isEqualTo("ACTIVE");
     assertThat(json.get("indexability").asText()).isEqualTo("EXACT");
+  }
+
+  @Test
+  void contactSummaryExposesMarketingPreferenceSummary() {
+    List<String> componentNames =
+        Arrays.stream(ContactSummary.class.getRecordComponents())
+            .map(RecordComponent::getName)
+            .toList();
+
+    assertThat(componentNames).contains("preferenceSummary");
+    assertThat(componentType(ContactSummary.class, "preferenceSummary")).isEqualTo(java.util.Map.class);
   }
 
   @Test
