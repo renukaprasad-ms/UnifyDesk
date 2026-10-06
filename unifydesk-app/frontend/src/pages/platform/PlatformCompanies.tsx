@@ -169,7 +169,7 @@ export default function PlatformCompanies() {
                         </StatusBadge>
                       </td>
                       <td className="mobile-action-cell px-5 py-4 text-right" data-label="Action">
-                        {company.status !== 'DELETED' && (
+                        {(company.status === 'ACTIVE' || company.status === 'SUSPENDED') && (
                           <button
                             type="button"
                             disabled={changingId === company.id}

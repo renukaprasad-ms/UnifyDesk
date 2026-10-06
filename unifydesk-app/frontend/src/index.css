@@ -15,6 +15,7 @@
 @layer base {
   :root {
     --theme-primary: #2563eb;
+    --theme-primary-contrast: #ffffff;
     --theme-primary-hover: #1d4ed8;
     --theme-primary-soft: #dbeafe;
     --theme-primary-softer: #eff6ff;
@@ -473,7 +474,7 @@
     justify-content: center;
     border-radius: 9px;
     background: var(--theme-primary);
-    color: white;
+    color: var(--theme-primary-contrast);
     padding: 11px 18px;
     font-size: 13px;
     font-weight: 600;
@@ -702,6 +703,67 @@
   .conversation-list-item.is-active:focus-visible {
     background: var(--theme-primary-softer);
     box-shadow: inset 3px 0 var(--theme-primary);
+  }
+  .mobile-sheet,
+  .confirm-dialog-panel {
+    border: 1px solid var(--theme-border);
+    background: var(--theme-surface) !important;
+    color: var(--theme-text);
+  }
+  .confirm-dialog-icon-default {
+    background: var(--theme-primary-softer);
+    color: var(--theme-primary);
+  }
+  .confirm-dialog-icon-warning {
+    background: color-mix(in srgb, #f59e0b 18%, var(--theme-surface));
+    color: #d97706;
+  }
+  .confirm-dialog-icon-danger {
+    background: color-mix(in srgb, #ef4444 16%, var(--theme-surface));
+    color: #e11d48;
+  }
+  .confirm-dialog-button-warning,
+  .confirm-dialog-button-danger {
+    color: #ffffff;
+  }
+  .confirm-dialog-button-default {
+    background: var(--theme-primary);
+    color: var(--theme-primary-contrast);
+  }
+  .confirm-dialog-button-default:hover:not(:disabled),
+  .confirm-dialog-button-default:focus-visible {
+    background: var(--theme-primary-hover);
+  }
+  .confirm-dialog-button-warning {
+    background: #d97706;
+  }
+  .confirm-dialog-button-warning:hover:not(:disabled),
+  .confirm-dialog-button-warning:focus-visible {
+    background: #b45309;
+  }
+  .confirm-dialog-button-danger {
+    background: #e11d48;
+  }
+  .confirm-dialog-button-danger:hover:not(:disabled),
+  .confirm-dialog-button-danger:focus-visible {
+    background: #be123c;
+  }
+  .auth-layout,
+  .auth-form-panel {
+    background: var(--theme-bg);
+    color: var(--theme-text);
+  }
+  .auth-marketing-panel {
+    border-color: var(--theme-border);
+    background:
+      radial-gradient(circle at 12% 26%, var(--theme-primary-softer), transparent 32%),
+      linear-gradient(105deg, var(--theme-primary-softer) 0%, var(--theme-surface) 100%);
+    color: var(--theme-text);
+  }
+  :root[data-color-scheme='dark'] .auth-marketing-panel {
+    background:
+      radial-gradient(circle at 10% 30%, var(--theme-primary-softer), transparent 36%),
+      linear-gradient(105deg, #111827 0%, #0f172a 100%);
   }
   .switch {
     position: relative;

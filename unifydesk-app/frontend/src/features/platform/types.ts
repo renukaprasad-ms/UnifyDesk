@@ -37,7 +37,7 @@ export type PlatformCompany = {
   businessEmail?: string
   country?: string
   timezone?: string
-  status: 'ACTIVE' | 'SUSPENDED' | 'DELETED'
+  status: 'ACTIVE' | 'SUSPENDED' | 'DELETION_PENDING' | 'PURGING' | 'PURGED'
 }
 export type Page<T> = {
   content: T[]

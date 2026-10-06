@@ -73,7 +73,7 @@ public class CompanyInvitationService {
     Long actorId = currentUserService.currentUserId();
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.USER_INVITE);
 
-    Company company = companyService.getCompany(companyId);
+    Company company = companyService.lockForUpdate(companyId);
     requireActiveCompany(company);
     String email = normalizeEmail(request.email());
     rejectExistingMember(companyId, email);
@@ -144,6 +144,7 @@ public class CompanyInvitationService {
   public CompanyInvitationResponse resend(Long companyId, Long invitationId) {
     Long actorId = currentUserService.currentUserId();
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.USER_INVITE);
+    companyService.lockForUpdate(companyId);
     CompanyInvitation invitation = requireInvitation(companyId, invitationId);
 
     if (invitation.getStatus() == CompanyInvitationStatus.ACCEPTED) {
@@ -210,7 +211,7 @@ public class CompanyInvitationService {
       throw new BadRequestException("Invitation has expired");
     }
 
-    Company company = invitation.getCompany();
+    Company company = companyService.lockForUpdate(invitation.getCompany().getId());
     requireActiveCompany(company);
 
     Long userId = user.getId();
@@ -402,7 +403,7 @@ public class CompanyInvitationService {
     String body =
         "You have been invited to join "
             + invitation.getCompany().getName()
-            + " on Messaging.\n\n"
+            + " on UnifyDesk.\n\n"
             + "Accept invitation:\n"
             + acceptUrl
             + "\n\n"

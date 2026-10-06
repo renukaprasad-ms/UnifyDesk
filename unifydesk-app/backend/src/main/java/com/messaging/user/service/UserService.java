@@ -26,9 +26,14 @@ import com.messaging.user.dto.ResetPasswordRequest;
 import com.messaging.user.dto.UpdateOwnProfileRequest;
 import com.messaging.user.dto.UpdateUserRequest;
 import com.messaging.user.dto.UserResponse;
+import com.messaging.user.dto.UserPreferencesResponse;
+import com.messaging.user.dto.UpdateUserPreferencesRequest;
 import com.messaging.user.entity.User;
+import com.messaging.user.entity.UserPreference;
 import com.messaging.user.enums.UserStatus;
+import com.messaging.user.enums.UserAppearanceMode;
 import com.messaging.user.repository.UserRepository;
+import com.messaging.user.repository.UserPreferenceRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -45,6 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
   private final UserRepository userRepository;
+  private final UserPreferenceRepository userPreferenceRepository;
   private final PasswordEncoder passwordEncoder;
   private final CurrentUserService currentUserService;
   private final MediaService mediaService;
@@ -108,6 +114,31 @@ public class UserService {
   @Transactional(readOnly = true)
   public UserResponse getCurrentUserResponse() {
     return toResponse(getUser(currentUserService.currentUserId()));
+  }
+
+  @Transactional(readOnly = true)
+  public UserPreferencesResponse getCurrentUserPreferences() {
+    return new UserPreferencesResponse(appearanceMode(currentUserService.currentUserId()));
+  }
+
+  @Transactional
+  public UserPreferencesResponse updateCurrentUserPreferences(UpdateUserPreferencesRequest request) {
+    long userId = currentUserService.currentUserId();
+    getUser(userId);
+    UserPreference preference =
+        userPreferenceRepository.findById(userId).orElseGet(UserPreference::new);
+    preference.setUserId(userId);
+    preference.setAppearanceMode(request.appearanceMode());
+    userPreferenceRepository.saveAndFlush(preference);
+    return new UserPreferencesResponse(preference.getAppearanceMode());
+  }
+
+  @Transactional(readOnly = true)
+  public UserAppearanceMode appearanceMode(long userId) {
+    return userPreferenceRepository
+        .findById(userId)
+        .map(UserPreference::getAppearanceMode)
+        .orElse(UserAppearanceMode.LIGHT);
   }
 
   @Transactional

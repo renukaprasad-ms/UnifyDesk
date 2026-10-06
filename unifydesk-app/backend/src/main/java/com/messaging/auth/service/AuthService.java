@@ -344,7 +344,8 @@ public class AuthService {
         user.getProfilePicture() == null ? null : user.getProfilePicture().getId().toString(),
         user.isVerified(),
         companyCount > 0,
-        companyCount);
+        companyCount,
+        userService.appearanceMode(user.getId()));
   }
 
   private long parseUserId(Claims claims, String message) {

@@ -156,7 +156,9 @@ export default function WorkspaceSwitcher({ platformAdmin = false }: { platformA
                 type="button"
                 className="workspace-menu-item"
                 role="menuitem"
+                disabled={company.status !== 'ACTIVE'}
                 onClick={() => {
+                  if (company.status !== 'ACTIVE') return
                   dispatch(selectCompany(company.companyId))
                   setOpen(false)
                   navigate('/workspace', { replace: true })
@@ -176,7 +178,9 @@ export default function WorkspaceSwitcher({ platformAdmin = false }: { platformA
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{company.name}</span>
                   <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                    {company.role ?? 'Platform access'}
+                    {company.status === 'SUSPENDED'
+                      ? 'Suspended · unavailable'
+                      : company.role ?? 'Platform access'}
                   </span>
                 </span>
                 {selectedCompanyId === company.companyId && (

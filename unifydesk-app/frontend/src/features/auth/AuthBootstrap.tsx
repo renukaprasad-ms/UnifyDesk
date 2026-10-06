@@ -35,10 +35,11 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
         dispatch(setCompanies(companies))
 
         const persistedCompanyId = readSelectedCompanyId()
-        const selectedCompany = companies.find(
+        const activeCompanies = companies.filter((company) => company.status === 'ACTIVE')
+        const selectedCompany = activeCompanies.find(
           (company) => company.companyId === persistedCompanyId,
         )
-        const nextCompanyId = selectedCompany?.companyId ?? companies[0]?.companyId
+        const nextCompanyId = selectedCompany?.companyId ?? activeCompanies[0]?.companyId
         if (nextCompanyId) dispatch(selectCompany(nextCompanyId))
       } catch {
         if (active) dispatch(sessionCleared())

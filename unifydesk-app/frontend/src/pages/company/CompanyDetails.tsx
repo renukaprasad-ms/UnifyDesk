@@ -3,26 +3,21 @@ import {
   FiBriefcase,
   FiCheckCircle,
   FiClock,
-  FiMonitor,
   FiEdit2,
   FiMail,
   FiMapPin,
-  FiMoon,
-  FiSun,
+  FiTrash2,
   FiUploadCloud,
   FiX,
 } from 'react-icons/fi'
+import { useNavigate } from 'react-router'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { companyApi } from '../../features/company/companyApi'
 import type { Company } from '../../features/company/types'
-import {
-  COMPANY_THEME_PALETTES,
-  themePaletteForMode,
-  useCompanyTheme,
-  type CompanyThemeMode,
-} from '../../features/companyTheme/companyTheme'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { mediaApi } from '../../features/media/mediaApi'
+import { workspaceApi } from '../../features/workspace/workspaceApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
@@ -41,15 +36,11 @@ const initialsFor = (name: string) =>
     .slice(0, 2) || 'CO'
 
 export default function CompanyDetails() {
+  const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const companies = useAppSelector(selectCompanies)
   const selectedCompany = useAppSelector(selectSelectedCompany)
   const { can } = useIam()
-  const {
-    settings: themeSettings,
-    setColorId,
-    setMode,
-  } = useCompanyTheme(selectedCompany?.companyId)
   const [company, setCompany] = useState<Company | null>(selectedCompany)
   const [name, setName] = useState(selectedCompany?.name ?? '')
   const [businessEmail, setBusinessEmail] = useState(selectedCompany?.businessEmail ?? '')
@@ -65,6 +56,8 @@ export default function CompanyDetails() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
   const previewUrlRef = useRef('')
 
   const syncForm = (value: Company) => {
@@ -82,6 +75,7 @@ export default function CompanyDetails() {
       return
     }
 
+    setLoading(true)
     companyApi
       .get(selectedCompany.companyId)
       .then((value) => {
@@ -202,20 +196,54 @@ export default function CompanyDetails() {
     }
   }
 
+  const deleteWorkspace = async () => {
+    if (!company) return
+    setSaving(true)
+    setError('')
+    setNotice('')
+    try {
+      await companyApi.delete(company.companyId)
+      const remaining = await workspaceApi.list().catch(() => [])
+      dispatch(setCompanies(remaining))
+      navigate(remaining.length > 0 ? '/select-workspace' : '/create-workspace', { replace: true })
+    } catch (deleteError) {
+      setError(apiErrorMessage(deleteError, 'Unable to schedule workspace deletion'))
+    } finally {
+      setSaving(false)
+      setDeleteConfirmOpen(false)
+    }
+  }
+
+  const leaveWorkspace = async () => {
+    if (!company) return
+    setSaving(true)
+    setError('')
+    setNotice('')
+    try {
+      await companyApi.leave(company.companyId)
+      const remaining = await workspaceApi.list().catch(() => [])
+      dispatch(setCompanies(remaining))
+      navigate(remaining.some((item) => item.status === 'ACTIVE') ? '/select-workspace' : '/create-workspace', {
+        replace: true,
+      })
+    } catch (leaveError) {
+      setError(apiErrorMessage(leaveError, 'Unable to leave workspace'))
+    } finally {
+      setSaving(false)
+      setLeaveConfirmOpen(false)
+    }
+  }
+
   const visibleLogo = logoPreviewUrl || (!removeLogo ? logoUrl : '')
   const canModifyCompany = can(PERMISSIONS.COMPANY_MODIFY)
-  const themeModes: { id: CompanyThemeMode; label: string; icon: typeof FiSun }[] = [
-    { id: 'light', label: 'Light', icon: FiSun },
-    { id: 'dark', label: 'Dark', icon: FiMoon },
-  ]
+  const canDeleteCompany = can(PERMISSIONS.COMPANY_DELETE)
+  const canLeaveCompany = company?.role === 'MANAGER' || company?.role === 'MEMBER'
 
   if (!selectedCompany) {
     return (
       <section className="px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl">
-          <div className="panel p-8 text-center text-sm text-slate-500">
-            Select a workspace to view company details.
-          </div>
+        <div className="panel mx-auto max-w-4xl p-8 text-center text-sm text-slate-500">
+          Select a workspace to view company details.
         </div>
       </section>
     )
@@ -231,7 +259,8 @@ export default function CompanyDetails() {
               Company profile
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Manage the identity and business information shown across this workspace.
+              Manage the business identity for this workspace. The brand colour was chosen during
+              workspace creation; Light/Dark appearance is controlled from each user's account.
             </p>
           </div>
           {!editing && canModifyCompany && (
@@ -262,7 +291,13 @@ export default function CompanyDetails() {
         <form className="mt-7 space-y-5" onSubmit={save}>
           <div className="panel overflow-hidden">
             <div className="flex flex-col gap-5 border-b border-slate-100 p-6 sm:flex-row sm:items-center">
-              <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-indigo-50 text-xl font-bold text-indigo-600">
+              <div
+                className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl text-xl font-bold"
+                style={{
+                  backgroundColor: `${company?.brandColor ?? '#2563EB'}18`,
+                  color: company?.brandColor ?? '#2563EB',
+                }}
+              >
                 {visibleLogo ? (
                   <img src={visibleLogo} alt="" className="h-full w-full object-cover" />
                 ) : (
@@ -283,6 +318,13 @@ export default function CompanyDetails() {
                       {company.role}
                     </span>
                   )}
+                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    <span
+                      className="size-3 rounded-full"
+                      style={{ backgroundColor: company?.brandColor ?? '#2563EB' }}
+                    />
+                    {company?.brandColor ?? '#2563EB'}
+                  </span>
                 </div>
               </div>
               {editing && (
@@ -364,7 +406,7 @@ export default function CompanyDetails() {
                   maxLength={80}
                   disabled={!editing}
                   onChange={(event) => setCountry(event.target.value)}
-                  placeholder="India"
+                  placeholder="IN"
                 />
               </label>
 
@@ -386,104 +428,40 @@ export default function CompanyDetails() {
           </div>
 
           {!editing && (
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
-              <div className="panel grid gap-4 p-5 sm:grid-cols-3">
-                <div>
-                  <p className="text-xs font-semibold text-slate-500">Workspace ID</p>
-                  <p className="mt-1 break-all text-sm font-medium text-slate-900">
-                    {company?.companyId}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500">Slug</p>
-                  <p className="mt-1 text-sm font-medium text-slate-900">{company?.slug}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500">Status</p>
-                  <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-slate-900">
-                    <FiCheckCircle className="text-emerald-500" aria-hidden="true" />
-                    {company?.status}
-                  </p>
-                </div>
+            <div className="panel grid gap-4 p-5 sm:grid-cols-4">
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Workspace ID</p>
+                <p className="mt-1 break-all text-sm font-medium text-slate-900">
+                  {company?.companyId}
+                </p>
               </div>
-
-              <div className="panel p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="eyebrow">Brand theme</p>
-                    <h2 className="mt-2 text-lg font-bold text-slate-950">Company colors</h2>
-                    <p className="mt-1 text-sm leading-6 text-slate-500">
-                      Choose the accent color used for buttons, active navigation, highlights, and
-                      shared controls.
-                    </p>
-                  </div>
-                  <span className="theme-mode-mark" aria-hidden="true">
-                    <FiMonitor />
-                  </span>
-                </div>
-
-                <fieldset className="mt-5">
-                  <legend className="text-xs font-semibold text-slate-700">Accent color</legend>
-                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {COMPANY_THEME_PALETTES.map((palette) => {
-                      const selected = themeSettings.colorId === palette.id
-                      const previewPalette = themePaletteForMode(palette, themeSettings.mode)
-                      return (
-                        <button
-                          key={palette.id}
-                          type="button"
-                          className={`theme-swatch ${selected ? 'is-selected' : ''}`}
-                          onClick={() => setColorId(palette.id)}
-                          disabled={!canModifyCompany}
-                          aria-pressed={selected}
-                        >
-                          <span
-                            className="theme-swatch-dot"
-                            style={{ backgroundColor: previewPalette.primary }}
-                            aria-hidden="true"
-                          />
-                          <span className="min-w-0 truncate">{palette.name}</span>
-                          {selected && <FiCheckCircle aria-hidden="true" />}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </fieldset>
-
-                <fieldset className="mt-5">
-                  <legend className="text-xs font-semibold text-slate-700">Appearance</legend>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    {themeModes.map((mode) => {
-                      const Icon = mode.icon
-                      const selected = themeSettings.mode === mode.id
-                      return (
-                        <button
-                          key={mode.id}
-                          type="button"
-                          className={`theme-mode-button ${selected ? 'is-selected' : ''}`}
-                          onClick={() => setMode(mode.id)}
-                          disabled={!canModifyCompany}
-                          aria-pressed={selected}
-                        >
-                          <Icon aria-hidden="true" />
-                          {mode.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </fieldset>
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Slug</p>
+                <p className="mt-1 text-sm font-medium text-slate-900">{company?.slug}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Brand</p>
+                <p className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-slate-900">
+                  <span
+                    className="size-3 rounded-full"
+                    style={{ backgroundColor: company?.brandColor ?? '#2563EB' }}
+                  />
+                  {company?.brandColor}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Status</p>
+                <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-slate-900">
+                  <FiCheckCircle className="text-emerald-500" aria-hidden="true" />
+                  {company?.status}
+                </p>
               </div>
             </div>
           )}
 
           {editing && (
             <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={cancelEdit}
-                disabled={saving}
-              >
+              <button type="button" className="secondary-button" onClick={cancelEdit} disabled={saving}>
                 <FiX className="mr-1 inline" aria-hidden="true" />
                 Cancel
               </button>
@@ -493,6 +471,82 @@ export default function CompanyDetails() {
             </div>
           )}
         </form>
+
+        {(canDeleteCompany || canLeaveCompany) && (
+          <div className="mt-10">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-500">Danger zone</p>
+            {canDeleteCompany ? (
+              <div className="panel mt-3 border-red-200 p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-4">
+                    <span className="security-icon shrink-0 bg-red-50 text-red-600">
+                      <FiTrash2 aria-hidden="true" />
+                    </span>
+                    <div>
+                      <h2 className="text-base font-bold text-slate-950">Delete workspace</h2>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">
+                        Sending and integrations stop immediately. Workspace data then enters the
+                        configured retention period before permanent purge.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary-button shrink-0 border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    disabled={saving}
+                  >
+                    Delete workspace
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="panel mt-3 border-amber-200 p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-950">Leave workspace</h2>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      Your membership and assigned roles will be revoked. An owner must invite you
+                      again if you need access later.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary-button shrink-0 border-amber-200 text-amber-700"
+                    onClick={() => setLeaveConfirmOpen(true)}
+                    disabled={saving}
+                  >
+                    Leave workspace
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <ConfirmDialog
+          open={leaveConfirmOpen}
+          title="Leave this workspace?"
+          description="Your company membership and assigned roles will be revoked. You will need a new invitation to return."
+          confirmLabel="Yes, leave workspace"
+          cancelLabel="No, stay"
+          tone="warning"
+          working={saving}
+          onCancel={() => setLeaveConfirmOpen(false)}
+          onConfirm={() => void leaveWorkspace()}
+        />
+        <ConfirmDialog
+          open={deleteConfirmOpen}
+          title={`Delete ${company?.name ?? 'this workspace'}?`}
+          description="Connections will be disconnected and future billing will stop immediately. The workspace then enters the deletion retention lifecycle."
+          confirmLabel="Yes, delete workspace"
+          cancelLabel="No, keep workspace"
+          tone="danger"
+          kind="delete"
+          working={saving}
+          onCancel={() => setDeleteConfirmOpen(false)}
+          onConfirm={() => void deleteWorkspace()}
+        />
       </div>
     </section>
   )
