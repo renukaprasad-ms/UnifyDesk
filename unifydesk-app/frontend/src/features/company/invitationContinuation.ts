@@ -26,13 +26,13 @@ export const pendingInvitationPath = () => {
 
   window.sessionStorage.removeItem(PENDING_INVITATION_KEY)
   window.sessionStorage.removeItem(LEGACY_PENDING_INVITATION_KEY)
-  window.sessionStorage.removeItem(LEGACY_PENDING_INVITATION_KEY)
   return null
 }
 
 export const clearPendingInvitationPath = () => {
   if (typeof window === 'undefined') return
   window.sessionStorage.removeItem(PENDING_INVITATION_KEY)
+  window.sessionStorage.removeItem(LEGACY_PENDING_INVITATION_KEY)
 }
 
 export const resolvePostAuthRedirect = (requestedPath?: string | null) => {
