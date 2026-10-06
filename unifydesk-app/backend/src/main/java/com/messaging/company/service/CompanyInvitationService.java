@@ -144,6 +144,7 @@ public class CompanyInvitationService {
   public CompanyInvitationResponse resend(Long companyId, Long invitationId) {
     Long actorId = currentUserService.currentUserId();
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.USER_INVITE);
+    companyService.lockForUpdate(companyId);
     CompanyInvitation invitation = requireInvitation(companyId, invitationId);
 
     if (invitation.getStatus() == CompanyInvitationStatus.ACCEPTED) {
