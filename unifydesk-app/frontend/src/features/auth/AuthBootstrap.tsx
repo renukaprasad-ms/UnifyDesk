@@ -58,14 +58,14 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
   if (!bootstrapped) {
     return (
       <div
-        className="flex min-h-dvh items-center justify-center bg-white"
+        className="auth-bootstrap-loader flex min-h-dvh items-center justify-center"
         role="status"
         aria-live="polite"
         aria-label="Loading UnifyDesk"
       >
         <div className="flex flex-col items-center gap-3 text-slate-500">
-          <Spinner size="lg" label="Loading UnifyDesk" className="text-blue-600" />
-          <p className="text-sm font-semibold">Loading UnifyDesk…</p>
+          <Spinner size="lg" label="Loading UnifyDesk" className="text-indigo-500" />
+          <p className="text-sm font-semibold">Loading UnifyDesk...</p>
         </div>
       </div>
     )
