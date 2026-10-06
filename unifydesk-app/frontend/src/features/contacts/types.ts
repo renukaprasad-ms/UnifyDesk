@@ -174,7 +174,7 @@ export type SegmentValueType =
 export type SegmentFieldDescriptor = {
   kind: FieldKind
   key: string
-  fieldId?: string
+  fieldId?: string | null
 }
 
 export type SegmentOperator =
