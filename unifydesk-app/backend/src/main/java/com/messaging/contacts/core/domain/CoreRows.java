@@ -6,6 +6,7 @@ import com.messaging.contacts.core.domain.ContactTypes.CustomFieldType;
 import com.messaging.contacts.core.domain.ContactTypes.DefinitionStatus;
 import com.messaging.contacts.core.domain.ContactTypes.IdentityStatus;
 import com.messaging.contacts.core.domain.ContactTypes.IdentityType;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceState;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -53,7 +54,12 @@ public final class CoreRows {
       Instant deletedAt) {}
 
   public record ContactSummaryRow(
-      ContactRow contact, String primaryEmail, String primaryPhone) {}
+      ContactRow contact,
+      String primaryEmail,
+      String primaryPhone,
+      PreferenceState emailMarketingPreference,
+      PreferenceState smsMarketingPreference,
+      PreferenceState whatsappMarketingPreference) {}
 
   public record TagRow(
       long id,
