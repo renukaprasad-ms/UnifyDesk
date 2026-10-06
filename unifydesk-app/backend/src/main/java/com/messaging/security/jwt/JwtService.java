@@ -30,6 +30,7 @@ public class JwtService {
   private static final String REFRESH_TOKEN_TYPE = "refresh";
   private static final String PRE_AUTH_TOKEN_TYPE = "pre_auth";
   private static final String PASSWORD_RESET_TOKEN_TYPE = "password_reset";
+  private static final String TWO_FACTOR_SETTINGS_TOKEN_TYPE = "two_factor_settings";
   private static final Duration PRE_AUTH_EXPIRATION = Duration.ofMinutes(5);
 
   private final JwtProperties properties;
@@ -82,6 +83,18 @@ public class JwtService {
 
   public Optional<Claims> parsePasswordResetToken(String token) {
     return parseToken(token, PASSWORD_RESET_TOKEN_TYPE);
+  }
+
+  public String createTwoFactorSettingsToken(String subject, String challengeId) {
+    return createToken(
+        subject,
+        TWO_FACTOR_SETTINGS_TOKEN_TYPE,
+        PRE_AUTH_EXPIRATION,
+        Map.of("challenge_id", challengeId));
+  }
+
+  public Optional<Claims> parseTwoFactorSettingsToken(String token) {
+    return parseToken(token, TWO_FACTOR_SETTINGS_TOKEN_TYPE);
   }
 
   public boolean isValidAccessToken(String token) {
