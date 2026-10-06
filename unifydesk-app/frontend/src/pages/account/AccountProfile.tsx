@@ -5,16 +5,18 @@ import {
   FiEdit2,
   FiMail,
   FiShield,
+  FiTrash2,
   FiUploadCloud,
   FiUser,
   FiX,
 } from 'react-icons/fi'
+import { useNavigate } from 'react-router'
 import { authApi } from '../../features/auth/authApi'
 import { mediaApi } from '../../features/media/mediaApi'
 import { userApi } from '../../features/user/userApi'
 import type { User } from '../../features/user/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
-import { setAuthUser } from '../../store/auth/authSlice'
+import { sessionCleared, setAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch } from '../../store/hooks'
 
 const initialsFor = (name: string) =>
@@ -28,13 +30,20 @@ const initialsFor = (name: string) =>
 
 export default function AccountProfile() {
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(null)
   const [name, setName] = useState('')
   const [username, setUsername] = useState('')
   const [profilePictureUrl, setProfilePictureUrl] = useState('')
   const [pictureFile, setPictureFile] = useState<File | null>(null)
   const [picturePreviewUrl, setPicturePreviewUrl] = useState('')
+  const [removePicture, setRemovePicture] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [emailChangeOpen, setEmailChangeOpen] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [emailCurrentPassword, setEmailCurrentPassword] = useState('')
+  const [emailChallengeId, setEmailChallengeId] = useState('')
+  const [emailOtp, setEmailOtp] = useState('')
   const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -96,6 +105,7 @@ export default function AccountProfile() {
     if (!user) return
     syncForm(user)
     clearPreview()
+    setRemovePicture(false)
     setError('')
     setNotice('')
     setEditing(true)
@@ -104,12 +114,14 @@ export default function AccountProfile() {
   const cancelEdit = () => {
     if (user) syncForm(user)
     clearPreview()
+    setRemovePicture(false)
     setError('')
     setEditing(false)
   }
 
   const onPictureChange = (file: File | null) => {
     clearPreview()
+    setRemovePicture(false)
     if (!file) return
     const preview = URL.createObjectURL(file)
     previewUrlRef.current = preview
@@ -136,6 +148,9 @@ export default function AccountProfile() {
         await mediaApi.completeUpload(upload.mediaId)
         await mediaApi.attachCurrentUserProfilePicture(upload.mediaId)
         updated = await userApi.me()
+      } else if (removePicture && user.profilePictureMediaId) {
+        await mediaApi.removeCurrentUserProfilePicture()
+        updated = await userApi.me()
       }
 
       syncForm(updated)
@@ -143,11 +158,14 @@ export default function AccountProfile() {
       if (updated.profilePictureMediaId) {
         const access = await mediaApi.access(updated.profilePictureMediaId).catch(() => null)
         setProfilePictureUrl(access?.url ?? picturePreviewUrl)
+      } else {
+        setProfilePictureUrl('')
       }
 
       const refreshedAuth = await authApi.refresh()
       dispatch(setAuthUser(refreshedAuth))
       clearPreview()
+      setRemovePicture(false)
       setEditing(false)
       setNotice('Profile updated')
     } catch (saveError) {
@@ -157,7 +175,57 @@ export default function AccountProfile() {
     }
   }
 
-  const visiblePicture = picturePreviewUrl || profilePictureUrl
+  const openEmailChange = () => {
+    if (!user) return
+    setError('')
+    setNotice('')
+    setNewEmail('')
+    setEmailCurrentPassword('')
+    setEmailChallengeId('')
+    setEmailOtp('')
+    setEmailChangeOpen(true)
+  }
+
+  const closeEmailChange = () => {
+    if (saving) return
+    setEmailChangeOpen(false)
+    setNewEmail('')
+    setEmailCurrentPassword('')
+    setEmailChallengeId('')
+    setEmailOtp('')
+  }
+
+  const requestEmailChangeCode = async () => {
+    if (!newEmail.trim() || !emailCurrentPassword) return
+    setSaving(true)
+    setError('')
+    try {
+      const challenge = await authApi.beginEmailChange(newEmail.trim(), emailCurrentPassword)
+      setEmailChallengeId(challenge.challengeId)
+      setEmailCurrentPassword('')
+    } catch (changeError) {
+      setError(apiErrorMessage(changeError, 'Unable to start email change'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const completeEmailChange = async () => {
+    if (!emailChallengeId || emailOtp.length !== 6) return
+    setSaving(true)
+    setError('')
+    try {
+      await authApi.completeEmailChange(emailChallengeId, emailOtp)
+      dispatch(sessionCleared())
+      navigate('/login', { replace: true, state: { emailChanged: true } })
+    } catch (changeError) {
+      setError(apiErrorMessage(changeError, 'Unable to change email'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const visiblePicture = picturePreviewUrl || (!removePicture ? profilePictureUrl : '')
 
   return (
     <section className="px-4 py-8 sm:px-6 lg:px-8">
@@ -224,16 +292,31 @@ export default function AccountProfile() {
                 </div>
               </div>
               {editing && (
-                <label className="secondary-button inline-flex cursor-pointer items-center gap-2">
-                  <FiUploadCloud aria-hidden="true" />
-                  {pictureFile ? 'Change photo' : 'Upload photo'}
-                  <input
-                    className="sr-only"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={(event) => onPictureChange(event.target.files?.[0] ?? null)}
-                  />
-                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="secondary-button inline-flex cursor-pointer items-center gap-2">
+                    <FiUploadCloud aria-hidden="true" />
+                    {pictureFile ? 'Change photo' : 'Upload photo'}
+                    <input
+                      className="sr-only"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(event) => onPictureChange(event.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  {(user?.profilePictureMediaId || pictureFile) && (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                      onClick={() => {
+                        clearPreview()
+                        setRemovePicture(true)
+                      }}
+                    >
+                      <FiTrash2 aria-hidden="true" />
+                      Remove
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 
@@ -277,16 +360,31 @@ export default function AccountProfile() {
                 />
               </label>
 
-              <label className="block text-xs font-semibold text-slate-700 md:col-span-2">
+              <div className="block text-xs font-semibold text-slate-700 md:col-span-2">
                 <span className="mb-2 flex items-center gap-2">
                   <FiMail aria-hidden="true" />
                   Email
                 </span>
-                <input className="form-input" value={user?.email ?? ''} disabled readOnly />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    className="form-input flex-1"
+                    value={user?.email ?? ''}
+                    disabled
+                    readOnly
+                  />
+                  <button
+                    type="button"
+                    className="secondary-button shrink-0"
+                    onClick={openEmailChange}
+                    disabled={!user?.verified}
+                  >
+                    Change email
+                  </button>
+                </div>
                 <span className="mt-2 block text-[11px] font-normal text-slate-400">
-                  Email changes require a separate verification flow and are not editable here.
+                  Changing email requires your current password and a verification code sent to the new address.
                 </span>
-              </label>
+              </div>
             </div>
           </div>
 
@@ -337,6 +435,92 @@ export default function AccountProfile() {
             </div>
           )}
         </form>
+        {emailChangeOpen && (
+          <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+            <div className="mobile-sheet w-full max-w-md rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
+                <div>
+                  <p className="eyebrow">Account security</p>
+                  <h2 className="mt-1 text-lg font-bold text-slate-950">Change email address</h2>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+                  onClick={closeEmailChange}
+                  disabled={saving}
+                  aria-label="Close email change"
+                >
+                  <FiX aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="p-5">
+                {!emailChallengeId ? (
+                  <div className="space-y-4">
+                    <p className="text-sm leading-6 text-slate-500">
+                      Re-enter your current password. We will send a one-time code to the new email address before changing your account.
+                    </p>
+                    <label className="block text-xs font-semibold text-slate-700">
+                      New email
+                      <input
+                        type="email"
+                        className="form-input mt-1.5"
+                        autoComplete="email"
+                        value={newEmail}
+                        onChange={(event) => setNewEmail(event.target.value)}
+                        required
+                      />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Current password
+                      <input
+                        type="password"
+                        className="form-input mt-1.5"
+                        autoComplete="current-password"
+                        value={emailCurrentPassword}
+                        onChange={(event) => setEmailCurrentPassword(event.target.value)}
+                        required
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="primary-button w-full justify-center"
+                      disabled={saving || !newEmail.trim() || !emailCurrentPassword}
+                      onClick={() => void requestEmailChangeCode()}
+                    >
+                      {saving ? 'Sending…' : 'Send verification code'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm leading-6 text-slate-500">
+                      Enter the 6-digit code sent to <strong>{newEmail}</strong>. Completing this change signs out all sessions.
+                    </p>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      className="form-input text-center tracking-[0.35em]"
+                      maxLength={6}
+                      value={emailOtp}
+                      onChange={(event) =>
+                        setEmailOtp(event.target.value.replace(/\D/g, '').slice(0, 6))
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="primary-button w-full justify-center"
+                      disabled={saving || emailOtp.length !== 6}
+                      onClick={() => void completeEmailChange()}
+                    >
+                      {saving ? 'Verifying…' : 'Verify and change email'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   )
