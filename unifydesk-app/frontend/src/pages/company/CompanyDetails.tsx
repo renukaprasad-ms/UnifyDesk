@@ -57,6 +57,7 @@ export default function CompanyDetails() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
   const previewUrlRef = useRef('')
 
   const syncForm = (value: Company) => {
@@ -210,6 +211,26 @@ export default function CompanyDetails() {
     } finally {
       setSaving(false)
       setDeleteConfirmOpen(false)
+    }
+  }
+
+  const leaveWorkspace = async () => {
+    if (!company) return
+    setSaving(true)
+    setError('')
+    setNotice('')
+    try {
+      await companyApi.leave(company.companyId)
+      const remaining = await workspaceApi.list().catch(() => [])
+      dispatch(setCompanies(remaining))
+      navigate(remaining.some((item) => item.status === 'ACTIVE') ? '/select-workspace' : '/create-workspace', {
+        replace: true,
+      })
+    } catch (leaveError) {
+      setError(apiErrorMessage(leaveError, 'Unable to leave workspace'))
+    } finally {
+      setSaving(false)
+      setLeaveConfirmOpen(false)
     }
   }
 
@@ -450,36 +471,69 @@ export default function CompanyDetails() {
           )}
         </form>
 
-        {canDeleteCompany && (
+        {(canDeleteCompany || company?.role !== 'OWNER') && (
           <div className="mt-10">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-500">Danger zone</p>
-            <div className="panel mt-3 border-red-200 p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-4">
-                  <span className="security-icon shrink-0 bg-red-50 text-red-600">
-                    <FiTrash2 aria-hidden="true" />
-                  </span>
+            {canDeleteCompany ? (
+              <div className="panel mt-3 border-red-200 p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-4">
+                    <span className="security-icon shrink-0 bg-red-50 text-red-600">
+                      <FiTrash2 aria-hidden="true" />
+                    </span>
+                    <div>
+                      <h2 className="text-base font-bold text-slate-950">Delete workspace</h2>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">
+                        Sending and integrations stop immediately. Workspace data then enters the
+                        configured retention period before permanent purge.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary-button shrink-0 border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    disabled={saving}
+                  >
+                    Delete workspace
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="panel mt-3 border-amber-200 p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="text-base font-bold text-slate-950">Delete workspace</h2>
+                    <h2 className="text-base font-bold text-slate-950">Leave workspace</h2>
                     <p className="mt-1 text-sm leading-6 text-slate-500">
-                      Sending and integrations stop immediately. Workspace data then enters the
-                      configured retention period before permanent purge.
+                      Your membership and assigned roles will be revoked. An owner must invite you
+                      again if you need access later.
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    className="secondary-button shrink-0 border-amber-200 text-amber-700"
+                    onClick={() => setLeaveConfirmOpen(true)}
+                    disabled={saving}
+                  >
+                    Leave workspace
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="secondary-button shrink-0 border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
-                  onClick={() => setDeleteConfirmOpen(true)}
-                  disabled={saving}
-                >
-                  Delete workspace
-                </button>
               </div>
-            </div>
+            )}
           </div>
         )}
 
+        <ConfirmDialog
+          open={leaveConfirmOpen}
+          title="Leave this workspace?"
+          description="Your company membership and assigned roles will be revoked. You will need a new invitation to return."
+          confirmLabel="Yes, leave workspace"
+          cancelLabel="No, stay"
+          tone="warning"
+          working={saving}
+          onCancel={() => setLeaveConfirmOpen(false)}
+          onConfirm={() => void leaveWorkspace()}
+        />
         <ConfirmDialog
           open={deleteConfirmOpen}
           title={`Delete ${company?.name ?? 'this workspace'}?`}
