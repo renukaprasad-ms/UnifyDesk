@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { FiBell, FiChevronRight, FiKey, FiShield, FiTrash2 } from 'react-icons/fi'
+import { FiBell, FiChevronRight, FiKey, FiMoon, FiShield, FiSun, FiTrash2 } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
 import { authApi } from '../../features/auth/authApi'
 import { userApi } from '../../features/user/userApi'
 import type { User } from '../../features/user/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
-import { selectAuthUser, sessionCleared } from '../../store/auth/authSlice'
+import { selectAuthUser, sessionCleared, setAppearanceMode } from '../../store/auth/authSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { CardSkeleton } from '../../components/ui/Skeleton'
@@ -98,6 +98,22 @@ export default function AccountSettings() {
     }
   }
 
+  const updateAppearance = async (appearanceMode: 'LIGHT' | 'DARK') => {
+    if (authUser?.appearanceMode === appearanceMode) return
+    setSaving(true)
+    setError('')
+    setNotice('')
+    try {
+      await userApi.updatePreferences(appearanceMode)
+      dispatch(setAppearanceMode(appearanceMode))
+      setNotice(`Appearance changed to ${appearanceMode === 'DARK' ? 'Dark' : 'Light'} mode.`)
+    } catch (appearanceError) {
+      setError(apiErrorMessage(appearanceError, 'Unable to update appearance'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const deleteAccount = async () => {
     if (!userId) return
     setSaving(true)
@@ -147,6 +163,47 @@ export default function AccountSettings() {
           </div>
         ) : (
         <div className="mt-7 space-y-4">
+          <div className="panel p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-base font-bold text-slate-950">Appearance</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  This is your personal preference and follows your account across every workspace.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+                    (authUser?.appearanceMode ?? 'LIGHT') === 'LIGHT'
+                      ? 'bg-white text-slate-950 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  disabled={saving}
+                  onClick={() => void updateAppearance('LIGHT')}
+                  aria-pressed={(authUser?.appearanceMode ?? 'LIGHT') === 'LIGHT'}
+                >
+                  <FiSun aria-hidden="true" />
+                  Light
+                </button>
+                <button
+                  type="button"
+                  className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+                    authUser?.appearanceMode === 'DARK'
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  disabled={saving}
+                  onClick={() => void updateAppearance('DARK')}
+                  aria-pressed={authUser?.appearanceMode === 'DARK'}
+                >
+                  <FiMoon aria-hidden="true" />
+                  Dark
+                </button>
+              </div>
+            </div>
+          </div>
+
           <button
             type="button"
             className="panel flex w-full items-center gap-4 p-5 text-left transition hover:border-indigo-200 hover:shadow-sm"

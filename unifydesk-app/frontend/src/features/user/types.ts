@@ -32,3 +32,8 @@ export type UpdateOwnProfilePayload = {
   name: string
   username: string
 }
+
+
+export type UserPreferences = {
+  appearanceMode: 'LIGHT' | 'DARK'
+}

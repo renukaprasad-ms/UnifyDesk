@@ -40,8 +40,9 @@ export default function SelectWorkspace() {
         const items = mergeCompanies(memberCompanies, adminCompanies)
         if (!active) return
         dispatch(setCompanies(items))
-        if (items.length === 1) {
-          dispatch(selectCompany(items[0].companyId))
+        const activeItems = items.filter((company) => company.status === 'ACTIVE')
+        if (activeItems.length === 1 && items.length === 1) {
+          dispatch(selectCompany(activeItems[0].companyId))
           navigate('/workspace', { replace: true })
           return
         }
@@ -95,7 +96,9 @@ export default function SelectWorkspace() {
                 key={company.companyId}
                 type="button"
                 className="flex min-h-[58px] w-full items-center justify-between rounded-[8px] border border-slate-200 bg-white px-4 text-left hover:border-indigo-500 hover:bg-indigo-50"
+                disabled={company.status !== 'ACTIVE'}
                 onClick={() => {
+                  if (company.status !== 'ACTIVE') return
                   dispatch(selectCompany(company.companyId))
                   navigate('/workspace', { replace: true })
                 }}
@@ -103,10 +106,14 @@ export default function SelectWorkspace() {
                 <span>
                   <span className="block text-sm font-semibold text-slate-950">{company.name}</span>
                   <span className="mt-1 block text-xs text-slate-500">
-                    {company.role ?? 'Platform access'}
+                    {company.status === 'SUSPENDED'
+                      ? 'Suspended · contact support'
+                      : company.role ?? 'Platform access'}
                   </span>
                 </span>
-                <span className="text-xs font-semibold text-indigo-500">Open</span>
+                <span className="text-xs font-semibold text-indigo-500">
+                  {company.status === 'ACTIVE' ? 'Open' : 'Unavailable'}
+                </span>
               </button>
             ))}
           </div>
