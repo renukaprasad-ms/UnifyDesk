@@ -16,6 +16,7 @@ import { companyApi } from '../../features/company/companyApi'
 import type { Company } from '../../features/company/types'
 import {
   COMPANY_THEME_PALETTES,
+  themePaletteForMode,
   useCompanyTheme,
   type CompanyThemeMode,
 } from '../../features/companyTheme/companyTheme'
@@ -426,6 +427,7 @@ export default function CompanyDetails() {
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {COMPANY_THEME_PALETTES.map((palette) => {
                       const selected = themeSettings.colorId === palette.id
+                      const previewPalette = themePaletteForMode(palette, themeSettings.mode)
                       return (
                         <button
                           key={palette.id}
@@ -437,7 +439,7 @@ export default function CompanyDetails() {
                         >
                           <span
                             className="theme-swatch-dot"
-                            style={{ backgroundColor: palette.primary }}
+                            style={{ backgroundColor: previewPalette.primary }}
                             aria-hidden="true"
                           />
                           <span className="min-w-0 truncate">{palette.name}</span>
