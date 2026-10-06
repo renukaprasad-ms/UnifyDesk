@@ -76,7 +76,7 @@ function WorkspacePreview(){
 }
 
 export default function Home(){
-  return <><Header/><main className="marketingMain">
+  return <><Header/><main className="marketingMain vibrantHome">
     <section className="marketingHero">
       <div className="heroGlow"/>
       <div className="statusBadge reveal"><span/>Customer communication, campaigns and growth — connected</div>
@@ -92,6 +92,37 @@ export default function Home(){
     <section className="integrationStrip reveal">
       <p>Connect the providers you already use</p>
       <div>{integrations.map(name=><span key={name}><i/>{name}</span>)}</div>
+    </section>
+
+    <section className="aboutAttractiveSection">
+      <div className="aboutCopy reveal">
+        <p className="kicker">ABOUT UNIFYDESK</p>
+        <h2>Built to make scattered customer work feel like one system.</h2>
+        <p>Customer support, marketing, broadcasts and ads usually live in different tools. UnifyDesk is designed to give teams a cleaner operating rhythm with customer context at the center.</p>
+        <div className="aboutChecklist">
+          {[
+            "Shared inbox for connected channels",
+            "Customer profiles with consent and activity",
+            "Broadcast and ad workflows in one workspace"
+          ].map(item=><div key={item}><Check size={17}/><span>{item}</span></div>)}
+        </div>
+      </div>
+      <div className="aboutVisual reveal delay1">
+        <div className="aboutCircle"/>
+        <div className="aboutCard bigCard"><b>One operating layer</b><p>Less switching between tools. More clarity for the team.</p></div>
+        <div className="aboutCard statCard"><span>7+</span><small>integrations in progress</small></div>
+        <div className="aboutCard smallCard"><MessageCircle size={18}/><b>Inbox + campaigns + ads</b></div>
+      </div>
+    </section>
+
+    <section className="highlightBand">
+      <div className="highlightBandInner">
+        {[
+          ["Shared customer context","Keep profiles, consent and recent activity connected across workflows."],
+          ["Multi-channel operations","Manage conversations, broadcasts and ad workflows from one workspace."],
+          ["Safer team controls","Company boundaries, roles and access control stay part of the foundation."]
+        ].map(([title,body],i)=><article className={"reveal delay"+((i%3)+1)} key={title}><div className="featureIcon"><Layers3 size={20}/></div><h3>{title}</h3><p>{body}</p></article>)}
+      </div>
     </section>
 
     <section className="connectedSection">
@@ -120,6 +151,12 @@ export default function Home(){
           </article>
         )}
       </div>
+    </section>
+
+    <section className="quoteSection reveal">
+      <div className="quoteMark">“</div>
+      <p>UnifyDesk is being shaped as a cleaner operating layer for customer-facing teams — not another disconnected dashboard, but a workspace where conversation, audience and campaign context stay connected.</p>
+      <b>Customer communication · Broadcast · Ads</b>
     </section>
 
     <section className="featureShowcase">
@@ -206,19 +243,34 @@ export default function Home(){
       </div>
     </section>
 
-    <section className="pricingPreview">
-      <p className="kicker reveal">PLANS THAT GROW WITH THE WORKSPACE</p>
-      <h2 className="sectionTitle reveal">Start simple. Add capacity and controls as you grow.</h2>
-      <p className="sectionIntro reveal">Platform subscription and managed provider usage stay separate so billing remains understandable.</p>
-      <div className="pricePreviewGrid">
-        {[
-          ["Free","₹0","Core workspace · starter limits",false],
-          ["Starter","Pricing at launch","More users · channels · controls",true],
-          ["Growth","Pricing at launch","Broadcast · Ad Center · expanded limits",false]
-        ].map(([name,price,features,featured]:any)=><article className={(featured?"featured ":"")+"reveal"} key={name}>{featured&&<span className="popular">Recommended</span>}<h3>{name}</h3><p>{name==="Free"?"Explore the core workspace and validate your setup.":"For teams centralizing customer communication and growth workflows."}</p><b>{price}</b><small>{features}</small><Link className={featured?"button":"outlineButton"} href="/pricing">Compare plans</Link></article>)}
+    <section className="pricingSpotlight">
+      <div className="pricingDecor pricingDecorLeft"/>
+      <div className="pricingDecor pricingDecorRight"/>
+      <div className="pricingSpotlightIntro reveal">
+        <p className="darkKicker">PRICING MODEL</p>
+        <h2>Simple workspace plans. Provider usage stays separate.</h2>
+        <p>UnifyDesk subscriptions cover platform access and entitlements. Managed email, SMS delivery and advertising spend stay visible as separate provider usage.</p>
+      </div>
+      <div className="pricingSpotlightCard reveal delay1">
+        <small>For growing teams</small>
+        <h3>Growth</h3>
+        <div className="priceLabel">Pricing at launch</div>
+        <ul>{["Broadcast workflows","Ad Center workflows","Expanded team controls","Workspace growth support"].map(item=><li key={item}><Check size={15}/>{item}</li>)}</ul>
+        <Link className="button small" href="/pricing">Explore pricing</Link>
       </div>
     </section>
 
-    <section className="finalCta reveal"><p className="darkKicker">UNIFYDESK EARLY ACCESS</p><h2>Less switching. More customer work moving forward.</h2><p>UnifyDesk is under active development. Explore the product now and follow the launch as early access approaches.</p><Link className="whiteButton" href="/product">Explore UnifyDesk <ArrowRight size={16}/></Link></section>
+    <section className="contactStyleCta">
+      <div className="contactProfile reveal">
+        <div className="contactAvatar">U</div>
+        <div><small>READY TO SEE MORE?</small><h3>Explore the full UnifyDesk product direction.</h3><p>Review the product, solutions, integrations, pricing model and security direction from the updated website.</p></div>
+      </div>
+      <div className="contactPanel reveal delay1">
+        <div className="contactRow"><span>Product overview</span><b>Available now</b></div>
+        <div className="contactRow"><span>Integrations roadmap</span><b>Available now</b></div>
+        <div className="contactRow"><span>Early access status</span><b>Coming soon</b></div>
+        <div className="contactActions"><Link className="button" href="/product">Explore product</Link><Link className="outlineButton compact" href="/security">View security</Link></div>
+      </div>
+    </section>
   </main><Footer/></>
 }
