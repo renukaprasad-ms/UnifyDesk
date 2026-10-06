@@ -1,5 +1,24 @@
 import type {Metadata} from "next";
-export const metadata:Metadata={title:"Security",description:"Learn about UnifyDesk company isolation, role-based access, two-factor authentication, session controls and provider connection security.",alternates:{canonical:"/security"}};
-import {ShieldCheck,KeyRound,Building2,LockKeyhole,History,ArrowRight} from "lucide-react";import {Header,Footer} from "../components";
-const controls=[["Company isolation","Workspace data and access are organized around company boundaries.",Building2],["Role-based access","Roles control what users can access and manage inside a company.",ShieldCheck],["Two-factor authentication","TOTP-based 2FA adds another verification step for supported account flows.",KeyRound],["Provider protection","Provider credentials and OAuth connections are handled as protected application configuration.",LockKeyhole],["Session controls","Authentication uses controlled sessions with security flows around tokens and sign-out.",History]];
-export default function Security(){return <><Header/><main><section className="pageHero"><p className="kicker">SECURITY</p><h1>Security controls for connected customer work.</h1><p>UnifyDesk handles connections to important business systems. The product is being built with account, company and provider controls at the application layer.</p></section><section className="securityGrid">{controls.map(([t,d,I]:any)=><article key={t}><div className="icon big"><I/></div><h2>{t}</h2><p>{d}</p></article>)}</section><section className="securityCallout"><ShieldCheck/><div><small>SECURITY PRINCIPLE</small><h2>Access should follow the company and the role.</h2><p>Authentication, authorization and connected-provider access are designed around explicit workspace boundaries rather than a single shared global context.</p></div></section><section className="centerCta"><h2>Have a security question?</h2><a className="button" href="/contact">Contact us <ArrowRight size={17}/></a></section></main><Footer/></>}
+import {Building2,KeyRound,LockKeyhole,ShieldCheck,TimerReset} from "lucide-react";
+import {Footer,Header} from "../components";
+
+export const metadata:Metadata={
+  title:"Security | UnifyDesk",
+  description:"Learn about UnifyDesk company isolation, identity controls, 2FA, sessions and provider boundaries.",
+  alternates:{canonical:"/security"}
+};
+
+const controls=[
+  ["Company isolation","Keep company data and workspace context separated.",Building2,["Company-scoped access","Workspace epoch boundaries","Scoped data operations"]],
+  ["Identity & access","Manage who can see and modify product areas.",ShieldCheck,["Role-based permissions","User management","Invitation flows"]],
+  ["Account protection","Protect sign-in and sensitive account actions.",KeyRound,["2FA support","Session controls","Password management"]],
+  ["Provider boundaries","Keep external provider credentials and workflows controlled.",LockKeyhole,["Connection permissions","Managed service boundaries","Provider-specific scopes"]]
+] as const;
+
+export default function Security(){
+  return <><Header/><main className="routePage">
+    <section className="routeHero dark"><div className="statusBadge dark"><span/>SECURITY</div><h1>Workspace controls are part of the product foundation.</h1><p>UnifyDesk is being built with company boundaries, access controls and account protections designed for team-based customer operations.</p></section>
+    <section className="routeSection"><h2 className="sectionTitle">Controls that match how the workspace is structured.</h2><div className="routeCardGrid four">{controls.map(([title,description,Icon,points])=><article className="routeCard softCard reveal" key={title}><div className="featureIcon"><Icon size={21}/></div><h3>{title}</h3><p>{description}</p><div className="pointList">{points.map(p=><span key={p}><ShieldCheck size={14}/>{p}</span>)}</div></article>)}</div></section>
+    <section className="securityLaunch"><TimerReset size={28}/><span className="softBadge">PRE-LAUNCH</span><h2>Security and production-readiness checks continue before broader access.</h2><p>Public documentation will expand as the platform moves through early-access and production readiness.</p></section>
+  </main><Footer/></>
+}
