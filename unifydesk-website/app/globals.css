@@ -156,3 +156,97 @@ html{width:100%;min-width:320px;overflow-x:hidden}body{width:100%;min-width:320p
 @media(max-width:720px){
   .marketingHero{padding-top:68px}
 }
+
+/* === Marketing attractive full-width R2 === */
+:root{--marketing-gutter:clamp(20px,4.2vw,72px);--accent-teal:#0f8b8d;--accent-orange:#f97316;--accent-gold:#f59e0b}
+
+/* Full-width contract: sections own the viewport and use consistent gutters. */
+.marketingNav{width:100%;max-width:none;padding-left:var(--marketing-gutter);padding-right:var(--marketing-gutter)}
+.workspacePreview{width:100%;max-width:none}
+.integrationStrip{width:100%;max-width:none;padding-left:var(--marketing-gutter);padding-right:var(--marketing-gutter)}
+.connectedSection,.capabilitySection,.featureShowcase,.growthSection,.howSection,.teamSection,.pricingPreview,.trustSection,
+.routeSection,.splitRouteSection,.journeySection{width:100%;max-width:none;padding-left:var(--marketing-gutter);padding-right:var(--marketing-gutter)}
+.marketingFooter .footer,.marketingFooter .copyright{width:100%;max-width:none}
+.marketingFooter{padding-left:var(--marketing-gutter);padding-right:var(--marketing-gutter)}
+.centerRouteCta,.securityLaunch{width:calc(100% - (var(--marketing-gutter) * 2));max-width:none}
+.finalCta{width:100%;max-width:none;border-radius:0;margin-left:0;margin-right:0}
+.routeHero{padding-left:var(--marketing-gutter);padding-right:var(--marketing-gutter)}
+.vibrantHero{padding-left:var(--marketing-gutter);padding-right:var(--marketing-gutter);padding-bottom:82px;position:relative;overflow:hidden}
+.vibrantHome{background:#fff}
+
+/* More expressive hero while keeping the product preview readable. */
+.heroDecor{position:absolute;border-radius:50%;pointer-events:none}
+.heroDecorOne{width:280px;height:280px;left:-120px;top:190px;background:radial-gradient(circle,var(--accent-gold) 0,var(--accent-gold) 38%,transparent 68%);opacity:.9}
+.heroDecorTwo{width:340px;height:340px;right:-150px;bottom:150px;background:radial-gradient(circle,#14b8a6 0,#14b8a6 36%,transparent 68%);opacity:.22}
+.vibrantHero .workspacePreview{position:relative;z-index:2}
+
+/* About section inspired by editorial landing pages, using UnifyDesk's own visual language. */
+.aboutAttractiveSection{width:100%;padding:96px var(--marketing-gutter);display:grid;grid-template-columns:.92fr 1.08fr;gap:72px;align-items:center;background:#fff}
+.aboutCopy h2{font-size:clamp(36px,4vw,50px);line-height:1.08;letter-spacing:-.045em;margin:12px 0 16px;color:var(--m-ink)}
+.aboutCopy>p:not(.kicker){max-width:620px;color:var(--m-muted);line-height:1.72}
+.aboutChecklist{display:flex;flex-direction:column;gap:12px;margin-top:24px}
+.aboutChecklist div{display:flex;align-items:flex-start;gap:10px;color:#314257;font-size:14px;font-weight:650}
+.aboutChecklist svg{margin-top:2px;color:var(--accent-teal);flex:0 0 auto}
+.aboutVisual{position:relative;min-height:430px;display:grid;place-items:center}
+.aboutCircle{width:350px;height:350px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fbbf24 0,#f59e0b 55%,#ef8d17 100%);box-shadow:0 30px 70px #f59e0b35}
+.aboutCard{position:absolute;border-radius:18px;background:#fff;border:1px solid var(--m-line);box-shadow:0 20px 50px #17365e18}
+.aboutCard b{display:block;color:var(--m-ink)}.aboutCard p,.aboutCard small{color:var(--m-muted)}
+.bigCard{top:42px;left:3%;width:260px;padding:20px}.bigCard b{font-size:18px;margin-bottom:7px}.bigCard p{font-size:13px;line-height:1.6}
+.statCard{right:1%;top:120px;width:190px;padding:18px;text-align:center}.statCard span{display:block;font-size:42px;font-weight:850;letter-spacing:-.05em;color:#0f766e}.statCard small{font-size:12px;line-height:1.4}
+.smallCard{left:13%;bottom:28px;display:flex;align-items:center;gap:10px;padding:16px 18px}.smallCard svg{color:var(--accent-orange)}.smallCard b{font-size:13px}
+
+/* High-contrast orange strip for visual rhythm. */
+.highlightBand{width:100%;padding:0 var(--marketing-gutter) 92px;background:#fff}
+.highlightBandInner{width:100%;padding:28px;border-radius:26px;background:linear-gradient(135deg,#f97316,#fb923c);display:grid;grid-template-columns:repeat(3,1fr);gap:16px;box-shadow:0 28px 60px #f973162b}
+.highlightBandInner article{padding:24px;border-radius:18px;background:#fff4ec;border:1px solid #ffd7bf;transition:transform .24s ease,box-shadow .24s ease}
+.highlightBandInner article:hover{transform:translateY(-5px);box-shadow:0 20px 40px #9a34121a}
+.highlightBandInner .featureIcon{background:#fff;color:#ea580c}
+.highlightBandInner h3{font-size:20px;margin:18px 0 8px;color:#7c2d12}
+.highlightBandInner p{font-size:13px;line-height:1.6;color:#915337}
+
+/* Editorial quote break. */
+.quoteSection{width:100%;padding:76px var(--marketing-gutter);text-align:center;background:#fff}
+.quoteMark{font-size:76px;line-height:.8;color:var(--accent-teal);font-weight:850}
+.quoteSection p{max-width:900px;margin:18px auto;color:#4d6078;font-size:17px;line-height:1.8}
+.quoteSection b{display:inline-block;color:#0f172a;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+
+/* Teal + orange pricing spotlight replaces another plain white card row. */
+.pricingSpotlight{position:relative;width:100%;overflow:hidden;padding:80px var(--marketing-gutter);background:var(--accent-teal);display:grid;grid-template-columns:1fr minmax(320px,390px);gap:48px;align-items:center}
+.pricingDecor{position:absolute;border-radius:50%;pointer-events:none}
+.pricingDecorLeft{width:300px;height:300px;left:-145px;bottom:-155px;background:var(--accent-gold)}
+.pricingDecorRight{width:240px;height:240px;right:-80px;top:-90px;background:#fb923c}
+.pricingSpotlightIntro{position:relative;z-index:1;max-width:720px}.pricingSpotlightIntro h2{margin:12px 0 14px;color:#fff;font-size:clamp(38px,4vw,52px);line-height:1.08;letter-spacing:-.045em}.pricingSpotlightIntro>p:last-child{color:#d5f4ef;line-height:1.7}
+.pricingSpotlightCard{position:relative;z-index:1;padding:30px;border-radius:22px;background:#fff;box-shadow:0 28px 65px #052f3029;text-align:center}
+.pricingSpotlightCard small{display:block;color:var(--accent-orange);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:11px}
+.pricingSpotlightCard h3{margin:8px 0 0;font-size:30px}.priceLabel{margin:12px 0 20px;font-size:20px;font-weight:850;color:var(--accent-orange)}
+.pricingSpotlightCard ul{list-style:none;padding:0;margin:0 0 24px;display:flex;flex-direction:column;gap:10px}.pricingSpotlightCard li{display:flex;align-items:center;gap:8px;justify-content:center;color:#44536a;font-size:13px;font-weight:650}.pricingSpotlightCard li svg{color:var(--accent-teal)}
+
+/* Full-width final CTA with two substantial panels. */
+.contactStyleCta{width:100%;padding:76px var(--marketing-gutter);background:#f7f9fc;display:grid;grid-template-columns:.9fr 1.1fr;gap:18px;align-items:stretch}
+.contactProfile,.contactPanel{padding:30px;background:#fff;border:1px solid var(--m-line);border-radius:20px}
+.contactProfile{display:flex;align-items:center;gap:24px}.contactAvatar{width:112px;height:112px;display:grid;place-items:center;flex:0 0 auto;border-radius:50%;background:linear-gradient(135deg,#dce4ff,#fff);font-size:42px;font-weight:900;color:var(--m-brand)}
+.contactProfile small{display:block;color:var(--accent-teal);font-size:11px;font-weight:800;letter-spacing:.08em}.contactProfile h3{font-size:30px;line-height:1.12;letter-spacing:-.04em;margin:8px 0 10px}.contactProfile p{color:var(--m-muted);line-height:1.65}
+.contactPanel{display:flex;flex-direction:column;justify-content:center;gap:13px}.contactRow{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #eef2f6;font-size:14px}.contactRow span{color:#52647b}.contactRow b{color:#101828}.contactActions{display:flex;gap:12px;padding-top:8px}
+
+/* Keep content fluid on very wide screens instead of re-centering into cards. */
+@media(min-width:1500px){
+  .marketingHero h1{max-width:1180px}.heroLead{max-width:940px}
+  .capabilityGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .workspaceShell{grid-template-columns:300px 1fr}
+}
+@media(max-width:1020px){
+  .aboutAttractiveSection,.contactStyleCta{grid-template-columns:1fr}
+  .highlightBandInner{grid-template-columns:1fr}
+  .pricingSpotlight{grid-template-columns:1fr;justify-items:center;text-align:center}
+  .pricingSpotlightIntro{max-width:none}
+  .aboutVisual{min-height:390px}
+}
+@media(max-width:720px){
+  :root{--marketing-gutter:18px}
+  .aboutAttractiveSection,.pricingSpotlight,.contactStyleCta,.quoteSection{padding-top:68px;padding-bottom:68px}
+  .aboutVisual{min-height:350px}.aboutCircle{width:250px;height:250px}
+  .bigCard{top:30px;left:0;width:230px}.statCard{right:0;top:105px;width:145px}.statCard span{font-size:32px}.smallCard{left:5%;bottom:15px}
+  .highlightBand{padding-bottom:68px}.highlightBandInner{padding:16px;border-radius:18px}
+  .contactProfile{flex-direction:column;align-items:flex-start}.contactAvatar{width:78px;height:78px;font-size:30px}.contactProfile h3{font-size:24px}.contactActions{flex-direction:column}
+  .pricingSpotlightCard{width:100%}
+}
