@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { FiAlertTriangle, FiLogOut, FiTrash2, FiX } from 'react-icons/fi'
 import Spinner from './Spinner'
 
@@ -15,6 +15,8 @@ type ConfirmDialogProps = {
   onConfirm: () => void
   onCancel: () => void
   kind?: 'delete' | 'logout' | 'generic'
+  children?: ReactNode
+  confirmDisabled?: boolean
 }
 
 const toneStyles = {
@@ -43,6 +45,8 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
   kind = 'generic',
+  children,
+  confirmDisabled = false,
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement | null>(null)
 
@@ -106,6 +110,8 @@ export default function ConfirmDialog({
           </button>
         </div>
 
+        {children && <div className="mt-5">{children}</div>}
+
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             ref={cancelRef}
@@ -119,7 +125,7 @@ export default function ConfirmDialog({
           <button
             type="button"
             className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-55 ${visual.button}`}
-            disabled={working}
+            disabled={working || confirmDisabled}
             aria-busy={working}
             onClick={onConfirm}
           >
