@@ -381,7 +381,8 @@ export default function AccountSettings() {
                 <div>
                   <h2 className="text-base font-bold text-slate-950">Delete account</h2>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
-                    Permanently remove your user account. This action cannot be undone.
+                    Sign-in access ends immediately. Your account then enters the configured retention
+                    period before permanent purge.
                   </p>
                 </div>
               </div>
@@ -401,8 +402,8 @@ export default function AccountSettings() {
         </div>
         <ConfirmDialog
           open={deleteConfirmOpen}
-          title="Delete your account permanently?"
-          description="Your UnifyDesk user account will be scheduled for deletion. Re-enter your current password to confirm this security-sensitive action."
+          title="Schedule account deletion?"
+          description="Sign-in access ends immediately. Your account data remains only for the configured retention period before permanent purge. Re-enter your current password to confirm."
           confirmLabel="Yes, delete account"
           cancelLabel="No, keep account"
           tone="danger"
