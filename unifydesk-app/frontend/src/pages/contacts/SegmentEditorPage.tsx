@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import ExportJobButton from '../../components/contacts/ExportJobButton'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import SegmentBuilder from '../../components/contacts/SegmentBuilder'
 import { contactsApi, isContactVersionConflict } from '../../features/contacts/contactsApi'
+import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
 import { DEFAULT_CONTACT_EXPORT_FIELDS } from '../../features/contacts/contactModel'
 import {
   emptySegment,
@@ -54,6 +55,9 @@ export default function SegmentEditorPage() {
   const [segmentVersion, setSegmentVersion] = useState<number | null>(null)
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false)
   const [savedSnapshot, setSavedSnapshot] = useState('')
+  const [counting, setCounting] = useState(false)
+  const [countStatusMessage, setCountStatusMessage] = useState('')
+  const countRunRef = useRef(0)
   const currentSnapshot = useMemo(
     () => JSON.stringify({ name, description, filter }),
     [description, filter, name],
@@ -113,6 +117,76 @@ export default function SegmentEditorPage() {
     lists.map((list) => ({ value: list.id, label: list.name })),
   )
 
+  useEffect(
+    () => () => {
+      countRunRef.current += 1
+    },
+    [],
+  )
+
+  const waitForAudienceCount = async (
+    targetSegmentId: string,
+    scope: ReturnType<typeof captureScope>,
+  ) => {
+    if (!companyId) return
+
+    const run = ++countRunRef.current
+    setCounting(true)
+    setCountStatusMessage('Calculating audience size…')
+
+    try {
+      const queued = await contactsApi.refreshSegmentCount(companyId, targetSegmentId)
+      if (!scopeIsCurrent(scope) || run !== countRunRef.current) return
+
+      const jobId = queued.jobId ?? queued.id
+      if (!jobId) throw new Error('Audience count job was not created.')
+
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        const job = await asyncJobApi.get(jobId)
+        if (!scopeIsCurrent(scope) || run !== countRunRef.current) return
+
+        if (job.status === 'COMPLETED') {
+          const refreshed = await contactsApi.getSegment(companyId, targetSegmentId)
+          if (!scopeIsCurrent(scope) || run !== countRunRef.current) return
+
+          setPreview((current) =>
+            current
+              ? {
+                  ...current,
+                  count: refreshed.count ?? null,
+                  countState:
+                    refreshed.countState ?? (refreshed.count == null ? 'PENDING' : 'CACHED'),
+                  countComputedAt: refreshed.countComputedAt ?? null,
+                }
+              : current,
+          )
+          setCountStatusMessage(
+            refreshed.count == null
+              ? 'Audience size is still being calculated. Check again shortly.'
+              : '',
+          )
+          return
+        }
+
+        if (job.status === 'FAILED') {
+          throw new Error(job.errorMessage || 'Unable to calculate audience size.')
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 1000))
+      }
+
+      setCountStatusMessage(
+        'Audience size is taking longer than expected. You can continue working and check again shortly.',
+      )
+    } catch (countError) {
+      if (scopeIsCurrent(scope) && run === countRunRef.current) {
+        setCountStatusMessage(apiErrorMessage(countError, 'Unable to calculate audience size.'))
+      }
+    } finally {
+      if (scopeIsCurrent(scope) && run === countRunRef.current) setCounting(false)
+    }
+  }
+
   const validate = () => {
     const localErrors = validateSegmentClient(filter, fields)
     setErrors(localErrors)
@@ -134,7 +208,18 @@ export default function SegmentEditorPage() {
 
       const normalized = validation.normalizedFilter ?? filter
       const nextPreview = await contactsApi.previewSegment(companyId, normalized, 20)
-      if (scopeIsCurrent(scope)) setPreview(nextPreview)
+      if (!scopeIsCurrent(scope)) return
+
+      setPreview(nextPreview)
+      if (nextPreview.countState === 'PENDING') {
+        if (!creating && segmentId && !dirty) {
+          void waitForAudienceCount(segmentId, scope)
+        } else {
+          setCountStatusMessage('Save this segment to calculate the full audience size.')
+        }
+      } else {
+        setCountStatusMessage('')
+      }
     } catch (previewError) {
       if (scopeIsCurrent(scope)) {
         setServerErrors([apiErrorMessage(previewError, 'Unable to preview Segment.')])
@@ -189,7 +274,14 @@ export default function SegmentEditorPage() {
           filter: payload.filter,
         }),
       )
+
       navigate('/contacts/segments/' + saved.id, { replace: true })
+
+      if (saved.countState === 'PENDING') {
+        void waitForAudienceCount(saved.id, scope)
+      } else {
+        setCountStatusMessage('')
+      }
     } catch (saveError) {
       if (!scopeIsCurrent(scope)) return
       if (!creating && segmentId && isContactVersionConflict(saveError)) {
@@ -266,8 +358,8 @@ export default function SegmentEditorPage() {
               )}
             </div>
             <p className="mt-2 text-sm text-slate-500">
-              The browser builds the frozen AST only. Validation, counts and matching are
-              server-side.
+              Create a dynamic group of contacts using their details, permissions, Lists and
+              activity. UnifyDesk keeps the audience updated automatically.
             </p>
           </div>
 
@@ -329,6 +421,9 @@ export default function SegmentEditorPage() {
               value={filter}
               fields={fields}
               onChange={(next) => {
+                countRunRef.current += 1
+                setCounting(false)
+                setCountStatusMessage('')
                 setFilter(next)
                 setPreview(null)
                 setErrors([])
@@ -352,8 +447,13 @@ export default function SegmentEditorPage() {
         )}
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <button type="button" className="secondary-button" onClick={() => void runPreview()}>
-            Validate & preview
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={counting}
+            onClick={() => void runPreview()}
+          >
+            {counting ? 'Calculating…' : 'Preview audience'}
           </button>
           {canModify && (
             <button
@@ -370,12 +470,23 @@ export default function SegmentEditorPage() {
         {preview && (
           <section className="panel mt-5 p-5" aria-live="polite">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-bold text-slate-950">Preview</h2>
+              <div>
+                <h2 className="font-bold text-slate-950">Audience preview</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Showing a sample of contacts that match these conditions.
+                </p>
+              </div>
               <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
-                {preview.countState}:{' '}
-                {preview.count == null ? 'pending' : preview.count.toLocaleString()}
+                {preview.count == null
+                  ? counting
+                    ? 'Calculating audience size…'
+                    : 'Audience size not calculated'
+                  : `${preview.count.toLocaleString()} matching ${preview.count === 1 ? 'contact' : 'contacts'}`}
               </span>
             </div>
+            {countStatusMessage && (
+              <p className="mt-3 text-xs font-medium text-slate-500">{countStatusMessage}</p>
+            )}
             <div className="mt-4 grid gap-2">
               {preview.sample.map((contact) => (
                 <div key={contact.id} className="rounded-lg bg-slate-50 p-3 text-sm">
