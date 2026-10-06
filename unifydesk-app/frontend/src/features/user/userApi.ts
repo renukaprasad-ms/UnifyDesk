@@ -68,7 +68,9 @@ export const userApi = {
     return unwrap(response.data)
   },
 
-  async delete(userId: string) {
-    await apiClient.delete<ApiResponse<void>>(`/api/users/${userId}`)
+  async deleteCurrentAccount(currentPassword: string) {
+    await apiClient.delete<ApiResponse<void>>('/api/users/me', {
+      data: { currentPassword },
+    })
   },
 }

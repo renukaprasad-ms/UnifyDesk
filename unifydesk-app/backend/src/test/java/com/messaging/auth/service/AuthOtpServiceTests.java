@@ -25,6 +25,37 @@ import org.mockito.ArgumentCaptor;
 class AuthOtpServiceTests {
 
   @Test
+  void issueEmailChangeOtpUsesDedicatedTemplate() {
+    RedisService redisService = org.mockito.Mockito.mock(RedisService.class);
+    RedisRateLimitService rateLimitService = org.mockito.Mockito.mock(RedisRateLimitService.class);
+    EventPublisher eventPublisher = org.mockito.Mockito.mock(EventPublisher.class);
+    EmailTemplateService emailTemplateService = org.mockito.Mockito.mock(EmailTemplateService.class);
+    RedisTtlProperties ttlProperties = new RedisTtlProperties();
+    when(rateLimitService.consume(any(), any(Integer.class), any(Duration.class)))
+        .thenReturn(new RateLimitResult(true, 1, 5, 4, Duration.ZERO));
+    when(emailTemplateService.renderOtp(any(), any(), anyLong()))
+        .thenReturn(
+            new EmailTemplateContent(
+                "Confirm your new email",
+                "Verification code: 123456",
+                "<strong>Verification code: 123456</strong>"));
+
+    AuthOtpService service =
+        new AuthOtpService(
+            redisService,
+            rateLimitService,
+            ttlProperties,
+            eventPublisher,
+            new AuthSecurityProperties(),
+            emailTemplateService);
+
+    service.issueEmailChangeOtp("challenge-1", "NEW@example.com", 42L);
+
+    verify(emailTemplateService)
+        .renderOtp(eq(EmailTemplateType.EMAIL_CHANGE_OTP), any(String.class), anyLong());
+  }
+
+  @Test
   void issueEmailVerificationOtpStoresOtpAndPublishesCriticalKafkaEvent() {
     RedisService redisService = org.mockito.Mockito.mock(RedisService.class);
     RedisRateLimitService rateLimitService = org.mockito.Mockito.mock(RedisRateLimitService.class);

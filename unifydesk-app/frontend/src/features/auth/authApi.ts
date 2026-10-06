@@ -67,6 +67,20 @@ export const authApi = {
     await apiClient.post<ApiResponse<void>>('/api/auth/verify-email/resend')
   },
 
+  async beginEmailChange(newEmail: string, currentPassword: string) {
+    const response = await apiClient.post<
+      ApiResponse<{ challengeId: string; expiresInSeconds: number }>
+    >('/api/auth/email-change/challenge', { newEmail, currentPassword })
+    return unwrap(response.data)
+  },
+
+  async completeEmailChange(challengeId: string, otp: string) {
+    await apiClient.post<ApiResponse<void>>('/api/auth/email-change/complete', {
+      challengeId,
+      otp,
+    })
+  },
+
   async beginTwoFactorSettingsChange(currentPassword: string, enabled: boolean) {
     const response = await apiClient.post<
       ApiResponse<{ challengeToken: string; expiresInSeconds: number }>
