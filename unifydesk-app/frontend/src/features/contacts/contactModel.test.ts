@@ -4,6 +4,7 @@ import {
   appendCursorPage,
   buildImportCommitInput,
   buildSelectionDescriptor,
+  buildSuggestedConsentMappings,
   buildSuggestedImportMappings,
   contactPrimaryIdentityValue,
   normalizeContactQuery,
@@ -137,6 +138,49 @@ describe('contactModel', () => {
     const mappings = buildSuggestedImportMappings(['email', 'email_address'])
     expect(mappings[0].target).toEqual({ type: 'IDENTITY', identityType: 'EMAIL' })
     expect(mappings[1].target).toEqual({ type: 'IGNORE' })
+  })
+
+  it('auto-detects explicit marketing consent columns without treating them as contact fields', () => {
+    const headers = [
+      'email',
+      'email_marketing_consent',
+      'sms_marketing_consent',
+      'whatsapp_marketing_consent',
+      'consent_source',
+      'consent_occurred_at',
+    ]
+
+    expect(buildSuggestedImportMappings(headers).slice(1)).toEqual([
+      { column: 'email_marketing_consent', target: { type: 'IGNORE' } },
+      { column: 'sms_marketing_consent', target: { type: 'IGNORE' } },
+      { column: 'whatsapp_marketing_consent', target: { type: 'IGNORE' } },
+      { column: 'consent_source', target: { type: 'IGNORE' } },
+      { column: 'consent_occurred_at', target: { type: 'IGNORE' } },
+    ])
+
+    expect(buildSuggestedConsentMappings(headers)).toEqual([
+      {
+        channel: 'EMAIL',
+        stateColumn: 'email_marketing_consent',
+        source: 'IMPORT',
+        evidenceColumn: 'consent_source',
+        occurredAtColumn: 'consent_occurred_at',
+      },
+      {
+        channel: 'SMS',
+        stateColumn: 'sms_marketing_consent',
+        source: 'IMPORT',
+        evidenceColumn: 'consent_source',
+        occurredAtColumn: 'consent_occurred_at',
+      },
+      {
+        channel: 'WHATSAPP',
+        stateColumn: 'whatsapp_marketing_consent',
+        source: 'IMPORT',
+        evidenceColumn: 'consent_source',
+        occurredAtColumn: 'consent_occurred_at',
+      },
+    ])
   })
 
   it('does not create consent from an ordinary import mapping', () => {
