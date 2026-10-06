@@ -11,6 +11,7 @@ import com.messaging.company.entity.PermissionDefinition;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.repository.CompanyCustomRolePermissionRepository;
 import com.messaging.company.repository.CompanyCustomRoleRepository;
+import com.messaging.company.repository.CompanyInvitationRepository;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyMemberRoleAssignmentRepository;
 import com.messaging.company.repository.PermissionDefinitionRepository;
@@ -36,6 +37,7 @@ class CompanyRoleManagementServiceTests {
   @Mock private SystemPermissionCatalogService permissionCatalogService;
   @Mock private CompanySystemRoleService companySystemRoleService;
   @Mock private CompanyMemberRepository memberRepository;
+  @Mock private CompanyInvitationRepository invitationRepository;
   @Mock private PermissionDefinitionRepository permissionDefinitionRepository;
   @Mock private CompanyCustomRoleRepository roleRepository;
   @Mock private CompanyCustomRolePermissionRepository rolePermissionRepository;
@@ -55,6 +57,7 @@ class CompanyRoleManagementServiceTests {
             permissionCatalogService,
             companySystemRoleService,
             memberRepository,
+            invitationRepository,
             permissionDefinitionRepository,
             roleRepository,
             rolePermissionRepository,
