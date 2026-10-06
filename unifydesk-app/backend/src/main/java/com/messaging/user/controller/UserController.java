@@ -7,6 +7,8 @@ import com.messaging.user.dto.CreateUserRequest;
 import com.messaging.user.dto.ResetPasswordRequest;
 import com.messaging.user.dto.UpdateOwnProfileRequest;
 import com.messaging.user.dto.UpdateUserRequest;
+import com.messaging.user.dto.UpdateUserPreferencesRequest;
+import com.messaging.user.dto.UserPreferencesResponse;
 import com.messaging.user.dto.UserResponse;
 import com.messaging.user.service.UserService;
 import jakarta.validation.Valid;
@@ -53,6 +55,25 @@ public class UserController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(), userService.getCurrentUserResponse(), "User fetched"));
+  }
+
+  @GetMapping("/me/preferences")
+  public ResponseEntity<ApiResponse<UserPreferencesResponse>> getCurrentUserPreferences() {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            userService.getCurrentUserPreferences(),
+            "User preferences fetched"));
+  }
+
+  @PatchMapping("/me/preferences")
+  public ResponseEntity<ApiResponse<UserPreferencesResponse>> updateCurrentUserPreferences(
+      @Valid @RequestBody UpdateUserPreferencesRequest request) {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            userService.updateCurrentUserPreferences(request),
+            "User preferences updated"));
   }
 
   @PatchMapping("/me/profile")
