@@ -321,6 +321,12 @@ app:
       min-idle: ${APP_DATASOURCE_READ_MIN_IDLE:1}
   security:
     trust-forwarded-headers: ${APP_SECURITY_TRUST_FORWARDED_HEADERS:false}
+    auth:
+      login-ip-limit: ${APP_AUTH_LOGIN_IP_LIMIT:120}
+      login-identifier-limit: ${APP_AUTH_LOGIN_IDENTIFIER_LIMIT:10}
+      register-ip-limit: ${APP_AUTH_REGISTER_IP_LIMIT:30}
+      register-identifier-limit: ${APP_AUTH_REGISTER_IDENTIFIER_LIMIT:5}
+      otp-verify-limit: ${APP_AUTH_OTP_VERIFY_LIMIT:5}
     jwt:
       issuer: ${JWT_ISSUER:messaging}
       private-key: ${JWT_PRIVATE_KEY:}

@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { FiArrowLeft, FiCheckCircle, FiEye, FiEyeOff, FiKey } from 'react-icons/fi'
+import { FiArrowLeft, FiEye, FiEyeOff, FiKey } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
 import { userApi } from '../../features/user/userApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
-import { selectAuthUser } from '../../store/auth/authSlice'
-import { useAppSelector } from '../../store/hooks'
+import { selectAuthUser, sessionCleared } from '../../store/auth/authSlice'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
 
 type PasswordFieldProps = {
   label: string
@@ -54,21 +54,19 @@ function PasswordField({
 
 export default function ChangePassword() {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const user = useAppSelector(selectAuthUser)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!user) return
 
     setError('')
-    setSuccess(false)
-
     if (newPassword !== confirmPassword) {
       setError('New passwords do not match')
       return
@@ -85,10 +83,8 @@ export default function ChangePassword() {
         currentPassword,
         password: newPassword,
       })
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-      setSuccess(true)
+      dispatch(sessionCleared())
+      navigate('/login', { replace: true, state: { passwordChanged: true } })
     } catch (submitError) {
       setError(apiErrorMessage(submitError, 'Unable to change password'))
     } finally {
@@ -122,18 +118,6 @@ export default function ChangePassword() {
           </div>
         )}
 
-        {success && (
-          <div className="mt-6 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            <FiCheckCircle className="mt-0.5 shrink-0" aria-hidden="true" />
-            <div>
-              <p className="font-semibold">Password changed successfully</p>
-              <p className="mt-1 text-emerald-700/80">
-                Use your new password the next time you sign in.
-              </p>
-            </div>
-          </div>
-        )}
-
         <form className="panel mt-6 p-6 sm:p-7" onSubmit={(event) => void submit(event)}>
           <div className="flex items-start gap-4 border-b border-slate-100 pb-5">
             <span className="security-icon shrink-0">
@@ -142,7 +126,7 @@ export default function ChangePassword() {
             <div>
               <h2 className="text-base font-bold text-slate-950">Set a new password</h2>
               <p className="mt-1 text-sm leading-6 text-slate-500">
-                Use at least 8 characters and avoid reusing a password from another account.
+                Use at least 12 characters and avoid reusing a password from another account.
               </p>
             </div>
           </div>
@@ -162,7 +146,7 @@ export default function ChangePassword() {
               onChange={setNewPassword}
               autoComplete="new-password"
               placeholder="Enter a new password"
-              minLength={8}
+              minLength={12}
             />
 
             <PasswordField
@@ -171,7 +155,7 @@ export default function ChangePassword() {
               onChange={setConfirmPassword}
               autoComplete="new-password"
               placeholder="Re-enter the new password"
-              minLength={8}
+              minLength={12}
             />
           </div>
 

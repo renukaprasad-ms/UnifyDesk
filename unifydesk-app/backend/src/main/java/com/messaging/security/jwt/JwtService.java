@@ -3,6 +3,7 @@ package com.messaging.security.jwt;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import jakarta.annotation.PostConstruct;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -12,6 +13,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,21 +24,35 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class JwtService {
 
+  public static final String SESSION_ID_CLAIM = "session_id";
   private static final String TOKEN_TYPE_CLAIM = "token_type";
   private static final String ACCESS_TOKEN_TYPE = "access";
   private static final String REFRESH_TOKEN_TYPE = "refresh";
   private static final String PRE_AUTH_TOKEN_TYPE = "pre_auth";
   private static final String PASSWORD_RESET_TOKEN_TYPE = "password_reset";
+  private static final String TWO_FACTOR_SETTINGS_TOKEN_TYPE = "two_factor_settings";
   private static final Duration PRE_AUTH_EXPIRATION = Duration.ofMinutes(5);
 
   private final JwtProperties properties;
+  private PrivateKey privateKey;
+  private PublicKey publicKey;
+
+  @PostConstruct
+  void initializeKeys() {
+    privateKey = parsePrivateKey();
+    publicKey = parsePublicKey();
+  }
 
   public TokenPair createTokenPair(String subject) {
     return createTokenPair(subject, Map.of());
   }
 
   public TokenPair createTokenPair(String subject, Map<String, Object> accessClaims) {
-    return new TokenPair(createAccessToken(subject, accessClaims), createRefreshToken(subject));
+    String refreshToken = createRefreshToken(subject);
+    String sessionId = tokenId(refreshToken);
+    Map<String, Object> claims = new HashMap<>(accessClaims);
+    claims.put(SESSION_ID_CLAIM, sessionId);
+    return new TokenPair(createAccessToken(subject, claims), refreshToken);
   }
 
   public String createAccessToken(String subject) {
@@ -67,6 +83,18 @@ public class JwtService {
 
   public Optional<Claims> parsePasswordResetToken(String token) {
     return parseToken(token, PASSWORD_RESET_TOKEN_TYPE);
+  }
+
+  public String createTwoFactorSettingsToken(String subject, String challengeId) {
+    return createToken(
+        subject,
+        TWO_FACTOR_SETTINGS_TOKEN_TYPE,
+        PRE_AUTH_EXPIRATION,
+        Map.of("challenge_id", challengeId));
+  }
+
+  public Optional<Claims> parseTwoFactorSettingsToken(String token) {
+    return parseToken(token, TWO_FACTOR_SETTINGS_TOKEN_TYPE);
   }
 
   public boolean isValidAccessToken(String token) {
@@ -122,7 +150,7 @@ public class JwtService {
         .issuedAt(Date.from(now))
         .expiration(Date.from(expiresAt))
         .claim(TOKEN_TYPE_CLAIM, tokenType)
-        .signWith(readPrivateKey(), Jwts.SIG.RS256)
+        .signWith(privateKey, Jwts.SIG.RS256)
         .compact();
   }
 
@@ -132,31 +160,29 @@ public class JwtService {
 
   private Claims claims(String token) {
     return Jwts.parser()
-        .verifyWith(readPublicKey())
+        .verifyWith(publicKey)
         .requireIssuer(properties.getIssuer())
         .build()
         .parseSignedClaims(token)
         .getPayload();
   }
 
-  private PrivateKey readPrivateKey() {
+  private PrivateKey parsePrivateKey() {
     try {
       byte[] keyBytes =
           Base64.getDecoder().decode(required(properties.getPrivateKey(), "JWT_PRIVATE_KEY"));
-      PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
-      return KeyFactory.getInstance("RSA").generatePrivate(keySpec);
+      return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(keyBytes));
     } catch (Exception exception) {
       throw new IllegalStateException(
           "JWT_PRIVATE_KEY must be a base64 PKCS8 RSA private key", exception);
     }
   }
 
-  private PublicKey readPublicKey() {
+  private PublicKey parsePublicKey() {
     try {
       byte[] keyBytes =
           Base64.getDecoder().decode(required(properties.getPublicKey(), "JWT_PUBLIC_KEY"));
-      X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
-      return KeyFactory.getInstance("RSA").generatePublic(keySpec);
+      return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(keyBytes));
     } catch (Exception exception) {
       throw new IllegalStateException(
           "JWT_PUBLIC_KEY must be a base64 X509 RSA public key", exception);

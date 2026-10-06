@@ -2,11 +2,14 @@ package com.messaging.auth.controller;
 
 import com.messaging.auth.dto.AuthUserResponse;
 import com.messaging.auth.dto.CompletePasswordResetRequest;
+import com.messaging.auth.dto.CompleteTwoFactorSettingsRequest;
 import com.messaging.auth.dto.LoginRequest;
 import com.messaging.auth.dto.LoginResponse;
 import com.messaging.auth.dto.PasswordResetChallengeResponse;
 import com.messaging.auth.dto.PasswordResetRequest;
 import com.messaging.auth.dto.RegisterRequest;
+import com.messaging.auth.dto.TwoFactorSettingsChallengeRequest;
+import com.messaging.auth.dto.TwoFactorSettingsChallengeResponse;
 import com.messaging.auth.dto.VerifyEmailRequest;
 import com.messaging.auth.dto.VerifyPasswordResetOtpRequest;
 import com.messaging.auth.dto.VerifyTwoFactorRequest;
@@ -43,7 +46,6 @@ public class AuthController {
       @Valid @RequestBody RegisterRequest request, HttpServletRequest servletRequest) {
     HttpHeaders headers = new HttpHeaders();
     AuthUserResponse response = authService.register(request, servletRequest, headers);
-
     return ResponseEntity.status(HttpStatus.CREATED)
         .headers(headers)
         .body(ApiResponse.success(HttpStatus.CREATED.value(), response, "Register successful"));
@@ -67,6 +69,29 @@ public class AuthController {
     return ResponseEntity.ok()
         .headers(headers)
         .body(ApiResponse.success(HttpStatus.OK.value(), response, "Login successful"));
+  }
+
+  @PostMapping("/2fa/settings/challenge")
+  public ResponseEntity<ApiResponse<TwoFactorSettingsChallengeResponse>>
+      beginTwoFactorSettingsChange(@Valid @RequestBody TwoFactorSettingsChallengeRequest request) {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            authService.beginTwoFactorSettingsChange(request),
+            "Verification code sent"));
+  }
+
+  @PostMapping("/2fa/settings/complete")
+  public ResponseEntity<ApiResponse<Void>> completeTwoFactorSettingsChange(
+      @Valid @RequestBody CompleteTwoFactorSettingsRequest request) {
+    HttpHeaders headers = new HttpHeaders();
+    authService.completeTwoFactorSettingsChange(request, headers);
+    return ResponseEntity.ok()
+        .headers(headers)
+        .body(
+            ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Two-factor authentication updated. Please sign in again."));
   }
 
   @PostMapping("/password-reset/request")
@@ -115,6 +140,13 @@ public class AuthController {
     AuthUserResponse response = authService.verifyEmail(request);
     return ResponseEntity.ok(
         ApiResponse.success(HttpStatus.OK.value(), response, "Email verified"));
+  }
+
+  @PostMapping("/verify-email/resend")
+  public ResponseEntity<ApiResponse<Void>> resendEmailVerification() {
+    authService.resendEmailVerification();
+    return ResponseEntity.ok(
+        ApiResponse.success(HttpStatus.OK.value(), "Verification code sent"));
   }
 
   @PostMapping("/logout")
