@@ -237,6 +237,7 @@ export default function CompanyDetails() {
   const visibleLogo = logoPreviewUrl || (!removeLogo ? logoUrl : '')
   const canModifyCompany = can(PERMISSIONS.COMPANY_MODIFY)
   const canDeleteCompany = can(PERMISSIONS.COMPANY_DELETE)
+  const canLeaveCompany = company?.role === 'MANAGER' || company?.role === 'MEMBER'
 
   if (!selectedCompany) {
     return (
@@ -471,7 +472,7 @@ export default function CompanyDetails() {
           )}
         </form>
 
-        {(canDeleteCompany || company?.role !== 'OWNER') && (
+        {(canDeleteCompany || canLeaveCompany) && (
           <div className="mt-10">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-500">Danger zone</p>
             {canDeleteCompany ? (
