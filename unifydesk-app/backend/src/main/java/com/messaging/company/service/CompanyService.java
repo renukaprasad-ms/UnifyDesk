@@ -7,6 +7,7 @@ import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.common.exception.ForbiddenException;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.company.dto.CompanyResponse;
 import com.messaging.company.dto.CompanyUserResponse;
@@ -45,6 +46,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,6 +69,7 @@ public class CompanyService {
   private final BillingCatalogService billingCatalogService;
   private final EntitlementService entitlementService;
   private final CompanyIamPermissionService iamPermissionService;
+  private final PasswordEncoder passwordEncoder;
   private final ChannelConnectionService channelConnectionService;
   private final DeletionPurgeService deletionPurgeService;
   private final DeletionLifecycleProperties deletionProperties;
@@ -291,7 +294,8 @@ public class CompanyService {
   }
 
   @Transactional
-  public void transferOwnership(Long companyId, Long actorUserId, Long targetUserId) {
+  public void transferOwnership(
+      Long companyId, Long actorUserId, Long targetUserId, String currentPassword) {
     lockForUpdate(companyId);
     CompanyMember actor =
         memberRepository
@@ -299,6 +303,9 @@ public class CompanyService {
             .orElseThrow(() -> new BadRequestException("Active owner membership is required"));
     if (actor.getRole() != CompanyRole.OWNER) {
       throw new BadRequestException("Only the company owner can transfer ownership");
+    }
+    if (!passwordEncoder.matches(currentPassword, actor.getUser().getPassword())) {
+      throw new ForbiddenException("Current password is incorrect");
     }
     if (actorUserId.equals(targetUserId)) {
       throw new BadRequestException("Choose another active company member");
