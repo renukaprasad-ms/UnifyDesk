@@ -77,6 +77,10 @@ export const mediaApi = {
     return unwrap(response.data)
   },
 
+  async removeCurrentUserProfilePicture() {
+    await apiClient.delete<ApiResponse<void>>('/api/v1/users/me/profile-picture')
+  },
+
   async listCompanyMedia(companyId: string) {
     const response = await apiClient.get<ApiResponse<import('./types').MediaResponse[]>>(
       `/api/v1/media/company/${companyId}`,
