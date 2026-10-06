@@ -3,14 +3,22 @@ import {
   FiBriefcase,
   FiCheckCircle,
   FiClock,
+  FiMonitor,
   FiEdit2,
   FiMail,
   FiMapPin,
+  FiMoon,
+  FiSun,
   FiUploadCloud,
   FiX,
 } from 'react-icons/fi'
 import { companyApi } from '../../features/company/companyApi'
 import type { Company } from '../../features/company/types'
+import {
+  COMPANY_THEME_PALETTES,
+  useCompanyTheme,
+  type CompanyThemeMode,
+} from '../../features/companyTheme/companyTheme'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { mediaApi } from '../../features/media/mediaApi'
@@ -36,6 +44,11 @@ export default function CompanyDetails() {
   const companies = useAppSelector(selectCompanies)
   const selectedCompany = useAppSelector(selectSelectedCompany)
   const { can } = useIam()
+  const {
+    settings: themeSettings,
+    setColorId,
+    setMode,
+  } = useCompanyTheme(selectedCompany?.companyId)
   const [company, setCompany] = useState<Company | null>(selectedCompany)
   const [name, setName] = useState(selectedCompany?.name ?? '')
   const [businessEmail, setBusinessEmail] = useState(selectedCompany?.businessEmail ?? '')
@@ -189,6 +202,11 @@ export default function CompanyDetails() {
   }
 
   const visibleLogo = logoPreviewUrl || (!removeLogo ? logoUrl : '')
+  const canModifyCompany = can(PERMISSIONS.COMPANY_MODIFY)
+  const themeModes: { id: CompanyThemeMode; label: string; icon: typeof FiSun }[] = [
+    { id: 'light', label: 'Light', icon: FiSun },
+    { id: 'dark', label: 'Dark', icon: FiMoon },
+  ]
 
   if (!selectedCompany) {
     return (
@@ -215,7 +233,7 @@ export default function CompanyDetails() {
               Manage the identity and business information shown across this workspace.
             </p>
           </div>
-          {!editing && can(PERMISSIONS.COMPANY_MODIFY) && (
+          {!editing && canModifyCompany && (
             <button
               type="button"
               className="primary-button inline-flex items-center gap-2"
@@ -367,23 +385,91 @@ export default function CompanyDetails() {
           </div>
 
           {!editing && (
-            <div className="panel grid gap-4 p-5 sm:grid-cols-3">
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Workspace ID</p>
-                <p className="mt-1 break-all text-sm font-medium text-slate-900">
-                  {company?.companyId}
-                </p>
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+              <div className="panel grid gap-4 p-5 sm:grid-cols-3">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">Workspace ID</p>
+                  <p className="mt-1 break-all text-sm font-medium text-slate-900">
+                    {company?.companyId}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">Slug</p>
+                  <p className="mt-1 text-sm font-medium text-slate-900">{company?.slug}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">Status</p>
+                  <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-slate-900">
+                    <FiCheckCircle className="text-emerald-500" aria-hidden="true" />
+                    {company?.status}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Slug</p>
-                <p className="mt-1 text-sm font-medium text-slate-900">{company?.slug}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Status</p>
-                <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-slate-900">
-                  <FiCheckCircle className="text-emerald-500" aria-hidden="true" />
-                  {company?.status}
-                </p>
+
+              <div className="panel p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="eyebrow">Brand theme</p>
+                    <h2 className="mt-2 text-lg font-bold text-slate-950">Company colors</h2>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      Choose the accent color used for buttons, active navigation, highlights, and
+                      shared controls.
+                    </p>
+                  </div>
+                  <span className="theme-mode-mark" aria-hidden="true">
+                    <FiMonitor />
+                  </span>
+                </div>
+
+                <fieldset className="mt-5">
+                  <legend className="text-xs font-semibold text-slate-700">Accent color</legend>
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {COMPANY_THEME_PALETTES.map((palette) => {
+                      const selected = themeSettings.colorId === palette.id
+                      return (
+                        <button
+                          key={palette.id}
+                          type="button"
+                          className={`theme-swatch ${selected ? 'is-selected' : ''}`}
+                          onClick={() => setColorId(palette.id)}
+                          disabled={!canModifyCompany}
+                          aria-pressed={selected}
+                        >
+                          <span
+                            className="theme-swatch-dot"
+                            style={{ backgroundColor: palette.primary }}
+                            aria-hidden="true"
+                          />
+                          <span className="min-w-0 truncate">{palette.name}</span>
+                          {selected && <FiCheckCircle aria-hidden="true" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </fieldset>
+
+                <fieldset className="mt-5">
+                  <legend className="text-xs font-semibold text-slate-700">Appearance</legend>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {themeModes.map((mode) => {
+                      const Icon = mode.icon
+                      const selected = themeSettings.mode === mode.id
+                      return (
+                        <button
+                          key={mode.id}
+                          type="button"
+                          className={`theme-mode-button ${selected ? 'is-selected' : ''}`}
+                          onClick={() => setMode(mode.id)}
+                          disabled={!canModifyCompany}
+                          aria-pressed={selected}
+                        >
+                          <Icon aria-hidden="true" />
+                          {mode.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </fieldset>
               </div>
             </div>
           )}
