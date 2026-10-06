@@ -12,15 +12,6 @@ import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppDispatch } from '../../store/hooks'
 import { selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
 
-const countries = [
-  ['IN', 'India'],
-  ['US', 'United States'],
-  ['GB', 'United Kingdom'],
-  ['AE', 'United Arab Emirates'],
-  ['SG', 'Singapore'],
-  ['AU', 'Australia'],
-] as const
-
 const timezones = [
   'Asia/Kolkata',
   'Asia/Dubai',
@@ -273,18 +264,19 @@ export default function CreateWorkspace() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-[11px] font-medium text-slate-600">Country</span>
-                <select
-                  className="form-input"
+                <span className="mb-2 block text-[11px] font-medium text-slate-600">
+                  Country
+                </span>
+                <input
+                  className="form-input uppercase"
                   value={country}
-                  onChange={(event) => setCountry(event.target.value)}
-                >
-                  {countries.map(([code, label]) => (
-                    <option key={code} value={code}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  maxLength={2}
+                  placeholder="IN"
+                  onChange={(event) => setCountry(event.target.value.toUpperCase())}
+                />
+                <span className="mt-1 block text-[10px] text-slate-400">
+                  2-letter country code, for example IN.
+                </span>
               </label>
               <label className="block">
                 <span className="mb-2 block text-[11px] font-medium text-slate-600">Timezone</span>
