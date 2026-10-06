@@ -26,6 +26,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
   const [platformAccess, setPlatformAccess] = useState<PlatformAccess | null>(null)
   const [railHovered, setRailHovered] = useState(false)
+  const [navigationCloseSignal, setNavigationCloseSignal] = useState(0)
   const inboxMode = location.pathname.startsWith('/inbox/')
   const broadcastMode = location.pathname.startsWith('/broadcast/')
   const adCenterMode = location.pathname.startsWith('/ad-center')
@@ -76,13 +77,27 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
     }
   }
 
-  const closeNavigation = () => setMenuOpen(false)
+  const closeWorkspaceMenus = () => setNavigationCloseSignal((signal) => signal + 1)
+  const closeNavigation = () => {
+    setMenuOpen(false)
+    setRailHovered(false)
+    closeWorkspaceMenus()
+  }
   const closeContext = () => setContextOpen(false)
-
-  useEffect(() => {
+  const closeAllNavigation = () => {
     setMenuOpen(false)
     setContextOpen(false)
+    setRailHovered(false)
+    closeWorkspaceMenus()
+  }
+
+  useEffect(() => {
+    closeAllNavigation()
   }, [location.pathname])
+
+  useEffect(() => {
+    if (menuOpen && contextOpen) setContextOpen(false)
+  }, [contextOpen, menuOpen])
 
   useEffect(() => {
     if (!menuOpen && !contextOpen) return
@@ -91,8 +106,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      setMenuOpen(false)
-      setContextOpen(false)
+      closeAllNavigation()
     }
     window.addEventListener('keydown', onKeyDown)
 
@@ -108,10 +122,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
         {(menuOpen || contextOpen) && (
           <button
             aria-label="Close navigation"
-            onClick={() => {
-              setMenuOpen(false)
-              setContextOpen(false)
-            }}
+            onClick={closeAllNavigation}
             className="fixed inset-0 z-30 bg-slate-900/30 lg:hidden"
           />
         )}
@@ -119,7 +130,11 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
           id="main-navigation"
           className={`app-sidebar ${compactNavigation ? 'is-compact' : ''} ${railHovered ? 'is-hover-expanded' : ''} ${menuOpen ? 'is-open' : ''}`}
           onMouseEnter={() => compactNavigation && setRailHovered(true)}
-          onMouseLeave={() => compactNavigation && setRailHovered(false)}
+          onMouseLeave={() => {
+            if (!compactNavigation) return
+            setRailHovered(false)
+            closeWorkspaceMenus()
+          }}
         >
           {platform && platformAccess ? (
             <>
@@ -140,6 +155,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
                 <AppSidebar
                   platformAccess={platformAccess}
                   compact
+                  closeSignal={navigationCloseSignal}
                   loggingOut={loggingOut}
                   onNavigate={closeNavigation}
                   onLogout={() => setLogoutConfirmOpen(true)}
@@ -152,6 +168,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
               <AppSidebar
                 platformAccess={platformAccess}
                 compact={compactNavigation}
+                closeSignal={navigationCloseSignal}
                 loggingOut={loggingOut}
                 onNavigate={closeNavigation}
                 onLogout={() => setLogoutConfirmOpen(true)}
@@ -196,13 +213,21 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
             menuOpen={menuOpen}
             onToggleMenu={() => {
               setContextOpen(false)
-              setMenuOpen((open) => !open)
+              setMenuOpen((open) => {
+                if (open) {
+                  setRailHovered(false)
+                  closeWorkspaceMenus()
+                }
+                return !open
+              })
             }}
             contextAvailable={!platform && workspaceContextMode}
             contextOpen={contextOpen}
             contextLabel={adCenterMode ? 'Ad Center' : channelContextLabel}
             onToggleContext={() => {
               setMenuOpen(false)
+              setRailHovered(false)
+              closeWorkspaceMenus()
               setContextOpen((open) => !open)
             }}
             notificationPath={platform ? '/platform/notifications' : '/notifications'}

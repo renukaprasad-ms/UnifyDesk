@@ -32,6 +32,7 @@ import WorkspaceSwitcher from '../WorkspaceSwitcher'
 type AppSidebarProps = {
   platformAccess: PlatformAccess | null
   compact?: boolean
+  closeSignal?: number
   loggingOut: boolean
   onNavigate: () => void
   onLogout: () => void
@@ -118,6 +119,7 @@ const companyLinks: WorkspaceLink[] = [
 export default function AppSidebar({
   platformAccess,
   compact = false,
+  closeSignal = 0,
   loggingOut,
   onNavigate,
   onLogout,
@@ -190,7 +192,7 @@ export default function AppSidebar({
   return (
     <>
       <div className="sidebar-workspace pb-8 pt-1">
-        <WorkspaceSwitcher platformAdmin={platformWorkspaceAccess} />
+        <WorkspaceSwitcher platformAdmin={platformWorkspaceAccess} closeSignal={closeSignal} />
       </div>
       <nav aria-label="Main navigation" className="space-y-1">
         <p className="sidebar-label sidebar-copy">APP</p>
