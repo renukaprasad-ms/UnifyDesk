@@ -19,16 +19,16 @@ type ConfirmDialogProps = {
 
 const toneStyles = {
   default: {
-    icon: 'bg-sky-50 text-sky-600',
-    button: 'bg-slate-950 text-white hover:bg-slate-800',
+    icon: 'confirm-dialog-icon-default',
+    button: 'confirm-dialog-button-default',
   },
   warning: {
-    icon: 'bg-amber-50 text-amber-700',
-    button: 'bg-amber-600 text-white hover:bg-amber-700',
+    icon: 'confirm-dialog-icon-warning',
+    button: 'confirm-dialog-button-warning',
   },
   danger: {
-    icon: 'bg-rose-50 text-rose-600',
-    button: 'bg-rose-600 text-white hover:bg-rose-700',
+    icon: 'confirm-dialog-icon-danger',
+    button: 'confirm-dialog-button-danger',
   },
 }
 
@@ -75,19 +75,25 @@ export default function ConfirmDialog({
       }}
     >
       <section
-        className="my-auto w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+        className="confirm-dialog-panel my-auto w-full max-w-md rounded-2xl p-5 shadow-2xl sm:p-6"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-description"
       >
         <div className="flex items-start gap-4">
-          <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${visual.icon}`}>
+          <span
+            className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${visual.icon}`}
+          >
             <Icon aria-hidden="true" size={20} />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 id="confirm-dialog-title" className="text-lg font-bold text-slate-950">{title}</h2>
-            <p id="confirm-dialog-description" className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+            <h2 id="confirm-dialog-title" className="text-lg font-bold text-slate-950">
+              {title}
+            </h2>
+            <p id="confirm-dialog-description" className="mt-2 text-sm leading-6 text-slate-600">
+              {description}
+            </p>
           </div>
           <button
             type="button"

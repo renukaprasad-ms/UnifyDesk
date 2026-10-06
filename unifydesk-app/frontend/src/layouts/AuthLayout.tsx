@@ -26,8 +26,8 @@ const capabilities = [
 
 const AuthLayout = () => {
   return (
-    <main className="h-dvh overflow-hidden bg-white lg:grid lg:grid-cols-[48%_52%]">
-      <section className="relative hidden h-dvh overflow-hidden border-r border-slate-100 bg-[linear-gradient(105deg,#F0F1FF_0%,#FFFFFF_100%)] px-10 py-8 lg:flex lg:flex-col xl:px-12">
+    <main className="auth-layout h-dvh overflow-hidden lg:grid lg:grid-cols-[48%_52%]">
+      <section className="auth-marketing-panel relative hidden h-dvh overflow-hidden border-r px-10 py-8 lg:flex lg:flex-col xl:px-12">
         <div className="absolute -left-24 top-52 h-72 w-72 rounded-full bg-indigo-200/20 blur-3xl" />
         <div className="absolute -right-24 bottom-20 h-80 w-80 rounded-full bg-violet-200/30 blur-3xl" />
 
@@ -101,7 +101,7 @@ const AuthLayout = () => {
         </div>
       </section>
 
-      <section className="flex h-dvh items-center justify-center overflow-y-auto bg-white px-6 py-6 sm:px-10 lg:py-5">
+      <section className="auth-form-panel flex h-dvh items-center justify-center overflow-y-auto px-6 py-6 sm:px-10 lg:py-5">
         <div className="w-full max-w-[390px]">
           <div className="mb-7 flex items-center gap-3 lg:hidden">
             <img src="/favicon.svg" alt="" className="h-9 w-9" />
