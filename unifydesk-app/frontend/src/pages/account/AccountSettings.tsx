@@ -20,11 +20,11 @@ export default function AccountSettings() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
   const [twoFactorTarget, setTwoFactorTarget] = useState<boolean | null>(null)
   const [twoFactorPassword, setTwoFactorPassword] = useState('')
   const [twoFactorChallenge, setTwoFactorChallenge] = useState('')
   const [twoFactorOtp, setTwoFactorOtp] = useState('')
-  const userId = authUser?.userId ?? null
 
   useEffect(() => {
     let active = true
@@ -115,13 +115,13 @@ export default function AccountSettings() {
   }
 
   const deleteAccount = async () => {
-    if (!userId) return
+    if (!deletePassword) return
     setSaving(true)
     setError('')
     setNotice('')
 
     try {
-      await userApi.delete(userId)
+      await userApi.deleteCurrentAccount(deletePassword)
       await authApi.logout().catch(() => undefined)
       dispatch(sessionCleared())
       navigate('/login', { replace: true })
@@ -129,6 +129,7 @@ export default function AccountSettings() {
       setError(apiErrorMessage(deleteError, 'Unable to delete account'))
     } finally {
       setSaving(false)
+      setDeletePassword('')
     }
   }
 
@@ -382,7 +383,10 @@ export default function AccountSettings() {
               <button
                 type="button"
                 className="secondary-button inline-flex shrink-0 border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
-                onClick={() => setDeleteConfirmOpen(true)}
+                onClick={() => {
+                  setDeletePassword('')
+                  setDeleteConfirmOpen(true)
+                }}
                 disabled={saving || loading}
               >
                 Delete account
@@ -393,15 +397,31 @@ export default function AccountSettings() {
         <ConfirmDialog
           open={deleteConfirmOpen}
           title="Delete your account permanently?"
-          description="Your UnifyDesk user account will be removed and this action cannot be undone."
+          description="Your UnifyDesk user account will be scheduled for deletion. Re-enter your current password to confirm this security-sensitive action."
           confirmLabel="Yes, delete account"
           cancelLabel="No, keep account"
           tone="danger"
           kind="delete"
           working={saving}
-          onCancel={() => setDeleteConfirmOpen(false)}
+          confirmDisabled={!deletePassword}
+          onCancel={() => {
+            setDeletePassword('')
+            setDeleteConfirmOpen(false)
+          }}
           onConfirm={() => void deleteAccount()}
-        />
+        >
+          <label className="block text-xs font-semibold text-slate-700">
+            Current password
+            <input
+              type="password"
+              className="form-input mt-1.5"
+              autoComplete="current-password"
+              value={deletePassword}
+              onChange={(event) => setDeletePassword(event.target.value)}
+              placeholder="Enter your current password"
+            />
+          </label>
+        </ConfirmDialog>
       </div>
     </section>
   )
