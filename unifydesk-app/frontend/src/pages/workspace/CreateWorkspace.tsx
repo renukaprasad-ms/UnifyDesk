@@ -3,7 +3,10 @@ import { FiBarChart2, FiImage, FiMail, FiMessageSquare, FiUploadCloud, FiUsers, 
 import { useNavigate } from 'react-router'
 import AsyncButton from '../../components/ui/AsyncButton'
 import ProgressBar from '../../components/ui/ProgressBar'
-import { DEFAULT_BRAND_COLOR } from '../../features/companyTheme/companyTheme'
+import {
+  brandContrastColor,
+  DEFAULT_BRAND_COLOR,
+} from '../../features/companyTheme/companyTheme'
 import { mediaApi } from '../../features/media/mediaApi'
 import type { InitiateMediaUploadResponse } from '../../features/media/types'
 import { workspaceApi } from '../../features/workspace/workspaceApi'
@@ -67,6 +70,7 @@ export default function CreateWorkspace() {
     () => (isHexColor(brandColor) ? brandColor.toUpperCase() : DEFAULT_BRAND_COLOR),
     [brandColor],
   )
+  const previewContrast = brandContrastColor(previewColor)
 
   useEffect(
     () => () => {
@@ -321,8 +325,8 @@ export default function CreateWorkspace() {
             {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
             <AsyncButton
               type="submit"
-              className="h-11 w-full rounded-[8px] text-xs font-semibold text-white"
-              style={{ backgroundColor: previewColor }}
+              className="h-11 w-full rounded-[8px] text-xs font-semibold"
+              style={{ backgroundColor: previewColor, color: previewContrast }}
               disabled={logoUploading || !isHexColor(brandColor)}
               loading={submitting}
               loadingLabel="Creating workspace…"
@@ -385,7 +389,7 @@ export default function CreateWorkspace() {
                       type="button"
                       tabIndex={-1}
                       className="rounded-lg px-3 py-2 text-[10px] font-bold text-white"
-                      style={{ backgroundColor: previewColor }}
+                      style={{ backgroundColor: previewColor, color: previewContrast }}
                     >
                       New broadcast
                     </button>
