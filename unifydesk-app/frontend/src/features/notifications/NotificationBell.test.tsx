@@ -66,6 +66,31 @@ describe('NotificationBell', () => {
     )
   })
 
+  it('opens the notification popover when the bell is hovered on pointer devices', async () => {
+    vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+      matches: query.includes('(hover: hover)'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+
+    render(
+      <MemoryRouter>
+        <NotificationBell />
+      </MemoryRouter>,
+    )
+
+    const bell = screen.getByRole('button', { name: /Notifications, 120 unread/i })
+    fireEvent.mouseEnter(bell.parentElement as HTMLElement)
+
+    expect(await screen.findByRole('dialog', { name: 'Recent notifications' })).toBeTruthy()
+    expect(screen.getByText('Quarterly update')).toBeTruthy()
+  })
+
   it('closes on Escape and restores focus to the bell', async () => {
     render(
       <MemoryRouter>

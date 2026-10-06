@@ -4,6 +4,7 @@ import static com.messaging.contacts.core.api.ContactDtos.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.contacts.consent.ConsentTypes.Channel;
 import com.messaging.contacts.core.domain.ContactTypes.ContactSort;
 import com.messaging.contacts.core.domain.ContactTypes.CustomFieldType;
 import com.messaging.contacts.core.domain.ContactTypes.MembershipSource;
@@ -22,6 +23,7 @@ import java.security.MessageDigest;
 import java.text.Normalizer;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -291,6 +293,10 @@ public class ContactCatalogService {
                         row.contact().organization(),
                         row.primaryEmail(),
                         row.primaryPhone(),
+                        Map.of(
+                            Channel.EMAIL, row.emailMarketingPreference(),
+                            Channel.SMS, row.smsMarketingPreference(),
+                            Channel.WHATSAPP, row.whatsappMarketingPreference()),
                         row.contact().status(),
                         row.contact().updatedAt(),
                         row.contact().version()))
