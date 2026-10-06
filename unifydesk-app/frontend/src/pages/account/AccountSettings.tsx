@@ -7,6 +7,11 @@ import type { User } from '../../features/user/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { selectAuthUser, sessionCleared, setAppearanceMode } from '../../store/auth/authSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import {
+  applyCompanyTheme,
+  DEFAULT_BRAND_COLOR,
+} from '../../features/companyTheme/companyTheme'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { CardSkeleton } from '../../components/ui/Skeleton'
 
@@ -14,6 +19,7 @@ export default function AccountSettings() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const authUser = useAppSelector(selectAuthUser)
+  const selectedCompany = useAppSelector(selectSelectedCompany)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -100,19 +106,29 @@ export default function AccountSettings() {
   }
 
   const updateAppearance = async (appearanceMode: 'LIGHT' | 'DARK') => {
-    if (authUser?.appearanceMode === appearanceMode) return
+    const previousAppearance = authUser?.appearanceMode ?? 'LIGHT'
+    if (previousAppearance === appearanceMode) return
+
+    const brandColor = selectedCompany?.brandColor ?? DEFAULT_BRAND_COLOR
     setSaving(true)
     setError('')
     setNotice('')
+
+    // Apply the visual theme immediately. Redux persistence/provider reconciliation still
+    // follows, but the user should never need a refresh to see their selection.
+    applyCompanyTheme(brandColor, appearanceMode)
     dispatch(setAppearanceMode(appearanceMode))
+
     try {
       const preferences = await userApi.updatePreferences(appearanceMode)
+      applyCompanyTheme(brandColor, preferences.appearanceMode)
       dispatch(setAppearanceMode(preferences.appearanceMode))
       setNotice(
         `Appearance changed to ${preferences.appearanceMode === 'DARK' ? 'Dark' : 'Light'} mode.`,
       )
     } catch (appearanceError) {
-      dispatch(setAppearanceMode(authUser?.appearanceMode ?? 'LIGHT'))
+      applyCompanyTheme(brandColor, previousAppearance)
+      dispatch(setAppearanceMode(previousAppearance))
       setError(apiErrorMessage(appearanceError, 'Unable to update appearance'))
     } finally {
       setSaving(false)
