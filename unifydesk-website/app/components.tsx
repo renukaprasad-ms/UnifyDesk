@@ -20,7 +20,7 @@ export function Header(){
     <div className="marketingNav">
       <Link className="brand" href="/" aria-label="UnifyDesk home">
         <img src="/logo-icon.svg" alt="" width="34" height="34"/>
-        <span>UnifyDesk</span>
+        UnifyDesk
       </Link>
       <nav className="desktopNav" aria-label="Primary navigation">
         {links.map(([name,href])=>
@@ -50,7 +50,7 @@ export function Footer(){
       <div className="footerBrand">
         <Link className="brand footerLogo" href="/">
           <img src="/logo-icon.svg" alt="" width="34" height="34"/>
-          <span>UnifyDesk</span>
+          UnifyDesk
         </Link>
         <p>One workspace for customer communication, campaigns and growth.</p>
         <p className="footerStatus">Currently in development · Public access coming soon.</p>
