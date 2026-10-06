@@ -1,6 +1,6 @@
 export type CompanyRole = 'OWNER' | 'MANAGER' | 'MEMBER'
 
-export type CompanyStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED'
+export type CompanyStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETION_PENDING' | 'PURGING' | 'PURGED'
 
 export type Company = {
   companyId: string
@@ -12,6 +12,7 @@ export type Company = {
   logoMediaId?: string | null
   status: CompanyStatus
   role: CompanyRole | null
+  brandColor: string
 }
 
 export type CompanyUser = {
@@ -63,6 +64,7 @@ export type CreateCompanyPayload = {
   country?: string
   timezone?: string
   logoMediaId?: string
+  brandColor: string
 }
 
 export type UpdateCompanyPayload = {
