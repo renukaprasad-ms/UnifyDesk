@@ -116,7 +116,8 @@ public class CompanyController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            companyService.updateMemberStatus(companyId, userId, request.status()),
+            companyService.updateMemberStatus(
+                companyId, currentUserService.currentUserId(), userId, request.status()),
             "Member status updated"));
   }
 
@@ -125,7 +126,7 @@ public class CompanyController {
       @PathVariable Long companyId, @PathVariable Long userId) {
     companyAuthorizationService.requirePermission(
         currentUserService.currentUserId(), companyId, CompanyPermissionKeys.USER_REMOVE);
-    companyService.removeMember(companyId, userId);
+    companyService.removeMember(companyId, currentUserService.currentUserId(), userId);
     return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Member removed"));
   }
 
