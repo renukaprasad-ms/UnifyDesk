@@ -140,9 +140,9 @@ export default function WorkspaceSwitcher({
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-indigo-50 text-[11px] font-bold text-indigo-500">
+        <span className="workspace-logo-mark">
           {selectedLogoUrl ? (
-            <img src={selectedLogoUrl} alt="" className="h-full w-full object-cover" />
+            <img src={selectedLogoUrl} alt="" className="h-full w-full object-contain" />
           ) : selectedCompany ? (
             companyInitials(selectedCompany.name)
           ) : (
@@ -181,12 +181,12 @@ export default function WorkspaceSwitcher({
                   navigate('/workspace', { replace: true })
                 }}
               >
-                <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-indigo-50 text-[11px] font-bold text-indigo-500">
+                <span className="workspace-logo-mark">
                   {logoUrls[company.companyId] ? (
                     <img
                       src={logoUrls[company.companyId]}
                       alt=""
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                     />
                   ) : (
                     companyInitials(company.name)
@@ -196,7 +196,7 @@ export default function WorkspaceSwitcher({
                   <span className="block truncate">{company.name}</span>
                   <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
                     {company.status === 'SUSPENDED'
-                      ? 'Suspended · unavailable'
+                      ? 'Suspended - unavailable'
                       : company.role ?? 'Platform access'}
                   </span>
                 </span>

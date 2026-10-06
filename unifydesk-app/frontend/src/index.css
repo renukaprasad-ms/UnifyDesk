@@ -438,6 +438,18 @@
     width: 18px;
     height: 18px;
   }
+  .email-provider-logo-gmail {
+    background: color-mix(in srgb, #ea4335 13%, var(--theme-surface));
+    color: #ea4335;
+  }
+  .email-provider-logo-outlook {
+    background: color-mix(in srgb, #0078d4 16%, var(--theme-surface));
+    color: #0078d4;
+  }
+  .email-provider-logo-imap {
+    background: color-mix(in srgb, var(--theme-primary) 16%, var(--theme-surface));
+    color: var(--theme-primary);
+  }
 
   .panel {
     border: 1px solid var(--theme-border);
@@ -559,12 +571,27 @@
     font-weight: 650;
     overflow: hidden;
   }
+  .workspace-logo-mark {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 8px;
+    background: var(--theme-primary-softer);
+    color: var(--theme-primary);
+    font-size: 11px;
+    font-weight: 800;
+  }
   .workspace-menu {
     position: absolute;
     left: 0;
     top: calc(100% + 8px);
     z-index: 70;
-    width: min(300px, calc(100vw - 34px));
+    width: 100%;
+    max-width: 100%;
     overflow: hidden;
     border: 1px solid var(--theme-border);
     border-radius: 9px;
@@ -585,6 +612,10 @@
   }
   .workspace-menu-item:hover {
     background: var(--theme-bg);
+  }
+  .workspace-menu-item:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
   }
   .settings-tab {
     min-height: 44px;

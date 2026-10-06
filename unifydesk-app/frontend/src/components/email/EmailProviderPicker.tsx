@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { FiGrid, FiMail, FiPlus, FiServer, FiX } from 'react-icons/fi'
+import { FaMicrosoft } from 'react-icons/fa'
+import { FiMail, FiPlus, FiServer, FiX } from 'react-icons/fi'
 import { SiGmail } from 'react-icons/si'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
@@ -148,14 +149,14 @@ export default function EmailProviderPicker({
                     disabled={Boolean(connecting)}
                     onClick={() => void connectGmail()}
                   >
-                    <span className="email-provider-mark">
+                    <span className="email-provider-mark email-provider-logo-gmail">
                       <SiGmail aria-hidden="true" />
                     </span>
                     <span className="min-w-0 flex-1 text-left">
                       <span className="block text-sm font-bold text-slate-900">Google Gmail</span>
                       <span className="mt-0.5 block text-xs text-slate-500">
                         {connecting === 'GMAIL'
-                          ? 'Opening Google authorization…'
+                          ? 'Opening Google authorization...'
                           : 'Connect securely with Google OAuth'}
                       </span>
                     </span>
@@ -167,8 +168,8 @@ export default function EmailProviderPicker({
                     disabled={Boolean(connecting)}
                     onClick={() => void connectMicrosoft()}
                   >
-                    <span className="email-provider-mark">
-                      <FiGrid aria-hidden="true" />
+                    <span className="email-provider-mark email-provider-logo-outlook">
+                      <FaMicrosoft aria-hidden="true" />
                     </span>
                     <span className="min-w-0 flex-1 text-left">
                       <span className="block text-sm font-bold text-slate-900">
@@ -176,7 +177,7 @@ export default function EmailProviderPicker({
                       </span>
                       <span className="mt-0.5 block text-xs text-slate-500">
                         {connecting === 'MICROSOFT'
-                          ? 'Opening Microsoft authorization…'
+                          ? 'Opening Microsoft authorization...'
                           : 'Connect Outlook, Hotmail, or Microsoft 365 with OAuth'}
                       </span>
                     </span>
@@ -191,7 +192,7 @@ export default function EmailProviderPicker({
                       setCustomSetup(true)
                     }}
                   >
-                    <span className="email-provider-mark">
+                    <span className="email-provider-mark email-provider-logo-imap">
                       <FiServer aria-hidden="true" />
                     </span>
                     <span className="min-w-0 flex-1 text-left">
