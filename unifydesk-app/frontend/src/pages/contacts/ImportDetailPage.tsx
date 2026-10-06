@@ -258,6 +258,10 @@ export default function ImportDetailPage() {
     }
 
     if (consentMode === 'CSV') {
+      if (consentMappings.length === 0) {
+        setError('Choose at least one consent column to import.')
+        return
+      }
       const invalidConsent = consentMappings.some((mapping) => !mapping.stateColumn)
       if (invalidConsent) {
         setError('Choose a preference column for every enabled consent channel.')
@@ -326,6 +330,15 @@ export default function ImportDetailPage() {
   const processing = resource && ['QUEUED', 'RUNNING'].includes(resource.status)
   const mappedCount = mappings.filter((mapping) => mapping.target.type !== 'IGNORE').length
   const ignoredCount = Math.max(mappings.length - mappedCount, 0)
+  const consentReady =
+    consentMode === 'NONE' ||
+    (consentMode === 'CSV' &&
+      consentMappings.length > 0 &&
+      consentMappings.every((mapping) => Boolean(mapping.stateColumn))) ||
+    (consentMode === 'SIMPLE' &&
+      simpleConsentChannels.length > 0 &&
+      Boolean(simpleConsentEvidence.trim()) &&
+      simpleConsentConfirmed)
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
@@ -859,7 +872,7 @@ export default function ImportDetailPage() {
               </p>
               <button
                 className="primary-button mt-4"
-                disabled={committing || mappedCount === 0}
+                disabled={committing || mappedCount === 0 || !consentReady}
                 onClick={() => void commit()}
               >
                 {committing ? 'Starting import…' : 'Import contacts'}
