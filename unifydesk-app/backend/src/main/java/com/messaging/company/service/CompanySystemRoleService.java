@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CompanySystemRoleService {
 
   public static final String OWNER_ROLE_NAME = "Owner";
+  public static final String MANAGER_ROLE_NAME = "Manager";
   public static final String MEMBER_ROLE_NAME = "Member";
 
   private final JdbcTemplate jdbcTemplate;
@@ -45,6 +46,12 @@ public class CompanySystemRoleService {
             createdByUserId,
             OWNER_ROLE_NAME,
             "System role representing the company owner. Owner access is always full.");
+    Long managerRoleId =
+        ensureRole(
+            companyId,
+            createdByUserId,
+            MANAGER_ROLE_NAME,
+            "System role showing the default access granted to company managers.");
     Long memberRoleId =
         ensureRole(
             companyId,
@@ -56,6 +63,7 @@ public class CompanySystemRoleService {
         jdbcTemplate.queryForList(
             "select permission_key from permissions order by permission_key", String.class);
     syncPermissions(ownerRoleId, Set.copyOf(allPermissions));
+    syncPermissions(managerRoleId, CompanyPermissionKeys.defaultsFor(CompanyRole.MANAGER));
     syncPermissions(memberRoleId, CompanyPermissionKeys.defaultsFor(CompanyRole.MEMBER));
   }
 
