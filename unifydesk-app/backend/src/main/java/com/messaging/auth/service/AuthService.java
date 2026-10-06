@@ -2,11 +2,14 @@ package com.messaging.auth.service;
 
 import com.messaging.auth.dto.AuthUserResponse;
 import com.messaging.auth.dto.CompletePasswordResetRequest;
+import com.messaging.auth.dto.CompleteTwoFactorSettingsRequest;
 import com.messaging.auth.dto.LoginRequest;
 import com.messaging.auth.dto.LoginResponse;
 import com.messaging.auth.dto.PasswordResetChallengeResponse;
 import com.messaging.auth.dto.PasswordResetRequest;
 import com.messaging.auth.dto.RegisterRequest;
+import com.messaging.auth.dto.TwoFactorSettingsChallengeRequest;
+import com.messaging.auth.dto.TwoFactorSettingsChallengeResponse;
 import com.messaging.auth.dto.VerifyEmailRequest;
 import com.messaging.auth.dto.VerifyPasswordResetOtpRequest;
 import com.messaging.auth.dto.VerifyTwoFactorRequest;
@@ -15,6 +18,8 @@ import com.messaging.common.exception.UnauthorizedException;
 import com.messaging.company.service.CompanyService;
 import com.messaging.media.entity.Media;
 import com.messaging.media.service.MediaService;
+import com.messaging.redis.key.RedisKey;
+import com.messaging.redis.service.RedisService;
 import com.messaging.security.jwt.TokenPair;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.session.dto.CreateOrUpdateSessionRequest;
@@ -27,6 +32,8 @@ import com.messaging.user.enums.UserStatus;
 import com.messaging.user.service.UserService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -43,16 +50,19 @@ public class AuthService {
   private static final int MAX_IP_LENGTH = 45;
   private static final int MAX_USER_AGENT_LENGTH = 512;
   private static final long PASSWORD_RESET_OTP_EXPIRES_SECONDS = 300;
+  private static final long TWO_FACTOR_SETTINGS_EXPIRES_SECONDS = 300;
 
   private final UserService userService;
   private final UserSessionService userSessionService;
   private final AuthTokenService authTokenService;
   private final AuthCookieService authCookieService;
   private final AuthOtpService authOtpService;
+  private final AuthRateLimitService authRateLimitService;
   private final PasswordEncoder passwordEncoder;
   private final MediaService mediaService;
   private final CompanyService companyService;
   private final CurrentUserService currentUserService;
+  private final RedisService redisService;
 
   @Value("${app.security.trust-forwarded-headers:false}")
   private boolean trustForwardedHeaders;
@@ -60,6 +70,9 @@ public class AuthService {
   @Transactional
   public AuthUserResponse register(
       RegisterRequest request, HttpServletRequest servletRequest, HttpHeaders headers) {
+    String ip = clientIp(servletRequest);
+    authRateLimitService.consumeRegistration(ip, request.email());
+
     User user =
         userService.createUser(
             new CreateUserRequest(
@@ -88,6 +101,9 @@ public class AuthService {
   @Transactional
   public LoginResponse login(
       LoginRequest request, HttpServletRequest servletRequest, HttpHeaders headers) {
+    String ip = clientIp(servletRequest);
+    authRateLimitService.consumeLogin(ip, request.identifier());
+
     User user =
         userService
             .findByIdentifier(request.identifier())
@@ -98,6 +114,9 @@ public class AuthService {
     if (!passwordEncoder.matches(request.password(), user.getPassword())) {
       throw new UnauthorizedException("Invalid username/email or password");
     }
+
+    authRateLimitService.clearLoginIdentifier(request.identifier());
+
     if (user.isTwoFactorEnabled()) {
       String challengeId = UUID.randomUUID().toString();
       authOtpService.issueLoginOtp(challengeId, user.getEmail());
@@ -123,12 +142,7 @@ public class AuthService {
     }
 
     authOtpService.verifyLoginOtp(challengeId, request.otp());
-    long userId;
-    try {
-      userId = Long.parseLong(claims.getSubject());
-    } catch (NumberFormatException exception) {
-      throw new UnauthorizedException("Invalid pre-auth token");
-    }
+    long userId = parseUserId(claims, "Invalid pre-auth token");
     User user = userService.getUser(userId);
     if (!user.isTwoFactorEnabled()) {
       throw new UnauthorizedException("Two-factor authentication is not enabled");
@@ -152,6 +166,12 @@ public class AuthService {
   public void verifyPasswordResetOtp(VerifyPasswordResetOtpRequest request, HttpHeaders headers) {
     long userId = authOtpService.verifyPasswordResetOtp(request.challengeId(), request.otp());
     String resetToken = authTokenService.createPasswordResetToken(Long.toString(userId));
+    String tokenId = authTokenService.tokenId(resetToken);
+    Duration ttl = Duration.between(Instant.now(), authTokenService.tokenExpiresAt(resetToken));
+    if (ttl.isZero() || ttl.isNegative()) {
+      throw new BadRequestException("Password reset session expired");
+    }
+    redisService.set(RedisKey.passwordResetGrant(tokenId), "1", ttl);
     authTokenService.addPasswordResetTokenCookie(headers, resetToken);
   }
 
@@ -169,13 +189,13 @@ public class AuthService {
             .parsePasswordResetToken(resetToken)
             .orElseThrow(() -> new BadRequestException("Password reset session expired"));
 
-    long userId;
-    try {
-      userId = Long.parseLong(claims.getSubject());
-    } catch (NumberFormatException exception) {
+    String tokenId = claims.getId();
+    if (tokenId == null
+        || redisService.getAndDelete(RedisKey.passwordResetGrant(tokenId), String.class) == null) {
       throw new BadRequestException("Password reset session expired");
     }
 
+    long userId = parseUserId(claims, "Password reset session expired");
     userService.resetForgottenPassword(userId, request.password());
     userSessionService.revokeAllForUser(userId);
     authTokenService.clearPasswordResetTokenCookie(headers);
@@ -192,15 +212,22 @@ public class AuthService {
         authTokenService
             .parseRefreshToken(refreshToken)
             .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
-    UserSession session =
-        userSessionService
-            .findActiveByRefreshTokenId(claims.getId())
-            .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
+
+    UserSession session = userSessionService.findActiveByRefreshTokenId(claims.getId()).orElse(null);
+    if (session == null) {
+      long userId = parseUserId(claims, "Invalid refresh token");
+      userSessionService.revokeAllForUser(userId);
+      authTokenService.clearTokenCookies(headers);
+      throw new UnauthorizedException("Refresh token reuse detected");
+    }
+
     User user = session.getUser();
     if (user.getStatus() != UserStatus.ACTIVE) {
       userSessionService.revokeAllForUser(user.getId());
+      authTokenService.clearTokenCookies(headers);
       throw new UnauthorizedException("Account is not active");
     }
+
     issueSession(user, servletRequest, headers);
     return toResponse(user);
   }
@@ -208,9 +235,64 @@ public class AuthService {
   @Transactional
   public AuthUserResponse verifyEmail(VerifyEmailRequest request) {
     User user = userService.getUser(currentUserService.currentUserId());
+    if (user.isVerified()) {
+      return toResponse(user);
+    }
     authOtpService.verifyEmailOtp(user.getEmail(), request.otp());
     user.setVerified(true);
     return toResponse(user);
+  }
+
+  public void resendEmailVerification() {
+    User user = userService.getUser(currentUserService.currentUserId());
+    if (user.isVerified()) {
+      throw new BadRequestException("Email is already verified");
+    }
+    authOtpService.issueEmailVerificationOtp(user.getEmail());
+  }
+
+  public TwoFactorSettingsChallengeResponse beginTwoFactorSettingsChange(
+      TwoFactorSettingsChallengeRequest request) {
+    long userId = currentUserService.currentUserId();
+    User user = userService.getUser(userId);
+    if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+      throw new UnauthorizedException("Current password is incorrect");
+    }
+    if (user.isTwoFactorEnabled() == request.enabled()) {
+      throw new BadRequestException(
+          request.enabled()
+              ? "Two-factor authentication is already enabled"
+              : "Two-factor authentication is already disabled");
+    }
+
+    String challengeId = UUID.randomUUID().toString();
+    authOtpService.issueTwoFactorSettingsOtp(challengeId, user.getEmail(), request.enabled());
+    String challengeToken =
+        authTokenService.createTwoFactorSettingsToken(Long.toString(userId), challengeId);
+    return new TwoFactorSettingsChallengeResponse(
+        challengeToken, TWO_FACTOR_SETTINGS_EXPIRES_SECONDS);
+  }
+
+  @Transactional
+  public void completeTwoFactorSettingsChange(
+      CompleteTwoFactorSettingsRequest request, HttpHeaders headers) {
+    Claims claims =
+        authTokenService
+            .parseTwoFactorSettingsToken(request.challengeToken())
+            .orElseThrow(() -> new UnauthorizedException("Invalid or expired security challenge"));
+    long userId = parseUserId(claims, "Invalid security challenge");
+    if (userId != currentUserService.currentUserId()) {
+      throw new UnauthorizedException("Invalid security challenge");
+    }
+    String challengeId = claims.get("challenge_id", String.class);
+    if (challengeId == null || challengeId.isBlank()) {
+      throw new UnauthorizedException("Invalid security challenge");
+    }
+
+    boolean enabled = authOtpService.verifyTwoFactorSettingsOtp(challengeId, request.otp());
+    userService.setTwoFactorEnabled(userId, enabled);
+    userSessionService.revokeAllForUser(userId);
+    authTokenService.clearTokenCookies(headers);
   }
 
   public void logout(HttpServletRequest servletRequest, HttpHeaders headers) {
@@ -263,6 +345,14 @@ public class AuthService {
         user.isVerified(),
         companyCount > 0,
         companyCount);
+  }
+
+  private long parseUserId(Claims claims, String message) {
+    try {
+      return Long.parseLong(claims.getSubject());
+    } catch (NumberFormatException exception) {
+      throw new UnauthorizedException(message);
+    }
   }
 
   private String clientIp(HttpServletRequest request) {
