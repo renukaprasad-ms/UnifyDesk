@@ -79,7 +79,9 @@ public class CompanyService {
   public CompanyResponse create(CreateCompanyRequest request) {
     Long userId = currentUserService.currentUserId();
     User user =
-        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository
+            .findByIdForUpdate(userId)
+            .orElseThrow(() -> new NotFoundException("User not found"));
     assertWorkspaceCreationAvailable(userId);
 
     Company company = new Company();
