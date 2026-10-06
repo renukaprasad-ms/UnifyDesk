@@ -54,7 +54,7 @@ export default function ResetPassword() {
               className="form-input pr-11"
               type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
-              minLength={8}
+              minLength={12}
               maxLength={255}
               placeholder="Enter a new password"
               value={password}
@@ -81,7 +81,7 @@ export default function ResetPassword() {
               className="form-input pr-11"
               type={showConfirmPassword ? 'text' : 'password'}
               autoComplete="new-password"
-              minLength={8}
+              minLength={12}
               maxLength={255}
               placeholder="Confirm your new password"
               value={confirmPassword}

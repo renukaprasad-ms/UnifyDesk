@@ -28,8 +28,14 @@ class AuthOtpServiceTests {
     when(rateLimitService.consume(any(), any(Integer.class), any(Duration.class)))
         .thenReturn(new RateLimitResult(true, 1, 5, 4, Duration.ZERO));
 
+    AuthSecurityProperties authSecurityProperties = new AuthSecurityProperties();
     AuthOtpService service =
-        new AuthOtpService(redisService, rateLimitService, ttlProperties, eventPublisher);
+        new AuthOtpService(
+            redisService,
+            rateLimitService,
+            ttlProperties,
+            eventPublisher,
+            authSecurityProperties);
 
     service.issueEmailVerificationOtp("USER@example.com");
 

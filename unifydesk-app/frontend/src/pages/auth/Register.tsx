@@ -144,7 +144,7 @@ const Register = () => {
       <p className="eyebrow">Get started</p>
       <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Register</h1>
       <p className="mt-2 text-sm leading-6 text-slate-500">
-        Create your account and verify it with an OTP.
+        Create your account with a password of at least 12 characters, then verify it with an OTP.
       </p>
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         <label className="block">
@@ -194,7 +194,7 @@ const Register = () => {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             autoComplete="new-password"
-            minLength={8}
+            minLength={12}
             required
           />
         </label>
@@ -209,7 +209,7 @@ const Register = () => {
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
             autoComplete="new-password"
-            minLength={8}
+            minLength={12}
             required
           />
         </label>

@@ -20,6 +20,10 @@ export default function AccountSettings() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [twoFactorTarget, setTwoFactorTarget] = useState<boolean | null>(null)
+  const [twoFactorPassword, setTwoFactorPassword] = useState('')
+  const [twoFactorChallenge, setTwoFactorChallenge] = useState('')
+  const [twoFactorOtp, setTwoFactorOtp] = useState('')
   const userId = authUser?.userId ?? null
 
   useEffect(() => {
@@ -41,22 +45,52 @@ export default function AccountSettings() {
     }
   }, [])
 
-  const toggleTwoFactor = async () => {
-    if (!user || !userId) return
+  const startTwoFactorChange = () => {
+    if (!user) return
+    setError('')
+    setNotice('')
+    setTwoFactorTarget(!user.twoFactorEnabled)
+    setTwoFactorPassword('')
+    setTwoFactorChallenge('')
+    setTwoFactorOtp('')
+  }
+
+  const cancelTwoFactorChange = () => {
+    setTwoFactorTarget(null)
+    setTwoFactorPassword('')
+    setTwoFactorChallenge('')
+    setTwoFactorOtp('')
+  }
+
+  const requestTwoFactorCode = async () => {
+    if (twoFactorTarget === null || !twoFactorPassword) return
     setSaving(true)
     setError('')
     setNotice('')
-
     try {
-      const updated = await userApi.toggleTwoFactor(userId, {
-        enabled: !user.twoFactorEnabled,
-      })
-      setUser(updated)
-      setNotice(
-        updated.twoFactorEnabled
-          ? 'Two-factor authentication enabled'
-          : 'Two-factor authentication disabled',
+      const challenge = await authApi.beginTwoFactorSettingsChange(
+        twoFactorPassword,
+        twoFactorTarget,
       )
+      setTwoFactorChallenge(challenge.challengeToken)
+      setTwoFactorPassword('')
+      setNotice('Verification code sent to your email.')
+    } catch (toggleError) {
+      setError(apiErrorMessage(toggleError, 'Unable to start two-factor authentication change'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const completeTwoFactorChange = async () => {
+    if (!twoFactorChallenge || twoFactorOtp.length !== 6) return
+    setSaving(true)
+    setError('')
+    setNotice('')
+    try {
+      await authApi.completeTwoFactorSettingsChange(twoFactorChallenge, twoFactorOtp)
+      dispatch(sessionCleared())
+      navigate('/login', { replace: true, state: { securityUpdated: true } })
     } catch (toggleError) {
       setError(apiErrorMessage(toggleError, 'Unable to update two-factor authentication'))
     } finally {
@@ -163,8 +197,8 @@ export default function AccountSettings() {
               <button
                 type="button"
                 className={`switch shrink-0 ${user?.twoFactorEnabled ? 'is-on' : ''}`}
-                onClick={() => void toggleTwoFactor()}
-                disabled={saving || loading || !user}
+                onClick={startTwoFactorChange}
+                disabled={saving || loading || !user || twoFactorTarget !== null}
                 aria-label={
                   user?.twoFactorEnabled
                     ? 'Disable two-factor authentication'
@@ -175,6 +209,82 @@ export default function AccountSettings() {
                 <span />
               </button>
             </div>
+
+            {twoFactorTarget !== null && (
+              <div className="mt-5 border-t border-slate-100 pt-5">
+                <p className="text-sm font-semibold text-slate-800">
+                  {twoFactorTarget ? 'Enable' : 'Disable'} two-factor authentication
+                </p>
+                {!twoFactorChallenge ? (
+                  <div className="mt-3 space-y-3">
+                    <p className="text-xs leading-5 text-slate-500">
+                      Confirm your current password. We will then email a one-time verification code.
+                    </p>
+                    <input
+                      type="password"
+                      className="form-input"
+                      autoComplete="current-password"
+                      placeholder="Current password"
+                      value={twoFactorPassword}
+                      onChange={(event) => setTwoFactorPassword(event.target.value)}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="primary-button"
+                        disabled={saving || !twoFactorPassword}
+                        onClick={() => void requestTwoFactorCode()}
+                      >
+                        {saving ? 'Sending…' : 'Send verification code'}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={saving}
+                        onClick={cancelTwoFactorChange}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <p className="text-xs leading-5 text-slate-500">
+                      Enter the 6-digit code sent to your email. Completing this change signs out all sessions.
+                    </p>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      className="form-input text-center tracking-[0.35em]"
+                      maxLength={6}
+                      value={twoFactorOtp}
+                      onChange={(event) =>
+                        setTwoFactorOtp(event.target.value.replace(/\D/g, '').slice(0, 6))
+                      }
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="primary-button"
+                        disabled={saving || twoFactorOtp.length !== 6}
+                        onClick={() => void completeTwoFactorChange()}
+                      >
+                        {saving ? 'Verifying…' : 'Confirm security change'}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={saving}
+                        onClick={cancelTwoFactorChange}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <button

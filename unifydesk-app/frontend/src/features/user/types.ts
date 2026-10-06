@@ -28,10 +28,6 @@ export type ResetPasswordPayload = {
   password: string
 }
 
-export type ToggleTwoFactorPayload = {
-  enabled: boolean
-}
-
 export type UpdateOwnProfilePayload = {
   name: string
   username: string

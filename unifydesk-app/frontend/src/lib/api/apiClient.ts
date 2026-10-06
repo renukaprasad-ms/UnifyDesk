@@ -66,7 +66,12 @@ apiClient.interceptors.request.use(async (config) => {
 })
 
 const refreshSession = async () => {
-  const response = await sessionClient.post<ApiResponse<AuthUser>>('/api/auth/refresh')
+  const csrfToken = await ensureCsrfToken()
+  const response = await sessionClient.post<ApiResponse<AuthUser>>(
+    '/api/auth/refresh',
+    undefined,
+    { headers: { 'X-XSRF-TOKEN': csrfToken } },
+  )
   const user = response.data.data
   if (!user) throw new Error('Refresh response did not include a user')
   store.dispatch(setAuthUser(user))
