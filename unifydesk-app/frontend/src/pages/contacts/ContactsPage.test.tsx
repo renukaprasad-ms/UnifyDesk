@@ -103,6 +103,33 @@ describe('ContactsPage Round-2 remediation', () => {
     expect(request.fields).not.toContain('primaryPhone')
   })
 
+  it('renders the marketing preference summary returned by the Contacts API', () => {
+    vi.mocked(useContacts).mockReturnValue({
+      ...contactsState,
+      items: [
+        {
+          id: 'contact-1',
+          displayName: 'Alice',
+          primaryEmail: 'alice@example.com',
+          primaryPhone: '+919876543210',
+          organization: 'Acme',
+          preferenceSummary: {
+            EMAIL: 'OPTED_IN',
+            SMS: 'OPTED_OUT',
+            WHATSAPP: 'UNKNOWN',
+          },
+          updatedAt: '2026-10-06T10:00:00Z',
+        },
+      ],
+    })
+
+    renderPage()
+
+    expect(screen.getByText(/EMAIL: OPTED_IN/i)).toBeInTheDocument()
+    expect(screen.getByText(/SMS: OPTED_OUT/i)).toBeInTheDocument()
+    expect(screen.getByText(/WA: UNKNOWN/i)).toBeInTheDocument()
+  })
+
   it('does not offer DELETED while preserving supported Contact statuses', () => {
     renderPage()
 
