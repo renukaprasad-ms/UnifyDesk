@@ -9,13 +9,18 @@ export type CompanyThemeSettings = {
 }
 
 type CompanyThemePalette = {
-  id: CompanyThemeColorId
-  name: string
   primary: string
   primaryHover: string
   soft: string
   softer: string
   ring: string
+}
+
+type CompanyThemePaletteOption = {
+  id: CompanyThemeColorId
+  name: string
+  light: CompanyThemePalette
+  dark: CompanyThemePalette
 }
 
 const STORAGE_PREFIX = 'unifydesk.companyTheme'
@@ -25,60 +30,114 @@ export const DEFAULT_COMPANY_THEME: CompanyThemeSettings = {
   mode: 'light',
 }
 
-export const COMPANY_THEME_PALETTES: CompanyThemePalette[] = [
+export const COMPANY_THEME_PALETTES: CompanyThemePaletteOption[] = [
   {
     id: 'blue',
     name: 'Unify Blue',
-    primary: '#2563eb',
-    primaryHover: '#1d4ed8',
-    soft: '#dbeafe',
-    softer: '#eff6ff',
-    ring: '#93c5fd',
+    light: {
+      primary: '#2563eb',
+      primaryHover: '#1d4ed8',
+      soft: '#dbeafe',
+      softer: '#eff6ff',
+      ring: '#93c5fd',
+    },
+    dark: {
+      primary: '#60a5fa',
+      primaryHover: '#93c5fd',
+      soft: '#1e3a5f',
+      softer: '#10243c',
+      ring: '#3b82f6',
+    },
   },
   {
     id: 'orange',
     name: 'Growth Orange',
-    primary: '#ea580c',
-    primaryHover: '#c2410c',
-    soft: '#ffedd5',
-    softer: '#fff7ed',
-    ring: '#fdba74',
+    light: {
+      primary: '#ea580c',
+      primaryHover: '#c2410c',
+      soft: '#ffedd5',
+      softer: '#fff7ed',
+      ring: '#fdba74',
+    },
+    dark: {
+      primary: '#fb923c',
+      primaryHover: '#fdba74',
+      soft: '#5b2a12',
+      softer: '#2f1b10',
+      ring: '#f97316',
+    },
   },
   {
     id: 'emerald',
     name: 'Trust Green',
-    primary: '#059669',
-    primaryHover: '#047857',
-    soft: '#d1fae5',
-    softer: '#ecfdf5',
-    ring: '#6ee7b7',
+    light: {
+      primary: '#059669',
+      primaryHover: '#047857',
+      soft: '#d1fae5',
+      softer: '#ecfdf5',
+      ring: '#6ee7b7',
+    },
+    dark: {
+      primary: '#34d399',
+      primaryHover: '#6ee7b7',
+      soft: '#164e3b',
+      softer: '#102920',
+      ring: '#10b981',
+    },
   },
   {
     id: 'rose',
     name: 'Signal Rose',
-    primary: '#e11d48',
-    primaryHover: '#be123c',
-    soft: '#ffe4e6',
-    softer: '#fff1f2',
-    ring: '#fda4af',
+    light: {
+      primary: '#e11d48',
+      primaryHover: '#be123c',
+      soft: '#ffe4e6',
+      softer: '#fff1f2',
+      ring: '#fda4af',
+    },
+    dark: {
+      primary: '#fb7185',
+      primaryHover: '#fda4af',
+      soft: '#5a1f2d',
+      softer: '#34131d',
+      ring: '#f43f5e',
+    },
   },
   {
     id: 'violet',
     name: 'Product Violet',
-    primary: '#7c3aed',
-    primaryHover: '#6d28d9',
-    soft: '#ede9fe',
-    softer: '#f5f3ff',
-    ring: '#c4b5fd',
+    light: {
+      primary: '#7c3aed',
+      primaryHover: '#6d28d9',
+      soft: '#ede9fe',
+      softer: '#f5f3ff',
+      ring: '#c4b5fd',
+    },
+    dark: {
+      primary: '#a78bfa',
+      primaryHover: '#c4b5fd',
+      soft: '#3b2467',
+      softer: '#221735',
+      ring: '#8b5cf6',
+    },
   },
   {
     id: 'slate',
     name: 'Executive Slate',
-    primary: '#334155',
-    primaryHover: '#1e293b',
-    soft: '#e2e8f0',
-    softer: '#f8fafc',
-    ring: '#94a3b8',
+    light: {
+      primary: '#334155',
+      primaryHover: '#1e293b',
+      soft: '#e2e8f0',
+      softer: '#f8fafc',
+      ring: '#94a3b8',
+    },
+    dark: {
+      primary: '#cbd5e1',
+      primaryHover: '#f1f5f9',
+      soft: '#334155',
+      softer: '#1f2937',
+      ring: '#64748b',
+    },
   },
 ]
 
@@ -94,6 +153,11 @@ const isCompanyThemeMode = (value: unknown): value is CompanyThemeMode =>
 
 const isCompanyThemeColorId = (value: unknown): value is CompanyThemeColorId =>
   typeof value === 'string' && companyThemePaletteById.has(value as CompanyThemeColorId)
+
+export const themePaletteForMode = (
+  option: CompanyThemePaletteOption,
+  mode: CompanyThemeMode,
+): CompanyThemePalette => option[mode]
 
 export const readCompanyTheme = (companyId?: string | null): CompanyThemeSettings => {
   if (typeof window === 'undefined') return DEFAULT_COMPANY_THEME
@@ -128,27 +192,20 @@ export const writeCompanyTheme = (
 export const applyCompanyTheme = (settings: CompanyThemeSettings) => {
   if (typeof document === 'undefined') return
 
-  const palette =
+  const option =
     companyThemePaletteById.get(settings.colorId) ?? companyThemePaletteById.get('blue')!
+  const palette = themePaletteForMode(option, settings.mode)
   const root = document.documentElement
 
   root.dataset.colorScheme = settings.mode
   root.style.colorScheme = settings.mode
-  const primarySoft =
-    settings.mode === 'dark' ? `color-mix(in srgb, ${palette.primary} 28%, #111827)` : palette.soft
-  const primarySofter =
-    settings.mode === 'dark'
-      ? `color-mix(in srgb, ${palette.primary} 16%, #111827)`
-      : palette.softer
-  const primaryRing =
-    settings.mode === 'dark' ? `color-mix(in srgb, ${palette.primary} 58%, #263449)` : palette.ring
   root.style.setProperty('--color-indigo-500', palette.primary)
-  root.style.setProperty('--color-indigo-50', primarySofter)
+  root.style.setProperty('--color-indigo-50', palette.softer)
   root.style.setProperty('--theme-primary', palette.primary)
   root.style.setProperty('--theme-primary-hover', palette.primaryHover)
-  root.style.setProperty('--theme-primary-soft', primarySoft)
-  root.style.setProperty('--theme-primary-softer', primarySofter)
-  root.style.setProperty('--theme-primary-ring', primaryRing)
+  root.style.setProperty('--theme-primary-soft', palette.soft)
+  root.style.setProperty('--theme-primary-softer', palette.softer)
+  root.style.setProperty('--theme-primary-ring', palette.ring)
 }
 
 export const useCompanyTheme = (companyId?: string | null) => {

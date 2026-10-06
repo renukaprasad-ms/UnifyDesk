@@ -59,10 +59,7 @@ export default function ConversationList({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (
-          entries.some((entry) => entry.isIntersecting) &&
-          !loadRequestedRef.current
-        ) {
+        if (entries.some((entry) => entry.isIntersecting) && !loadRequestedRef.current) {
           loadRequestedRef.current = true
           onLoadMore()
         }
@@ -96,9 +93,7 @@ export default function ConversationList({
       <div className="px-4 py-10 text-center">
         <FiMail className="mx-auto text-2xl text-slate-300" aria-hidden="true" />
         <p className="mt-3 text-xs font-semibold text-slate-700">No conversations yet</p>
-        <p className="mt-1 text-[11px] leading-5 text-slate-500">
-          Synced emails will appear here.
-        </p>
+        <p className="mt-1 text-[11px] leading-5 text-slate-500">Synced emails will appear here.</p>
       </div>
     )
   }
@@ -126,9 +121,9 @@ export default function ConversationList({
             key={conversation.id}
             type="button"
             onClick={() => onSelect(conversation)}
-            className={`group w-full border-b border-slate-100 text-left transition ${
+            className={`conversation-list-item group w-full border-b text-left transition ${
               compact ? 'px-3 py-3' : 'px-4 py-4'
-            } ${active ? 'bg-indigo-50' : 'bg-transparent hover:bg-slate-50'}`}
+            } ${active ? 'is-active' : ''}`}
           >
             <div className="flex items-start justify-between gap-2">
               <p
