@@ -1,9 +1,13 @@
 package com.messaging.company.controller;
 
+import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.dto.CompanyResponse;
 import com.messaging.company.dto.CompanyUserResponse;
 import com.messaging.company.dto.CreateCompanyRequest;
+import com.messaging.company.dto.TransferCompanyOwnershipRequest;
+import com.messaging.company.dto.UpdateCompanyMemberRoleRequest;
+import com.messaging.company.dto.UpdateCompanyMemberStatusRequest;
 import com.messaging.company.dto.UpdateCompanyRequest;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
@@ -14,14 +18,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/companies")
@@ -78,7 +75,8 @@ public class CompanyController {
     companyAuthorizationService.requirePermission(
         userId, companyId, CompanyPermissionKeys.COMPANY_DELETE);
     companyService.delete(companyId, userId);
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Company deleted"));
+    return ResponseEntity.ok(
+        ApiResponse.success(HttpStatus.OK.value(), "Company deletion scheduled"));
   }
 
   @GetMapping("/{companyId}/users")
@@ -91,5 +89,67 @@ public class CompanyController {
             HttpStatus.OK.value(),
             companyService.companyUsers(companyId),
             "Company users fetched"));
+  }
+
+  @PatchMapping("/{companyId}/members/{userId}/role")
+  public ResponseEntity<ApiResponse<CompanyUserResponse>> updateMemberRole(
+      @PathVariable Long companyId,
+      @PathVariable Long userId,
+      @Valid @RequestBody UpdateCompanyMemberRoleRequest request) {
+    companyAuthorizationService.requirePermission(
+        currentUserService.currentUserId(), companyId, CompanyPermissionKeys.USER_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            companyService.updateMemberRole(companyId, userId, request.role()),
+            "Member role updated"));
+  }
+
+  @PatchMapping("/{companyId}/members/{userId}/status")
+  public ResponseEntity<ApiResponse<CompanyUserResponse>> updateMemberStatus(
+      @PathVariable Long companyId,
+      @PathVariable Long userId,
+      @Valid @RequestBody UpdateCompanyMemberStatusRequest request) {
+    companyAuthorizationService.requirePermission(
+        currentUserService.currentUserId(), companyId, CompanyPermissionKeys.USER_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            companyService.updateMemberStatus(companyId, userId, request.status()),
+            "Member status updated"));
+  }
+
+  @DeleteMapping("/{companyId}/members/{userId}")
+  public ResponseEntity<ApiResponse<Void>> removeMember(
+      @PathVariable Long companyId, @PathVariable Long userId) {
+    companyAuthorizationService.requirePermission(
+        currentUserService.currentUserId(), companyId, CompanyPermissionKeys.USER_REMOVE);
+    companyService.removeMember(companyId, userId);
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Member removed"));
+  }
+
+  @PostMapping("/{companyId}/members/me/leave")
+  public ResponseEntity<ApiResponse<Void>> leave(@PathVariable Long companyId) {
+    Long userId = currentUserService.currentUserId();
+    companyAuthorizationService.requireActiveMembership(userId, companyId);
+    companyService.leave(companyId, userId);
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Company left"));
+  }
+
+  @PostMapping("/{companyId}/ownership-transfer")
+  public ResponseEntity<ApiResponse<Void>> transferOwnership(
+      @PathVariable Long companyId,
+      @Valid @RequestBody TransferCompanyOwnershipRequest request) {
+    Long actorId = currentUserService.currentUserId();
+    companyAuthorizationService.requirePermission(
+        actorId, companyId, CompanyPermissionKeys.COMPANY_TRANSFER_OWNERSHIP);
+    long targetUserId;
+    try {
+      targetUserId = Long.parseLong(request.targetUserId());
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("Invalid target user id");
+    }
+    companyService.transferOwnership(companyId, actorId, targetUserId);
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Ownership transferred"));
   }
 }
