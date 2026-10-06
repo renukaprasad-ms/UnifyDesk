@@ -2,8 +2,11 @@ package com.messaging.contacts.processing;
 
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.contacts.consent.ConsentTypes.PreferenceSource;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceState;
 import com.messaging.contacts.processing.ContactImportMutationPort.ConsentColumnMapping;
+import com.messaging.contacts.processing.ContactImportMutationPort.ConsentDeclaration;
 import com.messaging.contacts.processing.ContactImportMutationPort.ImportMapping;
+import com.messaging.contacts.processing.ContactProcessingApiModel.ConsentImportDeclaration;
 import com.messaging.contacts.processing.ContactProcessingApiModel.ConsentImportMapping;
 import com.messaging.contacts.processing.ContactProcessingApiModel.ImportFieldMapping;
 import com.messaging.contacts.processing.ContactProcessingApiModel.ImportFieldTarget;
@@ -21,7 +24,8 @@ public class ContactImportMappingMapper {
   public ImportMapping toDomain(
       List<String> headers,
       List<ImportFieldMapping> mappings,
-      List<ConsentImportMapping> consentMappings) {
+      List<ConsentImportMapping> consentMappings,
+      List<ConsentImportDeclaration> consentDeclarations) {
     Map<String, Integer> columns = columnIndexes(headers);
     List<ImportFieldMapping> safeMappings = mappings == null ? List.of() : mappings;
     if (safeMappings.size() > headers.size()) throw invalid();
@@ -108,6 +112,31 @@ public class ContactImportMappingMapper {
               optionalColumn(columns, mapping.occurredAtColumn())));
     }
 
+    List<ConsentDeclaration> declarations = new ArrayList<>();
+    List<ConsentImportDeclaration> safeDeclarations =
+        consentDeclarations == null ? List.of() : consentDeclarations;
+    if (safeDeclarations.size() > 3) throw invalid();
+    for (ConsentImportDeclaration declaration : safeDeclarations) {
+      if (declaration == null
+          || declaration.channel() == null
+          || declaration.state() != PreferenceState.OPTED_IN
+          || declaration.source() != PreferenceSource.IMPORT
+          || !declaration.confirmed()
+          || declaration.evidence() == null
+          || declaration.evidence().isBlank()
+          || declaration.evidence().length() > 255
+          || !consentChannels.add(declaration.channel().name())) {
+        throw invalid();
+      }
+      declarations.add(
+          new ConsentDeclaration(
+              declaration.channel(),
+              declaration.state(),
+              declaration.source(),
+              declaration.evidence().trim(),
+              declaration.occurredAt() == null ? java.time.Instant.now() : declaration.occurredAt()));
+    }
+
     return new ImportMapping(
         displayName,
         firstName,
@@ -119,6 +148,7 @@ public class ContactImportMappingMapper {
         tagNames,
         Map.copyOf(customFields),
         List.copyOf(consent),
+        List.copyOf(declarations),
         null);
   }
 
