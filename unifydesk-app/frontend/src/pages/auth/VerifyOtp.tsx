@@ -29,12 +29,12 @@ const VerifyOtp = () => {
 
   useEffect(() => {
     if (resendCooldown <= 0) return
-    const timer = window.setInterval(
+    const timer = window.setTimeout(
       () => setResendCooldown((current) => Math.max(0, current - 1)),
       1000,
     )
-    return () => window.clearInterval(timer)
-  }, [resendCooldown > 0])
+    return () => window.clearTimeout(timer)
+  }, [resendCooldown])
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
