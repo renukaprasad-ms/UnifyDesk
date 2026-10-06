@@ -61,7 +61,7 @@ export default function SegmentsPage() {
             <p className="eyebrow">Audience</p>
             <h1 className="mt-2 text-3xl font-bold text-slate-950">Segments</h1>
             <p className="mt-2 text-sm text-slate-500">
-              Dynamic audiences evaluated by the backend from the frozen filter AST.
+              Build reusable audiences that stay up to date as your Contacts change.
             </p>
           </div>
           {can(PERMISSIONS.CONTACT_MODIFY) && (
@@ -105,13 +105,17 @@ export default function SegmentsPage() {
                     </p>
                   </div>
                   <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
-                    {item.countState || 'PENDING'}
+                    {item.count == null ? 'Count not ready' : 'Ready'}
                   </span>
                 </div>
                 <p className="mt-4 text-2xl font-bold text-slate-950">
                   {item.count == null ? '—' : item.count.toLocaleString()}
                 </p>
-                <p className="text-xs text-slate-500">matching Contacts</p>
+                <p className="text-xs text-slate-500">
+                  {item.count == null
+                    ? 'Open this Segment to calculate the audience size'
+                    : `${item.count === 1 ? 'matching Contact' : 'matching Contacts'}`}
+                </p>
               </Link>
             ))}
           </div>
