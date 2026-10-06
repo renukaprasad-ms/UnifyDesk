@@ -105,3 +105,54 @@ html{width:100%;min-width:320px;overflow-x:hidden}body{width:100%;min-width:320p
 @media(max-width:1020px){.desktopNav{display:none}.navCta{display:none}.menu{display:grid;place-items:center}.marketingNav .mobileNav{display:flex;position:absolute;top:67px;left:0;right:0;flex-direction:column;gap:5px;padding:14px;background:#fff;border:1px solid var(--m-line);border-radius:14px;box-shadow:0 20px 50px #17365e1c}.mobileNav a{padding:11px 12px}.mobileNav a.active{color:var(--m-brand);background:#f4f5ff;border-radius:8px}.workspaceShell{grid-template-columns:220px 1fr}.workspaceSidebar{padding-left:12px;padding-right:12px}.workspaceSwitcher,.workspaceNavItem,.workspaceLogout{width:auto}.connectedSection,.featureShowcase,.trustSection,.splitRouteSection{grid-template-columns:1fr;gap:42px}.capabilityGrid,.routeCardGrid.three,.routeCardGrid.four{grid-template-columns:repeat(2,1fr)}.howGrid,.teamGrid{grid-template-columns:repeat(2,1fr)}.growthHeading{grid-template-columns:1fr;gap:10px}.journeyFlow{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:720px){.marketingNav{width:calc(100% - 28px)}.launchPill{display:none}.marketingHero{padding:68px 16px 45px}.marketingHero h1{font-size:44px}.heroLead{font-size:16px}.heroActions{flex-direction:column;align-items:stretch}.workspacePreview{border-radius:16px}.workspaceShell{grid-template-columns:86px 1fr;height:500px}.workspaceSidebar{padding:14px 8px}.workspaceSwitcher{grid-template-columns:36px;padding:6px}.workspaceSwitcher>div:nth-child(2),.workspaceSwitcher>svg,.sidebarLabel,.workspaceNavItem span,.workspaceChevron,.workspaceLogout{display:none}.workspaceNavItem{justify-content:center;padding:8px}.workspaceMain{min-width:0}.workspaceHeader{height:60px;padding:0 14px}.workspaceUser>div:last-child{display:none}.workspaceRoute{padding:14px}.welcomePanel{padding:18px}.welcomePanel h3{font-size:20px}.workspaceStats{grid-template-columns:1fr}.workspaceStats>div:nth-child(n+2){display:none}.integrationStrip{padding-bottom:45px}.connectedSection,.capabilitySection,.featureShowcase,.growthSection,.howSection,.teamSection,.pricingPreview,.trustSection,.routeSection,.splitRouteSection,.journeySection{padding:72px 20px}.capabilityGrid,.growthCards,.howGrid,.teamGrid,.pricePreviewGrid,.routeCardGrid.three,.routeCardGrid.four,.pricingRouteGrid{grid-template-columns:1fr}.growthHeading{display:block}.inboxColumns{grid-template-columns:1fr}.threadList{display:none}.adStats,.stepRow{grid-template-columns:1fr}.trustGrid{grid-template-columns:1fr}.marketingFooter .footer{grid-template-columns:1fr 1fr}.marketingFooter .copyright{flex-direction:column;gap:8px}.routeHero{padding:72px 18px}.routeHero h1{font-size:44px}.routeHero>p{font-size:16px}.journeyFlow{grid-template-columns:1fr 1fr}.providerRouteGrid>div{width:100%}.integrationGroupHead{flex-direction:column}.finalCta{margin-bottom:65px;padding:58px 18px}}
 @media(max-width:480px){.marketingFooter .footer{grid-template-columns:1fr}.journeyFlow{grid-template-columns:1fr}.sectionTitle{font-size:35px}.connectedCopy h2,.featureCopy h2,.growthHeading h2{font-size:35px}}
+
+/* Marketing R1 visual corrections: wordmark + dark hero */
+.marketingNav .brand>span,
+.marketingFooter .brand>span{
+  display:inline!important;
+  width:auto!important;
+  height:auto!important;
+  place-items:initial!important;
+  border-radius:0!important;
+  background:transparent!important;
+  color:inherit!important;
+  font-size:inherit!important;
+}
+.marketingHero{
+  background:#070d19;
+  color:#fff;
+}
+.heroGlow{
+  top:-240px;
+  width:1100px;
+  height:760px;
+  background:radial-gradient(circle,#293875 0,#152244 34%,transparent 70%);
+  opacity:.72;
+}
+.marketingHero h1{color:#fff}
+.marketingHero h1 em{color:#9da8ff}
+.marketingHero .heroLead{color:#aab9cf}
+.marketingHero .statusBadge{
+  border-color:#2a3b61;
+  background:#111d36;
+  color:#dce8ff;
+}
+.marketingHero .statusBadge>span{
+  background:#7aa7ff;
+  box-shadow:0 0 0 4px #1c3154;
+}
+.marketingHero .outlineButton{
+  border-color:#3a4b69;
+  background:#10192b;
+  color:#eef4ff;
+}
+.marketingHero .outlineButton:hover{
+  border-color:#637aa0;
+  background:#17243b;
+}
+.marketingHero .workspacePreview{
+  box-shadow:0 36px 100px #0008,0 0 0 1px #ffffff0d;
+}
+@media(max-width:720px){
+  .marketingHero{padding-top:68px}
+}
