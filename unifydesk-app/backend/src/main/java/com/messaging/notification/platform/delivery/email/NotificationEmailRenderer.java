@@ -20,7 +20,7 @@ public class NotificationEmailRenderer {
     String escapedUser = HtmlUtils.htmlEscape(safeUser);
     String escapedWorkspace = HtmlUtils.htmlEscape(safeWorkspace);
     String workspaceUrl = trustedUrl("/workspace");
-    String subject = subject("Welcome to UnifyDesk — " + safeWorkspace + " is ready");
+    String subject = subject("Welcome to UnifyDesk - " + safeWorkspace + " is ready");
     String text =
         "Hi "
             + safeUser
@@ -28,7 +28,7 @@ public class NotificationEmailRenderer {
             + safeWorkspace
             + " is ready.\nOpen UnifyDesk: "
             + workspaceUrl
-            + "\n\n— UnifyDesk";
+            + "\n\n- UnifyDesk";
     String html =
         "<p>Hi "
             + escapedUser
@@ -36,7 +36,7 @@ public class NotificationEmailRenderer {
             + escapedWorkspace
             + "</strong> is ready.</p><p><a href=\""
             + HtmlUtils.htmlEscape(workspaceUrl)
-            + "\">Open UnifyDesk</a></p><p>— UnifyDesk</p>";
+            + "\">Open UnifyDesk</a></p><p>- UnifyDesk</p>";
     return new RenderedEmail(subject, text, html);
   }
 

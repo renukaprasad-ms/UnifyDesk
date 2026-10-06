@@ -28,9 +28,10 @@ export default function AccountSettings() {
 
   useEffect(() => {
     let active = true
-    userApi
-      .me()
-      .then((response) => {
+    Promise.all([userApi.me(), userApi.preferences().catch(() => null)])
+      .then(([response, preferences]) => {
+        if (!active) return
+        if (preferences) dispatch(setAppearanceMode(preferences.appearanceMode))
         if (active) setUser(response)
       })
       .catch((loadError) => {
@@ -43,7 +44,7 @@ export default function AccountSettings() {
     return () => {
       active = false
     }
-  }, [])
+  }, [dispatch])
 
   const startTwoFactorChange = () => {
     if (!user) return
@@ -103,11 +104,15 @@ export default function AccountSettings() {
     setSaving(true)
     setError('')
     setNotice('')
+    dispatch(setAppearanceMode(appearanceMode))
     try {
-      await userApi.updatePreferences(appearanceMode)
-      dispatch(setAppearanceMode(appearanceMode))
-      setNotice(`Appearance changed to ${appearanceMode === 'DARK' ? 'Dark' : 'Light'} mode.`)
+      const preferences = await userApi.updatePreferences(appearanceMode)
+      dispatch(setAppearanceMode(preferences.appearanceMode))
+      setNotice(
+        `Appearance changed to ${preferences.appearanceMode === 'DARK' ? 'Dark' : 'Light'} mode.`,
+      )
     } catch (appearanceError) {
+      dispatch(setAppearanceMode(authUser?.appearanceMode ?? 'LIGHT'))
       setError(apiErrorMessage(appearanceError, 'Unable to update appearance'))
     } finally {
       setSaving(false)
