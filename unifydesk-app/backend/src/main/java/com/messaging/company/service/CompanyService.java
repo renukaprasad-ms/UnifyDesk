@@ -146,6 +146,14 @@ public class CompanyService {
     company.setLogoMediaId(nextLogoMediaId);
     company = companyRepository.saveAndFlush(company);
 
+    if (request.brandColor() != null && !request.brandColor().isBlank()) {
+      CompanyPreference preference =
+          preferenceRepository.findById(companyId).orElseGet(CompanyPreference::new);
+      preference.setCompanyId(companyId);
+      preference.setBrandColor(normalizeBrandColor(request.brandColor()));
+      preferenceRepository.saveAndFlush(preference);
+    }
+
     if (nextLogoMediaId != null && !Objects.equals(previousLogoMediaId, nextLogoMediaId)) {
       mediaService.assignCompanyMedia(nextLogoMediaId, company.getId(), userId);
     }
