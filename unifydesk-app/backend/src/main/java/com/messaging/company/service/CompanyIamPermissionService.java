@@ -33,32 +33,30 @@ public class CompanyIamPermissionService {
 
   @Transactional(readOnly = true)
   public boolean hasPermission(Long userId, Long companyId, String permissionKey) {
-    if (hasPlatformWorkspaceAccess(userId, companyId)) {
-      return permissionDefinitionRepository.existsById(permissionKey);
-    }
     CompanyMember member = activeMember(userId, companyId);
-    if (member == null) {
-      return false;
+    if (member != null) {
+      if (member.getRole() == CompanyRole.OWNER) {
+        return permissionDefinitionRepository.existsById(permissionKey);
+      }
+      return effectivePermissions(member, companyId, userId).contains(permissionKey);
     }
-    if (member.getRole() == CompanyRole.OWNER) {
-      return permissionDefinitionRepository.existsById(permissionKey);
-    }
-    return effectivePermissions(member, companyId, userId).contains(permissionKey);
+    return hasPlatformWorkspaceAccess(userId, companyId)
+        && platformPermissions(userId).contains(permissionKey);
   }
 
   @Transactional(readOnly = true)
   public Set<String> effectivePermissions(Long userId, Long companyId) {
-    if (hasPlatformWorkspaceAccess(userId, companyId)) {
-      return allPermissions();
-    }
     CompanyMember member = activeMember(userId, companyId);
-    if (member == null) {
-      return Set.of();
+    if (member != null) {
+      if (member.getRole() == CompanyRole.OWNER) {
+        return allPermissions();
+      }
+      return Set.copyOf(effectivePermissions(member, companyId, userId));
     }
-    if (member.getRole() == CompanyRole.OWNER) {
-      return allPermissions();
+    if (hasPlatformWorkspaceAccess(userId, companyId)) {
+      return platformPermissions(userId);
     }
-    return Set.copyOf(effectivePermissions(member, companyId, userId));
+    return Set.of();
   }
 
   @Transactional(readOnly = true)
@@ -69,11 +67,9 @@ public class CompanyIamPermissionService {
 
   @Transactional(readOnly = true)
   public boolean canDelegate(Long userId, Long companyId, Set<String> permissionKeys) {
-    if (hasPlatformWorkspaceAccess(userId, companyId)) {
-      return permissionDefinitionRepository.findAllById(permissionKeys).size()
-          == permissionKeys.size();
-    }
-    if (isOwner(userId, companyId)) {
+    CompanyMember member = activeMember(userId, companyId);
+    if (member == null) return false;
+    if (member.getRole() == CompanyRole.OWNER) {
       return permissionDefinitionRepository.findAllById(permissionKeys).size()
           == permissionKeys.size();
     }
@@ -90,9 +86,7 @@ public class CompanyIamPermissionService {
     Set<String> permissions = new HashSet<>(CompanyPermissionKeys.defaultsFor(member.getRole()));
     List<CompanyMemberRoleAssignment> assignments =
         assignmentRepository.findActive(companyId, userId, Instant.now());
-    if (assignments.isEmpty()) {
-      return permissions;
-    }
+    if (assignments.isEmpty()) return permissions;
 
     Set<Long> roleIds = new HashSet<>();
     assignments.forEach(assignment -> roleIds.add(assignment.getRole().getId()));
@@ -106,6 +100,39 @@ public class CompanyIamPermissionService {
     TreeSet<String> all = new TreeSet<>();
     permissionDefinitionRepository.findAll().forEach(permission -> all.add(permission.getKey()));
     return Set.copyOf(all);
+  }
+
+  private Set<String> platformPermissions(Long userId) {
+    Set<PlatformPermission> platform = platformAdminAuthorizationService.permissions(userId);
+    Set<String> permissions = new HashSet<>();
+    if (platform.contains(PlatformPermission.COMPANY_VIEW)) {
+      permissions.add(CompanyPermissionKeys.COMPANY_READ);
+      permissions.add(CompanyPermissionKeys.USER_READ);
+      permissions.add(CompanyPermissionKeys.ROLE_READ);
+      permissions.add(CompanyPermissionKeys.SETTINGS_READ);
+      permissions.add(CompanyPermissionKeys.MEDIA_READ);
+    }
+    if (platform.contains(PlatformPermission.COMPANY_UPDATE)) {
+      permissions.add(CompanyPermissionKeys.COMPANY_MODIFY);
+      permissions.add(CompanyPermissionKeys.SETTINGS_MODIFY);
+    }
+    if (platform.contains(PlatformPermission.BILLING_VIEW)) {
+      permissions.add(CompanyPermissionKeys.BILLING_READ);
+      permissions.add(CompanyPermissionKeys.BILLING_BALANCE_READ);
+      permissions.add(CompanyPermissionKeys.BILLING_CARD_READ);
+      permissions.add(CompanyPermissionKeys.BILLING_INVOICE_READ);
+      permissions.add(CompanyPermissionKeys.BILLING_INVOICE_DOWNLOAD);
+      permissions.add(CompanyPermissionKeys.BILLING_SUBSCRIPTION_READ);
+    }
+    if (platform.contains(PlatformPermission.BILLING_ADJUST)) {
+      permissions.add(CompanyPermissionKeys.BILLING_BALANCE_ADD);
+      permissions.add(CompanyPermissionKeys.BILLING_CARD_ADD);
+      permissions.add(CompanyPermissionKeys.BILLING_CARD_MODIFY);
+      permissions.add(CompanyPermissionKeys.BILLING_CARD_DELETE);
+      permissions.add(CompanyPermissionKeys.BILLING_SUBSCRIPTION_MODIFY);
+      permissions.add(CompanyPermissionKeys.BILLING_SUBSCRIPTION_CANCEL);
+    }
+    return Set.copyOf(permissions);
   }
 
   private boolean hasPlatformWorkspaceAccess(Long userId, Long companyId) {

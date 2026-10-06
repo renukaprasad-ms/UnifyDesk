@@ -30,6 +30,41 @@ export const companyApi = {
     return unwrap(response.data)
   },
 
+  async delete(companyId: string) {
+    await apiClient.delete(`/api/v1/companies/${companyId}`)
+  },
+
+  async updateMemberRole(companyId: string, userId: string, role: 'MANAGER' | 'MEMBER') {
+    const response = await apiClient.patch<ApiResponse<CompanyUser>>(
+      `/api/v1/companies/${companyId}/members/${userId}/role`,
+      { role },
+    )
+    return unwrap(response.data)
+  },
+
+  async updateMemberStatus(companyId: string, userId: string, status: 'ACTIVE' | 'SUSPENDED') {
+    const response = await apiClient.patch<ApiResponse<CompanyUser>>(
+      `/api/v1/companies/${companyId}/members/${userId}/status`,
+      { status },
+    )
+    return unwrap(response.data)
+  },
+
+  async removeMember(companyId: string, userId: string) {
+    await apiClient.delete(`/api/v1/companies/${companyId}/members/${userId}`)
+  },
+
+  async leave(companyId: string) {
+    await apiClient.post(`/api/v1/companies/${companyId}/members/me/leave`)
+  },
+
+  async transferOwnership(companyId: string, targetUserId: string, currentPassword: string) {
+    await apiClient.post(`/api/v1/companies/${companyId}/ownership-transfer`, {
+      targetUserId,
+      currentPassword,
+    })
+  },
+
   async users(companyId: string) {
     const response = await apiClient.get<ApiResponse<CompanyUser[]>>(
       `/api/v1/companies/${companyId}/users`,

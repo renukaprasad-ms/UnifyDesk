@@ -25,11 +25,14 @@ const authSlice = createSlice({
     setBootstrapped: (state) => {
       state.bootstrapped = true
     },
+    setAppearanceMode: (state, action: PayloadAction<'LIGHT' | 'DARK'>) => {
+      if (state.user) state.user.appearanceMode = action.payload
+    },
     sessionCleared: () => ({ ...initialState, bootstrapped: true }),
   },
 })
 
-export const { setAuthUser, setBootstrapped, sessionCleared } = authSlice.actions
+export const { setAuthUser, setBootstrapped, setAppearanceMode, sessionCleared } = authSlice.actions
 
 export const selectAuthUser = (state: RootState) => state.auth.user
 export const selectIsAuthenticated = (state: RootState) => state.auth.isAuthenticated

@@ -80,6 +80,7 @@ describe('public unsubscribe routing', () => {
         verified: true,
         hasCompanies: true,
         companyCount: 1,
+        appearanceMode: 'LIGHT',
       }),
     )
 

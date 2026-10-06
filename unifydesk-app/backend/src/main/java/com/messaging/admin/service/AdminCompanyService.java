@@ -9,6 +9,9 @@ import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.dto.CompanyResponse;
 import com.messaging.company.entity.Company;
 import com.messaging.company.repository.CompanyRepository;
+import com.messaging.company.repository.CompanyPreferenceRepository;
+import com.messaging.company.enums.CompanyStatus;
+import com.messaging.company.service.CompanyService;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.user.entity.User;
 import com.messaging.user.repository.UserRepository;
@@ -24,6 +27,7 @@ public class AdminCompanyService {
   private final PlatformAdminAuthorizationService adminAuthorizationService;
   private final AdminCompanyAssignmentRepository assignmentRepository;
   private final CompanyRepository companyRepository;
+  private final CompanyPreferenceRepository companyPreferenceRepository;
   private final UserRepository userRepository;
   private final CurrentUserService currentUserService;
 
@@ -32,10 +36,16 @@ public class AdminCompanyService {
     Long userId = currentUserService.currentUserId();
     adminAuthorizationService.requirePermission(userId, PlatformPermission.COMPANY_VIEW);
     if (adminAuthorizationService.isSuperAdmin(userId)) {
-      return companyRepository.findAll().stream().map(this::toCompanyResponse).toList();
+      return companyRepository.findAll().stream()
+          .filter(company -> company.getStatus() == CompanyStatus.ACTIVE
+              || company.getStatus() == CompanyStatus.SUSPENDED)
+          .map(this::toCompanyResponse)
+          .toList();
     }
     return assignmentRepository.findByAdminUserId(userId).stream()
         .map(AdminCompanyAssignment::getCompany)
+        .filter(company -> company.getStatus() == CompanyStatus.ACTIVE
+            || company.getStatus() == CompanyStatus.SUSPENDED)
         .map(this::toCompanyResponse)
         .toList();
   }
@@ -87,6 +97,10 @@ public class AdminCompanyService {
         company.getTimezone(),
         company.getLogoMediaId() == null ? null : company.getLogoMediaId().toString(),
         company.getStatus(),
-        null);
+        null,
+        companyPreferenceRepository
+            .findById(company.getId())
+            .map(preference -> preference.getBrandColor())
+            .orElse(CompanyService.DEFAULT_BRAND_COLOR));
   }
 }
