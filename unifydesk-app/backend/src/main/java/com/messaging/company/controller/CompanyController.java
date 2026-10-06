@@ -151,7 +151,8 @@ public class CompanyController {
     } catch (NumberFormatException exception) {
       throw new BadRequestException("Invalid target user id");
     }
-    companyService.transferOwnership(companyId, actorId, targetUserId);
+    companyService.transferOwnership(
+        companyId, actorId, targetUserId, request.currentPassword());
     return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Ownership transferred"));
   }
 }
