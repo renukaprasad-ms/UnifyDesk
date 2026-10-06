@@ -5,11 +5,13 @@ import ConnectivityBanner from './components/ui/ConnectivityBanner.tsx'
 
 const App = () => {
   return (
-    <AuthBootstrap>
+    <>
       <CompanyThemeProvider />
-      <AppRoutes />
-      <ConnectivityBanner />
-    </AuthBootstrap>
+      <AuthBootstrap>
+        <AppRoutes />
+        <ConnectivityBanner />
+      </AuthBootstrap>
+    </>
   )
 }
 

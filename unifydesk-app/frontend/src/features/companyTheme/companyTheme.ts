@@ -120,6 +120,9 @@ export const writeCompanyTheme = (
 ) => {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(storageKeyFor(companyId), JSON.stringify(settings))
+  if (companyId) {
+    window.localStorage.setItem(storageKeyFor(null), JSON.stringify(settings))
+  }
 }
 
 export const applyCompanyTheme = (settings: CompanyThemeSettings) => {
@@ -131,13 +134,21 @@ export const applyCompanyTheme = (settings: CompanyThemeSettings) => {
 
   root.dataset.colorScheme = settings.mode
   root.style.colorScheme = settings.mode
+  const primarySoft =
+    settings.mode === 'dark' ? `color-mix(in srgb, ${palette.primary} 28%, #111827)` : palette.soft
+  const primarySofter =
+    settings.mode === 'dark'
+      ? `color-mix(in srgb, ${palette.primary} 16%, #111827)`
+      : palette.softer
+  const primaryRing =
+    settings.mode === 'dark' ? `color-mix(in srgb, ${palette.primary} 58%, #263449)` : palette.ring
   root.style.setProperty('--color-indigo-500', palette.primary)
-  root.style.setProperty('--color-indigo-50', palette.softer)
+  root.style.setProperty('--color-indigo-50', primarySofter)
   root.style.setProperty('--theme-primary', palette.primary)
   root.style.setProperty('--theme-primary-hover', palette.primaryHover)
-  root.style.setProperty('--theme-primary-soft', palette.soft)
-  root.style.setProperty('--theme-primary-softer', palette.softer)
-  root.style.setProperty('--theme-primary-ring', palette.ring)
+  root.style.setProperty('--theme-primary-soft', primarySoft)
+  root.style.setProperty('--theme-primary-softer', primarySofter)
+  root.style.setProperty('--theme-primary-ring', primaryRing)
 }
 
 export const useCompanyTheme = (companyId?: string | null) => {

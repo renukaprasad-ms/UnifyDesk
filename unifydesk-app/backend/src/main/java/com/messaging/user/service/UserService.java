@@ -4,6 +4,7 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.ForbiddenException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.auth.service.PasswordPolicyService;
 import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.enums.CompanyRole;
 import com.messaging.company.enums.CompanyStatus;
@@ -22,7 +23,6 @@ import com.messaging.security.service.CurrentUserService;
 import com.messaging.session.service.UserSessionService;
 import com.messaging.user.dto.CreateUserRequest;
 import com.messaging.user.dto.ResetPasswordRequest;
-import com.messaging.user.dto.ToggleTwoFactorRequest;
 import com.messaging.user.dto.UpdateOwnProfileRequest;
 import com.messaging.user.dto.UpdateUserRequest;
 import com.messaging.user.dto.UserResponse;
@@ -54,11 +54,13 @@ public class UserService {
   private final DeletionPurgeService deletionPurgeService;
   private final DeletionLifecycleProperties deletionProperties;
   private final RealtimeConnectionRegistry realtimeConnectionRegistry;
+  private final PasswordPolicyService passwordPolicyService;
 
   @Transactional
   public User createUser(CreateUserRequest request) {
     String email = normalizeEmail(request.email());
     String username = normalizeUsername(request.username());
+    passwordPolicyService.validate(request.password());
 
     userRepository
         .findByEmailOrUsername(email, username)
@@ -169,8 +171,10 @@ public class UserService {
     if (passwordEncoder.matches(request.password(), user.getPassword())) {
       throw new ConflictException("New password must be different from current password");
     }
+    passwordPolicyService.validate(request.password());
 
     user.setPassword(passwordEncoder.encode(request.password()));
+    userSessionService.revokeAllForUser(userId);
     return toResponse(user);
   }
 
@@ -180,16 +184,15 @@ public class UserService {
     if (passwordEncoder.matches(password, user.getPassword())) {
       throw new ConflictException("New password must be different from current password");
     }
+    passwordPolicyService.validate(password);
     user.setPassword(passwordEncoder.encode(password));
     return toResponse(user);
   }
 
   @Transactional
-  public UserResponse toggleTwoFactor(long userId, ToggleTwoFactorRequest request) {
-    requireCurrentUser(userId, "You can only change your own two-factor authentication settings");
-
+  public UserResponse setTwoFactorEnabled(long userId, boolean enabled) {
     User user = getUser(userId);
-    user.setTwoFactorEnabled(request.enabled());
+    user.setTwoFactorEnabled(enabled);
     return toResponse(user);
   }
 

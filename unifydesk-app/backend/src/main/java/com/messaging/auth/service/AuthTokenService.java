@@ -41,6 +41,22 @@ public class AuthTokenService {
     return jwtService.parsePasswordResetToken(token);
   }
 
+  public String createTwoFactorSettingsToken(String userId, String challengeId) {
+    return jwtService.createTwoFactorSettingsToken(userId, challengeId);
+  }
+
+  public Optional<Claims> parseTwoFactorSettingsToken(String token) {
+    return jwtService.parseTwoFactorSettingsToken(token);
+  }
+
+  public String tokenId(String token) {
+    return jwtService.tokenId(token);
+  }
+
+  public Instant tokenExpiresAt(String token) {
+    return jwtService.expiresAt(token);
+  }
+
   public void addPasswordResetTokenCookie(HttpHeaders headers, String token) {
     authCookieService.addPasswordResetTokenCookie(headers, token);
   }

@@ -38,6 +38,13 @@ public class RedisService {
     return Boolean.TRUE.equals(run("delete", key, () -> redisTemplate.delete(key)));
   }
 
+  public <T> T getAndDelete(String key, Class<T> type) {
+    return run(
+        "get-and-delete",
+        key,
+        () -> objectMapper.convertValue(redisTemplate.opsForValue().getAndDelete(key), type));
+  }
+
   public boolean exists(String key) {
     return Boolean.TRUE.equals(run("exists", key, () -> redisTemplate.hasKey(key)));
   }
