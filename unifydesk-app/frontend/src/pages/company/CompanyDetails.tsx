@@ -14,6 +14,10 @@ import { useNavigate } from 'react-router'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { companyApi } from '../../features/company/companyApi'
 import type { Company } from '../../features/company/types'
+import {
+  brandContrastColor,
+  DEFAULT_BRAND_COLOR,
+} from '../../features/companyTheme/companyTheme'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { mediaApi } from '../../features/media/mediaApi'
@@ -25,6 +29,8 @@ import {
   selectSelectedCompany,
   setCompanies,
 } from '../../store/workspace/workspaceSlice'
+
+const isHexColor = (value: string) => /^#[0-9A-Fa-f]{6}$/.test(value)
 
 const initialsFor = (name: string) =>
   name
@@ -46,6 +52,9 @@ export default function CompanyDetails() {
   const [businessEmail, setBusinessEmail] = useState(selectedCompany?.businessEmail ?? '')
   const [country, setCountry] = useState(selectedCompany?.country ?? '')
   const [timezone, setTimezone] = useState(selectedCompany?.timezone ?? '')
+  const [brandColor, setBrandColor] = useState(
+    selectedCompany?.brandColor ?? DEFAULT_BRAND_COLOR,
+  )
   const [logoUrl, setLogoUrl] = useState('')
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreviewUrl, setLogoPreviewUrl] = useState('')
@@ -66,6 +75,7 @@ export default function CompanyDetails() {
     setBusinessEmail(value.businessEmail ?? '')
     setCountry(value.country ?? '')
     setTimezone(value.timezone ?? '')
+    setBrandColor(value.brandColor ?? DEFAULT_BRAND_COLOR)
   }
 
   useEffect(() => {
@@ -149,9 +159,13 @@ export default function CompanyDetails() {
   const save = async (event: FormEvent) => {
     event.preventDefault()
     if (!company || !selectedCompany) return
-    setSaving(true)
     setError('')
     setNotice('')
+    if (!isHexColor(brandColor)) {
+      setError('Choose a valid 6-digit brand colour, for example #2563EB.')
+      return
+    }
+    setSaving(true)
 
     try {
       let logoMediaId = removeLogo ? null : (company.logoMediaId ?? null)
@@ -169,6 +183,7 @@ export default function CompanyDetails() {
         country: country.trim() || null,
         timezone: timezone.trim() || null,
         logoMediaId,
+        brandColor: brandColor.toUpperCase(),
       })
 
       syncForm(updated)
@@ -235,6 +250,10 @@ export default function CompanyDetails() {
   }
 
   const visibleLogo = logoPreviewUrl || (!removeLogo ? logoUrl : '')
+  const previewBrandColor = isHexColor(brandColor)
+    ? brandColor.toUpperCase()
+    : company?.brandColor ?? DEFAULT_BRAND_COLOR
+  const previewBrandContrast = brandContrastColor(previewBrandColor)
   const canModifyCompany = can(PERMISSIONS.COMPANY_MODIFY)
   const canDeleteCompany = can(PERMISSIONS.COMPANY_DELETE)
   const canLeaveCompany = company?.role === 'MANAGER' || company?.role === 'MEMBER'
@@ -259,8 +278,8 @@ export default function CompanyDetails() {
               Company profile
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Manage the business identity for this workspace. The brand colour was chosen during
-              workspace creation; Light/Dark appearance is controlled from each user's account.
+              Manage the business identity and workspace brand colour. Light/Dark appearance is
+              controlled separately from each user's account.
             </p>
           </div>
           {!editing && canModifyCompany && (
@@ -294,8 +313,8 @@ export default function CompanyDetails() {
               <div
                 className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl text-xl font-bold"
                 style={{
-                  backgroundColor: `${company?.brandColor ?? '#2563EB'}18`,
-                  color: company?.brandColor ?? '#2563EB',
+                  backgroundColor: `${previewBrandColor}18`,
+                  color: previewBrandColor,
                 }}
               >
                 {visibleLogo ? (
@@ -321,9 +340,9 @@ export default function CompanyDetails() {
                   <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
                     <span
                       className="size-3 rounded-full"
-                      style={{ backgroundColor: company?.brandColor ?? '#2563EB' }}
+                      style={{ backgroundColor: previewBrandColor }}
                     />
-                    {company?.brandColor ?? '#2563EB'}
+                    {previewBrandColor}
                   </span>
                 </div>
               </div>
@@ -425,6 +444,110 @@ export default function CompanyDetails() {
                 />
               </label>
             </div>
+
+            {editing && (
+              <div className="border-t border-slate-100 p-6">
+                <div className="grid gap-5 lg:grid-cols-[minmax(260px,360px)_minmax(0,1fr)]">
+                  <div>
+                    <p className="text-sm font-bold text-slate-950">Workspace theme</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Choose the shared accent colour used for primary actions, active navigation,
+                      highlights and charts across this workspace.
+                    </p>
+                    <div className="mt-4 flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={previewBrandColor}
+                        onChange={(event) => setBrandColor(event.target.value.toUpperCase())}
+                        className="h-11 w-14 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
+                        aria-label="Choose workspace brand colour"
+                      />
+                      <input
+                        className="form-input font-mono uppercase"
+                        value={brandColor}
+                        maxLength={7}
+                        onChange={(event) => setBrandColor(event.target.value)}
+                        placeholder="#2563EB"
+                        aria-label="Workspace brand colour hex value"
+                      />
+                    </div>
+                    {!isHexColor(brandColor) && (
+                      <p className="mt-2 text-xs font-semibold text-rose-600">
+                        Enter a valid 6-digit HEX colour.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                          Live dashboard preview
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-slate-800">
+                          {name.trim() || company?.name || 'Your company'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        className="rounded-lg px-3 py-2 text-[10px] font-bold"
+                        style={{
+                          backgroundColor: previewBrandColor,
+                          color: previewBrandContrast,
+                        }}
+                      >
+                        New broadcast
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-[92px_minmax(0,1fr)] overflow-hidden rounded-xl border border-slate-200 bg-white">
+                      <div className="border-r border-slate-100 bg-slate-50 p-3">
+                        {['Dashboard', 'Inbox', 'Contacts'].map((item, index) => (
+                          <div
+                            key={item}
+                            className="mb-2 rounded-lg px-2 py-2 text-[9px] font-semibold"
+                            style={
+                              index === 0
+                                ? {
+                                    backgroundColor: `${previewBrandColor}14`,
+                                    color: previewBrandColor,
+                                  }
+                                : { color: '#64748B' }
+                            }
+                          >
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="p-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            ['Contacts', '1,248'],
+                            ['Open chats', '32'],
+                            ['Delivered', '98.4%'],
+                            ['Campaigns', '12'],
+                          ].map(([label, value], index) => (
+                            <div key={label} className="rounded-lg border border-slate-100 p-2.5">
+                              <p className="text-[9px] text-slate-400">{label}</p>
+                              <p className="mt-1 text-sm font-bold text-slate-900">{value}</p>
+                              <div className="mt-2 h-1 rounded-full bg-slate-100">
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{
+                                    width: `${50 + index * 12}%`,
+                                    backgroundColor: previewBrandColor,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {!editing && (
@@ -465,7 +588,11 @@ export default function CompanyDetails() {
                 <FiX className="mr-1 inline" aria-hidden="true" />
                 Cancel
               </button>
-              <button type="submit" className="primary-button" disabled={saving || !name.trim()}>
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={saving || !name.trim() || !isHexColor(brandColor)}
+              >
                 {saving ? 'Saving…' : 'Save company profile'}
               </button>
             </div>
