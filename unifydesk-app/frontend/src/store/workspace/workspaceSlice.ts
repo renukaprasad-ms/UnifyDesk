@@ -29,7 +29,10 @@ const workspaceSlice = createSlice({
       state.companies = action.payload
       if (
         state.selectedCompanyId &&
-        !action.payload.some((company) => company.companyId === state.selectedCompanyId)
+        !action.payload.some(
+          (company) =>
+            company.companyId === state.selectedCompanyId && company.status === 'ACTIVE',
+        )
       ) {
         updateSelectedCompany(state, null)
       }
