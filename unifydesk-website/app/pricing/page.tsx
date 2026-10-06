@@ -1,6 +1,23 @@
 import type {Metadata} from "next";
-export const metadata:Metadata={title:"Pricing",description:"Explore UnifyDesk plans for teams centralizing customer communication, broadcasts, connected channels and advertising workflows.",alternates:{canonical:"/pricing"}};
-import {Check} from "lucide-react";import {Header,Footer} from "../components";
-type Plan={name:string;description:string;items:string[];featured?:boolean};
-const plans:Plan[]=[{name:"Starter",description:"For individuals and small teams starting to centralize customer work.",items:["Core workspace","Connected channels","Customer context"]},{name:"Growth",description:"For teams running communication and campaign workflows together.",items:["Everything in Starter","Broadcast workflows","Ad Center workflows","Expanded team controls"],featured:true},{name:"Scale",description:"For organizations that need broader access and operating controls.",items:["Everything in Growth","Higher workspace limits","Advanced company controls","Priority support options"]}];
-export default function Pricing(){return <><Header/><main><section className="pageHero"><p className="kicker">PRICING</p><h1>Plans designed to grow with your workspace.</h1><p>Public pricing is being finalized. The structure will keep UnifyDesk plan costs separate from third-party provider usage and advertising spend.</p></section><section className="pricingGrid">{plans.map((plan)=><article className={plan.featured?"featured":""} key={plan.name}>{plan.featured&&<span className="popular">Designed for growing teams</span>}<h2>{plan.name}</h2><p>{plan.description}</p><div className="priceSoon">Pricing coming soon</div>{plan.items.map(x=><div className="micro" key={x}><Check/>{x}</div>)}<span className={(plan.featured?"button":"outlineButton")+" disabledCta"}>Coming soon</span></article>)}</section><p className="pricingFoot">Provider fees, message delivery costs and advertising spend are separate from the UnifyDesk subscription and depend on the connected provider.</p></main><Footer/></>}
+import {Check} from "lucide-react";
+import {Footer,Header} from "../components";
+
+export const metadata:Metadata={
+  title:"Pricing | UnifyDesk",
+  description:"Explore the UnifyDesk plan structure for workspace access, managed services and connected providers.",
+  alternates:{canonical:"/pricing"}
+};
+
+const plans=[
+  ["Free","Explore the core workspace and validate your setup.","₹0",["Core workspace","Starter user limits","Basic connections"],false],
+  ["Starter","For small teams centralizing customer communication.","Pricing coming soon",["Everything in Free","Higher workspace limits","Company controls"],false],
+  ["Growth","For teams running communication and campaigns together.","Pricing coming soon",["Broadcast workflows","Ad Center workflows","Expanded team controls"],true]
+] as const;
+
+export default function Pricing(){
+  return <><Header/><main className="routePage">
+    <section className="routeHero"><div className="statusBadge"><span/>PRICING</div><h1>Plans for the workspace. Provider usage stays separate.</h1><p>Public pricing is being finalized. The plan structure separates UnifyDesk platform access from managed email, SMS and third-party advertising spend.</p></section>
+    <section className="routeSection"><div className="pricingRouteGrid">{plans.map(([name,description,price,items,featured])=><article className={(featured?"featured ":"")+"routePricingCard reveal"} key={name}>{featured&&<span className="popular">Recommended</span>}<h2>{name}</h2><p>{description}</p><strong>{price}</strong><div className="pointList">{items.map(x=><span key={x}><Check size={15}/>{x}</span>)}</div><span className={(featured?"button":"outlineButton")+" disabledCta"}>Coming soon</span></article>)}</div></section>
+    <section className="routeSection soft"><p className="kicker">BILLING MODEL</p><h2 className="sectionTitle">Two layers keep billing understandable.</h2><div className="routeCardGrid three">{[["Platform subscription","Users, workspace limits, feature access and company-level entitlements."],["Managed services","Email and SMS provider usage billed separately based on actual sending and provider costs."],["Advertising spend","Google and Meta media spend stays with the connected advertising providers."]].map(([t,b])=><article className="routeCard reveal" key={t}><h3>{t}</h3><p>{b}</p></article>)}</div></section>
+  </main><Footer/></>
+}
