@@ -421,6 +421,9 @@ export default function SegmentEditorPage() {
               value={filter}
               fields={fields}
               onChange={(next) => {
+                countRunRef.current += 1
+                setCounting(false)
+                setCountStatusMessage('')
                 setFilter(next)
                 setPreview(null)
                 setErrors([])
