@@ -71,7 +71,7 @@ export default function CompanyUsers() {
   )
 
   const activeInvitations = useMemo(
-    () => invitations.filter((invitation) => ['PENDING', 'EXPIRED'].includes(invitation.status)),
+    () => invitations.filter((invitation) => invitation.status === 'PENDING'),
     [invitations],
   )
 
@@ -238,11 +238,21 @@ export default function CompanyUsers() {
     }
   }
 
+  const now = Date.now()
   const activeRoleIds = new Set(
     memberAssignments
-      .filter((assignment) => !assignment.revokedAt)
+      .filter(
+        (assignment) =>
+          !assignment.revokedAt &&
+          (!assignment.expiresAt || new Date(assignment.expiresAt).getTime() > now),
+      )
       .map((assignment) => assignment.roleId),
   )
+  const canManageCustomRoles = canAll([
+    PERMISSIONS.USER_MODIFY,
+    PERMISSIONS.ROLE_READ,
+    PERMISSIONS.ROLE_ASSIGN,
+  ])
 
   const toggleMemberRole = async (role: CompanyRole) => {
     if (!selectedCompany || !managingUser) return
@@ -696,13 +706,17 @@ export default function CompanyUsers() {
                     return (
                       <label
                         key={role.id}
-                        className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 hover:border-indigo-200 hover:bg-indigo-50/30"
+                        className={`flex items-start gap-3 rounded-xl border border-slate-200 p-3 ${
+                          canManageCustomRoles
+                            ? 'cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/30'
+                            : 'cursor-not-allowed opacity-70'
+                        }`}
                       >
                         <input
                           type="checkbox"
                           className="mt-1"
                           checked={assigned}
-                          disabled={roleActionId === role.id}
+                          disabled={!canManageCustomRoles || roleActionId === role.id}
                           onChange={() => void toggleMemberRole(role)}
                         />
                         <span className="min-w-0 flex-1">
