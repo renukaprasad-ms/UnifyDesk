@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { realtimeClient } from '../realtime/realtimeClient'
+import { workspaceApi } from '../workspace/workspaceApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
@@ -7,7 +9,10 @@ import {
   iamLoadSucceeded,
   selectIamState,
 } from '../../store/iam/iamSlice'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  setCompanies,
+} from '../../store/workspace/workspaceSlice'
 import { iamApi } from './iamApi'
 
 export default function WorkspaceIamBootstrap({ children }: { children: React.ReactNode }) {
@@ -54,6 +59,33 @@ export default function WorkspaceIamBootstrap({ children }: { children: React.Re
       active = false
     }
   }, [companyId, dispatch, retryNonce])
+
+  useEffect(() => {
+    if (!companyId) return
+
+    return realtimeClient.subscribe<{
+      companyId: string
+      reason: string
+      membershipStatus?: string | null
+    }>('company.access.changed', (event) => {
+      if (event.payload.companyId !== companyId) return
+
+      if (
+        event.payload.membershipStatus === 'SUSPENDED' ||
+        event.payload.membershipStatus === 'LEFT'
+      ) {
+        void workspaceApi
+          .list()
+          .then((companies) => dispatch(setCompanies(companies)))
+          .catch(() => {
+            setRetryNonce((value) => value + 1)
+          })
+        return
+      }
+
+      setRetryNonce((value) => value + 1)
+    })
+  }, [companyId, dispatch])
 
   if (!companyId) return null
 
