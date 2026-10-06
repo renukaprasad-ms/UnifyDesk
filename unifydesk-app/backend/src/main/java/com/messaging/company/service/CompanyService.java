@@ -333,6 +333,11 @@ public class CompanyService {
             .findByCompanyIdAndUserIdAndStatus(companyId, targetUserId, CompanyMemberStatus.ACTIVE)
             .orElseThrow(() -> new BadRequestException("Target must be an active company member"));
 
+    Instant now = Instant.now();
+    var targetAssignments = roleAssignmentRepository.findActive(companyId, targetUserId, now);
+    targetAssignments.forEach(assignment -> assignment.setRevokedAt(now));
+    roleAssignmentRepository.saveAll(targetAssignments);
+
     target.setRole(CompanyRole.OWNER);
     actor.setRole(CompanyRole.MANAGER);
     memberRepository.saveAll(List.of(target, actor));
