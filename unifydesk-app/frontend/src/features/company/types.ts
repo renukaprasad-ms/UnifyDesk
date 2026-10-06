@@ -73,4 +73,5 @@ export type UpdateCompanyPayload = {
   country?: string | null
   timezone?: string | null
   logoMediaId?: string | null
+  brandColor?: string | null
 }
