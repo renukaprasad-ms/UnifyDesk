@@ -1,6 +1,7 @@
 package com.messaging.broadcast.service;
 
 import com.messaging.billing.exception.PlanEntitlementException;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
 import com.messaging.broadcast.enums.BroadcastSenderProvider;
@@ -38,12 +39,14 @@ public class BroadcastDeliveryService {
   private final BroadcastRetryPolicy retryPolicy;
   private final BroadcastDeliveryStateService stateService;
   private final BroadcastTemplateRenderer templateRenderer;
+  private final BroadcastEmailComplianceService emailComplianceService;
   private final ManagedEmailDeliveryGuard managedEmailDeliveryGuard;
   private final ManagedEmailRateLimiter managedEmailRateLimiter;
   private final ManagedEmailUsageService managedEmailUsageService;
   private final ManagedEmailPostAcceptanceReconciler managedEmailPostAcceptanceReconciler;
   private final ManagedEmailSuppressionGate managedEmailSuppressionGate;
   private final ManagedEmailProviderBudgetService managedEmailProviderBudgetService;
+  private final ManagedFinancialExposureGuard managedFinancialExposureGuard;
   private final ContactEligibilityService contactEligibilityService;
   private final BroadcastWhatsAppDeliveryService whatsAppDeliveryService;
 
@@ -152,6 +155,8 @@ public class BroadcastDeliveryService {
         return;
       }
 
+      BroadcastEmailComplianceService.CompliantContent compliant =
+          emailComplianceService.apply(rendered, recipient);
       BroadcastEmailResult result =
           emailTransportRegistry
               .require(run.getProviderType())
@@ -160,13 +165,18 @@ public class BroadcastDeliveryService {
                   sender,
                   new BroadcastEmailCommand(
                       recipient.getDestination(),
-                      rendered.subject(),
-                      rendered.bodyText(),
-                      rendered.bodyHtml(),
+                      compliant.subject(),
+                      compliant.bodyText(),
+                      compliant.bodyHtml(),
                       run.getProviderTemplateIdSnapshot(),
-                      rendered.templateVariables(),
+                      compliant.templateVariables(),
                       recipient.getInternetMessageId(),
-                      recipient.getProviderCorrelationId()));
+                      recipient.getProviderCorrelationId(),
+                      null,
+                      null,
+                      null,
+                      null,
+                      compliant.compliance()));
       stateService.accepted(attempt, result);
     } catch (BroadcastTransportException exception) {
       handleTransportException(attempt, exception);
@@ -240,10 +250,16 @@ public class BroadcastDeliveryService {
             managedEmailProviderBudgetService.reserveForSend(
                 runtime, recipient.getId(), run.getId(), attempt.attemptNo());
       } catch (PlanEntitlementException exception) {
+        boolean exposureBlocked =
+            ManagedFinancialExposureGuard.BLOCKED.equals(exception.getMessage());
         stateService.retry(
             attempt,
-            "MANAGED_EMAIL_MONTHLY_LIMIT_REACHED",
-            "Managed Email monthly limit reached",
+            exposureBlocked
+                ? ManagedFinancialExposureGuard.BLOCKED
+                : "MANAGED_EMAIL_MONTHLY_LIMIT_REACHED",
+            exposureBlocked
+                ? "Managed Email billing status does not permit new provider spend"
+                : "Managed Email monthly limit reached",
             Instant.now().plusSeconds(60));
         return;
       }
@@ -256,6 +272,9 @@ public class BroadcastDeliveryService {
         return;
       }
 
+      BroadcastEmailComplianceService.CompliantContent compliant =
+          emailComplianceService.apply(rendered, recipient);
+      managedFinancialExposureGuard.assertAllowed(run.getCompanyId());
       BroadcastEmailResult result =
           emailTransportRegistry
               .require(run.getProviderType())
@@ -264,17 +283,18 @@ public class BroadcastDeliveryService {
                   sender,
                   new BroadcastEmailCommand(
                       recipient.getDestination(),
-                      rendered.subject(),
-                      rendered.bodyText(),
-                      rendered.bodyHtml(),
+                      compliant.subject(),
+                      compliant.bodyText(),
+                      compliant.bodyHtml(),
                       run.getProviderTemplateIdSnapshot(),
-                      rendered.templateVariables(),
+                      compliant.templateVariables(),
                       recipient.getInternetMessageId(),
                       recipient.getProviderCorrelationId(),
                       run.getCompanyId(),
                       run.getId(),
                       sender.getId(),
-                      recipient.getId()));
+                      recipient.getId(),
+                      compliant.compliance()));
       stateService.accepted(attempt, result);
       safeCommit(run, recipient, attempt, result);
       try {
@@ -286,6 +306,15 @@ public class BroadcastDeliveryService {
             run.getId(),
             recipient.getId());
       }
+    } catch (PlanEntitlementException exception) {
+      if (usageReserved) {
+        safeRelease(run, recipient, attempt);
+      }
+      stateService.retry(
+          attempt,
+          ManagedFinancialExposureGuard.BLOCKED,
+          "Managed Email billing status does not permit new provider spend",
+          Instant.now().plusSeconds(60));
     } catch (BroadcastTransportException exception) {
       if (usageReserved && exception.outcome() != BroadcastTransportOutcome.UNKNOWN) {
         safeRelease(run, recipient, attempt);
@@ -377,7 +406,8 @@ public class BroadcastDeliveryService {
           recipient.getId(),
           run.getId(),
           attempt.attemptNo(),
-          result.providerMessageId());
+          result.providerMessageId(),
+          result.acceptedAt());
     } catch (RuntimeException exception) {
       log.warn(
           "managed_email_usage_commit_deferred companyId={} runId={} recipientId={}",

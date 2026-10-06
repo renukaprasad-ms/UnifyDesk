@@ -63,6 +63,38 @@ export const authApi = {
     return unwrap(response.data)
   },
 
+  async resendVerificationEmail() {
+    await apiClient.post<ApiResponse<void>>('/api/auth/verify-email/resend')
+  },
+
+  async beginEmailChange(newEmail: string, currentPassword: string) {
+    const response = await apiClient.post<
+      ApiResponse<{ challengeId: string; expiresInSeconds: number }>
+    >('/api/auth/email-change/challenge', { newEmail, currentPassword })
+    return unwrap(response.data)
+  },
+
+  async completeEmailChange(challengeId: string, otp: string) {
+    await apiClient.post<ApiResponse<void>>('/api/auth/email-change/complete', {
+      challengeId,
+      otp,
+    })
+  },
+
+  async beginTwoFactorSettingsChange(currentPassword: string, enabled: boolean) {
+    const response = await apiClient.post<
+      ApiResponse<{ challengeToken: string; expiresInSeconds: number }>
+    >('/api/auth/2fa/settings/challenge', { currentPassword, enabled })
+    return unwrap(response.data)
+  },
+
+  async completeTwoFactorSettingsChange(challengeToken: string, otp: string) {
+    await apiClient.post<ApiResponse<void>>('/api/auth/2fa/settings/complete', {
+      challengeToken,
+      otp,
+    })
+  },
+
   async logout() {
     await apiClient.post<ApiResponse<void>>('/api/auth/logout')
   },

@@ -26,6 +26,7 @@ import type {
 } from '../../features/managedSms/types'
 import { useSnackbar } from '../feedback/SnackbarProvider'
 import ManagedSmsStatusBadge from './ManagedSmsStatusBadge'
+import { CardSkeleton } from '../ui/Skeleton'
 
 const categories: ManagedSmsMessageCategory[] = [
   'SERVICE',
@@ -278,7 +279,7 @@ export default function ManagedSmsSetupModal({
 
         <div className="overflow-y-auto p-5">
           {loading && !status ? (
-            <p className="py-12 text-center text-sm text-slate-500">Loading setup…</p>
+            <div className="py-4"><CardSkeleton rows={6} /></div>
           ) : (
             <div className="grid gap-5">
               {status && (

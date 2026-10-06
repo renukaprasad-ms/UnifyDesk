@@ -17,6 +17,8 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import type { CompanyRole, MemberRoleAssignment } from '../../features/iam/types'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
@@ -49,6 +51,13 @@ export default function CompanyUsers() {
   const [memberAssignments, setMemberAssignments] = useState<MemberRoleAssignment[]>([])
   const [roleActionId, setRoleActionId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [invitationToRevoke, setInvitationToRevoke] = useState<CompanyInvitation | null>(null)
+  const [memberActionUserId, setMemberActionUserId] = useState<string | null>(null)
+  const [ownershipPassword, setOwnershipPassword] = useState('')
+  const [memberConfirmation, setMemberConfirmation] = useState<{
+    kind: 'REMOVE' | 'TRANSFER'
+    user: CompanyUser
+  } | null>(null)
 
   const sortedUsers = useMemo(
     () =>
@@ -62,7 +71,7 @@ export default function CompanyUsers() {
   )
 
   const activeInvitations = useMemo(
-    () => invitations.filter((invitation) => ['PENDING', 'EXPIRED'].includes(invitation.status)),
+    () => invitations.filter((invitation) => invitation.status === 'PENDING'),
     [invitations],
   )
 
@@ -129,7 +138,6 @@ export default function CompanyUsers() {
 
   const revoke = async (invitation: CompanyInvitation) => {
     if (!selectedCompany) return
-    if (!window.confirm(`Revoke the invitation for ${invitation.email}?`)) return
     setWorkingInvitationId(invitation.invitationId)
     setError('')
     try {
@@ -139,13 +147,16 @@ export default function CompanyUsers() {
       setError(apiErrorMessage(inviteError, 'Unable to revoke invitation'))
     } finally {
       setWorkingInvitationId(null)
+      setInvitationToRevoke(null)
     }
   }
 
   const openRoleManager = async (user: CompanyUser) => {
     if (!selectedCompany || user.role === 'OWNER') return
     setManagingUser(user)
+    setMemberAssignments([])
     setError('')
+    if (user.status !== 'ACTIVE' || !can(PERMISSIONS.ROLE_READ)) return
     try {
       setMemberAssignments(await iamApi.memberRoles(selectedCompany.companyId, user.userId))
     } catch (roleError) {
@@ -153,11 +164,95 @@ export default function CompanyUsers() {
     }
   }
 
+  const changeBaseRole = async (role: 'MANAGER' | 'MEMBER') => {
+    if (!selectedCompany || !managingUser) return
+    setMemberActionUserId(managingUser.userId)
+    setError('')
+    try {
+      const updated = await companyApi.updateMemberRole(
+        selectedCompany.companyId,
+        managingUser.userId,
+        role,
+      )
+      setManagingUser(updated)
+      await loadUsers()
+    } catch (memberError) {
+      setError(apiErrorMessage(memberError, 'Unable to update member access'))
+    } finally {
+      setMemberActionUserId(null)
+    }
+  }
+
+  const changeMemberStatus = async (status: 'ACTIVE' | 'SUSPENDED') => {
+    if (!selectedCompany || !managingUser) return
+    setMemberActionUserId(managingUser.userId)
+    setError('')
+    try {
+      const updated = await companyApi.updateMemberStatus(
+        selectedCompany.companyId,
+        managingUser.userId,
+        status,
+      )
+      setManagingUser(updated)
+      if (status === 'SUSPENDED') setMemberAssignments([])
+      await loadUsers()
+    } catch (memberError) {
+      setError(apiErrorMessage(memberError, 'Unable to update member status'))
+    } finally {
+      setMemberActionUserId(null)
+    }
+  }
+
+  const confirmMemberAction = async () => {
+    if (!selectedCompany || !memberConfirmation) return
+    const { kind, user } = memberConfirmation
+    setMemberActionUserId(user.userId)
+    setError('')
+    try {
+      if (kind === 'REMOVE') {
+        await companyApi.removeMember(selectedCompany.companyId, user.userId)
+      } else {
+        await companyApi.transferOwnership(
+          selectedCompany.companyId,
+          user.userId,
+          ownershipPassword,
+        )
+        setOwnershipPassword('')
+        window.location.assign('/workspace')
+        return
+      }
+      setManagingUser(null)
+      setMemberAssignments([])
+      setMemberConfirmation(null)
+      await loadUsers()
+    } catch (memberError) {
+      setError(
+        apiErrorMessage(
+          memberError,
+          kind === 'REMOVE' ? 'Unable to remove member' : 'Unable to transfer ownership',
+        ),
+      )
+    } finally {
+      if (kind === 'TRANSFER') setOwnershipPassword('')
+      setMemberActionUserId(null)
+    }
+  }
+
+  const now = Date.now()
   const activeRoleIds = new Set(
     memberAssignments
-      .filter((assignment) => !assignment.revokedAt)
+      .filter(
+        (assignment) =>
+          !assignment.revokedAt &&
+          (!assignment.expiresAt || new Date(assignment.expiresAt).getTime() > now),
+      )
       .map((assignment) => assignment.roleId),
   )
+  const canManageCustomRoles = canAll([
+    PERMISSIONS.USER_MODIFY,
+    PERMISSIONS.ROLE_READ,
+    PERMISSIONS.ROLE_ASSIGN,
+  ])
 
   const toggleMemberRole = async (role: CompanyRole) => {
     if (!selectedCompany || !managingUser) return
@@ -222,7 +317,9 @@ export default function CompanyUsers() {
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
           <div className="panel p-5">
             <p className="text-xs font-semibold text-slate-500">Active users</p>
-            <p className="mt-2 text-3xl font-bold text-slate-950">{users.length}</p>
+            <p className="mt-2 text-3xl font-bold text-slate-950">
+              {users.filter((user) => user.status === 'ACTIVE').length}
+            </p>
           </div>
           <div className="panel p-5">
             <p className="text-xs font-semibold text-slate-500">Pending invitations</p>
@@ -249,29 +346,39 @@ export default function CompanyUsers() {
                   <th className="px-4 py-3">Access</th>
                   <th className="px-4 py-3">Security</th>
                   <th className="px-4 py-3">Joined</th>
-                  {canAll([
-                    PERMISSIONS.USER_MODIFY,
-                    PERMISSIONS.ROLE_READ,
-                    PERMISSIONS.ROLE_ASSIGN,
-                  ]) && <th className="px-4 py-3">Action</th>}
+                  {(can(PERMISSIONS.USER_MODIFY) ||
+                    can(PERMISSIONS.USER_REMOVE) ||
+                    can(PERMISSIONS.ROLE_ASSIGN) ||
+                    can(PERMISSIONS.COMPANY_TRANSFER_OWNERSHIP)) && (
+                    <th className="px-4 py-3">Action</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {loading ? (
                   <tr>
                     <td
-                      className="px-4 py-8 text-center text-slate-500"
+                      className="p-4"
                       colSpan={
-                        canAll([
-                          PERMISSIONS.USER_MODIFY,
-                          PERMISSIONS.ROLE_READ,
-                          PERMISSIONS.ROLE_ASSIGN,
-                        ])
+                        (can(PERMISSIONS.USER_MODIFY) ||
+                          can(PERMISSIONS.USER_REMOVE) ||
+                          can(PERMISSIONS.ROLE_ASSIGN) ||
+                          can(PERMISSIONS.COMPANY_TRANSFER_OWNERSHIP))
                           ? 5
                           : 4
                       }
                     >
-                      Loading users…
+                      <TableSkeleton
+                        rows={6}
+                        columns={
+                          can(PERMISSIONS.USER_MODIFY) ||
+                          can(PERMISSIONS.USER_REMOVE) ||
+                          can(PERMISSIONS.ROLE_ASSIGN) ||
+                          can(PERMISSIONS.COMPANY_TRANSFER_OWNERSHIP)
+                            ? 5
+                            : 4
+                        }
+                      />
                     </td>
                   </tr>
                 ) : sortedUsers.length === 0 ? (
@@ -279,11 +386,10 @@ export default function CompanyUsers() {
                     <td
                       className="px-4 py-8 text-center text-slate-500"
                       colSpan={
-                        canAll([
-                          PERMISSIONS.USER_MODIFY,
-                          PERMISSIONS.ROLE_READ,
-                          PERMISSIONS.ROLE_ASSIGN,
-                        ])
+                        (can(PERMISSIONS.USER_MODIFY) ||
+                          can(PERMISSIONS.USER_REMOVE) ||
+                          can(PERMISSIONS.ROLE_ASSIGN) ||
+                          can(PERMISSIONS.COMPANY_TRANSFER_OWNERSHIP))
                           ? 5
                           : 4
                       }
@@ -302,7 +408,7 @@ export default function CompanyUsers() {
                           <span className="min-w-0">
                             <span className="block font-semibold text-slate-950">{user.name}</span>
                             <span className="block truncate text-xs text-slate-500">
-                              @{user.username} · {user.email}
+                              @{user.username} - {user.email}
                             </span>
                           </span>
                         </div>
@@ -314,6 +420,11 @@ export default function CompanyUsers() {
                           >
                             {user.role}
                           </span>
+                          {user.status === 'SUSPENDED' && (
+                            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                              SUSPENDED
+                            </span>
+                          )}
                           {user.customRoles?.map((role) => (
                             <span
                               key={role}
@@ -351,11 +462,10 @@ export default function CompanyUsers() {
                       <td className="px-4 py-3 text-slate-500" data-label="Joined">
                         {new Date(user.joinedAt).toLocaleDateString()}
                       </td>
-                      {canAll([
-                        PERMISSIONS.USER_MODIFY,
-                        PERMISSIONS.ROLE_READ,
-                        PERMISSIONS.ROLE_ASSIGN,
-                      ]) && (
+                      {(can(PERMISSIONS.USER_MODIFY) ||
+                        can(PERMISSIONS.USER_REMOVE) ||
+                        can(PERMISSIONS.ROLE_ASSIGN) ||
+                        can(PERMISSIONS.COMPANY_TRANSFER_OWNERSHIP)) && (
                         <td className="mobile-action-cell px-4 py-3" data-label="Action">
                           {user.role === 'OWNER' ? (
                             <span className="text-xs font-medium text-slate-400">Full access</span>
@@ -366,7 +476,7 @@ export default function CompanyUsers() {
                               onClick={() => void openRoleManager(user)}
                             >
                               <FiKey aria-hidden="true" />
-                              Manage roles
+                              Manage access
                             </button>
                           )}
                         </td>
@@ -388,7 +498,7 @@ export default function CompanyUsers() {
           </div>
 
           {loading ? (
-            <p className="px-5 py-8 text-center text-sm text-slate-500">Loading invitations…</p>
+            <div className="p-4"><TableSkeleton rows={4} columns={3} /></div>
           ) : activeInvitations.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <FiMail className="mx-auto text-slate-400" size={24} />
@@ -449,7 +559,7 @@ export default function CompanyUsers() {
                         type="button"
                         className="rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
                         disabled={workingInvitationId === invitation.invitationId}
-                        onClick={() => void revoke(invitation)}
+                        onClick={() => setInvitationToRevoke(invitation)}
                       >
                         Revoke
                       </button>
@@ -487,11 +597,106 @@ export default function CompanyUsers() {
             </div>
 
             <div className="max-h-[65vh] overflow-y-auto p-5">
-              {roles.length === 0 ? (
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Base access</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Company role
+                    <select
+                      className="form-input mt-1.5"
+                      value={managingUser.role}
+                      disabled={
+                        !can(PERMISSIONS.USER_MODIFY) ||
+                        managingUser.status !== 'ACTIVE' ||
+                        memberActionUserId === managingUser.userId
+                      }
+                      onChange={(event) =>
+                        void changeBaseRole(event.target.value as 'MANAGER' | 'MEMBER')
+                      }
+                    >
+                      <option value="MEMBER">Member</option>
+                      <option value="MANAGER">Manager</option>
+                    </select>
+                  </label>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">Membership</p>
+                    <div className="mt-1.5 flex gap-2">
+                      {can(PERMISSIONS.USER_MODIFY) && (
+                        <button
+                          type="button"
+                          className="secondary-button flex-1 justify-center"
+                          disabled={memberActionUserId === managingUser.userId}
+                          onClick={() =>
+                            void changeMemberStatus(
+                              managingUser.status === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED',
+                            )
+                          }
+                        >
+                          {managingUser.status === 'SUSPENDED' ? 'Reactivate' : 'Suspend'}
+                        </button>
+                      )}
+                      {can(PERMISSIONS.USER_REMOVE) && (
+                        <button
+                          type="button"
+                          className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                          disabled={memberActionUserId === managingUser.userId}
+                          onClick={() =>
+                            setMemberConfirmation({ kind: 'REMOVE', user: managingUser })
+                          }
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {can(PERMISSIONS.COMPANY_TRANSFER_OWNERSHIP) &&
+                  managingUser.status === 'ACTIVE' && (
+                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-xs font-semibold text-amber-900">
+                        Transfer ownership
+                      </p>
+                      <p className="mt-1 text-[11px] leading-5 text-amber-800">
+                        Re-enter your current password before transferring this company.
+                      </p>
+                      <input
+                        type="password"
+                        className="form-input mt-2"
+                        autoComplete="current-password"
+                        placeholder="Current password"
+                        value={ownershipPassword}
+                        onChange={(event) => setOwnershipPassword(event.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="mt-2 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                        disabled={!ownershipPassword || memberActionUserId === managingUser.userId}
+                        onClick={() =>
+                          setMemberConfirmation({ kind: 'TRANSFER', user: managingUser })
+                        }
+                      >
+                        Transfer company ownership to {managingUser.name}
+                      </button>
+                    </div>
+                  )}
+              </div>
+
+              <div className="mt-5">
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Custom IAM roles
+                </p>
+              {managingUser.status !== 'ACTIVE' ? (
+                <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center">
+                  <p className="text-sm font-semibold text-slate-800">Member is suspended</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Reactivate this member before changing custom roles.
+                  </p>
+                </div>
+              ) : roles.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center">
                   <p className="text-sm font-semibold text-slate-800">No custom roles</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Create roles from Company → Roles & permissions first.
+                    Create roles from Company &gt; Roles &amp; permissions first.
                   </p>
                 </div>
               ) : (
@@ -501,13 +706,17 @@ export default function CompanyUsers() {
                     return (
                       <label
                         key={role.id}
-                        className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 hover:border-indigo-200 hover:bg-indigo-50/30"
+                        className={`flex items-start gap-3 rounded-xl border border-slate-200 p-3 ${
+                          canManageCustomRoles
+                            ? 'cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/30'
+                            : 'cursor-not-allowed opacity-70'
+                        }`}
                       >
                         <input
                           type="checkbox"
                           className="mt-1"
                           checked={assigned}
-                          disabled={roleActionId === role.id}
+                          disabled={!canManageCustomRoles || roleActionId === role.id}
                           onChange={() => void toggleMemberRole(role)}
                         />
                         <span className="min-w-0 flex-1">
@@ -523,6 +732,7 @@ export default function CompanyUsers() {
                   })}
                 </div>
               )}
+              </div>
 
               {error && (
                 <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>
@@ -636,6 +846,43 @@ export default function CompanyUsers() {
           </div>
         </div>
       )}
+        <ConfirmDialog
+          open={Boolean(memberConfirmation)}
+          title={
+            memberConfirmation?.kind === 'TRANSFER'
+              ? 'Transfer company ownership?'
+              : 'Remove this member?'
+          }
+          description={
+            memberConfirmation?.kind === 'TRANSFER'
+              ? `${memberConfirmation.user.name} will become OWNER and you will become MANAGER.`
+              : `${memberConfirmation?.user.name ?? 'This member'} will lose workspace access and must be invited again to return.`
+          }
+          confirmLabel={
+            memberConfirmation?.kind === 'TRANSFER' ? 'Yes, transfer ownership' : 'Yes, remove member'
+          }
+          cancelLabel="No, cancel"
+          tone={memberConfirmation?.kind === 'TRANSFER' ? 'warning' : 'danger'}
+          working={Boolean(
+            memberConfirmation && memberActionUserId === memberConfirmation.user.userId,
+          )}
+          onCancel={() => {
+            if (memberConfirmation?.kind === 'TRANSFER') setOwnershipPassword('')
+            setMemberConfirmation(null)
+          }}
+          onConfirm={() => void confirmMemberAction()}
+        />
+        <ConfirmDialog
+          open={Boolean(invitationToRevoke)}
+          title="Revoke this invitation?"
+          description={invitationToRevoke ? `${invitationToRevoke.email} will no longer be able to use this invitation.` : ''}
+          confirmLabel="Yes, revoke"
+          cancelLabel="No, keep invitation"
+          tone="warning"
+          working={Boolean(invitationToRevoke && workingInvitationId === invitationToRevoke.invitationId)}
+          onCancel={() => setInvitationToRevoke(null)}
+          onConfirm={() => invitationToRevoke && void revoke(invitationToRevoke)}
+        />
     </section>
   )
 }

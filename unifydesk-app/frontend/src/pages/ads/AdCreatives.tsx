@@ -17,6 +17,7 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import { PageSkeleton } from '../../components/ui/Skeleton'
 
 const formatLabel = (value?: string | null) =>
   value
@@ -255,9 +256,7 @@ export default function AdCreatives() {
             Connect and manage an ad account before using creative management.
           </div>
         ) : loading ? (
-          <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
-            Loading creatives…
-          </div>
+          <div className="mt-6"><PageSkeleton /></div>
         ) : selectedAccount?.provider === 'GOOGLE_ADS' ? (
           <div className="mt-6 space-y-6">
             <div className="panel overflow-hidden">

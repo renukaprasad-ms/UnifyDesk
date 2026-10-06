@@ -3,6 +3,7 @@ package com.messaging.managedemail.delivery;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.broadcast.entity.BroadcastRecipient;
 import com.messaging.broadcast.entity.BroadcastRun;
 import com.messaging.broadcast.entity.BroadcastSender;
@@ -34,6 +35,8 @@ class ManagedEmailExistingProviderRegressionTests {
     BroadcastRetryPolicy retryPolicy = mock(BroadcastRetryPolicy.class);
     BroadcastDeliveryStateService state = mock(BroadcastDeliveryStateService.class);
     BroadcastTemplateRenderer renderer = mock(BroadcastTemplateRenderer.class);
+    BroadcastEmailComplianceService emailCompliance =
+        mock(BroadcastEmailComplianceService.class);
     ManagedEmailDeliveryGuard managedGuard = mock(ManagedEmailDeliveryGuard.class);
     ManagedEmailRateLimiter managedRate = mock(ManagedEmailRateLimiter.class);
     ManagedEmailUsageService usage = mock(ManagedEmailUsageService.class);
@@ -41,6 +44,7 @@ class ManagedEmailExistingProviderRegressionTests {
         mock(ManagedEmailPostAcceptanceReconciler.class);
     ManagedEmailSuppressionGate suppressionGate = mock(ManagedEmailSuppressionGate.class);
     ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
+    ManagedFinancialExposureGuard exposure = mock(ManagedFinancialExposureGuard.class);
     BroadcastEmailTransport transport = mock(BroadcastEmailTransport.class);
     ContactEligibilityService contactEligibility = mock(ContactEligibilityService.class);
     BroadcastWhatsAppDeliveryService whatsAppDelivery = mock(BroadcastWhatsAppDeliveryService.class);
@@ -77,6 +81,16 @@ class ManagedEmailExistingProviderRegressionTests {
         .thenReturn(
             new BroadcastTemplateRenderer.RenderedContent(
                 "Subject", "Body", null, List.of(), false, Map.of()));
+    when(emailCompliance.apply(any(), eq(recipient)))
+        .thenReturn(
+            new BroadcastEmailComplianceService.CompliantContent(
+                "Subject",
+                "Body",
+                null,
+                Map.of(),
+                new BroadcastEmailComplianceMetadata(
+                    "https://app.unifydesk.in/unsubscribe?token=test",
+                    "https://api.unifydesk.in/api/v1/public/recipient-actions/email/unsubscribe/test")));
     BroadcastDeliveryStateService.AttemptContext attempt =
         new BroadcastDeliveryStateService.AttemptContext(70L, 60L, 80L, 1);
     when(state.begin(70L, provider)).thenReturn(attempt);
@@ -94,12 +108,14 @@ class ManagedEmailExistingProviderRegressionTests {
             retryPolicy,
             state,
             renderer,
+            emailCompliance,
             managedGuard,
             managedRate,
             usage,
             reconciler,
             suppressionGate,
             budget,
+            exposure,
             contactEligibility,
             whatsAppDelivery);
 
@@ -115,6 +131,7 @@ class ManagedEmailExistingProviderRegressionTests {
         reconciler,
         suppressionGate,
         budget,
+        exposure,
         contactEligibility,
         whatsAppDelivery);
   }

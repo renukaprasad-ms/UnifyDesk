@@ -12,6 +12,9 @@ public interface InboxMessageAttachmentRepository
   Optional<InboxMessageAttachment> findByMessageIdAndExternalAttachmentId(
       Long messageId, String externalAttachmentId);
 
+  Optional<InboxMessageAttachment> findByIdAndMessageConnectionCompanyId(
+      Long id, Long companyId);
+
   List<InboxMessageAttachment> findByMessageIdOrderByFilenameAsc(Long messageId);
 
   List<InboxMessageAttachment> findByMessageIdInOrderByFilenameAsc(Collection<Long> messageIds);

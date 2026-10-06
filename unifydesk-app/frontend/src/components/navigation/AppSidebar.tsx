@@ -32,6 +32,7 @@ import WorkspaceSwitcher from '../WorkspaceSwitcher'
 type AppSidebarProps = {
   platformAccess: PlatformAccess | null
   compact?: boolean
+  closeSignal?: number
   loggingOut: boolean
   onNavigate: () => void
   onLogout: () => void
@@ -118,6 +119,7 @@ const companyLinks: WorkspaceLink[] = [
 export default function AppSidebar({
   platformAccess,
   compact = false,
+  closeSignal = 0,
   loggingOut,
   onNavigate,
   onLogout,
@@ -139,16 +141,20 @@ export default function AppSidebar({
   const nestedLinkClass = ({ isActive }: { isActive: boolean }) =>
     `sidebar-link sidebar-link-nested ${isActive ? 'sidebar-link-active' : ''}`
   const toggleSection = (section: string) =>
-    setOpenSections((current) => ({ ...current, [section]: !current[section] }))
+    setOpenSections((current) => ({
+      inbox: false,
+      broadcast: false,
+      company: false,
+      account: false,
+      [section]: !current[section],
+    }))
   const hasWorkspacePermission = (permission?: PermissionKey) =>
-    platformWorkspaceAccess || !permission || can(permission)
+    !permission || can(permission)
   const visible = (links: WorkspaceLink[]) =>
     links.filter(
       (link) =>
         hasWorkspacePermission(link.permission) &&
-        (!link.anyOf ||
-          platformWorkspaceAccess ||
-          link.anyOf.some((permission) => can(permission))),
+        (!link.anyOf || link.anyOf.some((permission) => can(permission))),
     )
 
   const renderSection = (key: string, label: string, icon: ReactNode, links: WorkspaceLink[]) => {
@@ -190,7 +196,7 @@ export default function AppSidebar({
   return (
     <>
       <div className="sidebar-workspace pb-8 pt-1">
-        <WorkspaceSwitcher platformAdmin={platformWorkspaceAccess} />
+        <WorkspaceSwitcher platformAdmin={platformWorkspaceAccess} closeSignal={closeSignal} />
       </div>
       <nav aria-label="Main navigation" className="space-y-1">
         <p className="sidebar-label sidebar-copy">APP</p>

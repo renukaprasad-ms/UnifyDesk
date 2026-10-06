@@ -3,6 +3,7 @@ import { FiRefreshCw, FiSave } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type { GooglePerformanceMaxBrandGuidelines } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { CardSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -144,7 +145,7 @@ export default function GooglePerformanceMaxBrandGuidelinesPanel({
         )}
 
         {loading ? (
-          <p className="text-sm text-slate-500">Loading Google brand guidelines…</p>
+          <CardSkeleton rows={4} />
         ) : value ? (
           <>
             <div

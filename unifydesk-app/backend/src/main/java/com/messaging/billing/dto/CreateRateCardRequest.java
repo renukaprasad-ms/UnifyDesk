@@ -23,5 +23,5 @@ public record CreateRateCardRequest(
     @NotNull UsageUnit unit,
     @NotNull @DecimalMin("0.000000") BigDecimal price,
     @Size(min = 3, max = 3) String currency,
-    Instant effectiveFrom,
+    @NotNull Instant effectiveFrom,
     Instant effectiveTo) {}

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { ContactIdentity, IdentityType } from '../../features/contacts/types'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 type Props = {
   identities: ContactIdentity[]
@@ -21,6 +22,7 @@ export default function IdentityManager({
   const [type, setType] = useState<IdentityType>('EMAIL')
   const [value, setValue] = useState('')
   const [namespace, setNamespace] = useState('')
+  const [identityToRemove, setIdentityToRemove] = useState<ContactIdentity | null>(null)
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -74,11 +76,7 @@ export default function IdentityManager({
                   type="button"
                   className="secondary-button text-rose-700"
                   disabled={busy}
-                  onClick={() => {
-                    if (window.confirm('Remove this identity from the contact?')) {
-                      void onRemove(identity.id)
-                    }
-                  }}
+                  onClick={() => setIdentityToRemove(identity)}
                 >
                   Remove
                 </button>
@@ -137,6 +135,20 @@ export default function IdentityManager({
           </button>
         </form>
       )}
+      <ConfirmDialog
+        open={Boolean(identityToRemove)}
+        title="Remove this identity?"
+        description={identityToRemove ? `Remove ${identityToRemove.value} from this contact? The contact record itself will remain.` : ''}
+        confirmLabel="Yes, remove identity"
+        cancelLabel="No, keep identity"
+        tone="warning"
+        working={busy}
+        onCancel={() => setIdentityToRemove(null)}
+        onConfirm={() => {
+          if (!identityToRemove) return
+          void onRemove(identityToRemove.id).finally(() => setIdentityToRemove(null))
+        }}
+      />
     </section>
   )
 }

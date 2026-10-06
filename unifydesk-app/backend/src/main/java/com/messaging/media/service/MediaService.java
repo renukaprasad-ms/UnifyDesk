@@ -25,6 +25,7 @@ import com.messaging.redis.key.RedisKey;
 import com.messaging.redis.service.RedisService;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.storage.adapter.MediaStorageAccountingAdapter;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -242,6 +243,55 @@ public class MediaService {
     storageAccounting.attachActiveMediaToCompany(media, companyId);
     media.setCompanyId(companyId);
     mediaRepository.saveAndFlush(media);
+  }
+
+  @Transactional
+  public void retirePersonalProfilePicture(long mediaId, long ownerUserId) {
+    Media media = mediaRepository.findById(mediaId).orElse(null);
+    if (media == null
+        || media.getPurpose() != MediaPurpose.USER_PROFILE
+        || media.getCompanyId() != null
+        || media.getOwnerUserId() != ownerUserId
+        || media.getStatus() == MediaStatus.DELETED) {
+      return;
+    }
+    if (media.getStatus() == MediaStatus.ACTIVE) {
+      storageAccounting.release(media);
+      media.setStatus(MediaStatus.DELETE_PENDING);
+      mediaRepository.saveAndFlush(media);
+    }
+    try {
+      storageProviderResolver
+          .resolve(media.getStorageProvider())
+          .delete(media.getBucket(), media.getObjectKey());
+      markDeleted(media.getId());
+    } catch (RuntimeException ignored) {
+      // Best effort: keep DELETE_PENDING rather than fail a profile update.
+    }
+  }
+
+  @Transactional
+  public void retireCompanyLogo(long mediaId, long companyId) {
+    Media media = mediaRepository.findById(mediaId).orElse(null);
+    if (media == null
+        || media.getPurpose() != MediaPurpose.COMPANY_LOGO
+        || !Long.valueOf(companyId).equals(media.getCompanyId())
+        || media.getStatus() == MediaStatus.DELETED) {
+      return;
+    }
+    if (media.getStatus() == MediaStatus.ACTIVE) {
+      storageAccounting.release(media);
+      media.setStatus(MediaStatus.DELETE_PENDING);
+      mediaRepository.saveAndFlush(media);
+    }
+    try {
+      storageProviderResolver
+          .resolve(media.getStorageProvider())
+          .delete(media.getBucket(), media.getObjectKey());
+      markDeleted(media.getId());
+    } catch (RuntimeException ignored) {
+      // Best effort: keep DELETE_PENDING rather than fail the company profile update.
+    }
   }
 
   @Transactional
@@ -515,6 +565,14 @@ public class MediaService {
       throw new MediaException(HttpStatus.CONFLICT, "MEDIA_NOT_ACTIVE");
     }
     return media;
+  }
+
+  @Transactional(readOnly = true)
+  public InputStream openTrustedObject(long mediaId, long companyId) {
+    Media media = requireActiveCompanyMedia(mediaId, companyId);
+    return storageProviderResolver
+        .resolve(media.getStorageProvider())
+        .openObject(media.getBucket(), media.getObjectKey());
   }
 
   @Transactional(readOnly = true)

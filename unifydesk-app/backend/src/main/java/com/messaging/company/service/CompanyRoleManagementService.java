@@ -22,6 +22,7 @@ import com.messaging.company.enums.CompanyRole;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.repository.CompanyCustomRolePermissionRepository;
 import com.messaging.company.repository.CompanyCustomRoleRepository;
+import com.messaging.company.repository.CompanyInvitationRepository;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyMemberRoleAssignmentRepository;
 import com.messaging.company.repository.PermissionDefinitionRepository;
@@ -46,9 +47,11 @@ public class CompanyRoleManagementService {
   private final CompanyService companyService;
   private final CompanyAuthorizationService authorizationService;
   private final CompanyIamPermissionService iamPermissionService;
+  private final CompanyAccessRealtimeService accessRealtimeService;
   private final SystemPermissionCatalogService permissionCatalogService;
   private final CompanySystemRoleService companySystemRoleService;
   private final CompanyMemberRepository memberRepository;
+  private final CompanyInvitationRepository invitationRepository;
   private final PermissionDefinitionRepository permissionDefinitionRepository;
   private final CompanyCustomRoleRepository roleRepository;
   private final CompanyCustomRolePermissionRepository rolePermissionRepository;
@@ -125,6 +128,7 @@ public class CompanyRoleManagementService {
     CompanyCustomRole role = requireRole(companyId, roleId);
     requireEditable(role);
     requireCanDelegate(actorId, companyId, permissionKeys(roleId));
+    List<Long> affectedUserIds = activeAssignmentUserIds(roleId);
 
     String name = normalizeName(request.name());
     if (roleRepository.existsByCompanyIdAndNameIgnoreCaseAndIdNotAndDeletedAtIsNull(
@@ -137,6 +141,10 @@ public class CompanyRoleManagementService {
     role.setDescription(normalizeNullable(request.description()));
     role = roleRepository.saveAndFlush(role);
     replacePermissions(role, permissions);
+    affectedUserIds.forEach(
+        userId ->
+            accessRealtimeService.notifyAfterCommit(
+                userId, companyId, "CUSTOM_ROLE_UPDATED", CompanyMemberStatus.ACTIVE));
     return toRoleResponse(role, permissions);
   }
 
@@ -148,17 +156,24 @@ public class CompanyRoleManagementService {
     requireEditable(role);
     Set<String> permissions = permissionKeys(roleId);
     requireCanDelegate(actorId, companyId, permissions);
+    List<Long> affectedUserIds = activeAssignmentUserIds(roleId);
     Instant now = Instant.now();
     List<CompanyMemberRoleAssignment> assignments =
         assignmentRepository.findByRoleIdAndRevokedAtIsNull(roleId);
     assignments.forEach(assignment -> assignment.setRevokedAt(now));
     assignmentRepository.saveAll(assignments);
 
+    invitationRepository.deletePendingRoleLinks(roleId);
+
     role.setDeletedAt(now);
     role.setDeletedByUserId(actorId);
     roleRepository.saveAndFlush(role);
 
     deletionQueueService.enqueue(LifecycleEntityType.COMPANY_ROLE, roleId, companyId, actorId);
+    affectedUserIds.forEach(
+        userId ->
+            accessRealtimeService.notifyAfterCommit(
+                userId, companyId, "CUSTOM_ROLE_DELETED", CompanyMemberStatus.ACTIVE));
   }
 
   @Transactional
@@ -195,6 +210,8 @@ public class CompanyRoleManagementService {
     assignment.setExpiresAt(expiresAt);
     assignment.setRevokedAt(null);
     assignment = assignmentRepository.saveAndFlush(assignment);
+    accessRealtimeService.notifyAfterCommit(
+        targetUserId, companyId, "CUSTOM_ROLE_ASSIGNED", CompanyMemberStatus.ACTIVE);
     return toAssignmentResponse(assignment);
   }
 
@@ -213,6 +230,8 @@ public class CompanyRoleManagementService {
     if (assignment.getRevokedAt() == null) {
       assignment.setRevokedAt(Instant.now());
       assignmentRepository.saveAndFlush(assignment);
+      accessRealtimeService.notifyAfterCommit(
+          targetUserId, companyId, "CUSTOM_ROLE_REVOKED", CompanyMemberStatus.ACTIVE);
     }
   }
 
@@ -229,6 +248,15 @@ public class CompanyRoleManagementService {
         .findByCompanyIdAndUserIdOrderByCreatedAtDesc(companyId, targetUserId)
         .stream()
         .map(this::toAssignmentResponse)
+        .toList();
+  }
+
+  private List<Long> activeAssignmentUserIds(Long roleId) {
+    Instant now = Instant.now();
+    return assignmentRepository.findByRoleIdAndRevokedAtIsNull(roleId).stream()
+        .filter(assignment -> assignment.getExpiresAt() == null || assignment.getExpiresAt().isAfter(now))
+        .map(CompanyMemberRoleAssignment::getUserId)
+        .distinct()
         .toList();
   }
 

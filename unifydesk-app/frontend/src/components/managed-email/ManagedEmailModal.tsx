@@ -27,6 +27,7 @@ import type {
   ManagedEmailOverview,
   ManagedEmailSender,
 } from '../../features/managedEmail/types'
+import { CardSkeleton } from '../ui/Skeleton'
 
 type Stage = 'landing' | 'customer-domain' | 'creating-hosted' | 'domain'
 
@@ -390,7 +391,7 @@ export default function ManagedEmailModal({
         )}
 
         {stage === 'domain' && !domain && (
-          <p className="mt-8 text-center text-sm text-slate-500">Loading domain…</p>
+          <div className="mt-6"><CardSkeleton rows={5} /></div>
         )}
 
         {stage === 'domain' && domain && (

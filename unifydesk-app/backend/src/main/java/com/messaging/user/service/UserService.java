@@ -4,6 +4,7 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.ForbiddenException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.auth.service.PasswordPolicyService;
 import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.enums.CompanyRole;
 import com.messaging.company.enums.CompanyStatus;
@@ -22,13 +23,17 @@ import com.messaging.security.service.CurrentUserService;
 import com.messaging.session.service.UserSessionService;
 import com.messaging.user.dto.CreateUserRequest;
 import com.messaging.user.dto.ResetPasswordRequest;
-import com.messaging.user.dto.ToggleTwoFactorRequest;
 import com.messaging.user.dto.UpdateOwnProfileRequest;
 import com.messaging.user.dto.UpdateUserRequest;
 import com.messaging.user.dto.UserResponse;
+import com.messaging.user.dto.UserPreferencesResponse;
+import com.messaging.user.dto.UpdateUserPreferencesRequest;
 import com.messaging.user.entity.User;
+import com.messaging.user.entity.UserPreference;
 import com.messaging.user.enums.UserStatus;
+import com.messaging.user.enums.UserAppearanceMode;
 import com.messaging.user.repository.UserRepository;
+import com.messaging.user.repository.UserPreferenceRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -45,6 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
   private final UserRepository userRepository;
+  private final UserPreferenceRepository userPreferenceRepository;
   private final PasswordEncoder passwordEncoder;
   private final CurrentUserService currentUserService;
   private final MediaService mediaService;
@@ -54,11 +60,13 @@ public class UserService {
   private final DeletionPurgeService deletionPurgeService;
   private final DeletionLifecycleProperties deletionProperties;
   private final RealtimeConnectionRegistry realtimeConnectionRegistry;
+  private final PasswordPolicyService passwordPolicyService;
 
   @Transactional
   public User createUser(CreateUserRequest request) {
     String email = normalizeEmail(request.email());
     String username = normalizeUsername(request.username());
+    passwordPolicyService.validate(request.password());
 
     userRepository
         .findByEmailOrUsername(email, username)
@@ -108,6 +116,63 @@ public class UserService {
     return toResponse(getUser(currentUserService.currentUserId()));
   }
 
+  @Transactional(readOnly = true)
+  public UserPreferencesResponse getCurrentUserPreferences() {
+    return new UserPreferencesResponse(appearanceMode(currentUserService.currentUserId()));
+  }
+
+  @Transactional
+  public UserPreferencesResponse updateCurrentUserPreferences(UpdateUserPreferencesRequest request) {
+    long userId = currentUserService.currentUserId();
+    getUser(userId);
+    UserPreference preference =
+        userPreferenceRepository.findById(userId).orElseGet(UserPreference::new);
+    preference.setUserId(userId);
+    preference.setAppearanceMode(request.appearanceMode());
+    userPreferenceRepository.saveAndFlush(preference);
+    return new UserPreferencesResponse(preference.getAppearanceMode());
+  }
+
+  @Transactional(readOnly = true)
+  public UserAppearanceMode appearanceMode(long userId) {
+    return userPreferenceRepository
+        .findById(userId)
+        .map(UserPreference::getAppearanceMode)
+        .orElse(UserAppearanceMode.LIGHT);
+  }
+
+  @Transactional(readOnly = true)
+  public String validateEmailChangeCandidate(long userId, String newEmail) {
+    User user = getUser(userId);
+    String normalized = normalizeEmail(newEmail);
+    if (normalized.equals(user.getEmail())) {
+      throw new BadRequestException("New email must be different from your current email");
+    }
+    if (userRepository.existsByEmailAndIdNot(normalized, userId)) {
+      throw new ConflictException("Email already exists");
+    }
+    return normalized;
+  }
+
+  @Transactional
+  public User completeEmailChange(long userId, String newEmail) {
+    User user =
+        userRepository
+            .findByIdForUpdate(userId)
+            .orElseThrow(() -> new NotFoundException("User not found"));
+    String normalized = normalizeEmail(newEmail);
+    if (userRepository.existsByEmailAndIdNot(normalized, userId)) {
+      throw new ConflictException("Email already exists");
+    }
+    user.setEmail(normalized);
+    user.setVerified(true);
+    try {
+      return userRepository.saveAndFlush(user);
+    } catch (DataIntegrityViolationException exception) {
+      throw new ConflictException("Email already exists");
+    }
+  }
+
   @Transactional
   public UserResponse updateOwnProfile(UpdateOwnProfileRequest request) {
     long userId = currentUserService.currentUserId();
@@ -128,15 +193,10 @@ public class UserService {
     requireCurrentUser(userId, "You can only update your own user profile");
     User user = getUser(userId);
 
-    if (request.email() != null && !request.email().isBlank()) {
-      String email = normalizeEmail(request.email());
-      if (!email.equals(user.getEmail())) {
-        if (userRepository.existsByEmailAndIdNot(email, userId)) {
-          throw new ConflictException("Email already exists");
-        }
-        user.setEmail(email);
-        user.setVerified(false);
-      }
+    if (request.email() != null
+        && !request.email().isBlank()
+        && !normalizeEmail(request.email()).equals(user.getEmail())) {
+      throw new BadRequestException("Use the secure email change flow to update your email");
     }
 
     if (request.username() != null && !request.username().isBlank()) {
@@ -169,8 +229,11 @@ public class UserService {
     if (passwordEncoder.matches(request.password(), user.getPassword())) {
       throw new ConflictException("New password must be different from current password");
     }
+    passwordPolicyService.validate(request.password());
 
     user.setPassword(passwordEncoder.encode(request.password()));
+    userSessionService.revokeAllForUser(userId);
+    realtimeConnectionRegistry.closeForUser(userId);
     return toResponse(user);
   }
 
@@ -180,21 +243,20 @@ public class UserService {
     if (passwordEncoder.matches(password, user.getPassword())) {
       throw new ConflictException("New password must be different from current password");
     }
+    passwordPolicyService.validate(password);
     user.setPassword(passwordEncoder.encode(password));
     return toResponse(user);
   }
 
   @Transactional
-  public UserResponse toggleTwoFactor(long userId, ToggleTwoFactorRequest request) {
-    requireCurrentUser(userId, "You can only change your own two-factor authentication settings");
-
+  public UserResponse setTwoFactorEnabled(long userId, boolean enabled) {
     User user = getUser(userId);
-    user.setTwoFactorEnabled(request.enabled());
+    user.setTwoFactorEnabled(enabled);
     return toResponse(user);
   }
 
   @Transactional
-  public void deleteUser(long userId) {
+  public void deleteUser(long userId, String currentPassword) {
     requireCurrentUser(userId, "You can only delete your own account");
 
     User user = getUser(userId);
@@ -203,11 +265,16 @@ public class UserService {
         || user.getStatus() == UserStatus.PURGED) {
       return;
     }
+    if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+      throw new ForbiddenException("Current password is incorrect");
+    }
 
     var activeMemberships =
         companyMemberRepository.findByUserIdAndStatus(userId, CompanyMemberStatus.ACTIVE);
+    var suspendedMemberships =
+        companyMemberRepository.findByUserIdAndStatus(userId, CompanyMemberStatus.SUSPENDED);
     boolean ownsCompany =
-        activeMemberships.stream()
+        java.util.stream.Stream.concat(activeMemberships.stream(), suspendedMemberships.stream())
             .anyMatch(
                 member ->
                     member.getRole() == CompanyRole.OWNER
@@ -221,8 +288,17 @@ public class UserService {
     Instant now = Instant.now();
     Instant purgeAfter = now.plus(deletionProperties.getRetention());
 
-    // Access is terminated immediately, but memberships/profile/media stay intact
-    // until the retention period expires so restoration remains possible.
+    java.util.stream.Stream.concat(activeMemberships.stream(), suspendedMemberships.stream())
+        .forEach(member -> member.setStatus(CompanyMemberStatus.LEFT));
+    companyMemberRepository.saveAll(activeMemberships);
+    companyMemberRepository.saveAll(suspendedMemberships);
+
+    var assignments = roleAssignmentRepository.findByUserIdAndRevokedAtIsNull(userId);
+    assignments.forEach(assignment -> assignment.setRevokedAt(now));
+    roleAssignmentRepository.saveAll(assignments);
+
+    // Authentication and realtime access terminate immediately; relational rows remain for
+    // retention/audit purposes until the purge lifecycle completes.
     userSessionService.revokeAllForUser(userId);
     realtimeConnectionRegistry.closeForUser(userId);
 
@@ -255,8 +331,27 @@ public class UserService {
     if (media.getPurpose() != MediaPurpose.USER_PROFILE) {
       throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_INVALID_PURPOSE");
     }
+
+    Media previous = user.getProfilePicture();
     user.setProfilePicture(media);
+    userRepository.saveAndFlush(user);
+    if (previous != null && !previous.getId().equals(media.getId())) {
+      mediaService.retirePersonalProfilePicture(previous.getId(), userId);
+    }
     return new ProfilePictureResponse(user.getId().toString(), media.getId().toString());
+  }
+
+  @Transactional
+  public void removeCurrentUserProfilePicture() {
+    long userId = currentUserService.currentUserId();
+    User user = getUser(userId);
+    Media previous = user.getProfilePicture();
+    if (previous == null) {
+      return;
+    }
+    user.setProfilePicture(null);
+    userRepository.saveAndFlush(user);
+    mediaService.retirePersonalProfilePicture(previous.getId(), userId);
   }
 
   @Transactional

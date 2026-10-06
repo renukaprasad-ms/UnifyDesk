@@ -9,6 +9,7 @@ import type {
   CreateBillingPlanInput,
   PlanStatus,
 } from '../../features/platformBilling/types'
+import { CardSkeleton } from '../../components/ui/Skeleton'
 
 const emptyPlan: CreateBillingPlanInput = {
   code: '',
@@ -102,8 +103,10 @@ export default function PlatformPlans() {
 
   if (loading)
     return (
-      <div className="p-4 sm:p-6 lg:p-8 text-sm font-medium text-slate-500">
-        Loading billing catalog…
+      <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3 lg:p-8">
+        <CardSkeleton rows={5} />
+        <CardSkeleton rows={5} />
+        <CardSkeleton rows={5} />
       </div>
     )
 

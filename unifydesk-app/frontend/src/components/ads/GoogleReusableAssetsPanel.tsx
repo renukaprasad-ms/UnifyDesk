@@ -10,6 +10,7 @@ import type {
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import GoogleAdvancedAssetForm from './GoogleAdvancedAssetForm'
+import { CardSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -368,9 +369,7 @@ export default function GoogleReusableAssetsPanel(props: Props) {
           </div>
 
           {loading ? (
-            <div className="mt-4 rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-              Loading Google assets…
-            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2"><CardSkeleton rows={3} /><CardSkeleton rows={3} /></div>
           ) : assets.length === 0 ? (
             <div className="mt-4 rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
               No reusable advertiser assets yet. Create the first one below.

@@ -1,5 +1,6 @@
 package com.messaging.managedemail.delivery;
 
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.managedemail.metering.ManagedEmailUsageService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeProperties;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
@@ -20,6 +21,7 @@ public class ManagedEmailProviderBudgetService {
   private final JdbcTemplate jdbcTemplate;
   private final ManagedEmailUsageService usageService;
   private final ManagedEmailRuntimeProperties properties;
+  private final ManagedFinancialExposureGuard financialExposureGuard;
 
   public boolean hasUsableProviderSnapshot(
       ManagedEmailRuntimeRepository.ManagedSenderRuntime runtime) {
@@ -46,6 +48,7 @@ public class ManagedEmailProviderBudgetService {
       Long recipientId,
       Long runId,
       int attemptNo) {
+    financialExposureGuard.assertAllowed(runtime == null ? null : runtime.companyId());
     if (!hasUsableProviderSnapshot(runtime)) {
       return false;
     }

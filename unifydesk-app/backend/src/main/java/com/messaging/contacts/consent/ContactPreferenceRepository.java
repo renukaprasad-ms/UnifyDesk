@@ -80,7 +80,8 @@ public class ContactPreferenceRepository {
     }
 
     Instant now = Instant.now();
-    if (current.isPresent()) {
+    if (current.isPresent()
+        && ContactPreferenceProjectionPolicy.shouldReplace(current.get(), command)) {
       jdbcTemplate.update(
           """
           update contact_channel_preferences
@@ -95,7 +96,7 @@ public class ContactPreferenceRepository {
           Timestamp.from(now),
           current.get().id(),
           command.companyId());
-    } else {
+    } else if (current.isEmpty()) {
       jdbcTemplate.update(
           """
           insert into contact_channel_preferences (

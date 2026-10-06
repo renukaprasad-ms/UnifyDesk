@@ -3,7 +3,11 @@ package com.messaging.managedemail.delivery;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
+import com.messaging.billing.entity.CompanySubscription;
+import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.service.EntitlementService;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
+import com.messaging.billing.service.SubscriptionLifecycleService;
 import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
 import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
@@ -18,6 +22,59 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class ManagedEmailLaunchGuardTests {
+
+  @Test
+  void activeManagedEmailLaunchIsAllowedThroughFinancialBoundary() {
+    Fixture fixture = fixture();
+    when(fixture.runtime.findSenderRuntime(10L, 20L))
+        .thenReturn(Optional.of(runtime(true, true, "ACTIVE", "ACTIVE")));
+
+    fixture.guard.validateLaunch(10L, fixture.sender, fixture.connection, 1);
+
+    verify(fixture.exposure).assertAllowed(10L);
+    verify(fixture.usage).canReserve(10L, 1);
+  }
+
+  @Test
+  void trialingManagedEmailLaunchRemainsAllowed() {
+    SubscriptionLifecycleService lifecycle = mock(SubscriptionLifecycleService.class);
+    CompanySubscription trial = new CompanySubscription();
+    trial.setStatus(SubscriptionStatus.TRIALING);
+    when(lifecycle.currentOptional(10L)).thenReturn(Optional.of(trial));
+    Fixture fixture = fixture(new ManagedFinancialExposureGuard(lifecycle));
+    when(fixture.runtime.findSenderRuntime(10L, 20L))
+        .thenReturn(Optional.of(runtime(true, true, "ACTIVE", "ACTIVE")));
+
+    fixture.guard.validateLaunch(10L, fixture.sender, fixture.connection, 1);
+
+    verify(fixture.usage).canReserve(10L, 1);
+  }
+
+  @Test
+  void blockedBillingStatusRejectsManagedEmailBeforeReservationChecks() {
+    Fixture fixture = fixture();
+    doThrow(new com.messaging.billing.exception.PlanEntitlementException(
+            ManagedFinancialExposureGuard.BLOCKED))
+        .when(fixture.exposure)
+        .assertAllowed(10L);
+
+    assertThatThrownBy(
+            () -> fixture.guard.validateLaunch(10L, fixture.sender, fixture.connection, 1))
+        .isInstanceOf(com.messaging.billing.exception.PlanEntitlementException.class)
+        .hasMessage(ManagedFinancialExposureGuard.BLOCKED);
+
+    verifyNoInteractions(fixture.runtime, fixture.usage);
+  }
+
+  @Test
+  void customerOwnedEmailDoesNotUseManagedFinancialExposureGuard() {
+    Fixture fixture = fixture();
+    fixture.connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
+
+    fixture.guard.validateLaunch(10L, fixture.sender, fixture.connection, 1);
+
+    verifyNoInteractions(fixture.exposure, fixture.runtime, fixture.usage);
+  }
 
   @Test
   void globalKillSwitchRejectsManagedLaunch() {
@@ -63,6 +120,10 @@ class ManagedEmailLaunchGuardTests {
   }
 
   private Fixture fixture() {
+    return fixture(mock(ManagedFinancialExposureGuard.class));
+  }
+
+  private Fixture fixture(ManagedFinancialExposureGuard exposure) {
     ManagedEmailRuntimeRepository runtime = mock(ManagedEmailRuntimeRepository.class);
     EntitlementService entitlement = mock(EntitlementService.class);
     ManagedEmailUsageService usage = mock(ManagedEmailUsageService.class);
@@ -86,11 +147,14 @@ class ManagedEmailLaunchGuardTests {
             runtime,
             properties,
             entitlement,
+            exposure,
             usage,
             new ManagedEmailAddressPolicy(),
             budget),
         runtime,
         properties,
+        exposure,
+        usage,
         connection,
         sender);
   }
@@ -148,6 +212,8 @@ class ManagedEmailLaunchGuardTests {
       ManagedEmailLaunchGuard guard,
       ManagedEmailRuntimeRepository runtime,
       ManagedEmailRuntimeProperties properties,
+      ManagedFinancialExposureGuard exposure,
+      ManagedEmailUsageService usage,
       BroadcastSenderConnection connection,
       BroadcastSender sender) {}
 }

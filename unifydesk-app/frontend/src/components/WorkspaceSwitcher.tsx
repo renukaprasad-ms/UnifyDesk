@@ -12,6 +12,7 @@ import {
   selectSelectedCompanyId,
   setCompanies,
 } from '../store/workspace/workspaceSlice'
+import { Skeleton } from './ui/Skeleton'
 
 const companyInitials = (name: string) =>
   name
@@ -29,7 +30,13 @@ const mergeCompanies = (memberCompanies: Company[], adminCompanies: Company[]) =
   return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
-export default function WorkspaceSwitcher({ platformAdmin = false }: { platformAdmin?: boolean }) {
+export default function WorkspaceSwitcher({
+  platformAdmin = false,
+  closeSignal = 0,
+}: {
+  platformAdmin?: boolean
+  closeSignal?: number
+}) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -42,12 +49,23 @@ export default function WorkspaceSwitcher({ platformAdmin = false }: { platformA
   const [logoUrls, setLogoUrls] = useState<Record<string, string>>({})
 
   useEffect(() => {
+    setOpen(false)
+  }, [closeSignal])
+
+  useEffect(() => {
     if (!open) return
     const onPointerDown = (event: PointerEvent) => {
       if (!menuRef.current?.contains(event.target as Node)) setOpen(false)
     }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
     document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
   }, [open])
 
   useEffect(() => {
@@ -122,9 +140,9 @@ export default function WorkspaceSwitcher({ platformAdmin = false }: { platformA
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-indigo-50 text-[11px] font-bold text-indigo-500">
+        <span className="workspace-logo-mark">
           {selectedLogoUrl ? (
-            <img src={selectedLogoUrl} alt="" className="h-full w-full object-cover" />
+            <img src={selectedLogoUrl} alt="" className="h-full w-full object-contain" />
           ) : selectedCompany ? (
             companyInitials(selectedCompany.name)
           ) : (
@@ -143,7 +161,10 @@ export default function WorkspaceSwitcher({ platformAdmin = false }: { platformA
       {open && (
         <div className="workspace-menu left-0 right-auto" role="menu">
           {loading && (
-            <div className="px-3 py-3 text-xs font-semibold text-slate-500">Loading...</div>
+            <div className="space-y-2 px-3 py-3" role="status" aria-label="Loading workspaces">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+            </div>
           )}
           {!loading &&
             companies.map((company) => (
@@ -152,18 +173,20 @@ export default function WorkspaceSwitcher({ platformAdmin = false }: { platformA
                 type="button"
                 className="workspace-menu-item"
                 role="menuitem"
+                disabled={company.status !== 'ACTIVE'}
                 onClick={() => {
+                  if (company.status !== 'ACTIVE') return
                   dispatch(selectCompany(company.companyId))
                   setOpen(false)
                   navigate('/workspace', { replace: true })
                 }}
               >
-                <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-indigo-50 text-[11px] font-bold text-indigo-500">
+                <span className="workspace-logo-mark">
                   {logoUrls[company.companyId] ? (
                     <img
                       src={logoUrls[company.companyId]}
                       alt=""
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                     />
                   ) : (
                     companyInitials(company.name)
@@ -172,7 +195,9 @@ export default function WorkspaceSwitcher({ platformAdmin = false }: { platformA
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{company.name}</span>
                   <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                    {company.role ?? 'Platform access'}
+                    {company.status === 'SUSPENDED'
+                      ? 'Suspended - unavailable'
+                      : company.role ?? 'Platform access'}
                   </span>
                 </span>
                 {selectedCompanyId === company.companyId && (

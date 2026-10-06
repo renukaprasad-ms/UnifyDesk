@@ -71,7 +71,7 @@ export default function InviteAccept() {
         <>
           <p className="mt-2 text-sm leading-6 text-slate-500">
             Sign in with the email address that received this invitation. If you do not have a
-            Messaging account yet, create one first.
+            UnifyDesk account yet, create one first.
           </p>
           <div className="mt-6 grid gap-3">
             <Link className="primary-button flex" to="/login" state={{ redirectTo }}>

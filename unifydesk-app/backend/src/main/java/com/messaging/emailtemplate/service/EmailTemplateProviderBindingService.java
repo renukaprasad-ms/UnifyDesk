@@ -100,7 +100,8 @@ public class EmailTemplateProviderBindingService {
 
     if (binding.getProviderTemplateId() != null
         && !binding.getProviderTemplateId().isBlank()
-        && binding.getContentHash().equals(published.contentHash())) {
+        && binding.getContentHash().equals(published.contentHash())
+        && slug.equals(binding.getProviderTemplateSlug())) {
       return refreshInternal(binding, connection);
     }
 
@@ -119,7 +120,7 @@ public class EmailTemplateProviderBindingService {
               providerName(template.getName(), published.version()),
               slug,
               published.subject(),
-              published.bodyHtml());
+              msg91BroadcastHtml(published.bodyHtml()));
       if (snapshot.providerStatus() == null
           || snapshot.providerStatus().isBlank()
           || snapshot.status() == EmailTemplateProviderBindingStatus.SYNCED) {
@@ -330,7 +331,14 @@ public class EmailTemplateProviderBindingService {
         contentHash == null || contentHash.length() < 8
             ? "content"
             : contentHash.substring(0, 8).toLowerCase();
-    return "messaging-" + templateId + "-v" + version + "-" + suffix;
+    return "messaging-" + templateId + "-v" + version + "-" + suffix + "-u1";
+  }
+
+  private String msg91BroadcastHtml(String html) {
+    if (html.contains("{{unsubscribe_url}}")) return html;
+    return html
+        + "<div data-unifydesk-unsubscribe=\"1\" style=\"margin-top:24px;font-size:12px\">"
+        + "<a href=\"{{unsubscribe_url}}\">Unsubscribe from marketing emails</a></div>";
   }
 
   private String providerName(String templateName, long version) {

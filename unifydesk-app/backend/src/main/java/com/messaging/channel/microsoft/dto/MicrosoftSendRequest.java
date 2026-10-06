@@ -1,5 +1,6 @@
 package com.messaging.channel.microsoft.dto;
 
+import com.messaging.common.exception.BadRequestException;
 import com.messaging.channel.email.EmailSendCommand;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -13,7 +14,19 @@ public record MicrosoftSendRequest(
     @Size(max = 998) String subject,
     @NotBlank @Size(max = 100000) String bodyText,
     @Size(max = 255) String replyToMessageId,
-    Boolean replyAll) {
+    Boolean replyAll,
+    @Size(max = 10) List<@Size(max = 32) String> attachmentMediaIds) {
+
+  public MicrosoftSendRequest(
+      List<String> to,
+      List<String> cc,
+      List<String> bcc,
+      String subject,
+      String bodyText,
+      String replyToMessageId,
+      Boolean replyAll) {
+    this(to, cc, bcc, subject, bodyText, replyToMessageId, replyAll, List.of());
+  }
 
   public EmailSendCommand toCommand() {
     return new EmailSendCommand(
@@ -26,6 +39,17 @@ public record MicrosoftSendRequest(
         replyToMessageId,
         Boolean.TRUE.equals(replyAll),
         null,
-        null);
+        null,
+        attachmentIds());
   }
+  public List<Long> attachmentIds() {
+    if (attachmentMediaIds == null || attachmentMediaIds.isEmpty()) return List.of();
+    try {
+      return attachmentMediaIds.stream().map(Long::valueOf).toList();
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("Invalid attachment media id");
+    }
+  }
+
+
 }

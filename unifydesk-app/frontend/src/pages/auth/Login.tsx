@@ -17,8 +17,17 @@ const Login = () => {
   const [otp, setOtp] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const otpRefs = useRef<Array<HTMLInputElement | null>>([])
-  const routeState = location.state as { passwordReset?: boolean; redirectTo?: string } | null
+  const routeState = location.state as {
+    passwordReset?: boolean
+    passwordChanged?: boolean
+    securityUpdated?: boolean
+    emailChanged?: boolean
+    redirectTo?: string
+  } | null
   const passwordReset = Boolean(routeState?.passwordReset)
+  const passwordChanged = Boolean(routeState?.passwordChanged)
+  const securityUpdated = Boolean(routeState?.securityUpdated)
+  const emailChanged = Boolean(routeState?.emailChanged)
   const redirectTo = resolvePostAuthRedirect(routeState?.redirectTo)
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -158,9 +167,15 @@ const Login = () => {
         Sign in to continue to your messaging workspace.
       </p>
 
-      {passwordReset && (
+      {(passwordReset || passwordChanged || securityUpdated || emailChanged) && (
         <p className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
-          Password reset successfully. Sign in with your new password.
+          {passwordReset
+            ? 'Password reset successfully. Sign in with your new password.'
+            : passwordChanged
+              ? 'Password changed successfully. Sign in again with your new password.'
+              : emailChanged
+                ? 'Email changed successfully. Sign in again with your new email address.'
+                : 'Security settings updated. Sign in again to continue.'}
         </p>
       )}
 

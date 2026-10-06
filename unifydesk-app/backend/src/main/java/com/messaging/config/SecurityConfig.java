@@ -3,6 +3,7 @@ package com.messaging.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.security.filter.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -48,21 +49,21 @@ public class SecurityConfig {
                 csrf.csrfTokenRepository(csrfTokenRepository)
                     .csrfTokenRequestHandler(csrfTokenRequestHandler)
                     .ignoringRequestMatchers(
-                        "/api/auth/register",
-                        "/api/auth/login",
-                        "/api/auth/2fa/verify",
-                        "/api/auth/refresh",
                         "/api/v1/media/uploads",
                         "/api/v1/webhooks/meta/whatsapp",
                         "/api/v1/webhooks/meta/ads",
                         "/api/v1/webhooks/microsoft",
                         "/api/v1/webhooks/google/gmail",
-                        "/api/v1/webhooks/managed-email/ses"))
+                        "/api/v1/webhooks/managed-email/ses",
+                        "/api/v1/webhooks/cashfree",
+                        "/api/v1/public/recipient-actions/email/unsubscribe/*"))
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers(
+                auth.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR)
+                    .permitAll()
+                    .requestMatchers(
                         "/api/auth/register",
                         "/api/auth/csrf",
                         "/api/v1/media/uploads",
@@ -77,14 +78,21 @@ public class SecurityConfig {
                         "/api/v1/webhooks/microsoft",
                         "/api/v1/webhooks/google/gmail",
                         "/api/v1/webhooks/managed-email/ses",
+                        "/api/v1/webhooks/cashfree",
+                        "/api/v1/public/recipient-actions/email/unsubscribe/*",
                         "/api/v1/oauth/gmail/callback",
                         "/api/v1/oauth/microsoft/callback",
                         "/api/v1/oauth/meta-ads/callback",
                         "/api/v1/oauth/google-ads/callback",
                         "/api/v1/email-assets/**")
                     .permitAll()
+                    .requestMatchers(
+                        "/api/auth/verify-email",
+                        "/api/auth/verify-email/resend",
+                        "/api/auth/logout")
+                    .authenticated()
                     .anyRequest()
-                    .authenticated())
+                    .hasAuthority("VERIFIED"))
         .exceptionHandling(
             exception ->
                 exception.authenticationEntryPoint(

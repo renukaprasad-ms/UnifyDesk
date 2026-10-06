@@ -66,6 +66,8 @@ import {
 } from '../../store/workspace/workspaceSlice'
 import { workspaceEpochToken } from '../../features/workspace/workspaceEpoch'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
+import StatusBadge from '../../components/ui/StatusBadge'
+import { CardSkeleton, TableSkeleton } from '../../components/ui/Skeleton'
 
 const channelFromPath = (pathname: string): ChannelType => {
   if (pathname.endsWith('/email')) return 'EMAIL'
@@ -92,16 +94,6 @@ const statusLabel = (status: BroadcastMessageStatus) =>
     .toLowerCase()
     .replaceAll('_', ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase())
-
-const statusBadge = (status: BroadcastMessageStatus) => {
-  if (status === 'COMPLETED') return 'bg-emerald-50 text-emerald-700'
-  if (status === 'RUNNING') return 'bg-indigo-50 text-indigo-700'
-  if (status === 'SCHEDULED' || status === 'QUEUED') return 'bg-blue-50 text-blue-700'
-  if (status === 'PAUSED') return 'bg-amber-50 text-amber-700'
-  if (status === 'PARTIALLY_FAILED') return 'bg-orange-50 text-orange-700'
-  if (status === 'FAILED' || status === 'CANCELLED') return 'bg-rose-50 text-rose-700'
-  return 'bg-slate-100 text-slate-600'
-}
 
 const recipientStatusLabel = (status: BroadcastRecipientStatus) => {
   if (status === 'ACCEPTED_BY_PROVIDER') return 'Accepted'
@@ -1360,8 +1352,10 @@ export default function BroadcastWorkspace() {
                     </div>
 
                     {broadcast.historyStatus === 'loading' && history.length === 0 ? (
-                      <div className="panel px-5 py-12 text-center text-sm text-slate-500">
-                        Loading broadcasts…
+                      <div className="space-y-3">
+                        <CardSkeleton rows={4} />
+                        <CardSkeleton rows={4} />
+                        <CardSkeleton rows={4} />
                       </div>
                     ) : history.length === 0 ? (
                       <div className="panel px-5 py-12 text-center">
@@ -2176,11 +2170,7 @@ function BroadcastHistoryCard({
             <h2 className="min-w-0 truncate text-sm font-bold text-slate-900">
               {message.subject || '(No subject)'}
             </h2>
-            <span
-              className={`rounded-full px-2 py-1 text-[10px] font-bold ${statusBadge(message.status)}`}
-            >
-              {statusLabel(message.status)}
-            </span>
+            <StatusBadge status={message.status}>{statusLabel(message.status)}</StatusBadge>
           </div>
           <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
             {message.bodyPreview || 'No message preview'}
@@ -2253,7 +2243,7 @@ function BroadcastDetail({
   onRecipientsPage: (page: number) => void
 }) {
   if (loading && !message) {
-    return <div className="px-6 py-16 text-center text-sm text-slate-500">Loading broadcast…</div>
+    return <div className="p-5"><CardSkeleton rows={6} /></div>
   }
 
   if (!message) {
@@ -2264,7 +2254,7 @@ function BroadcastDetail({
   const managedSms = isManagedSmsSender(sender)
   return (
     <div className="channel-message-scroll min-h-[calc(100dvh-214px)] p-4 sm:p-5">
-      <div className="mx-auto max-w-5xl">
+      <div className="w-full">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <button type="button" className="secondary-button gap-2" onClick={onBack}>
             <FiArrowLeft aria-hidden="true" />
@@ -2330,11 +2320,7 @@ function BroadcastDetail({
         <article className="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <span
-                className={`rounded-full px-2 py-1 text-[10px] font-bold ${statusBadge(message.status)}`}
-              >
-                {statusLabel(message.status)}
-              </span>
+              <StatusBadge status={message.status}>{statusLabel(message.status)}</StatusBadge>
               <h1 className="mt-3 text-xl font-bold text-slate-950">
                 {message.subject || '(No subject)'}
               </h1>
@@ -2413,9 +2399,7 @@ function BroadcastDetail({
                   <tbody className="divide-y divide-slate-100">
                     {recipientsLoading && recipients.content.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
-                          Loading recipients…
-                        </td>
+                        <td colSpan={5} className="p-4"><TableSkeleton rows={6} columns={5} /></td>
                       </tr>
                     ) : recipients.content.length === 0 ? (
                       <tr>
@@ -2435,9 +2419,9 @@ function BroadcastDetail({
                             )}
                           </td>
                           <td className="px-4 py-3" data-label="Status">
-                            <span className="font-semibold text-slate-700">
+                            <StatusBadge status={recipient.status}>
                               {recipientStatusLabel(recipient.status)}
-                            </span>
+                            </StatusBadge>
                           </td>
                           <td className="px-4 py-3 text-slate-500" data-label="Attempts">
                             {recipient.attemptCount}

@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { FiBriefcase, FiChevronLeft, FiChevronRight, FiSearch } from 'react-icons/fi'
 import { platformApi } from '../../features/platform/platformApi'
 import type { Page, PlatformCompany } from '../../features/platform/types'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import StatusBadge from '../../components/ui/StatusBadge'
+import { TableSkeleton } from '../../components/ui/Skeleton'
 
 const companyInitials = (name: string) =>
   name
@@ -11,12 +14,6 @@ const companyInitials = (name: string) =>
     .map((part) => part[0]?.toUpperCase())
     .join('') || 'CO'
 
-const statusClasses: Record<PlatformCompany['status'], string> = {
-  ACTIVE: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-  SUSPENDED: 'bg-amber-50 text-amber-700 ring-amber-600/20',
-  DELETED: 'bg-rose-50 text-rose-700 ring-rose-600/20',
-}
-
 export default function PlatformCompanies() {
   const [data, setData] = useState<Page<PlatformCompany> | null>(null)
   const [search, setSearch] = useState('')
@@ -24,6 +21,7 @@ export default function PlatformCompanies() {
   const [loading, setLoading] = useState(true)
   const [changingId, setChangingId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [pendingStatusCompany, setPendingStatusCompany] = useState<PlatformCompany | null>(null)
 
   const load = async (targetPage = page) => {
     setLoading(true)
@@ -50,7 +48,6 @@ export default function PlatformCompanies() {
   const toggleCompanyStatus = async (company: PlatformCompany) => {
     const nextStatus = company.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'
     const verb = nextStatus === 'SUSPENDED' ? 'suspend' : 'activate'
-    if (!window.confirm(`Are you sure you want to ${verb} ${company.name}?`)) return
 
     setChangingId(company.id)
     setError('')
@@ -61,6 +58,7 @@ export default function PlatformCompanies() {
       setError(updateError instanceof Error ? updateError.message : `Unable to ${verb} company`)
     } finally {
       setChangingId(null)
+      setPendingStatusCompany(null)
     }
   }
 
@@ -111,6 +109,11 @@ export default function PlatformCompanies() {
               {error}
             </div>
           )}
+          {loading && companies.length === 0 && (
+            <div className="p-4 sm:p-5">
+              <TableSkeleton rows={7} columns={5} />
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="mobile-card-table min-w-full text-left">
@@ -125,14 +128,7 @@ export default function PlatformCompanies() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading && companies.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-5 py-14 text-center text-sm font-medium text-slate-500"
-                    >
-                      Loading companies…
-                    </td>
-                  </tr>
+                  <tr className="hidden"><td>Loading</td></tr>
                 ) : companies.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-5 py-16 text-center">
@@ -168,18 +164,16 @@ export default function PlatformCompanies() {
                         {company.country || '—'}
                       </td>
                       <td className="px-5 py-4" data-label="Status">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClasses[company.status]}`}
-                        >
+                        <StatusBadge status={company.status}>
                           {company.status.charAt(0) + company.status.slice(1).toLowerCase()}
-                        </span>
+                        </StatusBadge>
                       </td>
                       <td className="mobile-action-cell px-5 py-4 text-right" data-label="Action">
-                        {company.status !== 'DELETED' && (
+                        {(company.status === 'ACTIVE' || company.status === 'SUSPENDED') && (
                           <button
                             type="button"
                             disabled={changingId === company.id}
-                            onClick={() => void toggleCompanyStatus(company)}
+                            onClick={() => setPendingStatusCompany(company)}
                             className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                               company.status === 'ACTIVE'
                                 ? 'text-rose-600 hover:bg-rose-50'
@@ -228,6 +222,21 @@ export default function PlatformCompanies() {
             </div>
           </div>
         </div>
+        <ConfirmDialog
+          open={Boolean(pendingStatusCompany)}
+          title={pendingStatusCompany?.status === 'ACTIVE' ? 'Suspend this company?' : 'Activate this company?'}
+          description={
+            pendingStatusCompany?.status === 'ACTIVE'
+              ? `Users may lose access to ${pendingStatusCompany?.name ?? 'this company'} until it is activated again.`
+              : `Restore access to ${pendingStatusCompany?.name ?? 'this company'}?`
+          }
+          confirmLabel={pendingStatusCompany?.status === 'ACTIVE' ? 'Yes, suspend' : 'Yes, activate'}
+          cancelLabel="No, cancel"
+          tone={pendingStatusCompany?.status === 'ACTIVE' ? 'warning' : 'default'}
+          working={Boolean(pendingStatusCompany && changingId === pendingStatusCompany.id)}
+          onCancel={() => setPendingStatusCompany(null)}
+          onConfirm={() => pendingStatusCompany && void toggleCompanyStatus(pendingStatusCompany)}
+        />
       </div>
     </section>
   )

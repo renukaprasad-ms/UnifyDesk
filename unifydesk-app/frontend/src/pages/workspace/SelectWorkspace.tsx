@@ -8,6 +8,7 @@ import { workspaceApi } from '../../features/workspace/workspaceApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectCompanies, selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
+import { Skeleton } from '../../components/ui/Skeleton'
 
 const mergeCompanies = (memberCompanies: Company[], adminCompanies: Company[]) => {
   const byId = new Map<string, Company>()
@@ -39,8 +40,9 @@ export default function SelectWorkspace() {
         const items = mergeCompanies(memberCompanies, adminCompanies)
         if (!active) return
         dispatch(setCompanies(items))
-        if (items.length === 1) {
-          dispatch(selectCompany(items[0].companyId))
+        const activeItems = items.filter((company) => company.status === 'ACTIVE')
+        if (activeItems.length === 1 && items.length === 1) {
+          dispatch(selectCompany(activeItems[0].companyId))
           navigate('/workspace', { replace: true })
           return
         }
@@ -73,7 +75,19 @@ export default function SelectWorkspace() {
         <p className="mt-2 text-sm text-slate-500">
           Choose the company context you want to work in.
         </p>
-        {loading && <p className="mt-7 text-sm font-semibold text-slate-500">Loading...</p>}
+        {loading && (
+          <div className="mt-7 space-y-3" role="status" aria-label="Loading workspaces">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="flex min-h-[58px] items-center justify-between rounded-[8px] border border-slate-200 px-4">
+                <div className="flex-1">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="mt-2 h-3 w-24" />
+                </div>
+                <Skeleton className="h-4 w-10" />
+              </div>
+            ))}
+          </div>
+        )}
         {error && <p className="mt-7 text-sm font-semibold text-red-600">{error}</p>}
         {!loading && !error && (
           <div className="mt-7 space-y-3">
@@ -82,7 +96,9 @@ export default function SelectWorkspace() {
                 key={company.companyId}
                 type="button"
                 className="flex min-h-[58px] w-full items-center justify-between rounded-[8px] border border-slate-200 bg-white px-4 text-left hover:border-indigo-500 hover:bg-indigo-50"
+                disabled={company.status !== 'ACTIVE'}
                 onClick={() => {
+                  if (company.status !== 'ACTIVE') return
                   dispatch(selectCompany(company.companyId))
                   navigate('/workspace', { replace: true })
                 }}
@@ -90,10 +106,14 @@ export default function SelectWorkspace() {
                 <span>
                   <span className="block text-sm font-semibold text-slate-950">{company.name}</span>
                   <span className="mt-1 block text-xs text-slate-500">
-                    {company.role ?? 'Platform access'}
+                    {company.status === 'SUSPENDED'
+                      ? 'Suspended · contact support'
+                      : company.role ?? 'Platform access'}
                   </span>
                 </span>
-                <span className="text-xs font-semibold text-indigo-500">Open</span>
+                <span className="text-xs font-semibold text-indigo-500">
+                  {company.status === 'ACTIVE' ? 'Open' : 'Unavailable'}
+                </span>
               </button>
             ))}
           </div>

@@ -1,5 +1,7 @@
 package com.messaging.contacts.integration;
 
+import com.messaging.contacts.consent.ContactPreferenceProjectionPolicy;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceState;
 import com.messaging.contacts.core.service.ContactMergeExtension;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -108,23 +110,17 @@ public class ContactConsentMergeExtension implements ContactMergeExtension {
   }
 
   /**
-   * Fail closed when two merged projections disagree: OPTED_OUT > UNKNOWN > OPTED_IN. Within the
-   * same state the later evidence is retained.
+   * Merge the effective projections using the same event-time policy as normal preference
+   * mutation. Newer evidence wins; equal-time conflicts fail closed.
    */
   private PreferenceRow restrictive(PreferenceRow left, PreferenceRow right) {
-    int leftRank = rank(left.state());
-    int rightRank = rank(right.state());
-    if (leftRank != rightRank) return leftRank > rightRank ? left : right;
-    return left.occurredAt().isAfter(right.occurredAt()) ? left : right;
-  }
-
-  private int rank(String state) {
-    return switch (state) {
-      case "OPTED_OUT" -> 3;
-      case "UNKNOWN" -> 2;
-      case "OPTED_IN" -> 1;
-      default -> throw new IllegalStateException("Unknown preference state " + state);
-    };
+    return ContactPreferenceProjectionPolicy.shouldReplace(
+            PreferenceState.valueOf(right.state()),
+            right.occurredAt(),
+            PreferenceState.valueOf(left.state()),
+            left.occurredAt())
+        ? left
+        : right;
   }
 
   private PreferenceRow map(ResultSet rs, int rowNum) throws SQLException {

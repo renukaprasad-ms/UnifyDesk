@@ -30,6 +30,21 @@ export const inboxApi = {
     return unwrap(response.data)
   },
 
+  async search(
+    companyId: string,
+    connectionId: string,
+    query: string,
+    folder: 'INBOX' | 'SENT' = 'INBOX',
+    page = 0,
+    size = 30,
+  ) {
+    const response = await apiClient.get<ApiResponse<InboxPage<InboxConversation>>>(
+      `/api/v1/companies/${companyId}/inbox/search`,
+      { params: { connectionId, q: query, folder, page, size } },
+    )
+    return unwrap(response.data)
+  },
+
   async conversation(companyId: string, conversationId: string) {
     const response = await apiClient.get<ApiResponse<InboxConversation>>(
       `/api/v1/companies/${companyId}/inbox/conversations/${conversationId}`,
@@ -66,6 +81,11 @@ export const inboxApi = {
       `/api/v1/companies/${companyId}/inbox/conversations/${conversationId}/messages`,
     )
     return unwrap(response.data)
+  },
+
+  attachmentContentUrl(companyId: string, attachmentId: string) {
+    const base = String(apiClient.defaults.baseURL ?? '').replace(/\/$/, '')
+    return `${base}/api/v1/companies/${encodeURIComponent(companyId)}/inbox/attachments/${encodeURIComponent(attachmentId)}/content`
   },
 
   async setMessageReadState(companyId: string, messageId: string, read: boolean) {

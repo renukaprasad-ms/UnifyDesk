@@ -4,6 +4,7 @@ import GoogleSearchInterestSelector from './GoogleSearchInterestSelector'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type { GoogleSearchInterestTargeting } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { CardSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -85,7 +86,7 @@ export default function GoogleSearchInterestTargetingPanel({
       )}
 
       {loading ? (
-        <p className="mt-4 text-sm text-slate-500">Loading Google Search segments…</p>
+        <div className="mt-4"><CardSkeleton rows={4} /></div>
       ) : (
         <>
           {snapshot?.preservedUnsupportedResourceNames.length ? (

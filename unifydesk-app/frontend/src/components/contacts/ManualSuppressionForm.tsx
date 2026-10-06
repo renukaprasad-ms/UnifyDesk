@@ -5,6 +5,7 @@ import type {
   CreateSuppressionInput,
   SuppressionReasonCode,
 } from '../../features/contacts/types'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 type Props = {
   busy: boolean
@@ -23,17 +24,9 @@ export default function ManualSuppressionForm({ busy, onCreate }: Props) {
   const [channel, setChannel] = useState<ContactChannel>('EMAIL')
   const [reasonCode, setReasonCode] = useState<SuppressionReasonCode>('MANUAL')
   const [note, setNote] = useState('')
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (
-      !window.confirm(
-        'Create this manual suppression? It can make this Contact ineligible for delivery.',
-      )
-    ) {
-      return
-    }
-
+  const createSuppression = async () => {
     await onCreate({
       channel,
       identityId: null,
@@ -44,10 +37,17 @@ export default function ManualSuppressionForm({ busy, onCreate }: Props) {
       idempotencyKey: createIdempotencyKey(),
     })
     setNote('')
+    setConfirmOpen(false)
+  }
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    setConfirmOpen(true)
   }
 
   return (
-    <form
+    <>
+      <form
       className="mt-4 grid gap-2 rounded-xl border border-rose-100 bg-rose-50 p-4 md:grid-cols-[160px_200px_minmax(0,1fr)_auto]"
       onSubmit={submit}
     >
@@ -93,6 +93,18 @@ export default function ManualSuppressionForm({ busy, onCreate }: Props) {
       <button className="secondary-button self-end text-rose-700" disabled={busy}>
         Add suppression
       </button>
-    </form>
+      </form>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Create this manual suppression?"
+        description="This can make the contact ineligible for delivery on the selected channel and will be recorded for audit."
+        confirmLabel="Yes, add suppression"
+        cancelLabel="No, cancel"
+        tone="danger"
+        working={busy}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => void createSuppression()}
+      />
+    </>
   )
 }

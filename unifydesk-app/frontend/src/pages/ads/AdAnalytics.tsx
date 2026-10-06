@@ -21,6 +21,7 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import { PageSkeleton, TableSkeleton } from '../../components/ui/Skeleton'
 
 const isoDate = (value: Date) => {
   const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000)
@@ -276,7 +277,7 @@ function BreakdownPanel({
       </div>
 
       {loading ? (
-        <div className="p-10 text-center text-sm text-slate-500">Loading breakdown…</div>
+        <div className="p-4"><TableSkeleton rows={6} columns={5} /></div>
       ) : breakdown.rows.length === 0 ? (
         <div className="p-10 text-center">
           <FiBarChart2 className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
@@ -840,9 +841,7 @@ export default function AdAnalytics() {
             Connect and manage an ad account before using analytics.
           </div>
         ) : loading ? (
-          <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
-            Loading analytics…
-          </div>
+          <div className="mt-6"><PageSkeleton /></div>
         ) : (
           <>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

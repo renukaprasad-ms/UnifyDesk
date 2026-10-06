@@ -1,10 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { authApi } from '../../features/auth/authApi'
 import { resolvePostAuthRedirect } from '../../features/company/invitationContinuation'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { selectAuthUser, setAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+
+const RESEND_COOLDOWN_SECONDS = 60
 
 const VerifyOtp = () => {
   const dispatch = useAppDispatch()
@@ -20,11 +22,24 @@ const VerifyOtp = () => {
   const redirectTo = resolvePostAuthRedirect(routeState?.redirectTo)
   const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS)
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = window.setTimeout(
+      () => setResendCooldown((current) => Math.max(0, current - 1)),
+      1000,
+    )
+    return () => window.clearTimeout(timer)
+  }, [resendCooldown])
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
+    setNotice('')
     setSubmitting(true)
     try {
       const verifiedUser = await authApi.verifyEmail(otp)
@@ -34,6 +49,23 @@ const VerifyOtp = () => {
       setError(apiErrorMessage(submitError, 'Unable to verify OTP'))
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const resend = async () => {
+    if (resending || resendCooldown > 0) return
+    setError('')
+    setNotice('')
+    setResending(true)
+    try {
+      await authApi.resendVerificationEmail()
+      setOtp('')
+      setResendCooldown(RESEND_COOLDOWN_SECONDS)
+      setNotice('A new verification code was sent.')
+    } catch (resendError) {
+      setError(apiErrorMessage(resendError, 'Unable to resend verification code'))
+    } finally {
+      setResending(false)
     }
   }
 
@@ -64,8 +96,27 @@ const VerifyOtp = () => {
           />
         </label>
         {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
-        <button type="submit" className="primary-button flex w-full" disabled={submitting}>
+        {notice && (
+          <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</p>
+        )}
+        <button
+          type="submit"
+          className="primary-button flex w-full"
+          disabled={submitting || otp.length !== 6}
+        >
           {submitting ? 'Verifying...' : 'Verify OTP'}
+        </button>
+        <button
+          type="button"
+          className="secondary-button flex w-full"
+          disabled={resending || resendCooldown > 0}
+          onClick={() => void resend()}
+        >
+          {resending
+            ? 'Sending...'
+            : resendCooldown > 0
+              ? `Resend code in ${resendCooldown}s`
+              : 'Resend verification code'}
         </button>
       </form>
       <p className="mt-5 text-center text-sm text-slate-500">

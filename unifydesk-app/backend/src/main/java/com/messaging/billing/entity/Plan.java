@@ -2,6 +2,7 @@ package com.messaging.billing.entity;
 
 import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.PlanStatus;
+import com.messaging.billing.enums.PlanVisibility;
 import com.messaging.common.id.IdGenerator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -48,10 +49,10 @@ public class Plan {
   @Column(nullable = false, length = 32)
   private PlanStatus status;
 
-  /*
-   * Legacy compatibility fields. New commercial pricing is stored in plan_prices.
-   * They remain mapped until the current frontend has migrated to PlanPrice.
-   */
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 32)
+  private PlanVisibility visibility;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "billing_cycle", nullable = false, length = 32)
   private BillingCycle billingCycle;
@@ -73,9 +74,8 @@ public class Plan {
 
   @PrePersist
   private void beforeInsert() {
-    if (id == null) {
-      id = IdGenerator.nextId();
-    }
+    if (id == null) id = IdGenerator.nextId();
+    if (visibility == null) visibility = PlanVisibility.PUBLIC;
     Instant now = Instant.now();
     if (createdAt == null) createdAt = now;
     if (updatedAt == null) updatedAt = now;

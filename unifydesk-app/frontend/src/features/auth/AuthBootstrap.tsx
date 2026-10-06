@@ -1,5 +1,8 @@
 import { useEffect } from 'react'
+import Spinner from '../../components/ui/Spinner'
+import { useLocation } from 'react-router'
 import { workspaceApi } from '../workspace/workspaceApi'
+import { userApi } from '../user/userApi'
 import { authApi } from './authApi'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
@@ -14,25 +17,38 @@ import { selectCompany, setCompanies } from '../../store/workspace/workspaceSlic
 export default function AuthBootstrap({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch()
   const bootstrapped = useAppSelector(selectAuthBootstrapped)
+  const location = useLocation()
+  const publicRecipientAction = location.pathname === '/unsubscribe'
 
   useEffect(() => {
     let active = true
+
+    if (publicRecipientAction) return
 
     const bootstrap = async () => {
       try {
         const user = await authApi.refresh()
         if (!active) return
-        dispatch(setAuthUser(user))
+
+        const preferences = await userApi.preferences().catch(() => null)
+        if (!active) return
+        dispatch(
+          setAuthUser({
+            ...user,
+            appearanceMode: preferences?.appearanceMode ?? user.appearanceMode ?? 'LIGHT',
+          }),
+        )
 
         const companies = await workspaceApi.list()
         if (!active) return
         dispatch(setCompanies(companies))
 
         const persistedCompanyId = readSelectedCompanyId()
-        const selectedCompany = companies.find(
+        const activeCompanies = companies.filter((company) => company.status === 'ACTIVE')
+        const selectedCompany = activeCompanies.find(
           (company) => company.companyId === persistedCompanyId,
         )
-        const nextCompanyId = selectedCompany?.companyId ?? companies[0]?.companyId
+        const nextCompanyId = selectedCompany?.companyId ?? activeCompanies[0]?.companyId
         if (nextCompanyId) dispatch(selectCompany(nextCompanyId))
       } catch {
         if (active) dispatch(sessionCleared())
@@ -45,12 +61,22 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
     return () => {
       active = false
     }
-  }, [dispatch])
+  }, [dispatch, publicRecipientAction])
+
+  if (publicRecipientAction) return children
 
   if (!bootstrapped) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-white text-sm font-semibold text-slate-500">
-        Loading...
+      <div
+        className="auth-bootstrap-loader flex min-h-dvh items-center justify-center"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading UnifyDesk"
+      >
+        <div className="flex flex-col items-center gap-3 text-slate-500">
+          <Spinner size="lg" label="Loading UnifyDesk" className="text-indigo-500" />
+          <p className="text-sm font-semibold">Loading UnifyDesk...</p>
+        </div>
       </div>
     )
   }

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import ExportJobButton from '../../components/contacts/ExportJobButton'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import SegmentBuilder from '../../components/contacts/SegmentBuilder'
 import { contactsApi, isContactVersionConflict } from '../../features/contacts/contactsApi'
 import { DEFAULT_CONTACT_EXPORT_FIELDS } from '../../features/contacts/contactModel'
@@ -20,6 +21,7 @@ import type {
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import useBeforeUnloadGuard from '../../hooks/useBeforeUnloadGuard'
 import { useAppSelector } from '../../store/hooks'
 import {
   selectSelectedCompanyId,
@@ -50,6 +52,15 @@ export default function SegmentEditorPage() {
   const [serverErrors, setServerErrors] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [segmentVersion, setSegmentVersion] = useState<number | null>(null)
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false)
+  const [savedSnapshot, setSavedSnapshot] = useState('')
+  const currentSnapshot = useMemo(
+    () => JSON.stringify({ name, description, filter }),
+    [description, filter, name],
+  )
+  const dirty = savedSnapshot ? currentSnapshot !== savedSnapshot : Boolean(name.trim() || description.trim())
+  useBeforeUnloadGuard(dirty && !saving)
+
   const canModify = can(PERMISSIONS.CONTACT_MODIFY)
 
   useEffect(() => {
@@ -78,10 +89,15 @@ export default function SegmentEditorPage() {
         .getSegment(companyId, segmentId)
         .then((segment) => {
           if (!scopeIsCurrent(scope)) return
+          const nextFilter = segment.normalizedFilter ?? segment.filter
+          const nextDescription = segment.description ?? ''
           setName(segment.name)
-          setDescription(segment.description ?? '')
-          setFilter(segment.normalizedFilter ?? segment.filter)
+          setDescription(nextDescription)
+          setFilter(nextFilter)
           setSegmentVersion(segment.version)
+          setSavedSnapshot(
+            JSON.stringify({ name: segment.name, description: nextDescription, filter: nextFilter }),
+          )
         })
         .catch((loadError) => {
           if (scopeIsCurrent(scope)) {
@@ -162,7 +178,17 @@ export default function SegmentEditorPage() {
         return
       }
 
+      setName(payload.name)
+      setDescription(payload.description ?? '')
+      setFilter(payload.filter)
       setSegmentVersion(saved.version)
+      setSavedSnapshot(
+        JSON.stringify({
+          name: payload.name,
+          description: payload.description ?? '',
+          filter: payload.filter,
+        }),
+      )
       navigate('/contacts/segments/' + saved.id, { replace: true })
     } catch (saveError) {
       if (!scopeIsCurrent(scope)) return
@@ -170,10 +196,19 @@ export default function SegmentEditorPage() {
         try {
           const latest = await contactsApi.getSegment(companyId, segmentId)
           if (!scopeIsCurrent(scope)) return
+          const latestFilter = latest.normalizedFilter ?? latest.filter
+          const latestDescription = latest.description ?? ''
           setName(latest.name)
-          setDescription(latest.description ?? '')
-          setFilter(latest.normalizedFilter ?? latest.filter)
+          setDescription(latestDescription)
+          setFilter(latestFilter)
           setSegmentVersion(latest.version)
+          setSavedSnapshot(
+            JSON.stringify({
+              name: latest.name,
+              description: latestDescription,
+              filter: latestFilter,
+            }),
+          )
           setPreview(null)
           setServerErrors([
             'This Segment changed after you opened it. The latest version has been reloaded; review it before saving again.',
@@ -195,10 +230,6 @@ export default function SegmentEditorPage() {
 
   const archive = async () => {
     if (!companyId || !segmentId || !canModify) return
-    if (!window.confirm('Archive this Segment? Historical references remain intact.')) {
-      return
-    }
-
     const scope = captureScope()
     setSaving(true)
     try {
@@ -212,6 +243,7 @@ export default function SegmentEditorPage() {
       }
     } finally {
       if (scopeIsCurrent(scope)) setSaving(false)
+      setArchiveConfirmOpen(false)
     }
   }
 
@@ -223,9 +255,16 @@ export default function SegmentEditorPage() {
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow">Dynamic audience</p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-950">
-              {creating ? 'New Segment' : canModify ? 'Edit Segment' : 'Segment'}
-            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="mt-2 text-3xl font-bold text-slate-950">
+                {creating ? 'New Segment' : canModify ? 'Edit Segment' : 'Segment'}
+              </h1>
+              {dirty && (
+                <span className="mt-2 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+                  Unsaved changes
+                </span>
+              )}
+            </div>
             <p className="mt-2 text-sm text-slate-500">
               The browser builds the frozen AST only. Validation, counts and matching are
               server-side.
@@ -256,7 +295,7 @@ export default function SegmentEditorPage() {
                   type="button"
                   className="secondary-button text-rose-700"
                   disabled={saving}
-                  onClick={() => void archive()}
+                  onClick={() => setArchiveConfirmOpen(true)}
                 >
                   Archive Segment
                 </button>
@@ -350,6 +389,17 @@ export default function SegmentEditorPage() {
           </section>
         )}
       </div>
+        <ConfirmDialog
+          open={archiveConfirmOpen}
+          title="Archive this segment?"
+          description="Historical references will remain intact. The segment will stop appearing as an active audience."
+          confirmLabel="Yes, archive segment"
+          cancelLabel="No, keep segment"
+          tone="warning"
+          working={saving}
+          onCancel={() => setArchiveConfirmOpen(false)}
+          onConfirm={() => void archive()}
+        />
     </section>
   )
 }

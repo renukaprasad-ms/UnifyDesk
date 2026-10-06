@@ -95,6 +95,32 @@ public class ContactPreferenceService {
   }
 
   @Transactional
+  public PreferenceSnapshot setFromContactAction(
+      long companyId,
+      long contactId,
+      long identityId,
+      String sourceRef,
+      String reason,
+      Instant occurredAt,
+      String idempotencyKey) {
+    return apply(
+        new PreferenceCommand(
+            companyId,
+            contactId,
+            identityId,
+            Channel.EMAIL,
+            Purpose.MARKETING,
+            PreferenceState.OPTED_OUT,
+            PreferenceSource.CONTACT_ACTION,
+            sourceRef,
+            ActorType.CONTACT,
+            Long.toString(contactId),
+            reason,
+            occurredAt,
+            idempotencyKey));
+  }
+
+  @Transactional
   public PreferenceSnapshot applyTrusted(PreferenceCommand command) {
     if (command == null
         || (command.actorType() == ActorType.USER && command.actorId() == null)) {

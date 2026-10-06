@@ -7,6 +7,7 @@ import type {
   GoogleSharedBudget,
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { CardSkeleton } from '../ui/Skeleton'
 
 type Props = {
   companyId: string
@@ -318,7 +319,7 @@ export default function GooglePortfolioBiddingPanel({
         )}
 
         {loading ? (
-          <p className="text-sm text-slate-500">Loading portfolio bidding…</p>
+          <div className="grid gap-4 lg:grid-cols-2"><CardSkeleton rows={5} /><CardSkeleton rows={5} /></div>
         ) : (
           <>
             <div className="grid gap-5 lg:grid-cols-2">

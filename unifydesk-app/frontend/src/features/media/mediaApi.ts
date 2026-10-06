@@ -42,6 +42,10 @@ export const mediaApi = {
     return mediaApi.initiateUpload(file, 'COMPANY_LOGO', companyId)
   },
 
+  async initiateEmailAttachmentUpload(file: File, companyId: string) {
+    return mediaApi.initiateUpload(file, 'EMAIL_ATTACHMENT', companyId)
+  },
+
   async initiateTemplateMediaUpload(file: File, companyId: string) {
     return mediaApi.initiateUpload(file, 'TEMPLATE_MEDIA', companyId)
   },
@@ -71,6 +75,10 @@ export const mediaApi = {
       `/api/v1/users/me/profile-picture/${mediaId}`,
     )
     return unwrap(response.data)
+  },
+
+  async removeCurrentUserProfilePicture() {
+    await apiClient.delete<ApiResponse<void>>('/api/v1/users/me/profile-picture')
   },
 
   async listCompanyMedia(companyId: string) {
@@ -109,6 +117,11 @@ export const mediaApi = {
 
   async completeUpload(mediaId: string) {
     const response = await apiClient.post<ApiResponse<unknown>>(`/api/v1/media/${mediaId}/complete`)
+    return unwrap(response.data)
+  },
+
+  async delete(mediaId: string) {
+    const response = await apiClient.delete<ApiResponse<unknown>>(`/api/v1/media/${mediaId}`)
     return unwrap(response.data)
   },
 }

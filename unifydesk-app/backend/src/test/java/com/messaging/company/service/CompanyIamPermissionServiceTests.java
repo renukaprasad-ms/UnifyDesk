@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.messaging.admin.enums.PlatformPermission;
 import com.messaging.admin.service.PlatformAdminAuthorizationService;
 import com.messaging.company.entity.CompanyCustomRole;
 import com.messaging.company.entity.CompanyCustomRolePermission;
@@ -90,6 +91,29 @@ class CompanyIamPermissionServiceTests {
             CompanyPermissionKeys.WHATSAPP_CONNECT,
             CompanyPermissionKeys.SMS_CONNECT)
         .doesNotContain(CompanyPermissionKeys.ROLE_CREATE);
+  }
+
+  @Test
+  void platformCompanyViewDoesNotBecomeTenantWriteAccess() {
+    when(memberRepository.findByCompanyIdAndUserIdAndStatus(
+            COMPANY_ID, USER_ID, CompanyMemberStatus.ACTIVE))
+        .thenReturn(Optional.empty());
+    when(platformAdminAuthorizationService.canAccessCompany(USER_ID, COMPANY_ID)).thenReturn(true);
+    when(platformAdminAuthorizationService.hasPermission(
+            USER_ID, PlatformPermission.COMPANY_VIEW))
+        .thenReturn(true);
+    when(platformAdminAuthorizationService.permissions(USER_ID))
+        .thenReturn(Set.of(PlatformPermission.COMPANY_VIEW));
+
+    assertThat(service.hasPermission(USER_ID, COMPANY_ID, CompanyPermissionKeys.COMPANY_READ))
+        .isTrue();
+    assertThat(service.hasPermission(USER_ID, COMPANY_ID, CompanyPermissionKeys.COMPANY_MODIFY))
+        .isFalse();
+    assertThat(service.hasPermission(USER_ID, COMPANY_ID, CompanyPermissionKeys.COMPANY_DELETE))
+        .isFalse();
+    assertThat(service.canDelegate(
+            USER_ID, COMPANY_ID, Set.of(CompanyPermissionKeys.COMPANY_READ)))
+        .isFalse();
   }
 
   @Test

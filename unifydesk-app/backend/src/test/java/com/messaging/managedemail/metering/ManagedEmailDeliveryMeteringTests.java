@@ -3,6 +3,7 @@ package com.messaging.managedemail.metering;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.broadcast.entity.BroadcastRecipient;
 import com.messaging.broadcast.entity.BroadcastRun;
 import com.messaging.broadcast.entity.BroadcastSender;
@@ -59,6 +60,29 @@ class ManagedEmailDeliveryMeteringTests {
   }
 
   @Test
+  void pastDueRaceAfterReservationBlocksProviderAndReleasesReservation() {
+    Fixture fixture = fixture();
+    doThrow(
+            new com.messaging.billing.exception.PlanEntitlementException(
+                ManagedFinancialExposureGuard.BLOCKED))
+        .when(fixture.exposure)
+        .assertAllowed(10L);
+
+    fixture.service.deliver(
+        fixture.run, fixture.connection, fixture.sender, fixture.recipient);
+
+    verify(fixture.budget).reserveForSend(fixture.runtime, 70L, 60L, 1);
+    verify(fixture.usage).release(10L, 70L, 60L, 1);
+    verifyNoInteractions(fixture.transport);
+    verify(fixture.state)
+        .retry(
+            any(),
+            eq(ManagedFinancialExposureGuard.BLOCKED),
+            eq("Managed Email billing status does not permit new provider spend"),
+            any());
+  }
+
+  @Test
   void providerAcceptanceCommitsReservation() {
     Fixture fixture = fixture();
     when(fixture.transport.send(any(), any(), any()))
@@ -95,6 +119,8 @@ class ManagedEmailDeliveryMeteringTests {
     BroadcastRetryPolicy retryPolicy = mock(BroadcastRetryPolicy.class);
     BroadcastDeliveryStateService state = mock(BroadcastDeliveryStateService.class);
     BroadcastTemplateRenderer renderer = mock(BroadcastTemplateRenderer.class);
+    BroadcastEmailComplianceService emailCompliance =
+        mock(BroadcastEmailComplianceService.class);
     ManagedEmailDeliveryGuard guard = mock(ManagedEmailDeliveryGuard.class);
     ManagedEmailRateLimiter managedRate = mock(ManagedEmailRateLimiter.class);
     ManagedEmailUsageService usage = mock(ManagedEmailUsageService.class);
@@ -102,6 +128,7 @@ class ManagedEmailDeliveryMeteringTests {
         mock(ManagedEmailPostAcceptanceReconciler.class);
     ManagedEmailSuppressionGate suppressionGate = mock(ManagedEmailSuppressionGate.class);
     ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
+    ManagedFinancialExposureGuard exposure = mock(ManagedFinancialExposureGuard.class);
     BroadcastEmailTransport transport = mock(BroadcastEmailTransport.class);
     ContactEligibilityService contactEligibility = mock(ContactEligibilityService.class);
     BroadcastWhatsAppDeliveryService whatsAppDelivery = mock(BroadcastWhatsAppDeliveryService.class);
@@ -168,6 +195,16 @@ class ManagedEmailDeliveryMeteringTests {
         .thenReturn(
             new BroadcastTemplateRenderer.RenderedContent(
                 "Subject", "Body", null, List.of(), false, Map.of()));
+    when(emailCompliance.apply(any(), eq(recipient)))
+        .thenReturn(
+            new BroadcastEmailComplianceService.CompliantContent(
+                "Subject",
+                "Body",
+                null,
+                Map.of(),
+                new BroadcastEmailComplianceMetadata(
+                    "https://app.unifydesk.in/unsubscribe?token=test",
+                    "https://api.unifydesk.in/api/v1/public/recipient-actions/email/unsubscribe/test")));
     BroadcastDeliveryStateService.AttemptContext attempt =
         new BroadcastDeliveryStateService.AttemptContext(70L, 60L, 80L, 1);
     when(state.begin(70L, BroadcastSenderProvider.AMAZON_SES)).thenReturn(attempt);
@@ -181,12 +218,14 @@ class ManagedEmailDeliveryMeteringTests {
             retryPolicy,
             state,
             renderer,
+            emailCompliance,
             guard,
             managedRate,
             usage,
             reconciler,
             suppressionGate,
             budget,
+            exposure,
             contactEligibility,
             whatsAppDelivery);
     return new Fixture(
@@ -195,6 +234,7 @@ class ManagedEmailDeliveryMeteringTests {
         usage,
         managedRate,
         budget,
+        exposure,
         suppressionGate,
         transport,
         runtime,
@@ -210,6 +250,7 @@ class ManagedEmailDeliveryMeteringTests {
       ManagedEmailUsageService usage,
       ManagedEmailRateLimiter managedRate,
       ManagedEmailProviderBudgetService budget,
+      ManagedFinancialExposureGuard exposure,
       ManagedEmailSuppressionGate suppressionGate,
       BroadcastEmailTransport transport,
       ManagedEmailRuntimeRepository.ManagedSenderRuntime runtime,

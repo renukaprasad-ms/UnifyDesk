@@ -5,8 +5,34 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="theme-color" content="#2563EB" />
     <meta name="application-name" content="UnifyDesk" />
-    <meta name="description" content="UnifyDesk customer communication, broadcast and advertising workspace." />
+    <meta
+      name="description"
+      content="UnifyDesk customer communication, broadcast and advertising workspace."
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      ;(() => {
+        try {
+          const appearanceMode = window.localStorage.getItem('unifydesk.appearanceMode')
+          if (appearanceMode !== 'DARK') return
+
+          const root = document.documentElement
+          root.dataset.colorScheme = 'dark'
+          root.style.colorScheme = 'dark'
+          root.style.background = '#0f172a'
+          root.style.setProperty('--theme-bg', '#0f172a')
+          root.style.setProperty('--theme-surface', '#111827')
+          root.style.setProperty('--theme-surface-subtle', '#172033')
+          root.style.setProperty('--theme-border', '#263449')
+          root.style.setProperty('--theme-border-soft', '#1f2a3d')
+          root.style.setProperty('--theme-text', '#e5edf8')
+          root.style.setProperty('--theme-muted', '#94a3b8')
+          document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0f172a')
+        } catch {
+          // Keep the default light boot paint if stored theme data is unavailable.
+        }
+      })()
+    </script>
     <title>UnifyDesk</title>
   </head>
   <body>

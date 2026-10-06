@@ -15,6 +15,7 @@ import type {
   ReachlyoFunnelAttribution,
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 type Props = {
   companyId: string
@@ -66,6 +67,7 @@ export default function AdOptimizationWorkspace({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [policyToApprove, setPolicyToApprove] = useState<AdOptimizationPolicy | null>(null)
 
   const [policyName, setPolicyName] = useState('')
   const [policyType, setPolicyType] = useState<AdOptimizationPolicyType>('AUTOMATION_RULE')
@@ -231,12 +233,12 @@ export default function AdOptimizationWorkspace({
   }
 
   const approvePolicy = async (policy: AdOptimizationPolicy) => {
-    if (!window.confirm('Approve this optimization action?')) return
     setError('')
     try {
       const result = await adCenterApi.approveOptimizationPolicy(companyId, policy.id)
       setNotice(result.message)
       setPolicies(await adCenterApi.optimizationPolicies(companyId))
+      setPolicyToApprove(null)
     } catch (approvalError) {
       setError(apiErrorMessage(approvalError, 'Unable to approve optimization action'))
     }
@@ -648,7 +650,7 @@ export default function AdOptimizationWorkspace({
                           <button
                             type="button"
                             className="primary-button"
-                            onClick={() => void approvePolicy(policy)}
+                            onClick={() => setPolicyToApprove(policy)}
                           >
                             Approve
                           </button>
@@ -787,6 +789,17 @@ export default function AdOptimizationWorkspace({
         Optimization evidence never guarantees future results. Provider eligibility, attribution,
         privacy terms, and platform delivery remain authoritative.
       </div>
+      <ConfirmDialog
+        open={Boolean(policyToApprove)}
+        title="Approve this optimization action?"
+        description="This allows UnifyDesk to apply the reviewed optimization action. Review the policy result before continuing."
+        confirmLabel="Yes, approve"
+        cancelLabel="No, cancel"
+        tone="warning"
+        working={false}
+        onCancel={() => setPolicyToApprove(null)}
+        onConfirm={() => policyToApprove && void approvePolicy(policyToApprove)}
+      />
     </section>
   )
 }

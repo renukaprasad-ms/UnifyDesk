@@ -1,6 +1,7 @@
 package com.messaging.media.provider;
 
 import com.messaging.media.enums.StorageProviderType;
+import java.io.InputStream;
 import java.time.Duration;
 
 public interface StorageProvider {
@@ -12,6 +13,8 @@ public interface StorageProvider {
   StorageObjectMetadata getObjectMetadata(String bucket, String objectKey);
 
   byte[] readObject(String bucket, String objectKey);
+
+  InputStream openObject(String bucket, String objectKey);
 
   void writeObject(String bucket, String objectKey, byte[] content, String contentType);
 

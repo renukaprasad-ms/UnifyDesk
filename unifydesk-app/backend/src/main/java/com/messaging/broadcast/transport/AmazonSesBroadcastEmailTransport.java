@@ -52,13 +52,25 @@ public class AmazonSesBroadcastEmailTransport implements BroadcastEmailTransport
               .charset(StandardCharsets.UTF_8.name())
               .build());
     }
-    Message message = Message.builder().subject(subject).body(body.build()).build();
+    Message.Builder message = Message.builder().subject(subject).body(body.build());
+    if (command.compliance() != null) {
+      List<MessageHeader> headers =
+          command.compliance().standardOneClickHeaders().entrySet().stream()
+              .map(
+                  entry ->
+                      MessageHeader.builder()
+                          .name(entry.getKey())
+                          .value(entry.getValue())
+                          .build())
+              .toList();
+      message.headers(headers);
+    }
 
     SendEmailRequest.Builder request =
         SendEmailRequest.builder()
             .fromEmailAddress(fromAddress(sender, context))
             .destination(destination)
-            .content(EmailContent.builder().simple(message).build())
+            .content(EmailContent.builder().simple(message.build()).build())
             .emailTags(tags(context, command));
     if (sender.getReplyToAddress() != null && !sender.getReplyToAddress().isBlank()) {
       request.replyToAddresses(sender.getReplyToAddress());

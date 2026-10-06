@@ -1,5 +1,25 @@
 import type {Metadata} from "next";
-export const metadata:Metadata={title:"Integrations | WhatsApp, Email, Google Ads & Meta Ads",description:"See the provider integrations planned and in development for UnifyDesk, including WhatsApp Business, email delivery, Google Ads and Meta Ads.",alternates:{canonical:"/integrations"}};
-import {MessageCircle,Mail,Cloud,Send,Target} from "lucide-react";import {Header,Footer} from "../components";
-const groups=[["Messaging",MessageCircle,["WhatsApp Business"]],["Mailbox",Mail,["Gmail","Microsoft Outlook"]],["Email delivery",Send,["Amazon SES","SendGrid","Azure","MSG91"]],["Advertising",Target,["Google Ads","Meta Ads"]]];
-export default function Integrations(){return <><Header/><main><section className="pageHero"><p className="kicker">INTEGRATIONS</p><h1>Planned integrations for the providers your business already uses.</h1><p>UnifyDesk is being built to sit above communication and advertising providers, giving teams a more consistent place to work when public access opens.</p></section><section className="integrationGroups">{groups.map(([g,I,names]:any)=><article key={g}><div className="integrationTitle"><div className="icon"><I/></div><div><small>{g}</small><h2>{g} integrations</h2></div></div><div className="providerGrid">{names.map((n:string)=><div key={n}><span>{n.slice(0,2).toUpperCase()}</span><b>{n}</b><small>Planned for UnifyDesk</small></div>)}</div></article>)}</section><section className="integrationNote"><Cloud/><div><b>Your providers stay part of the architecture.</b><p>UnifyDesk is designed to unify workflows rather than hide where messages, email and advertising are actually delivered.</p></div></section><section className="centerCta"><h2>Connect your customer stack when UnifyDesk launches.</h2><p className="ctaSupport">Provider availability may change during development.</p><span className="button disabledCta">Coming soon</span></section></main><Footer/></>}
+import {Cloud,Mail,MessageCircle,Send,Target} from "lucide-react";
+import {Footer,Header} from "../components";
+
+export const metadata:Metadata={
+  title:"Integrations | UnifyDesk",
+  description:"See the messaging, email and advertising providers planned and in development for UnifyDesk.",
+  alternates:{canonical:"/integrations"}
+};
+
+const groups=[
+  ["Messaging","WhatsApp, SMS and channel delivery providers.",MessageCircle,[["WhatsApp","In development"],["MSG91","In development"],["MetaReach","Evaluation"]]],
+  ["Email","Inbox connections and managed sending infrastructure.",Mail,[["Gmail","In development"],["Microsoft","In development"],["Amazon SES","In development"],["SendGrid","Planned"],["Azure Email","Planned"]]],
+  ["Advertising","Provider-native campaign workflows through one Ad Center.",Target,[["Google Ads","In development"],["Meta Ads","In development"]]]
+] as const;
+
+export default function Integrations(){
+  return <><Header/><main className="routePage">
+    <section className="routeHero"><div className="statusBadge"><span/>INTEGRATIONS</div><h1>Keep the providers. Simplify the operating layer.</h1><p>UnifyDesk connects to communication, email and advertising providers so teams can work from one workspace without replacing the underlying services.</p></section>
+    <section className="routeSection soft integrationRoute">
+      {groups.map(([title,description,Icon,providers])=><article className="integrationGroup reveal" key={title}><div className="integrationGroupHead"><div><div className="featureIcon"><Icon size={21}/></div><h2>{title}</h2><p>{description}</p></div><span className="softBadge">PROVIDER LAYER</span></div><div className="providerRouteGrid">{providers.map(([name,status])=><div key={name}><b>{name}</b><small className={status==="In development"?"building":""}>{status}</small></div>)}</div></article>)}
+    </section>
+    <section className="providerPrinciple"><Cloud size={28}/><p className="darkKicker">HOW UNIFYDESK CONNECTS</p><h2>One workspace above the providers you already trust.</h2><p>Provider fees, delivery costs and advertising spend remain separate from the UnifyDesk subscription.</p></section>
+  </main><Footer/></>
+}

@@ -1,11 +1,15 @@
 package com.messaging.user.controller;
 
+import com.messaging.admin.service.PlatformAdminAuthorizationService;
 import com.messaging.common.response.ApiResponse;
+import com.messaging.security.service.CurrentUserService;
 import com.messaging.user.dto.CreateUserRequest;
+import com.messaging.user.dto.DeleteOwnAccountRequest;
 import com.messaging.user.dto.ResetPasswordRequest;
-import com.messaging.user.dto.ToggleTwoFactorRequest;
 import com.messaging.user.dto.UpdateOwnProfileRequest;
 import com.messaging.user.dto.UpdateUserRequest;
+import com.messaging.user.dto.UpdateUserPreferencesRequest;
+import com.messaging.user.dto.UserPreferencesResponse;
 import com.messaging.user.dto.UserResponse;
 import com.messaging.user.service.UserService;
 import jakarta.validation.Valid;
@@ -28,10 +32,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
   private final UserService userService;
+  private final PlatformAdminAuthorizationService platformAdminAuthorizationService;
+  private final CurrentUserService currentUserService;
 
   @PostMapping
   public ResponseEntity<ApiResponse<UserResponse>> createUser(
       @Valid @RequestBody CreateUserRequest request) {
+    requireSuperAdmin();
     UserResponse response = userService.toResponse(userService.createUser(request));
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResponse.success(HttpStatus.CREATED.value(), response, "User created"));
@@ -39,6 +46,7 @@ public class UserController {
 
   @GetMapping
   public ResponseEntity<ApiResponse<List<UserResponse>>> getUsers() {
+    requireSuperAdmin();
     return ResponseEntity.ok(
         ApiResponse.success(HttpStatus.OK.value(), userService.getUsers(), "Users fetched"));
   }
@@ -48,6 +56,25 @@ public class UserController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(), userService.getCurrentUserResponse(), "User fetched"));
+  }
+
+  @GetMapping("/me/preferences")
+  public ResponseEntity<ApiResponse<UserPreferencesResponse>> getCurrentUserPreferences() {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            userService.getCurrentUserPreferences(),
+            "User preferences fetched"));
+  }
+
+  @PatchMapping("/me/preferences")
+  public ResponseEntity<ApiResponse<UserPreferencesResponse>> updateCurrentUserPreferences(
+      @Valid @RequestBody UpdateUserPreferencesRequest request) {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            userService.updateCurrentUserPreferences(request),
+            "User preferences updated"));
   }
 
   @PatchMapping("/me/profile")
@@ -60,6 +87,7 @@ public class UserController {
 
   @GetMapping("/{userId}")
   public ResponseEntity<ApiResponse<UserResponse>> getUser(@PathVariable long userId) {
+    requireSuperAdmin();
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(), userService.getUserResponse(userId), "User fetched"));
@@ -81,17 +109,21 @@ public class UserController {
             HttpStatus.OK.value(), userService.resetPassword(userId, request), "Password reset"));
   }
 
-  @PatchMapping("/{userId}/2fa")
-  public ResponseEntity<ApiResponse<UserResponse>> toggleTwoFactor(
-      @PathVariable long userId, @Valid @RequestBody ToggleTwoFactorRequest request) {
-    return ResponseEntity.ok(
-        ApiResponse.success(
-            HttpStatus.OK.value(), userService.toggleTwoFactor(userId, request), "2FA updated"));
+  @DeleteMapping("/me")
+  public ResponseEntity<ApiResponse<Void>> deleteCurrentUser(
+      @Valid @RequestBody DeleteOwnAccountRequest request) {
+    userService.deleteUser(currentUserService.currentUserId(), request.currentPassword());
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "User deletion scheduled"));
   }
 
   @DeleteMapping("/{userId}")
-  public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable long userId) {
-    userService.deleteUser(userId);
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "User deleted"));
+  public ResponseEntity<ApiResponse<Void>> deleteUser(
+      @PathVariable long userId, @Valid @RequestBody DeleteOwnAccountRequest request) {
+    userService.deleteUser(userId, request.currentPassword());
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "User deletion scheduled"));
+  }
+
+  private void requireSuperAdmin() {
+    platformAdminAuthorizationService.requireSuperAdmin(currentUserService.currentUserId());
   }
 }

@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.service.BroadcastDeliveryStateService;
@@ -37,6 +38,28 @@ class ManagedSmsDeliveryCoordinatorTests {
             "MANAGED_SMS_PROVIDER_UNKNOWN",
             "Managed SMS send outcome is unknown");
     verify(f.state, never()).retry(eq(f.attempt), anyString(), anyString(), any());
+  }
+
+  @Test
+  void pastDueRaceAfterReservationBlocksMsg91AndReleasesReservation() {
+    Fixture f = fixture();
+    doThrow(
+            new com.messaging.billing.exception.PlanEntitlementException(
+                ManagedFinancialExposureGuard.BLOCKED))
+        .when(f.exposure)
+        .assertAllowed(10L);
+
+    f.service.deliver(f.run, f.connection, f.sender, f.recipient);
+
+    verify(f.usage).reserve(10L, 60L, 70L, 1, 1);
+    verify(f.usage).release(10L, 60L, 70L, 1);
+    verifyNoInteractions(f.gateway);
+    verify(f.state)
+        .retry(
+            f.attempt,
+            ManagedFinancialExposureGuard.BLOCKED,
+            "Managed SMS billing status does not permit new provider spend",
+            any());
   }
 
   @Test
@@ -103,6 +126,7 @@ class ManagedSmsDeliveryCoordinatorTests {
     ManagedSmsDeliveryGuard guard = mock(ManagedSmsDeliveryGuard.class);
     ManagedSmsRateLimiter rate = mock(ManagedSmsRateLimiter.class);
     ManagedSmsUsageService usage = mock(ManagedSmsUsageService.class);
+    ManagedFinancialExposureGuard exposure = mock(ManagedFinancialExposureGuard.class);
     ManagedSmsSegmentCalculator segments = mock(ManagedSmsSegmentCalculator.class);
     ManagedSmsTemplateService templates = mock(ManagedSmsTemplateService.class);
     ManagedSmsCorrelationService correlations = mock(ManagedSmsCorrelationService.class);
@@ -147,6 +171,7 @@ class ManagedSmsDeliveryCoordinatorTests {
             guard,
             rate,
             usage,
+            exposure,
             segments,
             templates,
             correlations,
@@ -160,6 +185,7 @@ class ManagedSmsDeliveryCoordinatorTests {
         correlations,
         gateway,
         usage,
+        exposure,
         state,
         retry,
         run,
@@ -222,6 +248,7 @@ class ManagedSmsDeliveryCoordinatorTests {
       ManagedSmsCorrelationService correlations,
       ManagedMsg91Gateway gateway,
       ManagedSmsUsageService usage,
+      ManagedFinancialExposureGuard exposure,
       BroadcastDeliveryStateService state,
       BroadcastRetryPolicy retry,
       BroadcastRun run,

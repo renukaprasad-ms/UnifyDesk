@@ -7,6 +7,9 @@ import com.messaging.kafka.event.KafkaEvent;
 import com.messaging.kafka.event.OtpRequestedEvent;
 import com.messaging.kafka.priority.MessagePriority;
 import com.messaging.kafka.producer.EventPublisher;
+import com.messaging.notification.template.EmailTemplateContent;
+import com.messaging.notification.template.EmailTemplateService;
+import com.messaging.notification.template.EmailTemplateType;
 import com.messaging.redis.config.RedisTtlProperties;
 import com.messaging.redis.key.RedisKey;
 import com.messaging.redis.service.RateLimitResult;
@@ -25,43 +28,95 @@ import org.springframework.stereotype.Service;
 public class AuthOtpService {
 
   private static final int OTP_BOUND = 1_000_000;
-  private static final int OTP_LIMIT = 5;
-  private static final String OTP_SUBJECT = "Verify your email";
-  private static final String LOGIN_OTP_SUBJECT = "Your login verification code";
-  private static final String PASSWORD_RESET_OTP_SUBJECT = "Reset your password";
-
+  private static final int OTP_REQUEST_LIMIT = 5;
   private final RedisService redisService;
   private final RedisRateLimitService rateLimitService;
   private final RedisTtlProperties ttlProperties;
   private final EventPublisher eventPublisher;
+  private final AuthSecurityProperties authSecurityProperties;
+  private final EmailTemplateService emailTemplateService;
   private final SecureRandom secureRandom = new SecureRandom();
 
   public void issueEmailVerificationOtp(String email) {
     String normalizedEmail = normalizeEmail(email);
     enforceOtpRateLimit(normalizedEmail);
-
     String otp = newOtp();
     redisService.set(RedisKey.authOtp(normalizedEmail), hash(otp), ttlProperties.getOtp());
-
-    publishOtp(
-        normalizedEmail,
-        OTP_SUBJECT,
-        "Your verification code is %s. It expires in %d minutes."
-            .formatted(otp, otpExpiryMinutes()));
+    publishTemplatedOtp(normalizedEmail, EmailTemplateType.EMAIL_VERIFICATION_OTP, otp);
   }
 
   public void issueLoginOtp(String challengeId, String email) {
     String normalizedEmail = normalizeEmail(email);
     enforceOtpRateLimit(normalizedEmail);
-
     String otp = newOtp();
     redisService.set(RedisKey.loginTwoFactorOtp(challengeId), hash(otp), ttlProperties.getOtp());
+    publishTemplatedOtp(normalizedEmail, EmailTemplateType.LOGIN_OTP, otp);
+  }
 
-    publishOtp(
-        normalizedEmail,
-        LOGIN_OTP_SUBJECT,
-        "Your login verification code is %s. It expires in %d minutes."
-            .formatted(otp, otpExpiryMinutes()));
+  public void issueTwoFactorSettingsOtp(String challengeId, String email, boolean enabled) {
+    String normalizedEmail = normalizeEmail(email);
+    enforceOtpRateLimit(normalizedEmail);
+    String otp = newOtp();
+    redisService.set(RedisKey.twoFactorSettingsOtp(challengeId), hash(otp), ttlProperties.getOtp());
+    redisService.set(
+        RedisKey.twoFactorSettingsEnabled(challengeId),
+        Boolean.toString(enabled),
+        ttlProperties.getOtp());
+    publishTemplatedOtp(normalizedEmail, EmailTemplateType.TWO_FACTOR_SETTINGS_OTP, otp);
+  }
+
+  public boolean verifyTwoFactorSettingsOtp(String challengeId, String otp) {
+    verifyOtp(
+        RedisKey.twoFactorSettingsOtp(challengeId),
+        RedisKey.rateLimitOtpVerify("2fa-settings:" + challengeId),
+        otp);
+    String enabled = redisService.get(RedisKey.twoFactorSettingsEnabled(challengeId), String.class);
+    redisService.delete(RedisKey.twoFactorSettingsEnabled(challengeId));
+    if (enabled == null) {
+      throw new BadRequestException("Invalid or expired OTP");
+    }
+    return Boolean.parseBoolean(enabled);
+  }
+
+  public void issueEmailChangeOtp(String challengeId, String email, long userId) {
+    String normalizedEmail = normalizeEmail(email);
+    enforceOtpRateLimit(normalizedEmail);
+    String otp = newOtp();
+    redisService.set(RedisKey.emailChangeOtp(challengeId), hash(otp), ttlProperties.getOtp());
+    redisService.set(
+        RedisKey.emailChangeTarget(challengeId), normalizedEmail, ttlProperties.getOtp());
+    redisService.set(
+        RedisKey.emailChangeUser(challengeId), Long.toString(userId), ttlProperties.getOtp());
+    publishTemplatedOtp(normalizedEmail, EmailTemplateType.EMAIL_CHANGE_OTP, otp);
+  }
+
+  public EmailChangeVerification verifyEmailChangeOtp(String challengeId, String otp) {
+    String targetKey = RedisKey.emailChangeTarget(challengeId);
+    String userKey = RedisKey.emailChangeUser(challengeId);
+    String targetEmail = redisService.get(targetKey, String.class);
+    String userId = redisService.get(userKey, String.class);
+    if (targetEmail == null || userId == null) {
+      throw new BadRequestException("Invalid or expired OTP");
+    }
+
+    try {
+      verifyOtp(
+          RedisKey.emailChangeOtp(challengeId),
+          RedisKey.rateLimitOtpVerify("email-change:" + challengeId),
+          otp);
+    } catch (TooManyRequestsException exception) {
+      redisService.delete(targetKey);
+      redisService.delete(userKey);
+      throw exception;
+    }
+
+    redisService.delete(targetKey);
+    redisService.delete(userKey);
+    try {
+      return new EmailChangeVerification(Long.parseLong(userId), targetEmail);
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("Invalid or expired OTP");
+    }
   }
 
   public void enforcePasswordResetRateLimit(String identifier) {
@@ -74,21 +129,22 @@ public class AuthOtpService {
     redisService.set(RedisKey.passwordResetOtp(challengeId), hash(otp), ttlProperties.getOtp());
     redisService.set(
         RedisKey.passwordResetUser(challengeId), Long.toString(userId), ttlProperties.getOtp());
-
-    publishOtp(
-        normalizedEmail,
-        PASSWORD_RESET_OTP_SUBJECT,
-        "Your password reset code is %s. It expires in %d minutes."
-            .formatted(otp, otpExpiryMinutes()));
+    publishTemplatedOtp(normalizedEmail, EmailTemplateType.PASSWORD_RESET_OTP, otp);
   }
 
   public void verifyLoginOtp(String challengeId, String otp) {
-    verifyOtp(RedisKey.loginTwoFactorOtp(challengeId), otp);
+    verifyOtp(
+        RedisKey.loginTwoFactorOtp(challengeId),
+        RedisKey.rateLimitOtpVerify("2fa-login:" + challengeId),
+        otp);
   }
 
   public void verifyEmailOtp(String email, String otp) {
     String normalizedEmail = normalizeEmail(email);
-    verifyOtp(RedisKey.authOtp(normalizedEmail), otp);
+    verifyOtp(
+        RedisKey.authOtp(normalizedEmail),
+        RedisKey.rateLimitOtpVerify("verify-email:" + normalizedEmail),
+        otp);
   }
 
   public long verifyPasswordResetOtp(String challengeId, String otp) {
@@ -99,7 +155,10 @@ public class AuthOtpService {
       throw new BadRequestException("Invalid or expired OTP");
     }
 
-    verifyOtp(otpKey, otp);
+    verifyOtp(
+        otpKey,
+        RedisKey.rateLimitOtpVerify("password-reset:" + challengeId),
+        otp);
     redisService.delete(userKey);
 
     try {
@@ -109,27 +168,40 @@ public class AuthOtpService {
     }
   }
 
-  private void verifyOtp(String key, String otp) {
-    String storedHash = redisService.get(key, String.class);
+  private void verifyOtp(String otpKey, String attemptKey, String otp) {
+    RateLimitResult attempts =
+        rateLimitService.consume(
+            attemptKey,
+            authSecurityProperties.getOtpVerifyLimit(),
+            ttlProperties.getOtpAttempts());
+    if (!attempts.allowed()) {
+      redisService.delete(otpKey);
+      throw new TooManyRequestsException("Too many invalid OTP attempts");
+    }
+
+    String storedHash = redisService.get(otpKey, String.class);
     if (storedHash == null
         || !MessageDigest.isEqual(
             storedHash.getBytes(StandardCharsets.UTF_8),
             hash(otp).getBytes(StandardCharsets.UTF_8))) {
       throw new BadRequestException("Invalid or expired OTP");
     }
-    redisService.delete(key);
+
+    redisService.delete(otpKey);
+    redisService.delete(attemptKey);
   }
 
   private void enforceOtpRateLimit(String identifier) {
     RateLimitResult result =
         rateLimitService.consume(
-            RedisKey.rateLimitOtp(identifier), OTP_LIMIT, ttlProperties.getOtpAttempts());
+            RedisKey.rateLimitOtp(identifier), OTP_REQUEST_LIMIT, ttlProperties.getOtpAttempts());
     if (!result.allowed()) {
       throw new TooManyRequestsException("Too many OTP requests");
     }
   }
 
-  private void publishOtp(String email, String subject, String body) {
+  private void publishTemplatedOtp(String email, EmailTemplateType type, String otp) {
+    EmailTemplateContent template = emailTemplateService.renderOtp(type, otp, otpExpiryMinutes());
     eventPublisher.publish(
         KafkaEvent.of(
             EventMetadata.create(
@@ -140,7 +212,8 @@ public class AuthOtpService {
                 null,
                 null,
                 MessagePriority.CRITICAL),
-            new OtpRequestedEvent(email, "EMAIL", subject, body, false)));
+            OtpRequestedEvent.multipartEmail(
+                email, template.subject(), template.textBody(), template.htmlBody())));
   }
 
   private String newOtp() {
@@ -164,6 +237,8 @@ public class AuthOtpService {
     }
     return identifier.trim().toLowerCase(Locale.ROOT);
   }
+
+  public record EmailChangeVerification(long userId, String email) {}
 
   private String hash(String value) {
     try {

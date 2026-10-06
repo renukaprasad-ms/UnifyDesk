@@ -66,7 +66,8 @@ class EmailChannelOperationsServiceTests {
             null,
             false,
             null,
-            null);
+            null,
+            List.of());
 
     EmailSendResult result = service.send(COMPANY_ID, CONNECTION_ID, command);
 
@@ -96,7 +97,8 @@ class EmailChannelOperationsServiceTests {
                         null,
                         false,
                         null,
-                        null)))
+                        null,
+                        List.of())))
         .isInstanceOf(BadRequestException.class)
         .hasMessageContaining("not active");
   }

@@ -3,10 +3,10 @@ import type { ApiResponse } from '../../lib/api/types'
 import type {
   CreateUserPayload,
   ResetPasswordPayload,
-  ToggleTwoFactorPayload,
   UpdateOwnProfilePayload,
   UpdateUserPayload,
   User,
+  UserPreferences,
 } from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
@@ -24,6 +24,19 @@ export const userApi = {
 
   async me() {
     const response = await apiClient.get<ApiResponse<User>>('/api/users/me')
+    return unwrap(response.data)
+  },
+
+  async preferences() {
+    const response = await apiClient.get<ApiResponse<UserPreferences>>('/api/users/me/preferences')
+    return unwrap(response.data)
+  },
+
+  async updatePreferences(appearanceMode: 'LIGHT' | 'DARK') {
+    const response = await apiClient.patch<ApiResponse<UserPreferences>>(
+      '/api/users/me/preferences',
+      { appearanceMode },
+    )
     return unwrap(response.data)
   },
 
@@ -55,12 +68,9 @@ export const userApi = {
     return unwrap(response.data)
   },
 
-  async toggleTwoFactor(userId: string, payload: ToggleTwoFactorPayload) {
-    const response = await apiClient.patch<ApiResponse<User>>(`/api/users/${userId}/2fa`, payload)
-    return unwrap(response.data)
-  },
-
-  async delete(userId: string) {
-    await apiClient.delete<ApiResponse<void>>(`/api/users/${userId}`)
+  async deleteCurrentAccount(currentPassword: string) {
+    await apiClient.delete<ApiResponse<void>>('/api/users/me', {
+      data: { currentPassword },
+    })
   },
 }

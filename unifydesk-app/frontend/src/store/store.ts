@@ -5,7 +5,14 @@ import iamReducer from './iam/iamSlice'
 import inboxReducer from './inbox/inboxSlice'
 import workspaceReducer from './workspace/workspaceSlice'
 
-const SELECTED_COMPANY_KEY = 'messaging.selectedCompanyId'
+const SELECTED_COMPANY_KEY = 'unifydesk.selectedCompanyId'
+
+export const readSelectedCompanyId = () => {
+  if (typeof window === 'undefined') return null
+  return window.localStorage.getItem(SELECTED_COMPANY_KEY)
+}
+
+let persistedCompanyId = readSelectedCompanyId()
 
 export const store = configureStore({
   reducer: {
@@ -15,17 +22,17 @@ export const store = configureStore({
     iam: iamReducer,
     inbox: inboxReducer,
   },
+  preloadedState: {
+    workspace: {
+      companies: [],
+      selectedCompanyId: persistedCompanyId,
+      epoch: 0,
+    },
+  },
 })
 
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch
-
-export const readSelectedCompanyId = () => {
-  if (typeof window === 'undefined') return null
-  return window.localStorage.getItem(SELECTED_COMPANY_KEY)
-}
-
-let persistedCompanyId = readSelectedCompanyId()
 
 store.subscribe(() => {
   if (typeof window === 'undefined') return

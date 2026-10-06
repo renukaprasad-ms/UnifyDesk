@@ -1,5 +1,8 @@
 package com.messaging.channel.gmail;
 
+import com.messaging.channel.email.EmailAttachment;
+import com.messaging.channel.email.EmailAttachmentDataSource;
+import com.messaging.channel.email.EmailAttachmentService;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.gmail.GmailApiClient.SendMessageResponse;
@@ -9,11 +12,17 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.inbox.dto.InboxEmailChangedEvent;
 import com.messaging.realtime.service.RealtimeService;
+import jakarta.activation.DataHandler;
 import jakarta.mail.Message;
+import jakarta.mail.MessagingException;
+import jakarta.mail.Part;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,6 +45,7 @@ public class GmailSendService {
   private final GmailTokenService tokenService;
   private final GmailApiClient gmailApiClient;
   private final GmailInboxPersistenceService persistenceService;
+  private final EmailAttachmentService attachmentService;
   private final GmailDistributedQuotaManager quotaManager;
   private final RealtimeService realtimeService;
 
@@ -65,12 +75,29 @@ public class GmailSendService {
     }
 
     String accessToken = tokenService.accessToken(connection);
-    String rawMessage = rawMessage(gmailAccount, request, to, cc, bcc);
     String threadId = trimToNull(request.threadId());
+    List<EmailAttachment> attachments =
+        attachmentService.resolve(connection.getCompanyId(), request.attachmentIds());
 
     SendMessageResponse sent;
     try {
-      sent = gmailApiClient.sendMessage(accessToken, rawMessage, threadId);
+      if (attachments.isEmpty()) {
+        String rawMessage = rawMessage(gmailAccount, request, to, cc, bcc);
+        sent = gmailApiClient.sendMessage(accessToken, rawMessage, threadId);
+      } else {
+        MimeMessage message = mimeMessage(gmailAccount, request, to, cc, bcc, attachments);
+        sent =
+            gmailApiClient.sendMimeMessage(
+                accessToken,
+                threadId,
+                outputStream -> {
+                  try {
+                    message.writeTo(outputStream);
+                  } catch (MessagingException exception) {
+                    throw new IOException("Unable to stream Gmail MIME message", exception);
+                  }
+                });
+      }
     } catch (GmailRateLimitException exception) {
       quotaManager.penalize(gmailAccount, 1, exception.retryAfter());
       throw new ServiceUnavailableException(
@@ -124,6 +151,53 @@ public class GmailSendService {
         bcc,
         trimToNull(request.subject()),
         sentAt);
+  }
+
+  private MimeMessage mimeMessage(
+      String from,
+      GmailSendRequest request,
+      List<String> to,
+      List<String> cc,
+      List<String> bcc,
+      List<EmailAttachment> attachments) {
+    try {
+      Session session = Session.getInstance(new Properties());
+      MimeMessage message = new MimeMessage(session);
+      message.setFrom(new InternetAddress(from));
+      if (!to.isEmpty()) message.setRecipients(Message.RecipientType.TO, recipients(to));
+      if (!cc.isEmpty()) message.setRecipients(Message.RecipientType.CC, recipients(cc));
+      if (!bcc.isEmpty()) message.setRecipients(Message.RecipientType.BCC, recipients(bcc));
+
+      message.setSubject(
+          request.subject() == null ? "" : request.subject().trim(), StandardCharsets.UTF_8.name());
+
+      MimeMultipart multipart = new MimeMultipart("mixed");
+      MimeBodyPart bodyPart = new MimeBodyPart();
+      bodyPart.setText(request.bodyText(), StandardCharsets.UTF_8.name());
+      multipart.addBodyPart(bodyPart);
+
+      for (EmailAttachment attachment : attachments) {
+        MimeBodyPart attachmentPart = new MimeBodyPart();
+        attachmentPart.setDataHandler(new DataHandler(new EmailAttachmentDataSource(attachment)));
+        attachmentPart.setFileName(attachment.fileName());
+        attachmentPart.setDisposition(Part.ATTACHMENT);
+        multipart.addBodyPart(attachmentPart);
+      }
+      message.setContent(multipart);
+
+      String inReplyTo = trimToNull(request.inReplyTo());
+      if (inReplyTo != null) message.setHeader("In-Reply-To", inReplyTo);
+      String references = trimToNull(request.references());
+      if (references != null) message.setHeader("References", references);
+
+      message.setSentDate(new Date());
+      message.saveChanges();
+      return message;
+    } catch (BadRequestException exception) {
+      throw exception;
+    } catch (Exception exception) {
+      throw new BadRequestException("Unable to create Gmail message");
+    }
   }
 
   private String rawMessage(

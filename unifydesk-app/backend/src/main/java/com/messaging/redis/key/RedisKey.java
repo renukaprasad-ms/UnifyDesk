@@ -45,7 +45,51 @@ public final class RedisKey {
   }
 
   public static String rateLimitLogin(String ip) {
-    return join("rate-limit", "login", normalize(ip));
+    return rateLimitLoginIp(ip);
+  }
+
+  public static String rateLimitLoginIp(String ip) {
+    return join("rate-limit", "login", "ip", normalize(ip));
+  }
+
+  public static String rateLimitLoginIdentifier(String identifier) {
+    return join("rate-limit", "login", "identifier", normalize(identifier));
+  }
+
+  public static String rateLimitRegisterIp(String ip) {
+    return join("rate-limit", "register", "ip", normalize(ip));
+  }
+
+  public static String rateLimitRegisterIdentifier(String identifier) {
+    return join("rate-limit", "register", "identifier", normalize(identifier));
+  }
+
+  public static String rateLimitOtpVerify(String scope) {
+    return join("rate-limit", "otp-verify", normalize(scope));
+  }
+
+  public static String passwordResetGrant(String tokenId) {
+    return join("auth", "password-reset", "grant", normalize(tokenId));
+  }
+
+  public static String twoFactorSettingsOtp(String challengeId) {
+    return join("auth", "2fa-settings", "otp", normalize(challengeId));
+  }
+
+  public static String twoFactorSettingsEnabled(String challengeId) {
+    return join("auth", "2fa-settings", "enabled", normalize(challengeId));
+  }
+
+  public static String emailChangeOtp(String challengeId) {
+    return join("auth", "email-change", "otp", normalize(challengeId));
+  }
+
+  public static String emailChangeTarget(String challengeId) {
+    return join("auth", "email-change", "target", normalize(challengeId));
+  }
+
+  public static String emailChangeUser(String challengeId) {
+    return join("auth", "email-change", "user", normalize(challengeId));
   }
 
   public static String rateLimitOtp(String identifier) {
