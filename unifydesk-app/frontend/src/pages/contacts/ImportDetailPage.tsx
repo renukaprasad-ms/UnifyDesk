@@ -583,99 +583,238 @@ export default function ImportDetailPage() {
               </div>
             </section>
 
-            <details className="panel mt-4 p-5" open={consentMappings.length > 0}>
-              <summary className="cursor-pointer text-sm font-bold text-slate-950">
-                Marketing permissions
+            <section className="panel mt-4 p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-950">Marketing permissions</h2>
+                  <p className="mt-1 max-w-3xl text-sm text-slate-500">
+                    Importing a contact does not automatically allow marketing. Tell UnifyDesk how
+                    permission should be handled for this file.
+                  </p>
+                </div>
                 {consentMappings.length > 0 && (
-                  <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-                    {consentMappings.length} detected
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    Consent columns detected
                   </span>
                 )}
-              </summary>
-              <p className="mt-2 max-w-3xl text-sm text-slate-500">
-                UnifyDesk never opts contacts in automatically. If your CSV contains explicit Email,
-                SMS or WhatsApp permission columns, we detect them here so you can verify the
-                mapping before importing.
-              </p>
-              <div className="mt-4 space-y-4">
-                {channels.map((channel) => {
-                  const mapping = consentMappings.find((item) => item.channel === channel)
-                  return (
-                    <fieldset key={channel} className="rounded-xl border border-slate-200 p-4">
-                      <label className="flex items-center gap-2 text-sm font-semibold">
+              </div>
+
+              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                <label className="rounded-xl border border-slate-200 p-4">
+                  <span className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="consent-mode"
+                      checked={consentMode === 'NONE'}
+                      onChange={() => setConsentMode('NONE')}
+                    />
+                    <span>
+                      <span className="block text-sm font-bold text-slate-900">
+                        No marketing permission
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">
+                        Import contacts with permission left Unknown. Safest when you are unsure.
+                      </span>
+                    </span>
+                  </span>
+                </label>
+
+                <label className="rounded-xl border border-slate-200 p-4">
+                  <span className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="consent-mode"
+                      checked={consentMode === 'SIMPLE'}
+                      onChange={() => setConsentMode('SIMPLE')}
+                    />
+                    <span>
+                      <span className="block text-sm font-bold text-slate-900">
+                        Same permission for all contacts
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">
+                        Use this when everyone in the file already opted in through the same source.
+                      </span>
+                    </span>
+                  </span>
+                </label>
+
+                <label className="rounded-xl border border-slate-200 p-4">
+                  <span className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="consent-mode"
+                      checked={consentMode === 'CSV'}
+                      onChange={() => setConsentMode('CSV')}
+                    />
+                    <span>
+                      <span className="block text-sm font-bold text-slate-900">
+                        Read permission from CSV
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">
+                        Best when each row has its own Email, SMS or WhatsApp consent value.
+                      </span>
+                    </span>
+                  </span>
+                </label>
+              </div>
+
+              {consentMode === 'SIMPLE' && (
+                <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+                  <p className="text-sm font-bold text-slate-950">
+                    Which channels did these contacts agree to?
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {channels.map((channel) => (
+                      <label
+                        key={channel}
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold"
+                      >
                         <input
                           type="checkbox"
-                          checked={Boolean(mapping)}
-                          onChange={(event) => setConsentEnabled(channel, event.target.checked)}
+                          checked={simpleConsentChannels.includes(channel)}
+                          onChange={() => toggleSimpleConsentChannel(channel)}
                         />
-                        Import {channel === 'WHATSAPP' ? 'WhatsApp' : channel} marketing preference
+                        {channelLabel(channel)}
                       </label>
-                      {mapping && (
-                        <div className="mt-3 grid gap-3 md:grid-cols-3">
-                          <label className="text-xs font-semibold text-slate-700">
-                            Preference column
-                            <select
-                              className="form-input mt-1"
-                              value={mapping.stateColumn}
-                              onChange={(event) =>
-                                updateConsent(channel, {
-                                  stateColumn: event.target.value,
-                                })
-                              }
-                            >
-                              <option value="">Choose column…</option>
-                              {preview.headers.map((header) => (
-                                <option key={header} value={header}>
-                                  {header}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="text-xs font-semibold text-slate-700">
-                            Evidence column
-                            <select
-                              className="form-input mt-1"
-                              value={mapping.evidenceColumn ?? ''}
-                              onChange={(event) =>
-                                updateConsent(channel, {
-                                  evidenceColumn: event.target.value || null,
-                                })
-                              }
-                            >
-                              <option value="">Not included</option>
-                              {preview.headers.map((header) => (
-                                <option key={header} value={header}>
-                                  {header}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="text-xs font-semibold text-slate-700">
-                            Consent date column
-                            <select
-                              className="form-input mt-1"
-                              value={mapping.occurredAtColumn ?? ''}
-                              onChange={(event) =>
-                                updateConsent(channel, {
-                                  occurredAtColumn: event.target.value || null,
-                                })
-                              }
-                            >
-                              <option value="">Not included</option>
-                              {preview.headers.map((header) => (
-                                <option key={header} value={header}>
-                                  {header}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        </div>
-                      )}
-                    </fieldset>
-                  )
-                })}
-              </div>
-            </details>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <label className="text-xs font-semibold text-slate-700">
+                      How was permission collected?
+                      <select
+                        className="form-input mt-1"
+                        value={simpleConsentEvidence}
+                        onChange={(event) => setSimpleConsentEvidence(event.target.value)}
+                      >
+                        {consentEvidenceOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="text-xs font-semibold text-slate-700">
+                      Consent date
+                      <input
+                        className="form-input mt-1"
+                        type="date"
+                        max={new Date().toISOString().slice(0, 10)}
+                        value={simpleConsentDate}
+                        onChange={(event) => setSimpleConsentDate(event.target.value)}
+                      />
+                      <span className="mt-1 block font-normal text-slate-500">
+                        Optional. Leave blank if the exact date is not available.
+                      </span>
+                    </label>
+                  </div>
+
+                  <label className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                    <input
+                      className="mt-0.5"
+                      type="checkbox"
+                      checked={simpleConsentConfirmed}
+                      onChange={(event) => setSimpleConsentConfirmed(event.target.checked)}
+                    />
+                    <span>
+                      I confirm these contacts gave my business permission to receive marketing on
+                      the selected channels.
+                    </span>
+                  </label>
+
+                  {strategy === 'SKIP' && (
+                    <p className="mt-3 text-xs text-slate-500">
+                      Existing contacts skipped as duplicates will keep their current permission
+                      state. The declaration applies to contacts successfully created by this import.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {consentMode === 'CSV' && (
+                <div className="mt-4 space-y-4">
+                  <p className="text-xs text-slate-500">
+                    Map each channel to the CSV column that contains TRUE/FALSE, YES/NO,
+                    OPTED_IN/OPTED_OUT or UNKNOWN.
+                  </p>
+                  {channels.map((channel) => {
+                    const mapping = consentMappings.find((item) => item.channel === channel)
+                    return (
+                      <fieldset key={channel} className="rounded-xl border border-slate-200 p-4">
+                        <label className="flex items-center gap-2 text-sm font-semibold">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(mapping)}
+                            onChange={(event) => setConsentEnabled(channel, event.target.checked)}
+                          />
+                          Import {channelLabel(channel)} marketing preference
+                        </label>
+                        {mapping && (
+                          <div className="mt-3 grid gap-3 md:grid-cols-3">
+                            <label className="text-xs font-semibold text-slate-700">
+                              Preference column
+                              <select
+                                className="form-input mt-1"
+                                value={mapping.stateColumn}
+                                onChange={(event) =>
+                                  updateConsent(channel, { stateColumn: event.target.value })
+                                }
+                              >
+                                <option value="">Choose column…</option>
+                                {preview.headers.map((header) => (
+                                  <option key={header} value={header}>
+                                    {header}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="text-xs font-semibold text-slate-700">
+                              Evidence column
+                              <select
+                                className="form-input mt-1"
+                                value={mapping.evidenceColumn ?? ''}
+                                onChange={(event) =>
+                                  updateConsent(channel, {
+                                    evidenceColumn: event.target.value || null,
+                                  })
+                                }
+                              >
+                                <option value="">Not included</option>
+                                {preview.headers.map((header) => (
+                                  <option key={header} value={header}>
+                                    {header}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="text-xs font-semibold text-slate-700">
+                              Consent date column
+                              <select
+                                className="form-input mt-1"
+                                value={mapping.occurredAtColumn ?? ''}
+                                onChange={(event) =>
+                                  updateConsent(channel, {
+                                    occurredAtColumn: event.target.value || null,
+                                  })
+                                }
+                              >
+                                <option value="">Not included</option>
+                                {preview.headers.map((header) => (
+                                  <option key={header} value={header}>
+                                    {header}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                        )}
+                      </fieldset>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
 
             <section className="panel mt-4 p-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
@@ -690,9 +829,18 @@ export default function ImportDetailPage() {
                 <div className="rounded-xl bg-slate-50 p-4">
                   <p className="text-slate-500">Marketing permissions</p>
                   <p className="mt-1 font-bold text-slate-950">
-                    {consentMappings.length > 0
-                      ? consentMappings.length + ' channel' + (consentMappings.length === 1 ? '' : 's') + ' mapped'
-                      : 'No consent columns mapped'}
+                    {consentMode === 'SIMPLE'
+                      ? simpleConsentChannels.length > 0
+                        ? simpleConsentChannels.map(channelLabel).join(', ') + ' confirmed'
+                        : 'Choose channels'
+                      : consentMode === 'CSV'
+                        ? consentMappings.length > 0
+                          ? consentMappings.length +
+                            ' channel' +
+                            (consentMappings.length === 1 ? '' : 's') +
+                            ' mapped'
+                          : 'No consent columns mapped'
+                        : 'Permission stays Unknown'}
                   </p>
                 </div>
                 <div className="rounded-xl bg-slate-50 p-4">
