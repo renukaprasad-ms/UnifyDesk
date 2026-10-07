@@ -2,6 +2,7 @@ package com.messaging.channel.zoho;
 
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/oauth/zoho-mail")
 @RequiredArgsConstructor
@@ -34,6 +36,10 @@ public class ZohoMailOAuthCallbackController {
           connectionService.completeWithReturn(state, code, accountsServer);
       return redirect("connected", completion.returnTo());
     } catch (RuntimeException exception) {
+      log.warn(
+          "zoho_mail_oauth_callback_failed reason={} message={}",
+          exception.getClass().getSimpleName(),
+          exception.getMessage());
       return redirect("error", "/company/connections");
     }
   }
