@@ -43,7 +43,6 @@ import type {
   InboxConversation,
   InboxEmailChangedEvent,
   InboxMessage,
-  InboxParticipant,
 } from '../../features/inbox/types'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
