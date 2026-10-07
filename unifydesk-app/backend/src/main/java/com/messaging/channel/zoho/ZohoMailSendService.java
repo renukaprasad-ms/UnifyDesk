@@ -91,7 +91,7 @@ public class ZohoMailSendService {
     }
 
     return new EmailSendResult(
-        connection.getId(),
+        connection.getId().toString(),
         response.messageId(),
         null,
         token.emailAddress(),
