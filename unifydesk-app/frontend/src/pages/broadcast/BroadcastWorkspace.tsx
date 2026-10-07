@@ -1281,7 +1281,8 @@ export default function BroadcastWorkspace() {
                 Boolean(selectedMessage?.senderId) &&
                 Boolean(selectedMessage?.groupId)
               }
-              canModify={can(PERMISSIONS.BROADCAST_MODIFY) && Boolean(selectedMessage?.groupId)}
+              canEdit={can(PERMISSIONS.BROADCAST_MODIFY) && Boolean(selectedMessage?.groupId)}
+              canControl={can(PERMISSIONS.BROADCAST_MODIFY)}
               backLabel={selectedMessage?.groupId ? 'Back to group history' : 'Back to broadcast history'}
               onBack={() =>
                 updateSearch({
@@ -2234,7 +2235,8 @@ function BroadcastDetail({
   recipientsLoading,
   actionBusy,
   canSend,
-  canModify,
+  canEdit,
+  canControl,
   backLabel,
   onBack,
   onEdit,
@@ -2248,7 +2250,8 @@ function BroadcastDetail({
   recipientsLoading: boolean
   actionBusy: boolean
   canSend: boolean
-  canModify: boolean
+  canEdit: boolean
+  canControl: boolean
   backLabel: string
   onBack: () => void
   onEdit: (id: string) => void
@@ -2274,7 +2277,7 @@ function BroadcastDetail({
             {backLabel}
           </button>
           <div className="flex flex-wrap gap-2">
-            {(message.status === 'DRAFT' || message.status === 'SCHEDULED') && canModify && (
+            {(message.status === 'DRAFT' || message.status === 'SCHEDULED') && canEdit && (
               <button
                 type="button"
                 className="secondary-button gap-2"
@@ -2295,7 +2298,7 @@ function BroadcastDetail({
                 Send now
               </button>
             )}
-            {message.status === 'RUNNING' && canModify && (
+            {message.status === 'RUNNING' && canControl && (
               <button
                 type="button"
                 className="secondary-button gap-2"
@@ -2306,7 +2309,7 @@ function BroadcastDetail({
                 Pause
               </button>
             )}
-            {message.status === 'PAUSED' && canModify && (
+            {message.status === 'PAUSED' && canControl && (
               <button
                 type="button"
                 className="secondary-button gap-2"
@@ -2317,7 +2320,7 @@ function BroadcastDetail({
                 Resume
               </button>
             )}
-            {['SCHEDULED', 'QUEUED', 'RUNNING', 'PAUSED'].includes(message.status) && canModify && (
+            {['SCHEDULED', 'QUEUED', 'RUNNING', 'PAUSED'].includes(message.status) && canControl && (
               <button
                 type="button"
                 className="secondary-button text-rose-600"
