@@ -59,7 +59,10 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import { useAppSelector } from '../../store/hooks'
-import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompany,
+  selectSelectedCompanyId,
+} from '../../store/workspace/workspaceSlice'
 import { ListSkeleton } from '../../components/ui/Skeleton'
 
 const providerLabel = (
@@ -129,6 +132,7 @@ const sectionMeta: Array<{
 
 export default function CompanyConnections() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
+  const selectedCompanyId = useAppSelector(selectSelectedCompanyId)
   const [searchParams, setSearchParams] = useSearchParams()
   const { can } = useIam()
   const snackbar = useSnackbar()
@@ -563,11 +567,87 @@ export default function CompanyConnections() {
     }
   }
 
+  const sectionTabs = (
+    <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {sectionMeta.map((section) => {
+        const count =
+          section.id === 'EMAIL'
+            ? emailConnections.filter((item) => item.status === 'ACTIVE').length
+            : section.id === 'SMS'
+              ? smsConnections.filter((item) => item.status === 'ACTIVE').length
+              : section.id === 'WHATSAPP'
+                ? whatsAppConnections.filter((item) => item.status === 'ACTIVE').length
+                : adConnections.filter((item) => item.status === 'ACTIVE').length
+        const icon =
+          section.id === 'EMAIL' ? (
+            <FiMail aria-hidden="true" />
+          ) : section.id === 'SMS' ? (
+            <FiSmartphone aria-hidden="true" />
+          ) : section.id === 'WHATSAPP' ? (
+            <FiMessageCircle aria-hidden="true" />
+          ) : (
+            <FiBarChart2 aria-hidden="true" />
+          )
+
+        return (
+          <button
+            key={section.id}
+            type="button"
+            aria-pressed={activeSection === section.id}
+            onClick={() => selectSection(section.id)}
+            className={`panel p-4 text-left transition ${
+              activeSection === section.id
+                ? 'border-indigo-300 bg-indigo-50/70 shadow-sm'
+                : 'hover:border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <span
+                className={`flex size-10 items-center justify-center rounded-xl text-lg ${
+                  activeSection === section.id
+                    ? 'bg-indigo-100 text-indigo-700'
+                    : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                {icon}
+              </span>
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">
+                {count} connected
+              </span>
+            </div>
+            <p className="mt-3 text-sm font-bold text-slate-950">{section.label}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">{section.description}</p>
+          </button>
+        )
+      })}
+    </div>
+  )
+
   if (!selectedCompany) {
     return (
       <section className="px-4 py-6 sm:px-6 lg:px-8">
-        <div className="panel mx-auto max-w-5xl p-8 text-center text-sm text-slate-500">
-          Select a workspace to manage channel connections.
+        <div className="w-full">
+          <header>
+            <p className="eyebrow">Company</p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+              Connections
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+              Loading workspace connection settings…
+            </p>
+          </header>
+
+          {sectionTabs}
+
+          <div className="panel mt-6 p-5">
+            {selectedCompanyId ? (
+              <ListSkeleton rows={4} />
+            ) : (
+              <p className="text-sm text-slate-500">
+                Select a workspace to manage channel connections.
+              </p>
+            )}
+          </div>
         </div>
       </section>
     )
@@ -598,59 +678,7 @@ export default function CompanyConnections() {
           </button>
         </header>
 
-        <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {sectionMeta.map((section) => {
-            const count =
-              section.id === 'EMAIL'
-                ? emailConnections.filter((item) => item.status === 'ACTIVE').length
-                : section.id === 'SMS'
-                  ? smsConnections.filter((item) => item.status === 'ACTIVE').length
-                  : section.id === 'WHATSAPP'
-                    ? whatsAppConnections.filter((item) => item.status === 'ACTIVE').length
-                    : adConnections.filter((item) => item.status === 'ACTIVE').length
-            const icon =
-              section.id === 'EMAIL' ? (
-                <FiMail aria-hidden="true" />
-              ) : section.id === 'SMS' ? (
-                <FiSmartphone aria-hidden="true" />
-              ) : section.id === 'WHATSAPP' ? (
-                <FiMessageCircle aria-hidden="true" />
-              ) : (
-                <FiBarChart2 aria-hidden="true" />
-              )
-
-            return (
-              <button
-                key={section.id}
-                type="button"
-                aria-pressed={activeSection === section.id}
-                onClick={() => selectSection(section.id)}
-                className={`rounded-2xl border p-4 text-left transition ${
-                  activeSection === section.id
-                    ? 'border-indigo-300 bg-indigo-50/70 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <span
-                    className={`flex size-10 items-center justify-center rounded-xl text-lg ${
-                      activeSection === section.id
-                        ? 'bg-indigo-100 text-indigo-700'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {icon}
-                  </span>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">
-                    {count} connected
-                  </span>
-                </div>
-                <p className="mt-3 text-sm font-bold text-slate-950">{section.label}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">{section.description}</p>
-              </button>
-            )
-          })}
-        </div>
+        {sectionTabs}
 
         {activeSection === 'EMAIL' && (
           <>

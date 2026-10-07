@@ -12,6 +12,7 @@ import {
   setBootstrapped,
 } from '../../store/auth/authSlice'
 import { readSelectedCompanyId } from '../../store/store'
+import { readStoredAppearanceMode } from '../companyTheme/companyTheme'
 import { selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
 
 export default function AuthBootstrap({ children }: { children: React.ReactNode }) {
@@ -35,7 +36,11 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
         dispatch(
           setAuthUser({
             ...user,
-            appearanceMode: preferences?.appearanceMode ?? user.appearanceMode ?? 'LIGHT',
+            appearanceMode:
+              preferences?.appearanceMode ??
+              readStoredAppearanceMode() ??
+              user.appearanceMode ??
+              'LIGHT',
           }),
         )
 

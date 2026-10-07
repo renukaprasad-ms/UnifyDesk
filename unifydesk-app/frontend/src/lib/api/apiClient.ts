@@ -74,8 +74,16 @@ const refreshSession = async () => {
   )
   const user = response.data.data
   if (!user) throw new Error('Refresh response did not include a user')
-  store.dispatch(setAuthUser(user))
-  return user
+
+  // A background token refresh must not overwrite the appearance preference already
+  // reconciled from /users/me/preferences. The refresh payload can lag that preference.
+  const currentAppearance = store.getState().auth.user?.appearanceMode
+  const refreshedUser = currentAppearance
+    ? { ...user, appearanceMode: currentAppearance }
+    : user
+
+  store.dispatch(setAuthUser(refreshedUser))
+  return refreshedUser
 }
 
 const isAdCenterRequest = (url?: string) =>
