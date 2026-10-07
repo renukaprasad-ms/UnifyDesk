@@ -1,6 +1,6 @@
 export type AsyncJobStatus = 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED'
 export type AsyncJobType =
-  'GMAIL_SYNC' | 'MICROSOFT_SYNC' | 'IMAP_SMTP_SYNC' | 'INBOX_READ_SYNC' | 'ENTITY_CLEANUP'
+  'GMAIL_SYNC' | 'MICROSOFT_SYNC' | 'ZOHO_MAIL_SYNC' | 'IMAP_SMTP_SYNC' | 'INBOX_READ_SYNC' | 'ENTITY_CLEANUP'
 
 export type AsyncJob = {
   jobId: string
