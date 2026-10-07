@@ -7,6 +7,7 @@ import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.common.exception.TooManyRequestsException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -169,6 +170,100 @@ public class ZohoMailApiClient {
                     .retrieve()
                     .body(ContentResponse.class));
     return response == null || response.data() == null ? null : response.data().content();
+  }
+
+  public List<ZohoAttachment> attachmentInfo(
+      String mailApiBaseUrl,
+      String accessToken,
+      String accountId,
+      String folderId,
+      String messageId) {
+    AttachmentInfoResponse response =
+        api(
+            "attachment_info",
+            () ->
+                client(mailApiBaseUrl)
+                    .get()
+                    .uri(
+                        builder ->
+                            builder
+                                .path(
+                                    "/api/accounts/{accountId}/folders/{folderId}/messages/{messageId}/attachmentinfo")
+                                .queryParam("includeInline", true)
+                                .build(accountId, folderId, messageId))
+                    .header(HttpHeaders.AUTHORIZATION, oauthHeader(accessToken))
+                    .retrieve()
+                    .body(AttachmentInfoResponse.class));
+    if (response == null || response.data() == null) return List.of();
+
+    java.util.ArrayList<ZohoAttachment> result = new java.util.ArrayList<>();
+    if (response.data().attachments() != null) result.addAll(response.data().attachments());
+    if (response.data().inline() != null) {
+      for (ZohoAttachment item : response.data().inline()) {
+        if (item != null) result.add(item.asInline());
+      }
+    }
+    return List.copyOf(result);
+  }
+
+  public void streamAttachment(
+      String mailApiBaseUrl,
+      String accessToken,
+      String accountId,
+      String folderId,
+      String messageId,
+      String attachmentId,
+      OutputStream outputStream) {
+    if (!hasText(accountId)
+        || !hasText(folderId)
+        || !hasText(messageId)
+        || !hasText(attachmentId)) {
+      throw new BadRequestException("Zoho attachment identifiers are required");
+    }
+
+    try {
+      client(mailApiBaseUrl)
+          .get()
+          .uri(
+              "/api/accounts/{accountId}/folders/{folderId}/messages/{messageId}/attachments/{attachmentId}",
+              accountId,
+              folderId,
+              messageId,
+              attachmentId)
+          .header(HttpHeaders.AUTHORIZATION, oauthHeader(accessToken))
+          .accept(MediaType.APPLICATION_OCTET_STREAM)
+          .exchange(
+              (request, response) -> {
+                int status = response.getStatusCode().value();
+                if (status == 404) {
+                  throw new BadRequestException("Zoho attachment is no longer available");
+                }
+                if (!response.getStatusCode().is2xxSuccessful()) {
+                  throw new ServiceUnavailableException(
+                      "Zoho attachment download failed with HTTP " + status);
+                }
+                try {
+                  response.getBody().transferTo(outputStream);
+                  outputStream.flush();
+                  return null;
+                } catch (IOException exception) {
+                  throw new ServiceUnavailableException(
+                      "Unable to stream Zoho attachment content", exception);
+                }
+              });
+    } catch (BadRequestException | ServiceUnavailableException exception) {
+      throw exception;
+    } catch (RestClientResponseException exception) {
+      int status = exception.getStatusCode().value();
+      if (status == 404) {
+        throw new BadRequestException("Zoho attachment is no longer available");
+      }
+      if (status == 401 || status == 403) {
+        throw new BadRequestException(
+            "Zoho mailbox authorization is invalid or missing required permissions");
+      }
+      throw new ServiceUnavailableException("Unable to download Zoho attachment", exception);
+    }
   }
 
   public UploadedAttachment uploadAttachment(
@@ -397,6 +492,7 @@ public class ZohoMailApiClient {
     else if (response instanceof ContentResponse value) status = value.status();
     else if (response instanceof SendResponse value) status = value.status();
     else if (response instanceof UploadResponse value) status = value.status();
+    else if (response instanceof AttachmentInfoResponse value) status = value.status();
 
     if (status != null && status.code() != null && status.code() >= 400) {
       throw new BadRequestException(
@@ -551,6 +647,30 @@ public class ZohoMailApiClient {
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   private record SendResponse(ZohoStatus status, SendData data) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record ZohoAttachment(
+      String attachmentId,
+      String attachmentName,
+      Long attachmentSize,
+      String cid,
+      Boolean inline) {
+    ZohoAttachment asInline() {
+      return new ZohoAttachment(
+          attachmentId, attachmentName, attachmentSize, cid, Boolean.TRUE);
+    }
+
+    public boolean isInline() {
+      return Boolean.TRUE.equals(inline);
+    }
+  }
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private record AttachmentInfoData(
+      String messageId, List<ZohoAttachment> attachments, List<ZohoAttachment> inline) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private record AttachmentInfoResponse(ZohoStatus status, AttachmentInfoData data) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   private record UploadResponse(ZohoStatus status, UploadedAttachment data) {}
