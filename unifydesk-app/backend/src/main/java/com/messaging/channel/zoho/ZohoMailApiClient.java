@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.common.exception.TooManyRequestsException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -167,6 +169,41 @@ public class ZohoMailApiClient {
     return response == null || response.data() == null ? null : response.data().content();
   }
 
+  public UploadedAttachment uploadAttachment(
+      String mailApiBaseUrl,
+      String accessToken,
+      String accountId,
+      String fileName,
+      InputStream input) {
+    try (InputStream stream = input) {
+      byte[] bytes = stream.readAllBytes();
+      UploadResponse response =
+          api(
+              "attachment_upload",
+              () ->
+                  client(mailApiBaseUrl)
+                      .post()
+                      .uri(
+                          builder ->
+                              builder
+                                  .path("/api/accounts/{accountId}/messages/attachments")
+                                  .queryParam("fileName", fileName)
+                                  .queryParam("isInline", false)
+                                  .build(accountId))
+                      .header(HttpHeaders.AUTHORIZATION, oauthHeader(accessToken))
+                      .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                      .body(bytes)
+                      .retrieve()
+                      .body(UploadResponse.class));
+      if (response == null || response.data() == null) {
+        throw new BadRequestException("Zoho Mail returned an invalid attachment upload response");
+      }
+      return response.data();
+    } catch (IOException exception) {
+      throw new BadRequestException("Unable to read email attachment");
+    }
+  }
+
   public SendData send(
       String mailApiBaseUrl,
       String accessToken,
@@ -186,6 +223,30 @@ public class ZohoMailApiClient {
                     .body(SendResponse.class));
     if (response == null || response.data() == null || !hasText(response.data().messageId())) {
       throw new BadRequestException("Zoho Mail returned an invalid send response");
+    }
+    return response.data();
+  }
+
+  public SendData reply(
+      String mailApiBaseUrl,
+      String accessToken,
+      String accountId,
+      String messageId,
+      ReplyRequest request) {
+    SendResponse response =
+        api(
+            "reply",
+            () ->
+                client(mailApiBaseUrl)
+                    .post()
+                    .uri("/api/accounts/{accountId}/messages/{messageId}", accountId, messageId)
+                    .header(HttpHeaders.AUTHORIZATION, oauthHeader(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .body(SendResponse.class));
+    if (response == null || response.data() == null) {
+      throw new BadRequestException("Zoho Mail returned an invalid reply response");
     }
     return response.data();
   }
@@ -297,6 +358,7 @@ public class ZohoMailApiClient {
     else if (response instanceof MessagesResponse value) status = value.status();
     else if (response instanceof ContentResponse value) status = value.status();
     else if (response instanceof SendResponse value) status = value.status();
+    else if (response instanceof UploadResponse value) status = value.status();
 
     if (status != null && status.code() != null && status.code() >= 400) {
       throw new BadRequestException(
@@ -409,6 +471,11 @@ public class ZohoMailApiClient {
       String subject,
       String content) {}
 
+  public record UploadedAttachment(
+      String storeName,
+      String attachmentName,
+      String attachmentPath) {}
+
   public record SendRequest(
       String fromAddress,
       String toAddress,
@@ -417,8 +484,20 @@ public class ZohoMailApiClient {
       String subject,
       String content,
       String mailFormat,
+      List<UploadedAttachment> attachments,
       String inReplyTo,
       String refHeader) {}
+
+  public record ReplyRequest(
+      String fromAddress,
+      String toAddress,
+      String ccAddress,
+      String bccAddress,
+      String subject,
+      String content,
+      String action,
+      String mailFormat,
+      List<UploadedAttachment> attachments) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   private record AccountsResponse(ZohoStatus status, List<ZohoAccount> data) {}
@@ -434,4 +513,7 @@ public class ZohoMailApiClient {
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   private record SendResponse(ZohoStatus status, SendData data) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private record UploadResponse(ZohoStatus status, UploadedAttachment data) {}
 }
