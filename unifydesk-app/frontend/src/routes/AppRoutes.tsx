@@ -38,6 +38,7 @@ import CompanyRoles from '../pages/company/CompanyRoles'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import ContactDetailPage from '../pages/contacts/ContactDetailPage'
 import ContactsPage from '../pages/contacts/ContactsPage'
+import ContactSettingsPage from '../pages/contacts/ContactSettingsPage'
 import ImportDetailPage from '../pages/contacts/ImportDetailPage'
 import ImportsPage from '../pages/contacts/ImportsPage'
 import ListDetailPage from '../pages/contacts/ListDetailPage'
@@ -155,6 +156,7 @@ const AppRoutes = () => (
               <Route path="contacts/lists/:listId" element={<WorkspaceEpochBoundary><ListDetailPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/segments" element={<WorkspaceEpochBoundary><SegmentsPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/segments/:segmentId" element={<WorkspaceEpochBoundary><SegmentEditorPage /></WorkspaceEpochBoundary>} />
+              <Route path="contacts/settings" element={<WorkspaceEpochBoundary><ContactSettingsPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/:contactId" element={<WorkspaceEpochBoundary><ContactDetailPage /></WorkspaceEpochBoundary>} />
             </Route>
             <Route element={<PermissionRoute allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_MODIFY]} />}>

@@ -120,7 +120,7 @@ export default function BulkActionsBar({
                   : { type: 'DELETE' as const }
       await contactsApi.bulk(companyId, selection, operation, createIdempotencyKey())
       onClear()
-      onDone('Bulk operation queued.')
+      onDone('Changes are being applied in the background.')
     } catch (error) {
       onError(apiErrorMessage(error, 'Unable to start bulk operation.'))
     } finally {
@@ -135,7 +135,7 @@ export default function BulkActionsBar({
         <strong>
           {allMatching
             ? 'All matching contacts selected'
-            : selectedIds.size + ' loaded contacts selected'}
+            : selectedIds.size + ' contacts selected'}
         </strong>
         <button className="secondary-button" onClick={onClear}>
           Clear selection
@@ -228,7 +228,7 @@ export default function BulkActionsBar({
           disabled={busy || (action !== 'DELETE' && !targetId)}
           onClick={() => void run()}
         >
-          {busy ? 'Starting…' : 'Apply'}
+          {busy ? 'Applying…' : 'Apply'}
         </button>
       </div>
       <ConfirmDialog

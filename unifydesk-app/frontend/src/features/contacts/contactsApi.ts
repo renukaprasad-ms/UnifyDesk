@@ -114,6 +114,18 @@ export const contactsApi = {
     return unwrap(response.data)
   },
 
+  async updateTag(companyId: string, tagId: string, payload: { name: string; color?: string | null }) {
+    const response = await apiClient.patch<ApiResponse<TagSummary>>(
+      base(companyId) + '/tags/' + tagId,
+      payload,
+    )
+    return unwrap(response.data)
+  },
+
+  async archiveTag(companyId: string, tagId: string) {
+    await apiClient.delete(base(companyId) + '/tags/' + tagId)
+  },
+
   async addTag(companyId: string, contactId: string, tagId: string) {
     await apiClient.post(base(companyId) + '/' + contactId + '/tags/' + tagId)
   },
@@ -127,6 +139,39 @@ export const contactsApi = {
       base(companyId) + '/custom-fields',
     )
     return unwrap(response.data)
+  },
+
+  async createCustomField(
+    companyId: string,
+    payload: {
+      fieldKey: string
+      label: string
+      type: CustomFieldDefinition['type']
+      options?: string[] | null
+      position?: number
+    },
+  ) {
+    const response = await apiClient.post<ApiResponse<CustomFieldDefinition>>(
+      base(companyId) + '/custom-fields',
+      payload,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateCustomField(
+    companyId: string,
+    fieldId: string,
+    payload: { label: string; options?: string[] | null; position?: number },
+  ) {
+    const response = await apiClient.patch<ApiResponse<CustomFieldDefinition>>(
+      base(companyId) + '/custom-fields/' + fieldId,
+      payload,
+    )
+    return unwrap(response.data)
+  },
+
+  async archiveCustomField(companyId: string, fieldId: string) {
+    await apiClient.delete(base(companyId) + '/custom-fields/' + fieldId)
   },
 
   async lists(companyId: string) {

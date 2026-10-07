@@ -89,8 +89,12 @@ export default function ContactFormDialog({
             Close
           </button>
         </div>
+        <p className="mt-3 text-sm text-slate-500">
+          Add the basics now. If display name is blank, UnifyDesk will use the person's name,
+          email or phone automatically.
+        </p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          {field('displayName', 'Display name')}
+          {field('displayName', 'Display name (optional)')}
           {field('organization', 'Organization')}
           {field('firstName', 'First name')}
           {field('lastName', 'Last name')}

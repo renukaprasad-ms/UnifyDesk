@@ -1,276 +1,433 @@
-import type {Metadata} from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  ArrowRight,BarChart3,Bell,Briefcase,Check,ChevronDown,FileText,Home as HomeIcon,
-  Inbox,Layers3,LogOut,Mail,MessageCircle,Radio,Search,Send,ShieldCheck,
-  Target,TrendingUp,UserRound,Users,Zap
+  ArrowDown,
+  ArrowRight,
+  Check,
+  ChevronRight,
+  Inbox,
+  Mail,
+  MessageCircle,
+  Radio,
+  ShieldCheck,
+  Target,
+  Users,
+  Workflow,
 } from "lucide-react";
-import {Footer,Header} from "./components";
+import { Footer, Header } from "./components";
+import { WorkspaceDemo } from "./workspace-demo";
+import { ChannelLinks } from "./channel-sections";
 
-export const metadata:Metadata={
-  title:{absolute:"UnifyDesk | Customer Communication & Marketing Platform"},
-  description:"UnifyDesk is a customer communication and marketing platform for shared inboxes, contacts, broadcasts, email, SMS, WhatsApp, Google Ads and Meta Ads.",
-  alternates:{canonical:"/"}
+export const metadata: Metadata = {
+  title: {
+    absolute: "UnifyDesk | Customer Communication & Marketing Platform",
+  },
+  description:
+    "Bring customer conversations, contacts, broadcasts and advertising into one connected UnifyDesk workspace.",
+  alternates: { canonical: "/" },
 };
 
-const features=[
-  ["Unified Inbox","Work across connected customer channels from one shared workspace with customer context beside every conversation.",Inbox],
-  ["Broadcast","Build audiences, preview recipients, schedule outreach and track delivery across supported channels.",Radio],
-  ["Ad Center","Run Google and Meta advertising workflows without living inside separate provider dashboards.",Target],
-  ["Customer context","Keep profiles, consent, activity and conversation history connected across workflows.",Users],
-  ["Analytics","Review communication, campaign and operational activity from a clearer business view.",BarChart3],
-  ["Email infrastructure","Use managed sending or supported email providers with delivery and domain controls.",Mail],
-] as const;
+const capabilities = [
+  {
+    title: "A little more context. A much better conversation.",
+    label: "UNIFIED INBOX",
+    body: "Give your team a shared place for connected conversations, with the customer story close at hand.",
+    icon: Inbox,
+    className: "inboxFeature",
+    points: [
+      "Connected channel accounts",
+      "Customer context beside every thread",
+    ],
+  },
+  {
+    title: "Know the person behind the message.",
+    label: "CONTACTS",
+    body: "Bring profiles, lists, segments and consent together. Build a useful customer record your whole team can work from.",
+    icon: Users,
+    className: "contactsFeature",
+    points: ["Lists & segments", "Channel-level consent"],
+  },
+  {
+    title: "The right audience. The next conversation.",
+    label: "BROADCAST",
+    body: "Prepare your message, preview your audience and follow delivery across supported email, SMS and WhatsApp workflows.",
+    icon: Radio,
+    className: "broadcastFeature",
+    points: ["Audience preview", "Scheduling & delivery visibility"],
+  },
+  {
+    title: "Give your growth workflows a home.",
+    label: "AD CENTER",
+    body: "Coordinate Google and Meta campaign workflows from the same workspace your team already uses.",
+    icon: Target,
+    className: "adsFeature",
+    points: ["Connected ad accounts", "Campaign setup & performance context"],
+  },
+];
 
-const integrations=["WhatsApp","Gmail","Microsoft","Amazon SES","MSG91","Google Ads","Meta Ads"];
+const faqs = [
+  [
+    "What is UnifyDesk?",
+    "UnifyDesk is a customer communication and marketing workspace. It brings together connected inboxes, contacts and consent, broadcasts, templates, and Google and Meta advertising workflows.",
+  ],
+  [
+    "Can I start using UnifyDesk today?",
+    "UnifyDesk is under active development. Public sign-up is not open yet. You can explore the product tour and integration roadmap here while we prepare for early access.",
+  ],
+  [
+    "Which channels and providers are being supported?",
+    "The current development scope includes WhatsApp, email and SMS workflows, Gmail and Microsoft inbox connections, managed email, MSG91 SMS, Google Ads and Meta Ads. The integrations page shows development, planned and evaluation status for each provider.",
+  ],
+  [
+    "Are messaging costs included in a plan?",
+    "Platform subscriptions cover workspace access and plan entitlements. Managed email and SMS usage are charged separately. Google and Meta advertising spend stays with the connected provider. Public plan pricing is being finalized.",
+  ],
+];
 
-function WorkspacePreview(){
-  const sidebar=[
-    ["Dashboard",HomeIcon,true],["Notifications",Bell,false],["Contacts",Users,false],
-    ["Broadcast",Radio,false],["Inbox",Inbox,false],["Ad Center",TrendingUp,false],
-    ["Templates",FileText,false],["Company",Briefcase,false]
-  ] as const;
-
-  return <div className="workspacePreview reveal delay2">
-    <div className="browserBar"><i/><i/><i/><span>app.unifydesk.in / workspace</span></div>
-    <div className="workspaceShell">
-      <aside className="workspaceSidebar">
-        <div className="workspaceSwitcher">
-          <div className="workspaceInitials">AS</div>
-          <div><b>Acme Studio</b><small>Workspace</small></div>
-          <ChevronDown size={14}/>
-        </div>
-        <small className="sidebarLabel">APP</small>
-        <div className="workspaceNav">
-          {sidebar.map(([label,Icon,active])=>
-            <div className={"workspaceNavItem "+(active?"active":"")} key={label}>
-              <Icon size={15}/><span>{label}</span>
-              {["Broadcast","Inbox","Company"].includes(label)&&<ChevronDown className="workspaceChevron" size={13}/>}
+export default function Home() {
+  return (
+    <>
+      <Header />
+      <main id="main-content" className="homePage">
+        <section className="homeHero">
+          <div className="heroGrid">
+            <div className="heroCopy reveal">
+              <span className="heroEyebrow">
+                <span className="statusDot" />A better home for customer work
+              </span>
+              <h1>
+                Every conversation.
+                <br />
+                One connected
+                <br />
+                <em>workspace.</em>
+              </h1>
+              <p>
+                Bring your inbox, contacts, broadcasts and ads together. Give
+                your team the context to make every interaction count.
+              </p>
+              <div className="heroActions">
+                <Link className="button" href="/product">
+                  Explore UnifyDesk <ArrowRight size={17} />
+                </Link>
+                <a className="heroSecondary" href="#platform">
+                  See how it connects <ArrowDown size={16} />
+                </a>
+              </div>
+              <div className="heroChannelNote">
+                <Mail size={14} />
+                <span>Email</span>
+                <MessageCircle size={14} />
+                <span>WhatsApp</span>
+                <Radio size={14} />
+                <span>SMS</span>
+              </div>
             </div>
-          )}
-        </div>
-        <small className="sidebarLabel">YOU</small>
-        <div className="workspaceNavItem"><UserRound size={15}/><span>Account</span><ChevronDown className="workspaceChevron" size={13}/></div>
-        <div className="workspaceLogout"><LogOut size={15}/>Logout</div>
-      </aside>
-      <div className="workspaceMain">
-        <div className="workspaceHeader">
-          <span/>
-          <div className="workspaceUser"><Bell size={16}/><div className="userAvatar">PR</div><div><b>Priya Rao</b><small>priya@acme.example</small></div></div>
-        </div>
-        <div className="workspaceRoute">
-          <div className="welcomePanel">
-            <span className="miniKicker">WORKSPACE</span>
-            <h3>Welcome, Priya</h3>
-            <p>Your UnifyDesk workspace is ready. Use the navigation to work with contacts, conversations, broadcasts, templates and advertising.</p>
+            <div className="heroProduct reveal delay1">
+              <WorkspaceDemo />
+              <p className="demoCaption">
+                Explore the workspace tabs · Illustrative preview with sample
+                data
+              </p>
+            </div>
           </div>
-          <div className="workspaceStats">
-            <div><i/><small>Contacts</small><b>2,480</b><span>Customer profiles</span></div>
-            <div><i/><small>Inbox</small><b>18</b><span>Open conversations</span></div>
-            <div><i/><small>Broadcast</small><b>6</b><span>Recent campaigns</span></div>
+          <div className="heroBottom">
+            <span>Customer conversations. Campaigns. Growth.</span>
+            <span>
+              Connected by context <Workflow size={16} />
+            </span>
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
-}
+        </section>
 
-export default function Home(){
-  return <><Header/><main className="marketingMain vibrantHome">
-    <section className="marketingHero">
-      <div className="heroGlow"/>
-      <div className="statusBadge reveal"><span/>Customer communication, campaigns and growth — connected</div>
-      <h1 className="reveal delay1">One workspace to run customer communication <em>without the tool sprawl.</em></h1>
-      <p className="heroLead reveal delay1">UnifyDesk brings your inbox, customer context, broadcasts, email infrastructure and advertising workflows into one operating layer so teams can move faster without losing context.</p>
-      <div className="heroActions reveal delay2">
-        <Link className="button" href="/product">Explore the product <ArrowRight size={16}/></Link>
-        <Link className="outlineButton compact" href="/integrations">View integrations</Link>
-      </div>
-      <WorkspacePreview/>
-    </section>
+        <section
+          className="providerStrip"
+          aria-label="Provider development scope"
+        >
+          <p>Designed around the providers you use</p>
+          <div>
+            {[
+              "WhatsApp",
+              "Gmail",
+              "Microsoft",
+              "Amazon SES",
+              "MSG91",
+              "Google Ads",
+              "Meta Ads",
+            ].map((name) => (
+              <span key={name}>{name}</span>
+            ))}
+          </div>
+          <Link className="textLink" href="/integrations">
+            See integration status <ArrowRight size={14} />
+          </Link>
+        </section>
 
-    <section className="integrationStrip reveal">
-      <p>Connect the providers you already use</p>
-      <div>{integrations.map(name=><span key={name}><i/>{name}</span>)}</div>
-    </section>
+        <section id="platform" className="platformSection sectionSpace">
+          <div className="sectionHeading">
+            <div>
+              <p className="kicker">LESS SWITCHING. MORE CONNECTION.</p>
+              <h2>
+                Your customer work,
+                <br />
+                finally on the same page.
+              </h2>
+            </div>
+            <p>
+              Conversations in one tool. Audiences in another. Campaigns
+              somewhere else. UnifyDesk brings the work together around a shared
+              customer record.
+            </p>
+          </div>
+          <div className="featureBento">
+            {capabilities.map(
+              ({ title, label, body, icon: Icon, className, points }) => (
+                <article className={`featureTile ${className}`} key={label}>
+                  <div className="tileHeading">
+                    <div className="featureIcon">
+                      <Icon size={23} />
+                    </div>
+                    <span className="tileLabel">{label}</span>
+                  </div>
+                  <h3>{title}</h3>
+                  <p>{body}</p>
+                  <ul>
+                    {points.map((point) => (
+                      <li key={point}>
+                        <Check size={15} />
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link className="tileLink" href="/product">
+                    Explore {label.toLowerCase()} <ArrowRight size={16} />
+                  </Link>
+                </article>
+              ),
+            )}
+          </div>
+        </section>
 
-    <section className="aboutAttractiveSection">
-      <div className="aboutCopy reveal">
-        <p className="kicker">ABOUT UNIFYDESK</p>
-        <h2>Built to make scattered customer work feel like one system.</h2>
-        <p>Customer support, marketing, broadcasts and ads usually live in different tools. UnifyDesk is designed to give teams a cleaner operating rhythm with customer context at the center.</p>
-        <div className="aboutChecklist">
-          {[
-            "Shared inbox for connected channels",
-            "Customer profiles with consent and activity",
-            "Broadcast and ad workflows in one workspace"
-          ].map(item=><div key={item}><Check size={17}/><span>{item}</span></div>)}
-        </div>
-      </div>
-      <div className="aboutVisual reveal delay1">
-        <div className="aboutCircle"/>
-        <div className="aboutCard bigCard"><b>One operating layer</b><p>Less switching between tools. More clarity for the team.</p></div>
-        <div className="aboutCard statCard"><span>7+</span><small>integrations in progress</small></div>
-        <div className="aboutCard smallCard"><MessageCircle size={18}/><b>Inbox + campaigns + ads</b></div>
-      </div>
-    </section>
-
-    <section className="highlightBand">
-      <div className="highlightBandInner">
-        {[
-          ["Shared customer context","Keep profiles, consent and recent activity connected across workflows."],
-          ["Multi-channel operations","Manage conversations, broadcasts and ad workflows from one workspace."],
-          ["Safer team controls","Company boundaries, roles and access control stay part of the foundation."]
-        ].map(([title,body],i)=><article className={"reveal delay"+((i%3)+1)} key={title}><div className="featureIcon"><Layers3 size={20}/></div><h3>{title}</h3><p>{body}</p></article>)}
-      </div>
-    </section>
-
-    <section className="connectedSection">
-      <div className="connectedCopy reveal">
-        <p className="darkKicker">ONE CONNECTED OPERATING LAYER</p>
-        <h2>Your customers are everywhere. Your work doesn&apos;t have to be.</h2>
-        <p>Keep conversations, audiences, broadcasts and advertising workflows connected so every team works with more context and fewer handoffs.</p>
-      </div>
-      <div className="flowVisual reveal delay1">
-        <div className="flowSources"><span>WhatsApp</span><span>Email</span><span>SMS</span></div>
-        <div className="flowHub"><b>UnifyDesk</b><small>Shared customer context · consent · audiences · activity</small></div>
-        <div className="flowOutputs"><span>Broadcast</span><span>Google Ads</span><span>Meta Ads</span><span>Analytics</span></div>
-      </div>
-    </section>
-
-    <section className="capabilitySection">
-      <p className="kicker reveal">WHAT UNIFYDESK BRINGS TOGETHER</p>
-      <h2 className="sectionTitle reveal">From first conversation to the next campaign.</h2>
-      <p className="sectionIntro reveal">A connected set of workflows for support, marketing and business teams.</p>
-      <div className="capabilityGrid">
-        {features.map(([title,description,Icon],index)=>
-          <article className={"capabilityCard reveal delay"+((index%3)+1)} key={title}>
-            <div className="featureIcon"><Icon size={22}/></div>
-            <h3>{title}</h3><p>{description}</p>
-            <Link href="/product">Learn more <ArrowRight size={14}/></Link>
+        <section className="contextSection sectionSpace">
+          <div className="contextCopy">
+            <p className="kicker">A CUSTOMER, NOT JUST A CONTACT.</p>
+            <h2>
+              The story stays
+              <br />
+              with the customer.
+            </h2>
+            <p>
+              A conversation is more useful when you know what came before it.
+              Keep profiles, consent and activity connected as your team moves
+              from support to outreach.
+            </p>
+            <Link className="textLink" href="/product#shared-context">
+              Discover shared context <ArrowRight size={16} />
+            </Link>
+          </div>
+          <article
+            className="customerExample"
+            aria-label="Illustrative customer record"
+          >
+            <div className="customerExampleHeader">
+              <div className="customerAvatar">PS</div>
+              <div>
+                <h3>Priya Shah</h3>
+                <p>priya@example.com</p>
+              </div>
+              <span className="sampleBadge">Sample contact</span>
+            </div>
+            <div className="customerFacts">
+              <div>
+                <span>List</span>
+                <b>Product updates</b>
+              </div>
+              <div>
+                <span>Email consent</span>
+                <b className="consentValue">
+                  <Check size={13} />
+                  Opted in
+                </b>
+              </div>
+            </div>
+            <div className="customerTimeline">
+              <p className="miniKicker">CUSTOMER ACTIVITY</p>
+              {[
+                [
+                  MessageCircle,
+                  "A conversation, with context",
+                  "Asked about campaign options in the shared inbox.",
+                ],
+                [
+                  Users,
+                  "A profile your team can work from",
+                  "Contact details, list membership and consent together.",
+                ],
+                [
+                  Radio,
+                  "A more informed next step",
+                  "Use consent and audience rules to prepare outreach.",
+                ],
+              ].map(([Icon, title, body]) => {
+                const ActivityIcon = Icon as typeof Users;
+                return (
+                  <div key={String(title)}>
+                    <span className="timelineIcon">
+                      <ActivityIcon size={16} />
+                    </span>
+                    <div>
+                      <b>{String(title)}</b>
+                      <p>{String(body)}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="customerExampleFooter">
+              <ShieldCheck size={15} />
+              Customer context travels across workflows.
+            </div>
           </article>
-        )}
-      </div>
-    </section>
+        </section>
 
-    <section className="quoteSection reveal">
-      <div className="quoteMark">“</div>
-      <p>UnifyDesk is being shaped as a cleaner operating layer for customer-facing teams — not another disconnected dashboard, but a workspace where conversation, audience and campaign context stay connected.</p>
-      <b>Customer communication · Broadcast · Ads</b>
-    </section>
-
-    <section className="featureShowcase">
-      <div className="featureCopy reveal">
-        <p className="kicker">UNIFIED INBOX</p>
-        <h2>Every conversation, with the customer context beside it.</h2>
-        <p>Give your team one place to work through connected customer conversations while keeping the profile, consent and recent activity close.</p>
-        <ul>{["Shared team inbox","Customer context alongside messages","Workspace and role boundaries","Connected channel accounts"].map(x=><li key={x}><Check size={17}/>{x}</li>)}</ul>
-      </div>
-      <div className="inboxVisual reveal delay1">
-        <div className="visualTop"><b>Inbox</b><span>12 open</span></div>
-        <div className="inboxColumns">
-          <div className="threadList">
-            {["Priya Shah","Northstar Labs","Daniel Lee","Maya & Co."].map((name,i)=><div className={i===0?"selected":""} key={name}><b>{name}</b><small>{i===0?"WhatsApp · now":"Email · "+(i*8+5)+"m"}</small></div>)}
+        <section className="workflowSection sectionSpace">
+          <p className="kicker">FROM SETUP TO THE NEXT SEND</p>
+          <div className="sectionHeading">
+            <h2>
+              A clearer way
+              <br />
+              to get work moving.
+            </h2>
+            <Link className="outlineButton" href="/solutions">
+              Find your team&apos;s workflow <ArrowRight size={16} />
+            </Link>
           </div>
-          <div className="conversationCard">
-            <b>Priya Shah</b><small>WhatsApp · Customer since 2025</small>
-            <div className="activityCard"><span>RECENT ACTIVITY</span><b>Opened Autumn acquisition campaign</b></div>
-            <div className="messageBubble">I&apos;d like to know more about the campaign options.</div>
-            <div className="messageComposer"><span>Reply to Priya…</span><Send size={15}/></div>
+          <div className="workflowSteps">
+            {[
+              [
+                "01",
+                "Connect your channels",
+                "Bring supported inboxes, sending providers and ad accounts into your company workspace.",
+              ],
+              [
+                "02",
+                "Bring context together",
+                "Organize customer profiles, consent, lists and segments for the work ahead.",
+              ],
+              [
+                "03",
+                "Start the next conversation",
+                "Work through your inbox or prepare a broadcast with audience and delivery visibility.",
+              ],
+            ].map(([n, title, body]) => (
+              <article key={n}>
+                <span>{n}</span>
+                <h3>{title}</h3>
+                <p>{body}</p>
+              </article>
+            ))}
           </div>
-        </div>
-      </div>
-    </section>
+        </section>
 
-    <section className="growthSection">
-      <div className="growthHeading reveal">
-        <div><p className="kicker">BROADCAST + AD CENTER</p><h2>Plan outreach and paid campaigns from the same operating layer.</h2></div>
-        <p>Build audiences, reuse customer context and move between communication and advertising workflows without recreating setup in every provider dashboard.</p>
-      </div>
-      <div className="growthCards">
-        <article className="broadcastCard reveal">
-          <span className="softBadge">BROADCAST</span>
-          <h3>One audience. Multiple connected channels.</h3>
-          <p>Validate recipients, freeze the final audience and send with delivery visibility.</p>
-          <div className="stepRow"><span>01 <b>Audience</b></span><span>02 <b>Preview</b></span><span>03 <b>Send</b></span></div>
-          <div className="deliveryCard"><b>Delivery preview</b><span>872 recipients</span><i/><i/><i/></div>
-        </article>
-        <article className="adsCard reveal delay1">
-          <span className="darkBadge">AD CENTER</span>
-          <h3>Google + Meta campaign workflows, together.</h3>
-          <p>Prepare objectives, budgets and creatives in one shared workspace while provider accounts stay underneath.</p>
-          <div className="adStats"><span><small>Objective</small><b>Leads</b></span><span><small>Providers</small><b>2 connected</b></span><span><small>Creative</small><b>3 assets</b></span></div>
-          <div className="setupCard"><small>AUTUMN ACQUISITION</small><b>Campaign setup</b><i/></div>
-        </article>
-      </div>
-    </section>
+        <section className="workspacePromise sectionSpace">
+          <div>
+            <span className="securityEyebrow">
+              <ShieldCheck size={18} />
+              BUILT FOR TEAM WORKSPACES
+            </span>
+            <h2>
+              Room to collaborate.
+              <br />
+              Controls to keep it clear.
+            </h2>
+            <p>
+              Keep company boundaries, roles, account protection and provider
+              access part of how your team works.
+            </p>
+            <Link className="whiteButton" href="/security">
+              Explore workspace controls <ArrowRight size={16} />
+            </Link>
+          </div>
+          <div className="promiseList">
+            {[
+              [
+                "Company workspaces",
+                "Keep customer work organized by company.",
+              ],
+              [
+                "Roles & permissions",
+                "Give team members access for the work they do.",
+              ],
+              [
+                "Account protection",
+                "Two-factor authentication and session controls.",
+              ],
+              [
+                "Transparent usage",
+                "Platform plans and provider usage stay separate.",
+              ],
+            ].map(([title, body]) => (
+              <article key={title}>
+                <Check size={19} />
+                <div>
+                  <h3>{title}</h3>
+                  <p>{body}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
 
-    <section className="howSection">
-      <p className="kicker reveal">HOW IT FITS TOGETHER</p>
-      <h2 className="sectionTitle reveal">A simpler operating rhythm for customer work.</h2>
-      <div className="howGrid">
-        {[
-          ["01","Connect","Bring supported inboxes, sending providers and ad accounts into the company workspace."],
-          ["02","Centralize","Keep customers, consent, conversations and campaign context connected."],
-          ["03","Activate","Run broadcasts and advertising workflows using shared audiences and business context."],
-          ["04","Learn","Review delivery, campaign and operational activity without jumping between tools."]
-        ].map(([n,t,b],i)=><article className={"reveal delay"+((i%3)+1)} key={n}><span>{n}</span><h3>{t}</h3><p>{b}</p></article>)}
-      </div>
-    </section>
+        <section className="faqSection sectionSpace">
+          <div>
+            <p className="kicker">A FEW GOOD QUESTIONS</p>
+            <h2>
+              Let&apos;s make
+              <br />
+              things clear.
+            </h2>
+            <Link className="textLink" href="/pricing">
+              Explore the pricing model <ArrowRight size={16} />
+            </Link>
+          </div>
+          <div className="faqList">
+            {faqs.map(([question, answer]) => (
+              <details key={question}>
+                <summary>
+                  {question}
+                  <ChevronRight size={18} />
+                </summary>
+                <p>{answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
 
-    <section className="teamSection">
-      <h2 className="sectionTitle reveal">One platform. Different teams. Shared customer context.</h2>
-      <p className="sectionIntro reveal">Give each team the workflow it needs while keeping customer work connected across the business.</p>
-      <div className="teamGrid">
-        {[
-          ["Business owners","Visibility","See communication and growth workflows in one workspace."],
-          ["Customer support","Conversations","Work from a shared inbox with customer context close to every thread."],
-          ["Marketing teams","Campaigns","Move between audiences, broadcasts and advertising without losing context."],
-          ["Growing teams & agencies","Controls","Organize company access, roles and provider connections as workflows expand."]
-        ].map(([t,tag,b],i)=><article className={"reveal delay"+((i%3)+1)} key={t}><span>{tag}</span><h3>{t}</h3><p>{b}</p></article>)}
-      </div>
-    </section>
-
-    <section className="trustSection">
-      <div className="trustCopy reveal"><p className="darkKicker">BUILT FOR TEAM WORKSPACES</p><h2>Control access without slowing the team down.</h2><p>Company isolation, role-based access, 2FA and session controls provide the foundations for safer customer work.</p></div>
-      <div className="trustGrid">
-        {[
-          ["Company isolation","Keep workspace data separated by company.",Briefcase],
-          ["Role-based access","Give people the access their work actually needs.",ShieldCheck],
-          ["Two-factor authentication","Add stronger account protection for team members.",Zap],
-          ["Session controls","Support safer sign-in and workspace access.",Layers3]
-        ].map(([t,b,Icon]:any)=><article className="reveal" key={t}><Icon size={19}/><h3>{t}</h3><p>{b}</p></article>)}
-      </div>
-    </section>
-
-    <section className="pricingSpotlight">
-      <div className="pricingDecor pricingDecorLeft"/>
-      <div className="pricingDecor pricingDecorRight"/>
-      <div className="pricingSpotlightIntro reveal">
-        <p className="darkKicker">PRICING MODEL</p>
-        <h2>Simple workspace plans. Provider usage stays separate.</h2>
-        <p>UnifyDesk subscriptions cover platform access and entitlements. Managed email, SMS delivery and advertising spend stay visible as separate provider usage.</p>
-      </div>
-      <div className="pricingSpotlightCard reveal delay1">
-        <small>For growing teams</small>
-        <h3>Growth</h3>
-        <div className="priceLabel">Pricing at launch</div>
-        <ul>{["Broadcast workflows","Ad Center workflows","Expanded team controls","Workspace growth support"].map(item=><li key={item}><Check size={15}/>{item}</li>)}</ul>
-        <Link className="button small" href="/pricing">Explore pricing</Link>
-      </div>
-    </section>
-
-    <section className="contactStyleCta">
-      <div className="contactProfile reveal">
-        <div className="contactAvatar">U</div>
-        <div><small>READY TO SEE MORE?</small><h3>Explore the full UnifyDesk product direction.</h3><p>Review the product, solutions, integrations, pricing model and security direction from the updated website.</p></div>
-      </div>
-      <div className="contactPanel reveal delay1">
-        <div className="contactRow"><span>Product overview</span><b>Available now</b></div>
-        <div className="contactRow"><span>Integrations roadmap</span><b>Available now</b></div>
-        <div className="contactRow"><span>Early access status</span><b>Coming soon</b></div>
-        <div className="contactActions"><Link className="button" href="/product">Explore product</Link><Link className="outlineButton compact" href="/security">View security</Link></div>
-      </div>
-    </section>
-  </main><Footer/></>
+        <ChannelLinks paths={["/whatsapp-shared-inbox","/whatsapp-broadcast","/sms-marketing","/email-campaigns","/omnichannel-inbox"]} title="Find the customer workflow your team needs." intro="Explore conversations and campaign preparation by channel, including provider readiness, consent and the developing product experience."/>
+        <section className="closingCta">
+          <div>
+            <p className="kicker">MEET YOUR NEXT WORKSPACE</p>
+            <h2>
+              Better connected.
+              <br />
+              Better together.
+            </h2>
+            <p>
+              Take a closer look at what we&apos;re building for customer-facing
+              teams.
+            </p>
+          </div>
+          <div>
+            <Link className="button" href="/product">
+              Take the product tour <ArrowRight size={18} />
+            </Link>
+            <span>
+              <span className="statusDot" />
+              In development · Public access coming soon
+            </span>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </>
+  );
 }
