@@ -81,7 +81,8 @@ public class ContactProcessingController {
         importMappingMapper.toDomain(
             importService.headers(companyId, importId),
             request.mappings(),
-            request.consentMappings());
+            request.consentMappings(),
+            request.consentDeclarations());
     processingAuthorization.requireImportCommit(userId, companyId, mapping);
     var result =
         importService.commit(

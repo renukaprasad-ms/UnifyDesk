@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   baseSegmentFields,
   emptySegment,
+  fieldOptionFor,
   serializeSegment,
   segmentFields,
   validateSegmentClient,
@@ -62,6 +63,20 @@ describe('segmentModel', () => {
     expect(field?.label).toBe('Plan')
     expect(field?.valueType).toBe('SINGLE_SELECT')
     expect(field?.operators).toContain('IN')
+  })
+
+  it('matches saved API fields when fieldId is null', () => {
+    const predicate = {
+      type: 'predicate' as const,
+      field: { kind: 'CHANNEL_PREFERENCE' as const, key: 'emailMarketing', fieldId: null },
+      operator: 'IS_OPTED_IN' as const,
+      value: null,
+    }
+
+    const field = fieldOptionFor(baseSegmentFields, predicate)
+
+    expect(field?.label).toBe('Email marketing preference')
+    expect(field?.operators).toEqual(['IS_OPTED_IN', 'IS_OPTED_OUT'])
   })
 
   it('allows no-value preference operators', () => {

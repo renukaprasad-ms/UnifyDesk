@@ -7,6 +7,8 @@ import type {
   ContactSelection,
   ContactSummary,
   ContactWriteInput,
+  ConsentImportDeclaration,
+  ConsentImportMapping,
   CursorPage,
   ImportCommitInput,
   ImportFieldMapping,
@@ -200,16 +202,100 @@ export const buildSuggestedImportMappings = (headers: string[]): ImportFieldMapp
   })
 }
 
+const findImportHeader = (headers: string[], candidates: string[]) => {
+  const normalizedCandidates = new Set(candidates.map(normalizeImportHeader))
+  return headers.find((header) => normalizedCandidates.has(normalizeImportHeader(header)))
+}
+
+export const buildSuggestedConsentMappings = (headers: string[]): ConsentImportMapping[] => {
+  const sharedEvidence = findImportHeader(headers, [
+    'consent_source',
+    'marketing_consent_source',
+    'consent_evidence',
+  ])
+  const sharedOccurredAt = findImportHeader(headers, [
+    'consent_occurred_at',
+    'consent_date',
+    'consent_at',
+  ])
+
+  const definitions: Array<{
+    channel: ConsentImportMapping['channel']
+    state: string[]
+    evidence: string[]
+    occurredAt: string[]
+  }> = [
+    {
+      channel: 'EMAIL',
+      state: [
+        'email_marketing_consent',
+        'email_consent',
+        'email_opt_in',
+        'email_optin',
+        'email_permission',
+      ],
+      evidence: ['email_consent_source', 'email_consent_evidence'],
+      occurredAt: ['email_consent_occurred_at', 'email_consent_date', 'email_opt_in_at'],
+    },
+    {
+      channel: 'SMS',
+      state: [
+        'sms_marketing_consent',
+        'sms_consent',
+        'sms_opt_in',
+        'sms_optin',
+        'sms_permission',
+      ],
+      evidence: ['sms_consent_source', 'sms_consent_evidence'],
+      occurredAt: ['sms_consent_occurred_at', 'sms_consent_date', 'sms_opt_in_at'],
+    },
+    {
+      channel: 'WHATSAPP',
+      state: [
+        'whatsapp_marketing_consent',
+        'whatsapp_consent',
+        'whatsapp_opt_in',
+        'whatsapp_optin',
+        'whatsapp_permission',
+        'wa_marketing_consent',
+      ],
+      evidence: ['whatsapp_consent_source', 'whatsapp_consent_evidence'],
+      occurredAt: [
+        'whatsapp_consent_occurred_at',
+        'whatsapp_consent_date',
+        'whatsapp_opt_in_at',
+      ],
+    },
+  ]
+
+  return definitions.flatMap<ConsentImportMapping>((definition) => {
+    const stateColumn = findImportHeader(headers, definition.state)
+    if (!stateColumn) return []
+    return [
+      {
+        channel: definition.channel,
+        stateColumn,
+        source: 'IMPORT',
+        evidenceColumn: findImportHeader(headers, definition.evidence) ?? sharedEvidence ?? null,
+        occurredAtColumn:
+          findImportHeader(headers, definition.occurredAt) ?? sharedOccurredAt ?? null,
+      },
+    ]
+  })
+}
+
 export const buildImportCommitInput = (input: {
   mappings: ImportFieldMapping[]
   duplicateStrategy: ImportCommitInput['duplicateStrategy']
   consentMappings: ImportCommitInput['consentMappings']
+  consentDeclarations?: ConsentImportDeclaration[]
   targetListId?: string | null
   idempotencyKey: string
 }): ImportCommitInput => ({
   mappings: input.mappings.filter((mapping) => mapping.target.type !== 'IGNORE'),
   duplicateStrategy: input.duplicateStrategy,
   consentMappings: input.consentMappings,
+  consentDeclarations: input.consentDeclarations ?? [],
   targetListId: input.targetListId || null,
   idempotencyKey: input.idempotencyKey,
 })

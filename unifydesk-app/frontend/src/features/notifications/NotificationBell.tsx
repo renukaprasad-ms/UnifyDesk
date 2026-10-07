@@ -40,26 +40,74 @@ export default function NotificationBell({ notificationPath = '/notifications' }
   const rootRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
+  const closeTimerRef = useRef<number | null>(null)
+  const focusPanelOnOpenRef = useRef(false)
+  const pinnedOpenRef = useRef(false)
   const badge = formatUnreadBadge(unreadCount.total)
+
+  const supportsHover = () =>
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches
+
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current === null) return
+    window.clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = null
+  }
+
+  const openPopover = (focusPanel = false, pinned = false) => {
+    clearCloseTimer()
+    focusPanelOnOpenRef.current = focusPanel
+    pinnedOpenRef.current = pinned
+    setOpen((current) => {
+      if (!current) void refresh('realtime')
+      return true
+    })
+  }
+
+  const closePopover = () => {
+    clearCloseTimer()
+    pinnedOpenRef.current = false
+    focusPanelOnOpenRef.current = false
+    setOpen(false)
+  }
+
+  const scheduleHoverClose = () => {
+    if (!supportsHover() || pinnedOpenRef.current) return
+    clearCloseTimer()
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null
+      if (!pinnedOpenRef.current) setOpen(false)
+    }, 180)
+  }
 
   useEffect(() => {
     if (!open) return
     const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+      if (!rootRef.current?.contains(event.target as Node)) closePopover()
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      setOpen(false)
+      closePopover()
       triggerRef.current?.focus()
     }
     document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('keydown', onKeyDown)
-    window.setTimeout(() => panelRef.current?.focus(), 0)
+    if (focusPanelOnOpenRef.current) {
+      window.setTimeout(() => panelRef.current?.focus(), 0)
+      focusPanelOnOpenRef.current = false
+    }
     return () => {
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
     }
   }, [open])
+
+  useEffect(
+    () => () => {
+      clearCloseTimer()
+    },
+    [],
+  )
 
   useEffect(() => {
     if (!open || loadingRecent) return
@@ -72,7 +120,7 @@ export default function NotificationBell({ notificationPath = '/notifications' }
     setError('')
     try {
       const path = await openNotification(notification)
-      setOpen(false)
+      closePopover()
       if (isSafeAppRoute(path)) navigate(path)
     } catch (visitError) {
       setError(apiErrorMessage(visitError, 'Unable to open this notification'))
@@ -80,7 +128,14 @@ export default function NotificationBell({ notificationPath = '/notifications' }
   }
 
   return (
-    <div ref={rootRef} className="notification-bell-root">
+    <div
+      ref={rootRef}
+      className="notification-bell-root"
+      onMouseEnter={() => {
+        if (supportsHover()) openPopover(false, false)
+      }}
+      onMouseLeave={scheduleHoverClose}
+    >
       <button
         ref={triggerRef}
         type="button"
@@ -97,11 +152,21 @@ export default function NotificationBell({ notificationPath = '/notifications' }
             navigate(notificationPath)
             return
           }
-          setOpen((current) => {
-            const next = !current
-            if (next) void refresh('realtime')
-            return next
-          })
+
+          if (open && !pinnedOpenRef.current) {
+            // Hover already opened it. A click pins the popover instead of immediately
+            // closing it, which avoids a surprising hover-then-click interaction.
+            pinnedOpenRef.current = true
+            clearCloseTimer()
+            return
+          }
+
+          if (open) {
+            closePopover()
+            return
+          }
+
+          openPopover(true, true)
         }}
       >
         <FiBell aria-hidden="true" />
@@ -186,7 +251,7 @@ export default function NotificationBell({ notificationPath = '/notifications' }
             type="button"
             className="notification-view-all"
             onClick={() => {
-              setOpen(false)
+              closePopover()
               navigate(notificationPath)
             }}
           >

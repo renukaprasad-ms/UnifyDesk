@@ -908,7 +908,8 @@
       width: min(360px, calc(100vw - 24px));
       padding: max(18px, env(safe-area-inset-top)) 17px max(18px, env(safe-area-inset-bottom));
       overflow-y: auto;
-      background: #fbfcff;
+      background: var(--theme-surface-subtle);
+      color: var(--theme-text);
       box-shadow: 18px 0 50px rgb(15 23 42 / 16%);
       transform: translateX(-100%);
       transition: transform 0.2s ease;
@@ -953,6 +954,9 @@
 
 @layer utilities {
   :root[data-color-scheme='dark'] .bg-white,
+  :root[data-color-scheme='dark'] .bg-white\/70,
+  :root[data-color-scheme='dark'] .bg-white\/80,
+  :root[data-color-scheme='dark'] .bg-white\/90,
   :root[data-color-scheme='dark'] .bg-slate-50,
   :root[data-color-scheme='dark'] .bg-slate-100,
   :root[data-color-scheme='dark'] .bg-gray-50,
@@ -1873,10 +1877,11 @@
 
   .notification-inline-error {
     margin: 10px 12px 0;
+    border: 1px solid color-mix(in srgb, #f43f5e 32%, var(--theme-border));
     border-radius: 8px;
-    background: #fef2f2;
+    background: color-mix(in srgb, #f43f5e 10%, var(--theme-surface));
     padding: 8px 10px;
-    color: #b91c1c;
+    color: #e11d48;
     font-size: 11px;
     font-weight: 650;
   }

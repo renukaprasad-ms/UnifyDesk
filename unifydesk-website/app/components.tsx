@@ -19,7 +19,7 @@ export function Header(){
   return <header className="marketingHeader">
     <div className="marketingNav">
       <Link className="brand" href="/" aria-label="UnifyDesk home">
-        <img src="/logo-icon.svg" alt="" width="34" height="34"/>
+        <img src="/logo-icon.svg" alt="UnifyDesk" width="34" height="34" aria-hidden="true"/>
         UnifyDesk
       </Link>
       <nav className="desktopNav" aria-label="Primary navigation">
@@ -49,7 +49,7 @@ export function Footer(){
     <div className="footer">
       <div className="footerBrand">
         <Link className="brand footerLogo" href="/">
-          <img src="/logo-icon.svg" alt="" width="34" height="34"/>
+          <img src="/logo-icon.svg" alt="UnifyDesk" width="34" height="34" aria-hidden="true"/>
           UnifyDesk
         </Link>
         <p>One workspace for customer communication, campaigns and growth.</p>

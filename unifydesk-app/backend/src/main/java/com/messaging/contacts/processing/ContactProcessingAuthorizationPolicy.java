@@ -144,9 +144,12 @@ public class ContactProcessingAuthorizationPolicy {
   }
 
   private boolean hasConsentMappings(ImportMapping mapping) {
-    return mapping != null
-        && mapping.consentMappings() != null
-        && !mapping.consentMappings().isEmpty();
+    if (mapping == null) return false;
+    boolean hasColumnMappings =
+        mapping.consentMappings() != null && !mapping.consentMappings().isEmpty();
+    boolean hasDeclarations =
+        mapping.consentDeclarations() != null && !mapping.consentDeclarations().isEmpty();
+    return hasColumnMappings || hasDeclarations;
   }
 
   private long parseResourceId(String resourceId) {

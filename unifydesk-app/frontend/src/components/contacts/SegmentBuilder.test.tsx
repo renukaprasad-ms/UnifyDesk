@@ -12,6 +12,35 @@ describe('SegmentBuilder', () => {
     expect(operator.querySelector('option[value="IS_SUPPRESSED"]')).toBeNull()
   })
 
+  it('renders a saved channel preference predicate returned with fieldId null', () => {
+    render(
+      <SegmentBuilder
+        value={{
+          type: 'group',
+          op: 'AND',
+          children: [
+            {
+              type: 'predicate',
+              field: {
+                kind: 'CHANNEL_PREFERENCE',
+                key: 'emailMarketing',
+                fieldId: null,
+              },
+              operator: 'IS_OPTED_IN',
+              value: null,
+            },
+          ],
+        }}
+        fields={baseSegmentFields}
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText('Field')).toHaveValue('6')
+    expect(screen.getByLabelText('Operator')).toHaveValue('IS_OPTED_IN')
+    expect(screen.getByText('No value required')).toBeInTheDocument()
+  })
+
   it('emits AST changes instead of SQL fragments', () => {
     const onChange = vi.fn()
     render(<SegmentBuilder value={emptySegment()} fields={baseSegmentFields} onChange={onChange} />)

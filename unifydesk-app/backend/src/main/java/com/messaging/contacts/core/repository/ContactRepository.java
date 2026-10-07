@@ -301,10 +301,13 @@ public class ContactRepository {
             select
               c.*,
               email.normalized_value as primary_email,
-              phone.normalized_value as primary_phone
+              phone.normalized_value as primary_phone,
+              email_pref.state as email_marketing_preference,
+              sms_pref.state as sms_marketing_preference,
+              whatsapp_pref.state as whatsapp_marketing_preference
             from contacts c
             left join lateral (
-              select i.normalized_value
+              select i.id, i.normalized_value
               from contact_identities i
               where i.company_id = c.company_id
                 and i.contact_id = c.id
@@ -314,7 +317,7 @@ public class ContactRepository {
               limit 1
             ) email on true
             left join lateral (
-              select i.normalized_value
+              select i.id, i.normalized_value
               from contact_identities i
               where i.company_id = c.company_id
                 and i.contact_id = c.id
@@ -323,6 +326,39 @@ public class ContactRepository {
               order by i.is_primary desc, i.created_at, i.id
               limit 1
             ) phone on true
+            left join lateral (
+              select p.state
+              from contact_channel_preferences p
+              where p.company_id = c.company_id
+                and p.contact_id = c.id
+                and p.channel = 'EMAIL'
+                and p.purpose = 'MARKETING'
+                and (p.identity_id is null or p.identity_id = email.id)
+              order by (p.identity_id is not null) desc, p.updated_at desc, p.id desc
+              limit 1
+            ) email_pref on true
+            left join lateral (
+              select p.state
+              from contact_channel_preferences p
+              where p.company_id = c.company_id
+                and p.contact_id = c.id
+                and p.channel = 'SMS'
+                and p.purpose = 'MARKETING'
+                and (p.identity_id is null or p.identity_id = phone.id)
+              order by (p.identity_id is not null) desc, p.updated_at desc, p.id desc
+              limit 1
+            ) sms_pref on true
+            left join lateral (
+              select p.state
+              from contact_channel_preferences p
+              where p.company_id = c.company_id
+                and p.contact_id = c.id
+                and p.channel = 'WHATSAPP'
+                and p.purpose = 'MARKETING'
+                and (p.identity_id is null or p.identity_id = phone.id)
+              order by (p.identity_id is not null) desc, p.updated_at desc, p.id desc
+              limit 1
+            ) whatsapp_pref on true
             where c.company_id = :companyId
               and c.status = :status
             """);
@@ -405,7 +441,17 @@ public class ContactRepository {
             new ContactSummaryRow(
                 mapContact(rs, ""),
                 rs.getString("primary_email"),
-                rs.getString("primary_phone")));
+                rs.getString("primary_phone"),
+                preferenceState(rs.getString("email_marketing_preference")),
+                preferenceState(rs.getString("sms_marketing_preference")),
+                preferenceState(rs.getString("whatsapp_marketing_preference"))));
+  }
+
+  private com.messaging.contacts.consent.ConsentTypes.PreferenceState preferenceState(
+      String value) {
+    return value == null
+        ? com.messaging.contacts.consent.ConsentTypes.PreferenceState.UNKNOWN
+        : com.messaging.contacts.consent.ConsentTypes.PreferenceState.valueOf(value);
   }
 
   private void appendKeyset(
