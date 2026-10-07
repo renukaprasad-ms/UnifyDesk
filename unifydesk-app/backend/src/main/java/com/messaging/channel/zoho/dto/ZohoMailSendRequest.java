@@ -1,32 +1,43 @@
 package com.messaging.channel.zoho.dto;
 
 import com.messaging.channel.email.EmailSendCommand;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
+import com.messaging.common.exception.BadRequestException;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record ZohoMailSendRequest(
-    @NotEmpty List<String> to,
-    List<String> cc,
-    List<String> bcc,
-    String subject,
-    @NotNull String bodyText,
-    String inReplyTo,
-    String references,
-    List<String> attachmentMediaIds) {
+    @Size(max = 100) List<@Email @Size(max = 320) String> to,
+    @Size(max = 100) List<@Email @Size(max = 320) String> cc,
+    @Size(max = 100) List<@Email @Size(max = 320) String> bcc,
+    @Size(max = 998) String subject,
+    @NotBlank @Size(max = 100000) String bodyText,
+    @Size(max = 255) String replyToMessageId,
+    Boolean replyAll,
+    @Size(max = 10) List<@Size(max = 32) String> attachmentMediaIds) {
 
   public EmailSendCommand toCommand() {
     return new EmailSendCommand(
         to,
-        cc == null ? List.of() : cc,
-        bcc == null ? List.of() : bcc,
+        cc,
+        bcc,
         subject,
         bodyText,
         null,
-        inReplyTo,
-        references,
+        replyToMessageId,
+        Boolean.TRUE.equals(replyAll),
         null,
-        false,
-        attachmentMediaIds == null ? List.of() : attachmentMediaIds);
+        null,
+        attachmentIds());
+  }
+
+  private List<Long> attachmentIds() {
+    if (attachmentMediaIds == null || attachmentMediaIds.isEmpty()) return List.of();
+    try {
+      return attachmentMediaIds.stream().map(Long::valueOf).toList();
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("Invalid attachment media id");
+    }
   }
 }
