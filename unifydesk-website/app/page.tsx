@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Footer, Header } from "./components";
 import { WorkspaceDemo } from "./workspace-demo";
+import { ChannelLinks } from "./channel-sections";
 
 export const metadata: Metadata = {
   title: {
@@ -401,6 +402,7 @@ export default function Home() {
           </div>
         </section>
 
+        <ChannelLinks paths={["/whatsapp-shared-inbox","/whatsapp-broadcast","/sms-marketing","/email-campaigns","/omnichannel-inbox"]} title="Find the customer workflow your team needs." intro="Explore conversations and campaign preparation by channel, including provider readiness, consent and the developing product experience."/>
         <section className="closingCta">
           <div>
             <p className="kicker">MEET YOUR NEXT WORKSPACE</p>
