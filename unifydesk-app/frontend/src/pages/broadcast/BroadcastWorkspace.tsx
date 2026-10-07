@@ -1212,7 +1212,10 @@ export default function BroadcastWorkspace() {
         <div className="min-w-0">
           <p className="eyebrow">BROADCAST</p>
           <p className="mt-1 truncate text-xs font-semibold text-slate-700">
-            {selectedGroup?.name ?? `Create ${channelLabel} Broadcast`}
+            {selectedGroup?.name ??
+              (historyView || selectedBroadcastId
+                ? `${channelLabel} Broadcasts`
+                : `Create ${channelLabel} Broadcast`)}
           </p>
         </div>
 
@@ -1243,14 +1246,27 @@ export default function BroadcastWorkspace() {
 
           {!selectedGroup && !selectedBroadcastId && (
             <>
-              <button
-                type="button"
-                className={historyView ? 'primary-button gap-2' : 'secondary-button gap-2'}
-                onClick={() => updateSearch({ view: historyView ? null : 'history', legacy: null, groupId: null })}
-              >
-                <FiClock aria-hidden="true" />
-                <span className="inbox-action-label">{historyView ? 'Create broadcast' : 'History'}</span>
-              </button>
+              {historyView ? (
+                can(PERMISSIONS.BROADCAST_CREATE) && (
+                  <button
+                    type="button"
+                    className="primary-button gap-2"
+                    onClick={() => updateSearch({ view: null, legacy: null, groupId: null })}
+                  >
+                    <FiSend aria-hidden="true" />
+                    <span className="inbox-action-label">Create broadcast</span>
+                  </button>
+                )
+              ) : (
+                <button
+                  type="button"
+                  className="secondary-button gap-2"
+                  onClick={() => updateSearch({ view: 'history', legacy: null, groupId: null })}
+                >
+                  <FiClock aria-hidden="true" />
+                  <span className="inbox-action-label">History</span>
+                </button>
+              )}
               {channelType !== 'WHATSAPP' && (
                 <button type="button" className="secondary-button gap-2" onClick={openNewGroup}>
                   <FiUsers aria-hidden="true" />
@@ -1342,14 +1358,16 @@ export default function BroadcastWorkspace() {
                           </button>
                         </>
                       )}
-                      <button
-                        type="button"
-                        className="primary-button gap-2"
-                        onClick={() => updateSearch({ groupId: null, legacy: null, view: null })}
-                      >
-                        <FiSend aria-hidden="true" />
-                        Create with Contacts
-                      </button>
+                      {can(PERMISSIONS.BROADCAST_CREATE) && (
+                        <button
+                          type="button"
+                          className="primary-button gap-2"
+                          onClick={() => updateSearch({ groupId: null, legacy: null, view: null })}
+                        >
+                          <FiSend aria-hidden="true" />
+                          Create with Contacts
+                        </button>
+                      )}
                     </div>
                   </div>
 
