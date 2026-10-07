@@ -59,7 +59,7 @@ public class ZohoMailSyncQueueService {
   private EmailSyncQueuedResult response(
       Long connectionId, AsyncJobResponse job, EmailSyncRequest request) {
     return new EmailSyncQueuedResult(
-        connectionId,
+        connectionId.toString(),
         job.jobId(),
         job.status().name(),
         request.mode(),
