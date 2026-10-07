@@ -95,6 +95,13 @@ const identityFallback = (connection: ChannelConnection) =>
 const emailProviderIcon = (providerType: string) => {
   if (providerType === 'GMAIL') return <SiGmail aria-hidden="true" />
   if (providerType === 'MICROSOFT') return <FiGrid aria-hidden="true" />
+  if (providerType === 'ZOHO_MAIL') {
+    return (
+      <span className="text-[11px] font-black leading-none text-red-600" aria-hidden="true">
+        Z
+      </span>
+    )
+  }
   if (providerType === 'IMAP_SMTP') return <FiServer aria-hidden="true" />
   return <FiMail aria-hidden="true" />
 }
