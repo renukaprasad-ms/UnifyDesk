@@ -562,168 +562,179 @@ export default function CompanyConnections() {
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
+      <div className="w-full">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow">Company</p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
               Connections
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Connect the communication providers this workspace will use for inboxes, sending,
-              templates, and broadcasts.
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+              Set up every channel from one place. UnifyDesk-managed Email and SMS are the
+              recommended paths; you can still connect your own providers and advertising accounts.
             </p>
           </div>
           <button
             type="button"
             className="secondary-button inline-flex items-center gap-2"
-            onClick={() => void loadConnections()}
-            disabled={loading}
+            onClick={() => void refreshAll()}
+            disabled={loading || adsLoading}
           >
             <FiRefreshCw aria-hidden="true" />
             Refresh
           </button>
         </header>
 
-        <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="panel p-5">
-            <div className="flex items-center justify-between">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                <FiMessageCircle aria-hidden="true" size={19} />
-              </span>
-              <span className="text-xs font-semibold text-slate-400">
-                {whatsAppConnections.filter((item) => item.status === 'ACTIVE').length} connected
-              </span>
-            </div>
-            <h2 className="mt-4 text-base font-bold text-slate-950">WhatsApp</h2>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              Meta WhatsApp Business Platform using Embedded Signup.
-            </p>
-            {can(PERMISSIONS.WHATSAPP_CONNECT) && (
+        <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {sectionMeta.map((section) => {
+            const count =
+              section.id === 'EMAIL'
+                ? emailConnections.filter((item) => item.status === 'ACTIVE').length
+                : section.id === 'SMS'
+                  ? smsConnections.filter((item) => item.status === 'ACTIVE').length
+                  : section.id === 'WHATSAPP'
+                    ? whatsAppConnections.filter((item) => item.status === 'ACTIVE').length
+                    : adConnections.filter((item) => item.status === 'ACTIVE').length
+            const icon =
+              section.id === 'EMAIL' ? (
+                <FiMail aria-hidden="true" />
+              ) : section.id === 'SMS' ? (
+                <FiSmartphone aria-hidden="true" />
+              ) : section.id === 'WHATSAPP' ? (
+                <FiMessageCircle aria-hidden="true" />
+              ) : (
+                <FiBarChart2 aria-hidden="true" />
+              )
+
+            return (
               <button
+                key={section.id}
                 type="button"
-                className="primary-button mt-4 inline-flex w-full items-center justify-center gap-2"
-                onClick={() => void connectWhatsApp(false)}
-                disabled={connecting}
+                onClick={() => selectSection(section.id)}
+                className={`rounded-2xl border p-4 text-left transition ${
+                  activeSection === section.id
+                    ? 'border-indigo-300 bg-indigo-50/70 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                }`}
               >
-                <FiLink aria-hidden="true" />
-                {connecting
-                  ? 'Connecting…'
-                  : whatsAppConnections.some((item) => item.status === 'ACTIVE')
-                    ? 'Connect another'
-                    : 'Connect WhatsApp'}
+                <div className="flex items-start justify-between gap-3">
+                  <span
+                    className={`flex size-10 items-center justify-center rounded-xl text-lg ${
+                      activeSection === section.id
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {icon}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">
+                    {count} connected
+                  </span>
+                </div>
+                <p className="mt-3 text-sm font-bold text-slate-950">{section.label}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{section.description}</p>
               </button>
-            )}
-          </div>
-
-          <div className="panel p-5">
-            <div className="flex items-center justify-between">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
-                <FiMail aria-hidden="true" size={19} />
-              </span>
-              <span className="text-xs font-semibold text-slate-400">
-                {emailConnections.filter((item) => item.status === 'ACTIVE').length} connected
-              </span>
-            </div>
-            <h2 className="mt-4 text-base font-bold text-slate-950">Email</h2>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              Inbox accounts use Gmail, Microsoft 365 or IMAP + SMTP. Broadcast email can use
-              UnifyDesk Managed Email, or an Amazon SES, SendGrid, Azure Email or MSG91 Email
-              provider that you manage.
-            </p>
-            <div className="mt-4 grid gap-2">
-              {can(PERMISSIONS.EMAIL_CONNECT) && (
-                <EmailProviderPicker
-                  companyId={selectedCompany.companyId}
-                  label="Connect inbox email"
-                  className="primary-button inline-flex w-full items-center justify-center gap-2"
-                  onError={(message) => snackbar.error(message)}
-                  onConnected={(connection) => {
-                    snackbar.success(`Connected ${connection.email}`)
-                    void loadConnections()
-                  }}
-                />
-              )}
-              {can(PERMISSIONS.BROADCAST_MODIFY) && (
-                <button
-                  type="button"
-                  className="secondary-button inline-flex w-full items-center justify-center gap-2"
-                  onClick={() => setBroadcastEmailPickerOpen(true)}
-                >
-                  <FiLink aria-hidden="true" />
-                  {activeEmailSetup
-                    ? `Continue ${
-                        activeEmailSetup.provider === 'AMAZON_SES'
-                          ? 'Amazon SES'
-                          : activeEmailSetup.provider === 'SENDGRID'
-                            ? 'SendGrid'
-                            : activeEmailSetup.provider === 'AZURE_EMAIL'
-                              ? 'Azure Email'
-                              : 'MSG91 Email'
-                      } setup`
-                    : 'Connect broadcast email'}
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="panel p-5">
-            <div className="flex items-center justify-between">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                <FiSmartphone aria-hidden="true" size={19} />
-              </span>
-              <span className="text-xs font-semibold text-slate-400">
-                {smsConnections.filter((item) => item.status === 'ACTIVE').length} connected
-              </span>
-            </div>
-            <h2 className="mt-4 text-base font-bold text-slate-950">SMS</h2>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              Use UnifyDesk Managed SMS with your DLT approvals, or connect an MSG91 account that
-              you manage yourself.
-            </p>
-            {can(PERMISSIONS.BROADCAST_MODIFY) && (
-              <div className="mt-4 grid gap-2">
-                <button
-                  type="button"
-                  className="primary-button inline-flex w-full items-center justify-center gap-2"
-                  onClick={() => setManagedSmsOpen(true)}
-                >
-                  <FiSmartphone aria-hidden="true" />
-                  Use UnifyDesk Managed SMS
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button inline-flex w-full items-center justify-center gap-2"
-                  onClick={() => setMsg91SmsSetupOpen(true)}
-                >
-                  <FiLink aria-hidden="true" />
-                  {activeSmsSetup ? 'Continue own MSG91 setup' : 'Connect your own MSG91'}
-                </button>
-              </div>
-            )}
-          </div>
+            )
+          })}
         </div>
 
-        {can(PERMISSIONS.BROADCAST_READ) && (
-          <ManagedSmsPanel
-            companyId={selectedCompany.companyId}
-            canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
-            refreshToken={managedSmsRefreshToken}
-            onOpenSetup={() => setManagedSmsOpen(true)}
-          />
-        )}
+        {activeSection === 'EMAIL' && (
+          <>
+            <div className="mt-7 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="eyebrow">EMAIL</p>
+                <h2 className="mt-2 text-xl font-bold text-slate-950">Email connections</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Start with UnifyDesk Managed Email for broadcasts, then connect Inbox mailboxes or
+                  your own broadcast provider when needed.
+                </p>
+              </div>
+            </div>
 
-        {can(PERMISSIONS.BROADCAST_READ) && (
-          <ManagedEmailPanel
-            companyId={selectedCompany.companyId}
-            canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
-            refreshToken={managedEmailRefreshToken}
-            onOpenSetup={(domainId) => {
-              setManagedEmailDomainId(domainId ?? null)
-              setManagedEmailOpen(true)
-            }}
-          />
-        )}
+            <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
+                      <FiMail aria-hidden="true" />
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-bold text-slate-950">UnifyDesk Managed Email</h3>
+                        <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                          RECOMMENDED
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        Use a customer domain or a hosted UnifyDesk domain without managing provider
+                        credentials yourself.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {can(PERMISSIONS.BROADCAST_MODIFY) && (
+                  <button
+                    type="button"
+                    className="primary-button shrink-0 gap-2"
+                    onClick={() => {
+                      setManagedEmailDomainId(null)
+                      setManagedEmailOpen(true)
+                    }}
+                  >
+                    <FiMail aria-hidden="true" />
+                    Set up Managed Email
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {can(PERMISSIONS.BROADCAST_READ) && (
+              <ManagedEmailPanel
+                companyId={selectedCompany.companyId}
+                canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
+                refreshToken={managedEmailRefreshToken}
+                onOpenSetup={(domainId) => {
+                  setManagedEmailDomainId(domainId ?? null)
+                  setManagedEmailOpen(true)
+                }}
+              />
+            )}
+
+            <div className="panel mt-6 p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-950">Connect your own email accounts</h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Gmail, Microsoft 365 and IMAP + SMTP power Inbox. SES, SendGrid, Azure Email and
+                    MSG91 Email are available for customer-managed broadcast sending.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {can(PERMISSIONS.EMAIL_CONNECT) && (
+                    <EmailProviderPicker
+                      companyId={selectedCompany.companyId}
+                      label="Connect Inbox email"
+                      className="secondary-button gap-2"
+                      onError={(message) => snackbar.error(message)}
+                      onConnected={(connection) => {
+                        snackbar.success(`Connected ${connection.email}`)
+                        void loadConnections()
+                      }}
+                    />
+                  )}
+                  {can(PERMISSIONS.BROADCAST_MODIFY) && (
+                    <button
+                      type="button"
+                      className="secondary-button gap-2"
+                      onClick={() => setBroadcastEmailPickerOpen(true)}
+                    >
+                      <FiLink aria-hidden="true" />
+                      {activeEmailSetup ? 'Continue provider setup' : 'Connect broadcast provider'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
 
         <div className="panel mt-6 overflow-hidden">
           <div className="border-b border-slate-100 px-5 py-4">
@@ -850,6 +861,82 @@ export default function CompanyConnections() {
           )}
         </div>
 
+          </>
+        )}
+
+        {activeSection === 'SMS' && (
+          <>
+            <div className="mt-7">
+              <p className="eyebrow">SMS</p>
+              <h2 className="mt-2 text-xl font-bold text-slate-950">SMS connections</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Use UnifyDesk Managed SMS first, or bring your own MSG91 account when you need
+                direct provider ownership.
+              </p>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-start gap-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
+                    <FiSmartphone aria-hidden="true" />
+                  </span>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-bold text-slate-950">UnifyDesk Managed SMS</h3>
+                      <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                        RECOMMENDED
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-slate-600">
+                      Use your approved DLT Header and templates while UnifyDesk manages the sending
+                      infrastructure.
+                    </p>
+                  </div>
+                </div>
+                {can(PERMISSIONS.BROADCAST_MODIFY) && (
+                  <button
+                    type="button"
+                    className="primary-button shrink-0 gap-2"
+                    onClick={() => setManagedSmsOpen(true)}
+                  >
+                    <FiSmartphone aria-hidden="true" />
+                    Set up Managed SMS
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {can(PERMISSIONS.BROADCAST_READ) && (
+              <ManagedSmsPanel
+                companyId={selectedCompany.companyId}
+                canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
+                refreshToken={managedSmsRefreshToken}
+                onOpenSetup={() => setManagedSmsOpen(true)}
+              />
+            )}
+
+            {can(PERMISSIONS.BROADCAST_MODIFY) && (
+              <div className="panel mt-6 p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-950">Use your own MSG91 account</h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Keep provider credentials and account ownership under your control.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary-button gap-2"
+                    onClick={() => setMsg91SmsSetupOpen(true)}
+                  >
+                    <FiLink aria-hidden="true" />
+                    {activeSmsSetup ? 'Continue MSG91 setup' : 'Connect MSG91'}
+                  </button>
+                </div>
+              </div>
+            )}
+
         <div className="panel mt-6 overflow-hidden">
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="text-sm font-bold text-slate-950">SMS connections</h2>
@@ -947,6 +1034,36 @@ export default function CompanyConnections() {
             </div>
           )}
         </div>
+
+          </>
+        )}
+
+        {activeSection === 'WHATSAPP' && (
+          <>
+            <div className="mt-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="eyebrow">WHATSAPP</p>
+                <h2 className="mt-2 text-xl font-bold text-slate-950">WhatsApp Business</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Connect Meta WhatsApp Business Platform using Embedded Signup.
+                </p>
+              </div>
+              {can(PERMISSIONS.WHATSAPP_CONNECT) && (
+                <button
+                  type="button"
+                  className="primary-button gap-2"
+                  onClick={() => void connectWhatsApp(false)}
+                  disabled={connecting}
+                >
+                  <FiLink aria-hidden="true" />
+                  {connecting
+                    ? 'Connecting…'
+                    : whatsAppConnections.some((item) => item.status === 'ACTIVE')
+                      ? 'Connect another WhatsApp'
+                      : 'Connect WhatsApp'}
+                </button>
+              )}
+            </div>
 
         <div className="panel mt-6 overflow-hidden">
           <div className="border-b border-slate-100 px-5 py-4">
@@ -1135,6 +1252,137 @@ export default function CompanyConnections() {
             </div>
           )}
         </div>
+          </>
+        )}
+
+        {activeSection === 'ADS' && (
+          <>
+            <div className="mt-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="eyebrow">ADS</p>
+                <h2 className="mt-2 text-xl font-bold text-slate-950">Advertising connections</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Connect Google Ads and Meta Ads, then choose which advertiser accounts UnifyDesk
+                  can manage.
+                </p>
+              </div>
+              <Link className="secondary-button gap-2" to="/ad-center">
+                <FiExternalLink aria-hidden="true" />
+                Open Ad Center
+              </Link>
+            </div>
+
+            {!can(PERMISSIONS.ADS_READ) ? (
+              <div className="panel mt-4 p-8 text-center text-sm text-slate-500">
+                You do not have permission to view advertising connections.
+              </div>
+            ) : adsLoading ? (
+              <div className="panel mt-4 p-4">
+                <ListSkeleton rows={4} />
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                {adProviders.map((provider) => {
+                  const providerConnection = adConnections.find(
+                    (connection) =>
+                      connection.provider === provider.provider &&
+                      connection.status === 'ACTIVE',
+                  )
+                  const accounts = adAccounts.filter(
+                    (account) => account.provider === provider.provider && account.accessible,
+                  )
+                  const managedAccounts = accounts.filter((account) => account.managed)
+                  const isMeta = provider.provider === 'META_ADS'
+
+                  return (
+                    <article key={provider.provider} className="panel p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                            <FiBarChart2 aria-hidden="true" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-bold text-slate-950">{provider.displayName}</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {isMeta
+                                ? 'Meta campaigns, audiences, pixels and creative assets.'
+                                : 'Google campaigns, keywords, conversions and reporting.'}
+                            </p>
+                          </div>
+                        </div>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                            providerConnection
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : provider.configured
+                                ? 'bg-slate-100 text-slate-600'
+                                : 'bg-amber-50 text-amber-700'
+                          }`}
+                        >
+                          {providerConnection
+                            ? 'CONNECTED'
+                            : provider.configured
+                              ? 'READY TO CONNECT'
+                              : 'NOT CONFIGURED'}
+                        </span>
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            Accessible
+                          </p>
+                          <p className="mt-1 text-lg font-bold text-slate-900">{accounts.length}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            Managed
+                          </p>
+                          <p className="mt-1 text-lg font-bold text-slate-900">
+                            {managedAccounts.length}
+                          </p>
+                        </div>
+                      </div>
+
+                      {providerConnection?.displayName && (
+                        <p className="mt-3 text-xs text-slate-500">
+                          Connected as {providerConnection.displayName}
+                        </p>
+                      )}
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {can(PERMISSIONS.ADS_CONNECT) && (
+                          <button
+                            type="button"
+                            className={providerConnection ? 'secondary-button gap-2' : 'primary-button gap-2'}
+                            disabled={!provider.configured || connectingAdProvider !== null}
+                            onClick={() => void connectAdProvider(provider)}
+                          >
+                            <FiExternalLink aria-hidden="true" />
+                            {connectingAdProvider === provider.provider
+                              ? 'Opening…'
+                              : providerConnection
+                                ? 'Reconnect'
+                                : 'Connect'}
+                          </button>
+                        )}
+                        <Link className="secondary-button gap-2" to="/ad-center">
+                          Manage accounts
+                        </Link>
+                      </div>
+                    </article>
+                  )
+                })}
+
+                {adProviders.length === 0 && (
+                  <div className="panel p-8 text-center text-sm text-slate-500 xl:col-span-2">
+                    Advertising providers are not available for this workspace yet.
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {broadcastEmailPickerOpen && selectedCompany && (
