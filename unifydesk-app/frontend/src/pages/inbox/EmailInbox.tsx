@@ -13,11 +13,19 @@ import {
   FiX,
 } from 'react-icons/fi'
 import ConversationList from '../../components/inbox/ConversationList'
+import ContactRecipientInput from '../../components/inbox/ContactRecipientInput'
+import ContactFormDialog from '../../components/contacts/ContactFormDialog'
 import EmailProviderPicker from '../../components/email/EmailProviderPicker'
 import { conversationParticipant } from '../../components/inbox/conversationListUtils'
 import WhatsAppInbox from '../../components/whatsapp/WhatsAppInbox'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
+import { contactsApi } from '../../features/contacts/contactsApi'
+import {
+  emptyContactDraft,
+  toCreateContactInput,
+  type ContactFormDraft,
+} from '../../features/contacts/contactModel'
 import type { AsyncJob } from '../../features/asyncJob/types'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { imapSmtpApi } from '../../features/channel/imapSmtpApi'
@@ -35,7 +43,6 @@ import type {
   InboxConversation,
   InboxEmailChangedEvent,
   InboxMessage,
-  InboxParticipant,
 } from '../../features/inbox/types'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -104,13 +111,6 @@ const forwardSubject = (subject?: string | null) => {
   return /^fwd?:/i.test(value) ? value : `Fwd: ${value || '(no subject)'}`
 }
 
-const createContactHref = (participant: InboxParticipant) => {
-  const params = new URLSearchParams({ new: '1' })
-  if (participant.participantType === 'EMAIL_ADDRESS') params.set('email', participant.address)
-  else params.set('phone', participant.address)
-  return `/contacts?${params.toString()}`
-}
-
 type ComposeAttachment = {
   clientId: string
   file: File
@@ -152,6 +152,9 @@ function EmailInboxView() {
   )
   const [syncing, setSyncing] = useState(false)
   const [sending, setSending] = useState(false)
+  const [contactCreateOpen, setContactCreateOpen] = useState(false)
+  const [contactCreateSaving, setContactCreateSaving] = useState(false)
+  const [createdInboxContactId, setCreatedInboxContactId] = useState<string | null>(null)
   const [readUpdatingConversationId, setReadUpdatingConversationId] = useState<string | null>(null)
   const [readUpdatingMessageId, setReadUpdatingMessageId] = useState<string | null>(null)
   const [markAllStarting, setMarkAllStarting] = useState(false)
@@ -255,6 +258,29 @@ function EmailInboxView() {
       null
     )
   }, [ownAddress, selectedConversation])
+
+  const contactCreateInitial = useMemo<ContactFormDraft | undefined>(() => {
+    if (!contactParticipant || contactParticipant.contactId) return undefined
+    return {
+      ...emptyContactDraft,
+      displayName: contactParticipant.displayName?.trim() || '',
+      email:
+        contactParticipant.participantType === 'EMAIL_ADDRESS'
+          ? contactParticipant.address
+          : '',
+      phone:
+        contactParticipant.participantType === 'PHONE_NUMBER'
+          ? contactParticipant.address
+          : '',
+    }
+  }, [contactParticipant])
+
+  const effectiveContactId = contactParticipant?.contactId ?? createdInboxContactId
+
+  useEffect(() => {
+    setCreatedInboxContactId(null)
+    setContactCreateOpen(false)
+  }, [selectedConversationId, workspaceEpoch])
 
   const loadConversations = useCallback(
     async (page = 0, append = false, force = false) => {
@@ -1038,8 +1064,12 @@ function EmailInboxView() {
     }
 
     const to = parseRecipients(composeTo)
-    const cc = parseRecipients(composeCc)
-    const bcc = parseRecipients(composeBcc)
+    const toSet = new Set(to)
+    const cc = parseRecipients(composeCc).filter((address) => !toSet.has(address))
+    const ccSet = new Set(cc)
+    const bcc = parseRecipients(composeBcc).filter(
+      (address) => !toSet.has(address) && !ccSet.has(address),
+    )
     if (to.length === 0 && cc.length === 0 && bcc.length === 0) {
       snackbar.warning('Add at least one To, CC, or BCC recipient.')
       return
@@ -1127,50 +1157,39 @@ function EmailInboxView() {
     return (
       <section className="channel-workspace-page">
         <div className="channel-workspace-toolbar">
-          <div className="min-w-0 lg:hidden">
+          <div className="min-w-0">
             <p className="eyebrow">INBOX</p>
             <p className="mt-1 truncate text-xs font-semibold text-slate-700">Email</p>
-          </div>
-          <div className="inbox-toolbar-actions ml-auto flex items-center gap-2">
-            {can(PERMISSIONS.EMAIL_CONNECT) && (
-              <EmailProviderPicker
-                companyId={companyId}
-                returnTo="/inbox/email"
-                label="Connect email"
-                className="primary-button gap-2"
-                buttonIcon="mail"
-                onConnected={(connection) => {
-                  const params = new URLSearchParams(searchParams)
-                  params.set('connectionId', connection.connectionId)
-                  params.set('folder', 'INBOX')
-                  setSearchParams(params)
-                  void dispatch(
-                    fetchEmailConnections({
-                      companyId,
-                      epoch: workspaceEpoch,
-                      force: true,
-                    }),
-                  )
-                }}
-              />
-            )}
           </div>
         </div>
 
         <div className="channel-workspace-body">
           <main className="channel-message-surface">
-            <div className="flex min-h-[calc(100dvh-210px)] items-center justify-center px-6 py-10 text-center">
-              <div className="w-full max-w-lg rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-10">
-                <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-indigo-50 text-2xl text-indigo-500">
+            <div className="flex min-h-[calc(100dvh-210px)] items-center justify-center px-5 py-8 text-center sm:px-8">
+              <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
+                <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-indigo-50 text-2xl text-indigo-600">
                   <FiMail aria-hidden="true" />
                 </span>
-                <h1 className="mt-4 text-xl font-bold text-slate-950">Connect your email inbox</h1>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Connect Gmail, Microsoft 365 / Outlook, or another mailbox using IMAP + SMTP.
-                  Your conversations will appear here after the account is connected and synced.
+                <p className="eyebrow mt-5">EMAIL INBOX</p>
+                <h1 className="mt-2 text-xl font-bold text-slate-950">Connect your email account</h1>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                  Bring your mailbox into UnifyDesk to read and reply to customer conversations
+                  from one shared workspace.
                 </p>
+
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  {['Gmail', 'Microsoft 365', 'IMAP + SMTP'].map((provider) => (
+                    <span
+                      key={provider}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600"
+                    >
+                      {provider}
+                    </span>
+                  ))}
+                </div>
+
                 {can(PERMISSIONS.EMAIL_CONNECT) ? (
-                  <div className="mx-auto mt-5 max-w-xs">
+                  <div className="mx-auto mt-6 max-w-xs">
                     <EmailProviderPicker
                       companyId={companyId}
                       returnTo="/inbox/email"
@@ -1193,10 +1212,15 @@ function EmailInboxView() {
                     />
                   </div>
                 ) : (
-                  <p className="mt-5 text-xs font-semibold text-slate-500">
+                  <p className="mt-6 text-xs font-semibold text-slate-500">
                     Ask a workspace administrator to connect an email account.
                   </p>
                 )}
+
+                <p className="mt-4 text-[11px] leading-5 text-slate-400">
+                  After connection, UnifyDesk will sync your conversations and this screen will
+                  become your shared Inbox.
+                </p>
               </div>
             </div>
           </main>
@@ -1329,38 +1353,53 @@ function EmailInboxView() {
               </p>
 
               <div className="mt-5 space-y-4">
-                <label className="block text-xs font-semibold text-slate-600">
-                  To
-                  <input
-                    type="text"
-                    className="form-input mt-1.5"
+                {companyId && (
+                  <ContactRecipientInput
+                    companyId={companyId}
+                    workspaceEpoch={workspaceEpoch}
+                    label="To"
                     value={composeTo}
-                    onChange={(event) => setComposeTo(event.target.value)}
-                    placeholder="one@example.com, two@example.com"
+                    onChange={setComposeTo}
+                    excludedEmails={[
+                      ...parseRecipients(composeTo),
+                      ...parseRecipients(composeCc),
+                      ...parseRecipients(composeBcc),
+                    ]}
+                    placeholder="Search contacts or type an email address"
                     autoFocus
                   />
-                </label>
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block text-xs font-semibold text-slate-600">
-                    CC
-                    <input
-                      type="text"
-                      className="form-input mt-1.5"
+                  {companyId && (
+                    <ContactRecipientInput
+                      companyId={companyId}
+                      workspaceEpoch={workspaceEpoch}
+                      label="CC"
                       value={composeCc}
-                      onChange={(event) => setComposeCc(event.target.value)}
-                      placeholder="cc@example.com"
+                      onChange={setComposeCc}
+                      excludedEmails={[
+                        ...parseRecipients(composeTo),
+                        ...parseRecipients(composeCc),
+                        ...parseRecipients(composeBcc),
+                      ]}
+                      placeholder="Search contacts or type an email"
                     />
-                  </label>
-                  <label className="block text-xs font-semibold text-slate-600">
-                    BCC
-                    <input
-                      type="text"
-                      className="form-input mt-1.5"
+                  )}
+                  {companyId && (
+                    <ContactRecipientInput
+                      companyId={companyId}
+                      workspaceEpoch={workspaceEpoch}
+                      label="BCC"
                       value={composeBcc}
-                      onChange={(event) => setComposeBcc(event.target.value)}
-                      placeholder="bcc@example.com"
+                      onChange={setComposeBcc}
+                      excludedEmails={[
+                        ...parseRecipients(composeTo),
+                        ...parseRecipients(composeCc),
+                        ...parseRecipients(composeBcc),
+                      ]}
+                      placeholder="Search contacts or type an email"
                     />
-                  </label>
+                  )}
                 </div>
                 <label className="block text-xs font-semibold text-slate-600">
                   Subject
@@ -1500,6 +1539,105 @@ function EmailInboxView() {
             </form>
           </div>
         )}
+
+        <ContactFormDialog
+          open={contactCreateOpen}
+          title="Add sender to contacts"
+          initial={contactCreateInitial}
+          saving={contactCreateSaving}
+          showMarketingPermissions
+          onClose={() => {
+            if (!contactCreateSaving) setContactCreateOpen(false)
+          }}
+          onSubmit={(draft, marketing) => {
+            if (!companyId) return
+            const scope = workspaceEpochToken(companyId, workspaceEpoch)
+            setContactCreateSaving(true)
+
+            contactsApi
+              .create(companyId, toCreateContactInput(draft))
+              .then(async (created) => {
+                if (
+                  !isWorkspaceEpochCurrent(
+                    scope,
+                    workspaceScopeRef.current.companyId,
+                    workspaceScopeRef.current.epoch,
+                  )
+                ) {
+                  return
+                }
+
+                let preferenceWarning = false
+                try {
+                  await contactsApi.applyMarketingPreferences(
+                    companyId,
+                    created.id,
+                    marketing,
+                    'Recorded while adding an Inbox sender to Contacts.',
+                  )
+                } catch {
+                  preferenceWarning = true
+                }
+
+                if (
+                  !isWorkspaceEpochCurrent(
+                    scope,
+                    workspaceScopeRef.current.companyId,
+                    workspaceScopeRef.current.epoch,
+                  )
+                ) {
+                  return
+                }
+
+                setCreatedInboxContactId(created.id)
+                setContactCreateOpen(false)
+                if (preferenceWarning) {
+                  snackbar.warning(
+                    'Contact saved, but one or more marketing permissions could not be saved.',
+                  )
+                } else {
+                  snackbar.success('Contact saved.')
+                }
+
+                if (selectedConversationId) {
+                  try {
+                    await dispatch(
+                      fetchInboxConversationDetail({
+                        companyId,
+                        epoch: workspaceEpoch,
+                        conversationId: selectedConversationId,
+                      }),
+                    ).unwrap()
+                  } catch {
+                    // The contact is already saved and linked locally. A later Inbox refresh will
+                    // reconcile the canonical participant mapping.
+                  }
+                }
+              })
+              .catch((requestError) => {
+                if (
+                  isWorkspaceEpochCurrent(
+                    scope,
+                    workspaceScopeRef.current.companyId,
+                    workspaceScopeRef.current.epoch,
+                  )
+                ) {
+                  snackbar.error(apiErrorMessage(requestError, 'Unable to save contact'))
+                }
+              })
+              .finally(() => {
+                if (
+                  isWorkspaceEpochCurrent(
+                    scope,
+                    workspaceScopeRef.current.companyId,
+                    workspaceScopeRef.current.epoch,
+                  )
+                ) {
+                  setContactCreateSaving(false)
+                }
+              })
+          }}
+        />
 
         {showSyncDialog && (
           <div
@@ -1706,26 +1844,27 @@ function EmailInboxView() {
                     {selectedConversation && ownAddress ? ` · ${ownAddress}` : ''}
                   </p>
                 </div>
-                {contactParticipant?.contactId && can(PERMISSIONS.CONTACT_READ) && (
+                {effectiveContactId && can(PERMISSIONS.CONTACT_READ) && (
                   <Link
                     className="secondary-button shrink-0 gap-2 px-3"
-                    to={`/contacts/${contactParticipant.contactId}`}
+                    to={`/contacts/${effectiveContactId}`}
                   >
                     <FiUsers aria-hidden="true" />
                     <span className="hidden sm:inline">View contact</span>
                   </Link>
                 )}
                 {contactParticipant &&
-                  !contactParticipant.contactId &&
+                  !effectiveContactId &&
                   contactParticipant.contactResolution !== 'AMBIGUOUS' &&
                   can(PERMISSIONS.CONTACT_CREATE) && (
-                    <Link
+                    <button
+                      type="button"
                       className="secondary-button shrink-0 gap-2 px-3"
-                      to={createContactHref(contactParticipant)}
+                      onClick={() => setContactCreateOpen(true)}
                     >
                       <FiUsers aria-hidden="true" />
                       <span className="hidden sm:inline">Add to contacts</span>
-                    </Link>
+                    </button>
                   )}
                 {contactParticipant?.contactResolution === 'AMBIGUOUS' &&
                   can(PERMISSIONS.CONTACT_READ) && (

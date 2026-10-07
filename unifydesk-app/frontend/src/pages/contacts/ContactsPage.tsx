@@ -482,6 +482,7 @@ export default function ContactsPage() {
           title="Create contact"
           initial={initialContactDraft}
           saving={saving}
+          showMarketingPermissions
           onClose={() => {
             setCreating(false)
             if (createFromInbox) {
@@ -494,17 +495,32 @@ export default function ContactsPage() {
               }, { replace: true })
             }
           }}
-          onSubmit={(draft) => {
+          onSubmit={(draft, marketing) => {
             if (!companyId) return
             const scope = captureScope()
             setSaving(true)
             setError('')
             contactsApi
               .create(companyId, toCreateContactInput(draft))
-              .then(async () => {
+              .then(async (created) => {
+                if (!scopeIsCurrent(scope)) return
+
+                let preferenceWarning = ''
+                try {
+                  await contactsApi.applyMarketingPreferences(
+                    companyId,
+                    created.id,
+                    marketing,
+                    'Recorded while creating the contact in UnifyDesk.',
+                  )
+                } catch {
+                  preferenceWarning =
+                    ' Contact was created, but one or more marketing permissions could not be saved.'
+                }
+
                 if (!scopeIsCurrent(scope)) return
                 setCreating(false)
-                setNotice('Contact created.')
+                setNotice('Contact created.' + preferenceWarning)
                 await contacts.refresh()
               })
               .catch((actionError) => {

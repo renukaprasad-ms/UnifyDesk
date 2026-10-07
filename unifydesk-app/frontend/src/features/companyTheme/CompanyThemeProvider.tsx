@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { selectAuthBootstrapped, selectAuthUser } from '../../store/auth/authSlice'
+import { useLayoutEffect } from 'react'
+import { selectAuthUser } from '../../store/auth/authSlice'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 import { applyCompanyTheme, DEFAULT_BRAND_COLOR, readStoredAppearanceMode } from './companyTheme'
@@ -7,16 +7,14 @@ import { applyCompanyTheme, DEFAULT_BRAND_COLOR, readStoredAppearanceMode } from
 export default function CompanyThemeProvider() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
   const user = useAppSelector(selectAuthUser)
-  const bootstrapped = useAppSelector(selectAuthBootstrapped)
+  const appearanceMode = user?.appearanceMode ?? readStoredAppearanceMode() ?? 'LIGHT'
 
-  useEffect(() => {
-    if (!bootstrapped) return
-
+  useLayoutEffect(() => {
     applyCompanyTheme(
       selectedCompany?.brandColor ?? DEFAULT_BRAND_COLOR,
-      user?.appearanceMode ?? readStoredAppearanceMode() ?? 'LIGHT',
+      appearanceMode,
     )
-  }, [bootstrapped, selectedCompany?.brandColor, user?.appearanceMode])
+  }, [appearanceMode, selectedCompany?.brandColor])
 
   return null
 }

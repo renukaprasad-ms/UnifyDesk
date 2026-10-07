@@ -8,6 +8,7 @@ import AdCenterSidebar from '../components/navigation/AdCenterSidebar'
 import AppSidebar from '../components/navigation/AppSidebar'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import { authApi } from '../features/auth/authApi'
+import { iamApi } from '../features/iam/iamApi'
 import { platformApi } from '../features/platform/platformApi'
 import NotificationProvider from '../features/notifications/NotificationProvider'
 import { revokeCurrentBrowserSubscriptionBestEffort } from '../features/notifications/notificationBrowser'
@@ -15,6 +16,13 @@ import type { PlatformAccess } from '../features/platform/types'
 import { realtimeClient } from '../features/realtime/realtimeClient'
 import { sessionCleared } from '../store/auth/authSlice'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
+import {
+  iamLoadFailed,
+  iamLoadStarted,
+  iamLoadSucceeded,
+  selectIamState,
+} from '../store/iam/iamSlice'
+import { selectSelectedCompanyId } from '../store/workspace/workspaceSlice'
 
 export default function MainLayout({ platform = false }: { platform?: boolean }) {
   const dispatch = useAppDispatch()
@@ -27,6 +35,8 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   const [platformAccess, setPlatformAccess] = useState<PlatformAccess | null>(null)
   const [railHovered, setRailHovered] = useState(false)
   const [navigationCloseSignal, setNavigationCloseSignal] = useState(0)
+  const selectedCompanyId = useAppSelector(selectSelectedCompanyId)
+  const iam = useAppSelector(selectIamState)
   const inboxMode = location.pathname.startsWith('/inbox/')
   const broadcastMode = location.pathname.startsWith('/broadcast/')
   const adCenterMode = location.pathname.startsWith('/ad-center')
@@ -49,6 +59,44 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
     realtimeClient.connect()
     return () => realtimeClient.disconnect()
   }, [])
+
+  useEffect(() => {
+    if (platform || !selectedCompanyId) return
+    if (
+      iam.companyId === selectedCompanyId &&
+      (iam.status === 'loading' || iam.status === 'ready' || iam.status === 'error')
+    ) {
+      return
+    }
+
+    let active = true
+    dispatch(iamLoadStarted(selectedCompanyId))
+    iamApi
+      .myPermissions(selectedCompanyId)
+      .then((response) => {
+        if (!active) return
+        dispatch(
+          iamLoadSucceeded({
+            companyId: selectedCompanyId,
+            owner: response.owner,
+            permissions: response.permissions,
+          }),
+        )
+      })
+      .catch(() => {
+        if (!active) return
+        dispatch(
+          iamLoadFailed({
+            companyId: selectedCompanyId,
+            error: 'Unable to load workspace permissions',
+          }),
+        )
+      })
+
+    return () => {
+      active = false
+    }
+  }, [dispatch, iam.companyId, iam.status, platform, selectedCompanyId])
 
   useEffect(() => {
     let active = true

@@ -536,6 +536,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     return result
   }, [broadcastMode, broadcastSenders, channelType, connections, senders])
 
+  const emailOnboarding = emailMode && !loading && identities.length === 0
+
   const selectedItem = useMemo(
     () =>
       identities.find(
@@ -1043,7 +1045,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </div>
       )}
 
-      {emailMode && (
+      {emailMode && !emailOnboarding && (
         <div className="email-folder-switcher" role="tablist" aria-label="Email folders">
           <button
             type="button"
@@ -1068,6 +1070,15 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </div>
       )}
 
+      {emailOnboarding ? (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+          <FiMail className="mx-auto text-lg text-slate-400" aria-hidden="true" />
+          <p className="mt-2 text-xs font-semibold text-slate-700">Your Inbox starts here</p>
+          <p className="mt-1 text-[10px] leading-4 text-slate-500">
+            Connect an email account above. Folders and conversations will appear after the first sync.
+          </p>
+        </div>
+      ) : (
       <div className="context-conversation-section mt-4 flex min-h-0 flex-1 flex-col border-t border-slate-100 pt-4">
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
@@ -1194,6 +1205,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           </div>
         )}
       </div>
+      )}
 
       {!broadcastMode && channelType !== 'EMAIL' && connectAllowed && (
         <div className="mt-4 border-t border-slate-100 pt-4">

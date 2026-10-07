@@ -107,18 +107,22 @@ export default function AccountSettings() {
 
   const updateAppearance = async (appearanceMode: 'LIGHT' | 'DARK') => {
     const previousAppearance = authUser?.appearanceMode ?? 'LIGHT'
-    if (previousAppearance === appearanceMode) return
-
     const brandColor = selectedCompany?.brandColor ?? DEFAULT_BRAND_COLOR
-    setSaving(true)
+
     setError('')
     setNotice('')
 
-    // Apply the visual theme immediately. Redux persistence/provider reconciliation still
-    // follows, but the user should never need a refresh to see their selection.
+    // Always re-apply the requested visual mode, even when Redux already says it is selected.
+    // This repairs any DOM/theme drift caused by a stale session refresh without forcing a reload.
     applyCompanyTheme(brandColor, appearanceMode)
     dispatch(setAppearanceMode(appearanceMode))
 
+    if (previousAppearance === appearanceMode) {
+      setNotice(`${appearanceMode === 'DARK' ? 'Dark' : 'Light'} mode applied.`)
+      return
+    }
+
+    setSaving(true)
     try {
       const preferences = await userApi.updatePreferences(appearanceMode)
       applyCompanyTheme(brandColor, preferences.appearanceMode)
