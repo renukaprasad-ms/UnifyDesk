@@ -4,8 +4,8 @@ import {ArrowRight,Check,FileText,Inbox,Radio,Target,Users,Building2,Layers3} fr
 import {Footer,Header} from "../components";
 
 export const metadata:Metadata={
-  title:"Product | UnifyDesk",
-  description:"Explore the UnifyDesk modules for inbox, broadcasts, contacts, advertising, templates and company controls.",
+  title:"Customer Communication Platform",
+  description:"Explore UnifyDesk for shared inboxes, contacts, consent, email, SMS and WhatsApp broadcasts, templates, Google Ads, Meta Ads and team controls.",
   alternates:{canonical:"/product"}
 };
 
@@ -20,7 +20,7 @@ const modules=[
 
 export default function Product(){
   return <><Header/><main className="routePage">
-    <section className="routeHero"><div className="statusBadge"><span/>PRODUCT</div><h1>One operating layer across the customer journey.</h1><p>Explore the modules UnifyDesk is building for conversations, contacts, broadcasts, advertising, templates and company controls.</p></section>
+    <section className="routeHero"><div className="statusBadge"><span/>PRODUCT</div><h1>One operating layer across the customer journey.</h1><p>Explore a connected customer communication platform for shared conversations, contact and consent management, multichannel broadcasts, advertising workflows, templates and company controls.</p></section>
     <section className="routeSection soft">
       <p className="kicker">CORE MODULES</p><h2 className="sectionTitle">Built as focused modules. Connected by the workspace.</h2>
       <div className="routeCardGrid three">
@@ -28,7 +28,7 @@ export default function Product(){
       </div>
     </section>
     <section className="splitRouteSection">
-      <div className="routeCopy reveal"><p className="kicker">SHARED CONTEXT</p><h2>The modules are separate. The customer context is not.</h2><p>Contacts, consent, conversations and campaign activity stay connected so teams do not rebuild context for every workflow.</p><Link className="textLink" href="/solutions">See how teams use it <ArrowRight size={15}/></Link></div>
+      <div className="routeCopy reveal"><p className="kicker">SHARED CONTEXT</p><h2>The modules are separate. The customer context is not.</h2><p>Contacts, consent, conversations and campaign activity stay connected so support and marketing teams do not rebuild customer context for every workflow. Use the same operating layer for shared inbox work, audience building, email, SMS and WhatsApp broadcasts, and paid campaign coordination.</p><Link className="textLink" href="/solutions">See how teams use it <ArrowRight size={15}/></Link></div>
       <div className="contextStack reveal delay1">{["Customer identity + consent","Inbox + conversation activity","Broadcast audiences + delivery","Ad campaign context"].map(x=><div key={x}><Layers3 size={17}/><span>{x}</span></div>)}</div>
     </section>
     <section className="centerRouteCta reveal"><h2>See the provider layer behind the workflows.</h2><p>UnifyDesk keeps providers visible while simplifying how your team works across them.</p><Link className="button" href="/integrations">View integrations <ArrowRight size={16}/></Link></section>
