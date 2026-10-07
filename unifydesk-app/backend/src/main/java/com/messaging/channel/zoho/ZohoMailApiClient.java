@@ -303,10 +303,17 @@ public class ZohoMailApiClient {
       List<String> messageIds,
       boolean read) {
     if (messageIds == null || messageIds.isEmpty()) return;
+    List<Long> numericMessageIds;
+    try {
+      numericMessageIds = messageIds.stream().map(Long::valueOf).toList();
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("Zoho Mail returned an invalid message identifier");
+    }
+
     Map<String, Object> payload =
         Map.of(
             "mode", read ? "markAsRead" : "markAsUnread",
-            "messageId", messageIds);
+            "messageId", numericMessageIds);
 
     executeVoid(
         "read_state",
