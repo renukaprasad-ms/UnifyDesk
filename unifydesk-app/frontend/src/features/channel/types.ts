@@ -2,6 +2,7 @@ export type ChannelType = 'EMAIL' | 'WHATSAPP' | 'SMS'
 export type ProviderType =
   | 'GMAIL'
   | 'MICROSOFT'
+  | 'ZOHO_MAIL'
   | 'IMAP_SMTP'
   | 'SMTP'
   | 'AMAZON_SES'
