@@ -342,7 +342,7 @@ export default function ImportDetailPage() {
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl">
+      <div className="w-full">
         <ContactsNav />
         <p className="eyebrow">Contacts</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">Import contacts</h1>

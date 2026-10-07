@@ -6,6 +6,7 @@ const coreLinks = [
   ['/contacts', 'Contacts'],
   ['/contacts/lists', 'Lists'],
   ['/contacts/segments', 'Segments'],
+  ['/contacts/settings', 'Settings'],
 ] as const
 
 export default function ContactsNav() {
