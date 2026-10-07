@@ -40,6 +40,21 @@ public final class ZohoMailDataCenter {
     return MAIL_BASE_BY_ACCOUNTS_HOST.get(host);
   }
 
+  public static String trustedMailBaseUrl(String value) {
+    URI uri = parse(value);
+    String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase();
+    boolean known = MAIL_BASE_BY_ACCOUNTS_HOST.containsValue("https://" + host);
+    if (!"https".equalsIgnoreCase(uri.getScheme())
+        || uri.getPort() != -1
+        || !known
+        || (uri.getPath() != null && !uri.getPath().isBlank() && !"/".equals(uri.getPath()))
+        || uri.getQuery() != null
+        || uri.getFragment() != null) {
+      throw new BadRequestException("Zoho Mail returned an unsupported API data center");
+    }
+    return "https://" + host;
+  }
+
   private static URI parse(String value) {
     if (value == null || value.isBlank()) {
       throw new BadRequestException("Zoho accounts server is missing");
