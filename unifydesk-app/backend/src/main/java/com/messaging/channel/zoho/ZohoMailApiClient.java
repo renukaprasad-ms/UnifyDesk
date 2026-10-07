@@ -409,27 +409,7 @@ public class ZohoMailApiClient {
   }
 
   private String trustedMailBase(String mailBaseUrl) {
-    if (!hasText(mailBaseUrl)) {
-      throw new BadRequestException("Zoho Mail API data center is missing");
-    }
-    URI uri;
-    try {
-      uri = URI.create(mailBaseUrl.trim());
-    } catch (IllegalArgumentException exception) {
-      throw new BadRequestException("Zoho Mail API data center is invalid");
-    }
-    if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null) {
-      throw new BadRequestException("Zoho Mail API data center is invalid");
-    }
-    String expected =
-        ZohoMailDataCenter.mailBaseUrl(
-            mailBaseUrl
-                .replace("https://mail.", "https://accounts.")
-                .replace("https://mail.zohocloud.ca", "https://accounts.zohocloud.ca"));
-    if (!expected.equalsIgnoreCase(mailBaseUrl)) {
-      throw new BadRequestException("Zoho Mail API data center is unsupported");
-    }
-    return expected;
+    return ZohoMailDataCenter.trustedMailBaseUrl(mailBaseUrl);
   }
 
   private String authorization(String accessToken) {
