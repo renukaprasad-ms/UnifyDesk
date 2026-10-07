@@ -1600,13 +1600,18 @@ function EmailInboxView() {
                 }
 
                 if (selectedConversationId) {
-                  await dispatch(
-                    fetchInboxConversationDetail({
-                      companyId,
-                      epoch: workspaceEpoch,
-                      conversationId: selectedConversationId,
-                    }),
-                  ).unwrap()
+                  try {
+                    await dispatch(
+                      fetchInboxConversationDetail({
+                        companyId,
+                        epoch: workspaceEpoch,
+                        conversationId: selectedConversationId,
+                      }),
+                    ).unwrap()
+                  } catch {
+                    // The contact is already saved and linked locally. A later Inbox refresh will
+                    // reconcile the canonical participant mapping.
+                  }
                 }
               })
               .catch((requestError) => {
