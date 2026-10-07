@@ -69,7 +69,7 @@ public class ZohoMailMessageMapper {
   }
 
   private Instant timestamp(ZohoMessage message) {
-    for (String candidate : List.of(message.receivedTime(), message.sentDateInGMT())) {
+    for (String candidate : new String[] {message.receivedTime(), message.sentDateInGMT()}) {
       if (!hasText(candidate)) continue;
       try {
         return Instant.ofEpochMilli(Long.parseLong(candidate.trim()));
