@@ -816,7 +816,10 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
             <button
               type="button"
               className="workspace-switcher"
-              disabled={loading || (!broadcastMode && identities.length === 0)}
+              disabled={
+                loading ||
+                (!broadcastMode && channelType !== 'EMAIL' && identities.length === 0)
+              }
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((current) => !current)}
@@ -1009,6 +1012,30 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
               </div>
             )}
           </div>
+
+          {emailMode &&
+            companyId &&
+            connectAllowed &&
+            !loading &&
+            identities.length === 0 && (
+              <EmailProviderPicker
+                companyId={companyId}
+                returnTo={location.pathname}
+                label="Connect email account"
+                className="primary-button mt-2 w-full justify-center gap-2"
+                buttonIcon="mail"
+                onError={setError}
+                onConnected={() => {
+                  void dispatch(
+                    fetchEmailConnections({
+                      companyId,
+                      epoch: workspaceEpoch,
+                      force: true,
+                    }),
+                  )
+                }}
+              />
+            )}
 
           {effectiveError && (
             <p className="mt-3 px-1 text-xs leading-5 text-rose-600">{effectiveError}</p>
