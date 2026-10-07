@@ -4,6 +4,7 @@ import { FiMail, FiPlus, FiServer, FiX } from 'react-icons/fi'
 import { SiGmail } from 'react-icons/si'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
+import { zohoMailApi } from '../../features/channel/zohoMailApi'
 import type { ImapSmtpConnection } from '../../features/channel/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import ImapSmtpSetupForm from './ImapSmtpSetupForm'
@@ -34,7 +35,7 @@ export default function EmailProviderPicker({
   onConnected,
 }: EmailProviderPickerProps) {
   const [open, setOpen] = useState(false)
-  const [connecting, setConnecting] = useState<'GMAIL' | 'MICROSOFT' | null>(null)
+  const [connecting, setConnecting] = useState<'GMAIL' | 'MICROSOFT' | 'ZOHO_MAIL' | null>(null)
   const [customSetup, setCustomSetup] = useState(false)
   const [error, setError] = useState('')
 
@@ -72,6 +73,18 @@ export default function EmailProviderPicker({
       window.location.assign(authorization.authorizationUrl)
     } catch (requestError) {
       fail(requestError, 'Unable to start Microsoft 365 connection')
+    }
+  }
+
+  const connectZohoMail = async () => {
+    if (connecting) return
+    setConnecting('ZOHO_MAIL')
+    setError('')
+    try {
+      const authorization = await zohoMailApi.authorize(companyId, returnTo)
+      window.location.assign(authorization.authorizationUrl)
+    } catch (requestError) {
+      fail(requestError, 'Unable to start Zoho Mail connection')
     }
   }
 
@@ -179,6 +192,28 @@ export default function EmailProviderPicker({
                         {connecting === 'MICROSOFT'
                           ? 'Opening Microsoft authorization...'
                           : 'Connect Outlook, Hotmail, or Microsoft 365 with OAuth'}
+                      </span>
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="email-provider-option"
+                    disabled={Boolean(connecting)}
+                    onClick={() => void connectZohoMail()}
+                  >
+                    <span
+                      className="email-provider-mark bg-red-50 font-black text-red-600"
+                      aria-hidden="true"
+                    >
+                      Z
+                    </span>
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="block text-sm font-bold text-slate-900">Zoho Mail</span>
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        {connecting === 'ZOHO_MAIL'
+                          ? 'Opening Zoho authorization...'
+                          : 'Connect securely with Zoho OAuth'}
                       </span>
                     </span>
                   </button>
