@@ -89,4 +89,27 @@ public interface ChannelSyncStateRepository extends JpaRepository<ChannelSyncSta
       nativeQuery = true)
   List<ChannelSyncState> findImapIncrementalClaimableForUpdate(
       @Param("staleCutoff") Instant staleCutoff, @Param("limit") int limit);
+
+  @Query(
+      value =
+          """
+          select s.*
+          from channel_sync_states s
+          join channel_connections c on c.id = s.connection_id
+          join companies company on company.id = c.company_id
+          where s.provider_type = 'ZOHO_MAIL'
+            and c.status = 'ACTIVE'
+            and company.status = 'ACTIVE'
+            and (s.incremental_next_attempt_at is null or s.incremental_next_attempt_at <= now())
+            and (
+              s.incremental_claimed_at is null
+              or s.incremental_claimed_at < :staleCutoff
+            )
+          order by coalesce(s.incremental_next_attempt_at, s.updated_at) asc
+          limit :limit
+          for update of s skip locked
+          """,
+      nativeQuery = true)
+  List<ChannelSyncState> findZohoIncrementalClaimableForUpdate(
+      @Param("staleCutoff") Instant staleCutoff, @Param("limit") int limit);
 }
