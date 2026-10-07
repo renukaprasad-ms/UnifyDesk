@@ -194,6 +194,7 @@ describe('contactModel', () => {
       idempotencyKey: 'fixed',
     })
     expect(result.consentMappings).toEqual([])
+    expect(result.consentDeclarations).toEqual([])
     expect(result.mappings).toHaveLength(1)
   })
 })

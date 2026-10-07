@@ -82,9 +82,9 @@ describe('ImportDetailPage', () => {
 
     renderPage()
 
-    fireEvent.click(await screen.findByText(/Marketing permissions/i))
-    fireEvent.click(screen.getByLabelText(/Import EMAIL marketing preference/i))
+    await screen.findByText(/Marketing permissions/i)
 
+    expect(screen.getByLabelText(/Import EMAIL marketing preference/i)).toBeChecked()
     expect(screen.getByText('Preference column')).toBeInTheDocument()
     expect(screen.getByText('Evidence column')).toBeInTheDocument()
     expect(screen.getByText('Consent date column')).toBeInTheDocument()
@@ -120,11 +120,62 @@ describe('ImportDetailPage', () => {
 
     renderPage()
 
-    expect(await screen.findByText(/3 detected/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Consent columns detected/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Import EMAIL marketing preference/i)).toBeChecked()
     expect(screen.getByLabelText(/Import SMS marketing preference/i)).toBeChecked()
     expect(screen.getByLabelText(/Import WhatsApp marketing preference/i)).toBeChecked()
     expect(screen.getByText(/3 channels mapped/i)).toBeInTheDocument()
+  })
+
+  it('supports one attested marketing permission choice for the whole import', async () => {
+    vi.mocked(contactsApi.getImport)
+      .mockResolvedValueOnce({
+        id: 'import-1',
+        status: 'PREVIEWED',
+      })
+      .mockResolvedValueOnce({
+        id: 'import-1',
+        status: 'QUEUED',
+      })
+    vi.mocked(contactsApi.previewImport).mockResolvedValue({
+      headers: ['name', 'email'],
+      sampleRows: [['Alice', 'alice@example.com']],
+    })
+    vi.mocked(contactsApi.commitImport).mockResolvedValue({
+      id: 'job-1',
+      status: 'QUEUED',
+    })
+
+    renderPage()
+
+    fireEvent.click(await screen.findByLabelText(/Same permission for all contacts/i))
+    fireEvent.click(screen.getByLabelText(/^EMAIL$/i))
+    fireEvent.click(
+      screen.getByLabelText(
+        /I confirm these contacts gave my business permission to receive marketing/i,
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Import contacts' }))
+
+    await waitFor(() =>
+      expect(contactsApi.commitImport).toHaveBeenCalledWith(
+        'company-1',
+        'import-1',
+        expect.objectContaining({
+          consentMappings: [],
+          consentDeclarations: [
+            expect.objectContaining({
+              channel: 'EMAIL',
+              state: 'OPTED_IN',
+              source: 'IMPORT',
+              evidence: 'Website form',
+              occurredAt: null,
+              confirmed: true,
+            }),
+          ],
+        }),
+      ),
+    )
   })
 
   it('announces asynchronous progress in business-friendly language', async () => {

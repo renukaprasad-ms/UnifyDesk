@@ -381,10 +381,20 @@ export type ConsentImportMapping = {
   occurredAtColumn?: string | null
 }
 
+export type ConsentImportDeclaration = {
+  channel: ContactChannel
+  state: 'OPTED_IN'
+  source: 'IMPORT'
+  evidence: string
+  occurredAt?: string | null
+  confirmed: boolean
+}
+
 export type ImportCommitInput = {
   mappings: ImportFieldMapping[]
   duplicateStrategy: 'SKIP' | 'MERGE_EXACT' | 'FAIL'
   consentMappings: ConsentImportMapping[]
+  consentDeclarations: ConsentImportDeclaration[]
   targetListId?: string | null
   idempotencyKey: string
 }

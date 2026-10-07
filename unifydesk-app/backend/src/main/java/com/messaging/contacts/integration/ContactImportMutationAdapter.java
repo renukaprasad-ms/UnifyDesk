@@ -381,6 +381,17 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
                 consent.channel(), state, consent.source(), evidence, occurredAt));
       }
     }
+    if (mapping.consentDeclarations() != null) {
+      for (ConsentDeclaration declaration : mapping.consentDeclarations()) {
+        consents.add(
+            new PreparedConsent(
+                declaration.channel(),
+                declaration.state(),
+                declaration.source(),
+                declaration.evidence(),
+                declaration.occurredAt()));
+      }
+    }
 
     return new PreparedRow(
         row.rowNumber(),

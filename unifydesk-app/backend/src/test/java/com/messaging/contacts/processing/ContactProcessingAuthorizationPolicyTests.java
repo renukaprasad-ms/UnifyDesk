@@ -18,7 +18,9 @@ import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.contacts.audience.ContactAudiencePermissions;
 import com.messaging.contacts.consent.ConsentTypes.Channel;
 import com.messaging.contacts.consent.ConsentTypes.PreferenceSource;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceState;
 import com.messaging.contacts.processing.ContactImportMutationPort.ConsentColumnMapping;
+import com.messaging.contacts.processing.ContactImportMutationPort.ConsentDeclaration;
 import com.messaging.contacts.processing.ContactImportMutationPort.ImportMapping;
 import java.util.List;
 import java.util.Map;
@@ -111,6 +113,27 @@ class ContactProcessingAuthorizationPolicyTests {
             List.of(
                 new ConsentColumnMapping(
                     Channel.EMAIL, 2, PreferenceSource.IMPORT, 3, null)));
+
+    policy.requireImportCommit(7L, 11L, mapping);
+
+    verify(authorization)
+        .requirePermission(7L, 11L, ContactAudiencePermissions.IMPORT);
+    verify(authorization)
+        .requirePermission(7L, 11L, ContactAudiencePermissions.CONSENT_MODIFY);
+  }
+
+  @Test
+  void bulkConsentDeclarationAlsoRequiresConsentModify() {
+    ImportMapping mapping =
+        importMapping(
+            List.of(),
+            List.of(
+                new ConsentDeclaration(
+                    Channel.WHATSAPP,
+                    PreferenceState.OPTED_IN,
+                    PreferenceSource.IMPORT,
+                    "Existing customer list",
+                    java.time.Instant.parse("2026-10-01T00:00:00Z"))));
 
     policy.requireImportCommit(7L, 11L, mapping);
 
@@ -225,6 +248,12 @@ class ContactProcessingAuthorizationPolicyTests {
   }
 
   private ImportMapping importMapping(List<ConsentColumnMapping> consentMappings) {
+    return importMapping(consentMappings, List.of());
+  }
+
+  private ImportMapping importMapping(
+      List<ConsentColumnMapping> consentMappings,
+      List<ConsentDeclaration> consentDeclarations) {
     return new ImportMapping(
         null,
         null,
@@ -236,6 +265,7 @@ class ContactProcessingAuthorizationPolicyTests {
         null,
         Map.of(),
         consentMappings,
+        consentDeclarations,
         null);
   }
 
