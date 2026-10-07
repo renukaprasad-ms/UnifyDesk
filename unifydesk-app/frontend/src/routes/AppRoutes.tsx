@@ -107,7 +107,7 @@ const AppRoutes = () => (
 
         <Route element={<WorkspaceRoute />}>
           <Route element={<MainLayout />}>
-            <Route path="/workspace" element={<Home />} />
+            <Route path="/workspace" element={<WorkspaceEpochBoundary><Home /></WorkspaceEpochBoundary>} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route
               path="/billing/payment-return"
@@ -183,6 +183,10 @@ const AppRoutes = () => (
                     PERMISSIONS.EMAIL_CONNECT,
                     PERMISSIONS.SMS_READ,
                     PERMISSIONS.SMS_CONNECT,
+                    PERMISSIONS.BROADCAST_READ,
+                    PERMISSIONS.BROADCAST_MODIFY,
+                    PERMISSIONS.ADS_READ,
+                    PERMISSIONS.ADS_CONNECT,
                   ]}
                 />
               }
