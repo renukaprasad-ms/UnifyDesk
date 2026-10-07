@@ -58,6 +58,14 @@ public class ContactController {
             "Contacts fetched"));
   }
 
+  @GetMapping("/dashboard-summary")
+  public ResponseEntity<ApiResponse<ContactDashboardSummary>> dashboardSummary(
+      @PathVariable Long companyId) {
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(200, service.dashboardSummary(companyId), "Contact dashboard fetched"));
+  }
+
   @PostMapping
   public ResponseEntity<ApiResponse<ContactDetail>> create(
       @PathVariable Long companyId, @Valid @RequestBody CreateContactRequest request) {
