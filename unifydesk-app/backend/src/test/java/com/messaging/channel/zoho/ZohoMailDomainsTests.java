@@ -26,6 +26,16 @@ class ZohoMailDomainsTests {
   }
 
   @Test
+  void validatesOnlyKnownMailApiHosts() {
+    assertThat(ZohoMailDomains.validateMailApiBase("https://mail.zoho.in/"))
+        .isEqualTo("https://mail.zoho.in");
+
+    assertThatThrownBy(() -> ZohoMailDomains.validateMailApiBase("https://evil.example"))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("not supported");
+  }
+
+  @Test
   void rejectsUnknownDataCenter() {
     assertThatThrownBy(() -> ZohoMailDomains.resolve("unknown", null))
         .isInstanceOf(BadRequestException.class)
