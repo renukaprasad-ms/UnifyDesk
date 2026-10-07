@@ -16,7 +16,7 @@ const teams=[
 ] as const;
 
 export default function Solutions(){
-  return <><Header/><main className="routePage">
+  return <><Header/><main id="main-content" className="routePage">
     <section className="routeHero"><div className="statusBadge"><span/>SOLUTIONS</div><h1>Different teams. One customer context.</h1><p>Give business, support and marketing teams shared inbox, customer context, broadcast and advertising workflows while keeping customer work connected across the company.</p></section>
     <section className="routeSection soft"><h2 className="sectionTitle">Designed around the teams doing the work.</h2><div className="routeCardGrid four">{teams.map(([title,tag,description,Icon,points],i)=><article className={"routeCard reveal delay"+((i%3)+1)} key={title}><div className="featureIcon"><Icon size={21}/></div><span className="softBadge">{tag}</span><h3>{title}</h3><p>{description}</p><div className="pointList">{points.map(p=><span key={p}><Check size={15}/>{p}</span>)}</div></article>)}</div></section>
     <section className="journeySection"><p className="kicker">ONE CUSTOMER JOURNEY</p><h2 className="sectionTitle">Support, marketing and growth should not operate from isolated customer records.</h2><div className="journeyFlow">{[["01","Conversation"],["02","Customer context"],["03","Audience"],["04","Broadcast"],["05","Paid campaign"],["06","Performance"]].map(([n,t])=><div className="reveal" key={n}><span>{n}</span><b>{t}</b></div>)}</div></section>

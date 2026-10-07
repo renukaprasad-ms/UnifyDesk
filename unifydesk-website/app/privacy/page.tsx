@@ -8,7 +8,7 @@ export const metadata:Metadata={
 };
 
 export default function Privacy(){
-  return <><Header/><main className="legal">
+  return <><Header/><main id="main-content" className="legal">
     <p className="kicker">LEGAL · PRE-LAUNCH</p>
     <h1>Privacy</h1>
     <p className="legalUpdated">Updated 29 September 2026</p>
@@ -20,3 +20,4 @@ export default function Privacy(){
     <aside>The complete privacy notice, including legal bases, retention periods, subprocessors, rights and contact information, will be published before public launch.</aside>
   </main><Footer/></>
 }
+
