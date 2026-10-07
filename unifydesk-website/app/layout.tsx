@@ -4,11 +4,11 @@ import StructuredData from "./structured-data";
 
 export const metadata: Metadata = {
   title: {
-    default: "UnifyDesk — Customer communication, campaigns & ads in one workspace",
+    default: "UnifyDesk | Customer Communication & Marketing Platform",
     template: "%s | UnifyDesk",
   },
   description:
-    "UnifyDesk is an upcoming connected workspace for customer conversations, broadcasts, advertising and team workflows. Public access is coming soon.",
+    "UnifyDesk brings customer conversations, contacts, broadcasts, email, SMS, WhatsApp and advertising workflows into one connected business workspace.",
   metadataBase: new URL("https://unifydesk.in"),
   icons: {
     icon: [
@@ -27,9 +27,9 @@ export const metadata: Metadata = {
         alt: "UnifyDesk — Run customer communication from one place",
       },
     ],
-    title: "UnifyDesk — One workspace for customer communication and growth",
+    title: "UnifyDesk | Customer Communication & Marketing Platform",
     description:
-      "UnifyDesk is under active development. Public access is coming soon.",
+      "Manage customer conversations, broadcasts, email, SMS, WhatsApp and advertising workflows from one connected UnifyDesk workspace.",
     url: "https://unifydesk.in",
     siteName: "UnifyDesk",
     type: "website",
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     images: ["/twitter-image"],
     title: "UnifyDesk",
-    description: "Customer communication, campaigns and ads in one connected workspace.",
+    description: "Customer communication, broadcasts, email, SMS, WhatsApp and advertising workflows in one connected workspace.",
   },
   robots: { index: true, follow: true },
   applicationName: "UnifyDesk",

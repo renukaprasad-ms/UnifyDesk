@@ -3,8 +3,8 @@ import {Building2,KeyRound,LockKeyhole,ShieldCheck,TimerReset} from "lucide-reac
 import {Footer,Header} from "../components";
 
 export const metadata:Metadata={
-  title:"Security | UnifyDesk",
-  description:"Learn about UnifyDesk company isolation, identity controls, 2FA, sessions and provider boundaries.",
+  title:"Security & Data Protection",
+  description:"Learn how UnifyDesk approaches company isolation, role-based access, 2FA, sessions, provider boundaries and secure customer communication workflows.",
   alternates:{canonical:"/security"}
 };
 

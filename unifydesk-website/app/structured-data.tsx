@@ -1,1 +1,41 @@
-export default function StructuredData(){const data=[{"@context":"https://schema.org","@type":"Organization","@id":"https://unifydesk.in/#organization",name:"UnifyDesk",url:"https://unifydesk.in",logo:"https://unifydesk.in/logo.svg",description:"UnifyDesk is a pre-launch connected workspace for customer communication, broadcasts, advertising and team workflows. Public access is coming soon."},{"@context":"https://schema.org","@type":"WebSite","@id":"https://unifydesk.in/#website",url:"https://unifydesk.in",name:"UnifyDesk",publisher:{"@id":"https://unifydesk.in/#organization"}},{"@context":"https://schema.org","@type":"SoftwareApplication","@id":"https://unifydesk.in/#software",name:"UnifyDesk",url:"https://unifydesk.in",applicationCategory:"BusinessApplication",applicationSubCategory:"Customer communication and marketing workspace",operatingSystem:"Web",description:"A business workspace in active development for customer conversations, broadcasts, email, Google Ads and Meta Ads. Public access is coming soon.",publisher:{"@id":"https://unifydesk.in/#organization"}}];return <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(data)}}/>}
+export default function StructuredData(){
+  const data=[
+    {
+      "@context":"https://schema.org",
+      "@type":"Organization",
+      "@id":"https://unifydesk.in/#organization",
+      name:"UnifyDesk",
+      url:"https://unifydesk.in/",
+      logo:"https://unifydesk.in/logo.svg",
+      description:"UnifyDesk is a customer communication and marketing platform that connects conversations, contacts, broadcasts and advertising workflows."
+    },
+    {
+      "@context":"https://schema.org",
+      "@type":"WebSite",
+      "@id":"https://unifydesk.in/#website",
+      url:"https://unifydesk.in/",
+      name:"UnifyDesk",
+      publisher:{"@id":"https://unifydesk.in/#organization"}
+    },
+    {
+      "@context":"https://schema.org",
+      "@type":"SoftwareApplication",
+      "@id":"https://unifydesk.in/#software",
+      name:"UnifyDesk",
+      url:"https://unifydesk.in/",
+      applicationCategory:"BusinessApplication",
+      applicationSubCategory:"Customer communication and marketing platform",
+      operatingSystem:"Web",
+      description:"A connected workspace for customer conversations, contacts, broadcasts, email, SMS, WhatsApp, Google Ads and Meta Ads.",
+      featureList:[
+        "Shared customer inbox",
+        "Contact and consent management",
+        "Email, SMS and WhatsApp broadcasts",
+        "Google Ads and Meta Ads workflows",
+        "Role-based workspace controls"
+      ],
+      publisher:{"@id":"https://unifydesk.in/#organization"}
+    }
+  ];
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(data)}}/>
+}
