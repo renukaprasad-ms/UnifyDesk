@@ -18,8 +18,8 @@ public record ZohoMailSendResponse(
   public static ZohoMailSendResponse from(EmailSendResult result) {
     return new ZohoMailSendResponse(
         result.connectionId().toString(),
-        result.messageId(),
-        result.threadId(),
+        result.externalMessageId(),
+        result.externalThreadId(),
         result.from(),
         result.to(),
         result.cc(),
