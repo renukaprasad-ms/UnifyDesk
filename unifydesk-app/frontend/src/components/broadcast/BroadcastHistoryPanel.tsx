@@ -8,6 +8,8 @@ import type {
   Page,
 } from '../../features/broadcast/types'
 import type { ChannelType } from '../../features/channel/types'
+import { PERMISSIONS } from '../../features/iam/permissions'
+import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 import { useAppSelector } from '../../store/hooks'
@@ -70,6 +72,7 @@ const formattedDate = (value?: string | null) =>
     : '—'
 
 export default function BroadcastHistoryPanel({ channel, onOpen, onCreate }: Props) {
+  const { can } = useIam()
   const companyId = useAppSelector(selectSelectedCompanyId)
   const epoch = useAppSelector(selectWorkspaceEpoch)
   const { capture: captureScope, isCurrent: scopeIsCurrent } = useWorkspaceEpochScope(
@@ -155,10 +158,12 @@ export default function BroadcastHistoryPanel({ channel, onOpen, onCreate }: Pro
                 <FiRefreshCw aria-hidden="true" />
                 {refreshing ? 'Refreshing…' : 'Refresh'}
               </button>
-              <button type="button" className="primary-button gap-2" onClick={onCreate}>
-                <FiSend aria-hidden="true" />
-                New broadcast
-              </button>
+              {can(PERMISSIONS.BROADCAST_CREATE) && (
+                <button type="button" className="primary-button gap-2" onClick={onCreate}>
+                  <FiSend aria-hidden="true" />
+                  New broadcast
+                </button>
+              )}
             </div>
           </div>
 
@@ -181,9 +186,11 @@ export default function BroadcastHistoryPanel({ channel, onOpen, onCreate }: Pro
               <p className="mt-1 text-sm text-slate-500">
                 Create your first {channelLabel(channel).toLowerCase()} broadcast to see its progress here.
               </p>
-              <button type="button" className="primary-button mt-4" onClick={onCreate}>
-                Create broadcast
-              </button>
+              {can(PERMISSIONS.BROADCAST_CREATE) && (
+                <button type="button" className="primary-button mt-4" onClick={onCreate}>
+                  Create broadcast
+                </button>
+              )}
             </div>
           ) : (
             <div className="mt-5 grid gap-3">
