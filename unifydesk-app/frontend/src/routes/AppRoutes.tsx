@@ -183,6 +183,10 @@ const AppRoutes = () => (
                     PERMISSIONS.EMAIL_CONNECT,
                     PERMISSIONS.SMS_READ,
                     PERMISSIONS.SMS_CONNECT,
+                    PERMISSIONS.BROADCAST_READ,
+                    PERMISSIONS.BROADCAST_MODIFY,
+                    PERMISSIONS.ADS_READ,
+                    PERMISSIONS.ADS_CONNECT,
                   ]}
                 />
               }
