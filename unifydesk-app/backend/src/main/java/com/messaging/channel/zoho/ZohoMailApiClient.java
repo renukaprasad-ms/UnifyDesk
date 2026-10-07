@@ -408,10 +408,7 @@ public class ZohoMailApiClient {
   }
 
   private RestClient client(String baseUrl) {
-    if (!hasText(baseUrl) || !baseUrl.startsWith("https://")) {
-      throw new BadRequestException("Zoho Mail API domain is invalid");
-    }
-    return RestClient.create(baseUrl);
+    return RestClient.create(ZohoMailDomains.validateMailApiBase(baseUrl));
   }
 
   private String validatedAccountsServer(String value) {
