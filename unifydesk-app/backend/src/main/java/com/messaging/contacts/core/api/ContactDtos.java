@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -114,6 +115,16 @@ public final class ContactDtos {
   public record AddListMembersRequest(@NotNull @Size(max = 500) List<String> contactIds) {}
 
   public record ContactPage<T>(List<T> items, String nextCursor, boolean hasMore) {}
+
+  public record ContactGrowthPoint(LocalDate date, long added) {}
+
+  public record ContactDashboardSummary(
+      long totalContacts,
+      long newContacts30d,
+      long emailSubscribers,
+      long smsSubscribers,
+      long whatsappSubscribers,
+      List<ContactGrowthPoint> growth) {}
 
   public record IdentityResponse(
       String id,

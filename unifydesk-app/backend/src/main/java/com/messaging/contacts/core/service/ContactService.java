@@ -114,6 +114,22 @@ public class ContactService {
   }
 
   @Transactional(readOnly = true)
+  public ContactDashboardSummary dashboardSummary(long companyId) {
+    var counts = contactRepository.dashboardCounts(companyId);
+    var growth =
+        contactRepository.dashboardGrowth(companyId).stream()
+            .map(row -> new ContactGrowthPoint(row.day(), row.added()))
+            .toList();
+    return new ContactDashboardSummary(
+        counts.totalContacts(),
+        counts.newContacts30d(),
+        counts.emailSubscribers(),
+        counts.smsSubscribers(),
+        counts.whatsappSubscribers(),
+        growth);
+  }
+
+  @Transactional(readOnly = true)
   public ContactPage<ContactSummary> search(long companyId, SearchRequest request) {
     int size = request.size() <= 0 ? DEFAULT_PAGE_SIZE : Math.min(MAX_PAGE_SIZE, request.size());
     ContactStatus status = request.status() == null ? ContactStatus.ACTIVE : request.status();

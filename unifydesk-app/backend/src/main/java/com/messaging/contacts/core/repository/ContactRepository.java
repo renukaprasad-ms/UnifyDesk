@@ -13,6 +13,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -52,6 +53,119 @@ public class ContactRepository {
             Long.class,
             companyId);
     return count == null ? 0 : count;
+  }
+
+  public DashboardCounts dashboardCounts(long companyId) {
+    return jdbcTemplate.queryForObject(
+        """
+        select
+          count(*) as total_contacts,
+          count(*) filter (where c.created_at >= now() - interval '30 days') as new_contacts_30d,
+          count(*) filter (
+            where coalesce((
+              select p.state
+              from contact_channel_preferences p
+              where p.company_id = c.company_id
+                and p.contact_id = c.id
+                and p.channel = 'EMAIL'
+                and p.purpose = 'MARKETING'
+                and (
+                  p.identity_id is null
+                  or p.identity_id = (
+                    select i.id
+                    from contact_identities i
+                    where i.company_id = c.company_id
+                      and i.contact_id = c.id
+                      and i.identity_type = 'EMAIL'
+                      and i.status = 'ACTIVE'
+                    order by i.is_primary desc, i.created_at, i.id
+                    limit 1
+                  )
+                )
+              order by (p.identity_id is not null) desc, p.updated_at desc, p.id desc
+              limit 1
+            ), 'UNKNOWN') = 'OPTED_IN'
+          ) as email_subscribers,
+          count(*) filter (
+            where coalesce((
+              select p.state
+              from contact_channel_preferences p
+              where p.company_id = c.company_id
+                and p.contact_id = c.id
+                and p.channel = 'SMS'
+                and p.purpose = 'MARKETING'
+                and (
+                  p.identity_id is null
+                  or p.identity_id = (
+                    select i.id
+                    from contact_identities i
+                    where i.company_id = c.company_id
+                      and i.contact_id = c.id
+                      and i.identity_type = 'PHONE'
+                      and i.status = 'ACTIVE'
+                    order by i.is_primary desc, i.created_at, i.id
+                    limit 1
+                  )
+                )
+              order by (p.identity_id is not null) desc, p.updated_at desc, p.id desc
+              limit 1
+            ), 'UNKNOWN') = 'OPTED_IN'
+          ) as sms_subscribers,
+          count(*) filter (
+            where coalesce((
+              select p.state
+              from contact_channel_preferences p
+              where p.company_id = c.company_id
+                and p.contact_id = c.id
+                and p.channel = 'WHATSAPP'
+                and p.purpose = 'MARKETING'
+                and (
+                  p.identity_id is null
+                  or p.identity_id = (
+                    select i.id
+                    from contact_identities i
+                    where i.company_id = c.company_id
+                      and i.contact_id = c.id
+                      and i.identity_type = 'PHONE'
+                      and i.status = 'ACTIVE'
+                    order by i.is_primary desc, i.created_at, i.id
+                    limit 1
+                  )
+                )
+              order by (p.identity_id is not null) desc, p.updated_at desc, p.id desc
+              limit 1
+            ), 'UNKNOWN') = 'OPTED_IN'
+          ) as whatsapp_subscribers
+        from contacts c
+        where c.company_id = ?
+          and c.status = 'ACTIVE'
+        """,
+        (rs, rowNum) ->
+            new DashboardCounts(
+                rs.getLong("total_contacts"),
+                rs.getLong("new_contacts_30d"),
+                rs.getLong("email_subscribers"),
+                rs.getLong("sms_subscribers"),
+                rs.getLong("whatsapp_subscribers")),
+        companyId);
+  }
+
+  public List<DailyContactCount> dashboardGrowth(long companyId) {
+    return jdbcTemplate.query(
+        """
+        select
+          (c.created_at at time zone 'UTC')::date as day,
+          count(*) as added
+        from contacts c
+        where c.company_id = ?
+          and c.status = 'ACTIVE'
+          and (c.created_at at time zone 'UTC') >=
+              date_trunc('day', now() at time zone 'UTC') - interval '29 days'
+        group by (c.created_at at time zone 'UTC')::date
+        order by day
+        """,
+        (rs, rowNum) -> new DailyContactCount(rs.getObject("day", LocalDate.class), rs.getLong("added")),
+        companyId);
   }
 
   public ContactRow insertContact(
@@ -757,6 +871,15 @@ public class ContactRepository {
         rs.getTimestamp("updated_at").toInstant(),
         deleted == null ? null : deleted.toInstant());
   }
+
+  public record DashboardCounts(
+      long totalContacts,
+      long newContacts30d,
+      long emailSubscribers,
+      long smsSubscribers,
+      long whatsappSubscribers) {}
+
+  public record DailyContactCount(LocalDate day, long added) {}
 
   public record IdentityKey(IdentityType type, String namespace, String normalizedValue) {}
 

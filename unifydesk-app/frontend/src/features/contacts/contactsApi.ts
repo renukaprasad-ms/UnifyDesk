@@ -7,6 +7,7 @@ import type {
   BulkOperation,
   CommunicationPreference,
   ContactActivity,
+  ContactDashboardSummary,
   ContactDetail,
   ContactExport,
   ContactIdentity,
@@ -46,6 +47,13 @@ export const contactsApi = {
     const response = await apiClient.get<ApiResponse<CursorPage<ContactSummary>>>(base(companyId), {
       params: { ...query, cursor: cursor || undefined },
     })
+    return unwrap(response.data)
+  },
+
+  async dashboardSummary(companyId: string) {
+    const response = await apiClient.get<ApiResponse<ContactDashboardSummary>>(
+      base(companyId) + '/dashboard-summary',
+    )
     return unwrap(response.data)
   },
 
