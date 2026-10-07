@@ -178,7 +178,7 @@ public class ZohoMailMailboxService {
   }
 
   private Instant providerInstant(ZohoMessage message) {
-    for (String value : List.of(message.receivedTime(), message.sentDateInGMT())) {
+    for (String value : new String[] {message.receivedTime(), message.sentDateInGMT()}) {
       if (value == null || value.isBlank()) continue;
       try {
         return Instant.ofEpochMilli(Long.parseLong(value.trim()));
