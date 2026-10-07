@@ -446,6 +446,10 @@
     background: color-mix(in srgb, #0078d4 16%, var(--theme-surface));
     color: #0078d4;
   }
+  .email-provider-logo-zoho {
+    background: color-mix(in srgb, #e42527 13%, var(--theme-surface));
+    color: #e42527;
+  }
   .email-provider-logo-imap {
     background: color-mix(in srgb, var(--theme-primary) 16%, var(--theme-surface));
     color: var(--theme-primary);
