@@ -178,6 +178,23 @@ export type MicrosoftSendRequest = {
   attachmentMediaIds?: string[]
 }
 
+export type ZohoMailAuthorization = {
+  authorizationUrl: string
+}
+
+export type ZohoMailSendRequest = MicrosoftSendRequest
+
+export type ZohoMailSendResponse = {
+  connectionId: string
+  messageId?: string | null
+  from: string
+  to: string[]
+  cc: string[]
+  bcc: string[]
+  subject: string
+  acceptedAt: string
+}
+
 export type MicrosoftSendResponse = {
   connectionId: string
   from: string
