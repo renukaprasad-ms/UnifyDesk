@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
-  FiActivity,
   FiAlertCircle,
   FiArrowRight,
   FiBarChart2,
@@ -620,7 +619,7 @@ export default function Home() {
           value: number.format(broadcastTotal),
           meta: 'Across Email, SMS and WhatsApp',
           icon: <FiSend />,
-          to: '/broadcast/email?view=history',
+          to: '/broadcast/email',
         }
       : null,
     canReadInbox
@@ -885,7 +884,7 @@ export default function Home() {
                 title="Recent broadcasts"
                 description="Latest Email, SMS and WhatsApp sends."
                 action={
-                  <Link className="secondary-button gap-2" to="/broadcast/email?view=history">
+                  <Link className="secondary-button gap-2" to="/broadcast/email">
                     View all
                     <FiArrowRight aria-hidden="true" />
                   </Link>
