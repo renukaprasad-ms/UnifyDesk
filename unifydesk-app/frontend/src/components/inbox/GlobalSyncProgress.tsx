@@ -10,7 +10,7 @@ type DisplayJob = AsyncJob & {
   receivedCompletedAt?: number
 }
 
-const SYNC_TYPES = new Set(['GMAIL_SYNC', 'MICROSOFT_SYNC', 'IMAP_SMTP_SYNC'])
+const SYNC_TYPES = new Set(['GMAIL_SYNC', 'MICROSOFT_SYNC', 'ZOHO_MAIL_SYNC', 'IMAP_SMTP_SYNC'])
 const COMPLETED_RETENTION_MS = 25_000
 const ANIMATION_TICK_MS = 50
 const MAX_CATCH_UP_MS = 1_000
@@ -27,6 +27,7 @@ const nextDisplayedUnits = (displayedUnits: number, targetUnits: number) => {
 const labelFor = (job: AsyncJob) => {
   if (job.jobType === 'GMAIL_SYNC') return 'Gmail sync'
   if (job.jobType === 'MICROSOFT_SYNC') return 'Microsoft sync'
+  if (job.jobType === 'ZOHO_MAIL_SYNC') return 'Zoho Mail sync'
   if (job.jobType === 'IMAP_SMTP_SYNC') return 'Email sync'
   return 'Sync'
 }
