@@ -167,6 +167,33 @@ export type MicrosoftAuthorization = {
   authorizationUrl: string
 }
 
+export type ZohoMailAuthorization = {
+  authorizationUrl: string
+}
+
+export type ZohoMailSendRequest = {
+  to: string[]
+  cc?: string[]
+  bcc?: string[]
+  subject?: string
+  bodyText: string
+  replyToMessageId?: string | null
+  replyAll?: boolean
+  attachmentMediaIds?: string[]
+}
+
+export type ZohoMailSendResponse = {
+  connectionId: string
+  messageId: string
+  threadId?: string | null
+  from: string
+  to: string[]
+  cc: string[]
+  bcc: string[]
+  subject: string
+  sentAt: string
+}
+
 export type MicrosoftSendRequest = {
   to: string[]
   cc?: string[]
