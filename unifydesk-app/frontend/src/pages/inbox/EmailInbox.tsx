@@ -396,7 +396,8 @@ function EmailInboxView() {
   useEffect(() => {
     const gmailResult = searchParams.get('gmail')
     const microsoftResult = searchParams.get('microsoft')
-    if (!gmailResult && !microsoftResult) return
+    const zohoMailResult = searchParams.get('zohoMail')
+    if (!gmailResult && !microsoftResult && !zohoMailResult) return
 
     if (gmailResult === 'connected') {
       snackbar.success('Gmail connected successfully')
@@ -414,9 +415,18 @@ function EmailInboxView() {
       snackbar.error('Unable to connect Microsoft 365. Please try again.')
     }
 
+    if (zohoMailResult === 'connected') {
+      snackbar.success('Zoho Mail connected successfully')
+    } else if (zohoMailResult === 'cancelled') {
+      snackbar.info('Zoho Mail connection was cancelled')
+    } else if (zohoMailResult) {
+      snackbar.error('Unable to connect Zoho Mail. Please try again.')
+    }
+
     const params = new URLSearchParams(searchParams)
     params.delete('gmail')
     params.delete('microsoft')
+    params.delete('zohoMail')
     setSearchParams(params, { replace: true })
     if (companyId) {
       void dispatch(fetchEmailConnections({ companyId, epoch: workspaceEpoch, force: true }))
@@ -1197,7 +1207,7 @@ function EmailInboxView() {
                 </p>
 
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
-                  {['Gmail', 'Microsoft 365', 'IMAP + SMTP'].map((provider) => (
+                  {['Gmail', 'Microsoft 365', 'Zoho Mail', 'IMAP + SMTP'].map((provider) => (
                     <span
                       key={provider}
                       className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600"
