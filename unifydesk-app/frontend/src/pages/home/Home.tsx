@@ -758,13 +758,19 @@ export default function Home() {
         </header>
 
         {loading ? (
-          <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div
+            className="mt-7 grid gap-4"
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}
+          >
             {Array.from({ length: Math.max(4, kpis.length) }).map((_, index) => (
               <CardSkeleton key={index} rows={2} />
             ))}
           </div>
         ) : (
-          <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div
+            className="mt-7 grid gap-3"
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}
+          >
             {kpis.map((kpi) => (
               <Link
                 key={kpi.label}
@@ -837,7 +843,10 @@ export default function Home() {
                 </Link>
               }
             />
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div
+              className="mt-3 grid gap-3"
+              style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}
+            >
               {channelCards.map((channel) => (
                 <Link
                   key={channel.id}
@@ -956,7 +965,7 @@ export default function Home() {
 
         <div className="mt-6 grid gap-6 xl:grid-cols-2">
           {canReadInbox && (
-            <section className="panel overflow-hidden">
+            <section className={`panel overflow-hidden ${canReadContacts ? '' : 'xl:col-span-2'}`}>
               <div className="border-b border-slate-100 p-5">
                 <SectionHeading
                   title="Inbox"
@@ -1016,7 +1025,7 @@ export default function Home() {
           )}
 
           {canReadContacts && (
-            <section className="panel p-5">
+            <section className={`panel p-5 ${canReadInbox ? '' : 'xl:col-span-2'}`}>
               <SectionHeading
                 title="Contacts & audience growth"
                 description="New contacts over the last 30 days and current marketing permissions."
@@ -1261,7 +1270,7 @@ export default function Home() {
             </section>
           )}
 
-          <section className="panel overflow-hidden">
+          <section className={`panel overflow-hidden ${canReadAds ? '' : 'xl:col-span-2'}`}>
             <div className="border-b border-slate-100 p-5">
               <SectionHeading
                 title="Recent workspace activity"
@@ -1301,7 +1310,10 @@ export default function Home() {
 
         <section className="mt-6">
           <SectionHeading title="Quick actions" description="Common workspace tasks, one click away." />
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            className="mt-3 grid gap-3"
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}
+          >
             {canCreateBroadcasts && (
               <Link className="panel group flex items-center gap-3 p-4 hover:border-indigo-200" to="/broadcast/email">
                 <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><FiSend /></span>
