@@ -141,6 +141,8 @@ public class ZohoMailApiClient {
                                 .queryParam("start", Math.max(1, start))
                                 .queryParam("limit", Math.max(1, Math.min(200, limit)))
                                 .queryParam("status", "all")
+                                .queryParam("sortBy", "date")
+                                .queryParam("sortorder", false)
                                 .queryParam("includeto", true)
                                 .build(accountId))
                     .header(HttpHeaders.AUTHORIZATION, oauthHeader(accessToken))
