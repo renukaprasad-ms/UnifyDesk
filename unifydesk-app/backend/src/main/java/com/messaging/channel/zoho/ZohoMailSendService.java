@@ -61,7 +61,7 @@ public class ZohoMailSendService {
                   subject,
                   body,
                   "plaintext",
-                  command.replyAll() ? "replyall" : "reply",
+                  "reply",
                   uploaded.isEmpty() ? null : uploaded));
     } else {
       sent =
