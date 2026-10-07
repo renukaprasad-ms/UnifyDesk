@@ -107,7 +107,7 @@ const AppRoutes = () => (
 
         <Route element={<WorkspaceRoute />}>
           <Route element={<MainLayout />}>
-            <Route path="/workspace" element={<Home />} />
+            <Route path="/workspace" element={<WorkspaceEpochBoundary><Home /></WorkspaceEpochBoundary>} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route
               path="/billing/payment-return"
