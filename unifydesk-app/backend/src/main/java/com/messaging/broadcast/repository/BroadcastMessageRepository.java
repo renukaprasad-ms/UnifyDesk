@@ -2,6 +2,7 @@ package com.messaging.broadcast.repository;
 
 import com.messaging.broadcast.entity.BroadcastMessage;
 import com.messaging.broadcast.enums.BroadcastMessageStatus;
+import com.messaging.channel.enums.ChannelType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -12,6 +13,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface BroadcastMessageRepository extends JpaRepository<BroadcastMessage, Long> {
   Page<BroadcastMessage> findByGroupIdOrderByCreatedAtDesc(Long groupId, Pageable pageable);
+
+  Page<BroadcastMessage> findByCompanyIdAndChannelTypeOrderByCreatedAtDesc(
+      Long companyId, ChannelType channelType, Pageable pageable);
 
   Optional<BroadcastMessage> findByIdAndCompanyId(Long id, Long companyId);
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import {
   broadcastApi,
   isBroadcastAudiencePreviewStale,
@@ -13,6 +13,11 @@ import type {
   RecipientResolutionPreview,
 } from '../../features/broadcast/types'
 import { contactsApi } from '../../features/contacts/contactsApi'
+import { emailTemplateApi } from '../../features/emailTemplate/emailTemplateApi'
+import type {
+  EmailTemplateProviderBinding,
+  EmailTemplateSummary,
+} from '../../features/emailTemplate/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import type { ContactSummary, ListSummary, SegmentDefinition } from '../../features/contacts/types'
@@ -50,16 +55,33 @@ type Props = {
 }
 
 const exclusionLabels: Record<RecipientExclusionReason, string> = {
-  DUPLICATE: 'Duplicate identity',
-  MISSING_IDENTITY: 'Missing channel identity',
-  INVALID_IDENTITY: 'Invalid channel identity',
+  DUPLICATE: 'Duplicate contact method',
+  MISSING_IDENTITY: 'Missing email or phone',
+  INVALID_IDENTITY: 'Invalid email or phone',
   OPTED_OUT: 'Opted out',
-  CONSENT_REQUIRED: 'Consent required',
-  SUPPRESSED: 'Suppressed',
-  CHANNEL_INELIGIBLE: 'Not eligible for this channel',
+  CONSENT_REQUIRED: 'Permission not recorded',
+  SUPPRESSED: 'Delivery blocked',
+  CHANNEL_INELIGIBLE: 'Channel unavailable',
 }
 
 const channelLabel = (channel: ChannelType) => (channel === 'WHATSAPP' ? 'WhatsApp' : channel)
+
+const automaticEmailVariables = new Set([
+  'destination',
+  'email',
+  'phone',
+  'mobile',
+  'current_date',
+  'current_year',
+])
+
+const recipientNameVariables = new Set([
+  'name',
+  'display_name',
+  'full_name',
+  'first_name',
+  'last_name',
+])
 
 export const buildAudienceSelector = (
   sourceType: 'CONTACT_LIST' | 'SEGMENT' | 'CONTACTS',
@@ -104,6 +126,7 @@ export const buildCanonicalBroadcastPayload = ({
   body,
   whatsappTemplateId,
   whatsappTemplateParameters,
+  emailTemplateId,
   managedSmsTemplateId,
   templateVariables,
 }: {
@@ -114,19 +137,22 @@ export const buildCanonicalBroadcastPayload = ({
   body: string
   whatsappTemplateId?: string | null
   whatsappTemplateParameters: WhatsAppTemplateParameters
+  emailTemplateId?: string | null
   managedSmsTemplateId?: string | null
   templateVariables?: Record<string, string>
 }): CreateAudienceBroadcastMessageInput => {
   const usesManagedSms = channel === 'SMS' && Boolean(managedSmsTemplateId)
+  const usesEmailTemplate = channel === 'EMAIL' && Boolean(emailTemplateId)
   return {
     ...source,
     channelType: channel,
     senderId,
-    subject: channel === 'EMAIL' ? subject.trim() || null : null,
-    bodyText: channel === 'WHATSAPP' || usesManagedSms ? null : body.trim() || null,
-    templateId: null,
+    subject: channel === 'EMAIL' && !usesEmailTemplate ? subject.trim() || null : null,
+    bodyText:
+      channel === 'WHATSAPP' || usesManagedSms || usesEmailTemplate ? null : body.trim() || null,
+    templateId: usesEmailTemplate ? emailTemplateId : null,
     managedSmsTemplateId: usesManagedSms ? managedSmsTemplateId : null,
-    templateVariables: usesManagedSms ? templateVariables : undefined,
+    templateVariables: usesManagedSms || usesEmailTemplate ? templateVariables : undefined,
     whatsappTemplateId: channel === 'WHATSAPP' ? whatsappTemplateId || null : null,
     whatsappTemplateParameters:
       channel === 'WHATSAPP' ? whatsappTemplateParameters : null,
@@ -174,6 +200,8 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   const [lists, setLists] = useState<ListSummary[]>([])
   const [segments, setSegments] = useState<SegmentDefinition[]>([])
   const [contacts, setContacts] = useState<ContactSummary[]>([])
+  const [contactSearch, setContactSearch] = useState('')
+  const [contactSearchLoading, setContactSearchLoading] = useState(false)
   const [sourceType, setSourceType] = useState<'CONTACT_LIST' | 'SEGMENT' | 'CONTACTS'>(
     searchParams.get('audienceType') === 'SEGMENT'
       ? 'SEGMENT'
@@ -192,6 +220,11 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   const [previewing, setPreviewing] = useState(false)
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplateSummary[]>([])
+  const [emailTemplateId, setEmailTemplateId] = useState('')
+  const [emailTemplateVariables, setEmailTemplateVariables] = useState<Record<string, string>>({})
+  const [emailProviderBindings, setEmailProviderBindings] = useState<EmailTemplateProviderBinding[]>([])
+  const [emailTemplatesLoading, setEmailTemplatesLoading] = useState(false)
   const [templateId, setTemplateId] = useState('')
   const [whatsappTemplates, setWhatsappTemplates] = useState<WhatsAppTemplate[]>([])
   const [whatsappParameters, setWhatsappParameters] = useState<WhatsAppTemplateParameters>({
@@ -230,6 +263,28 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   const selectedBroadcastSender =
     currentBroadcastSenders.find((item) => item.id === senderId) ?? null
   const selectedWhatsappTemplate = whatsappTemplates.find((item) => item.id === templateId) ?? null
+  const usesMsg91Email = channel === 'EMAIL' && selectedBroadcastSender?.provider === 'MSG91_EMAIL'
+  const emailBindingByVersion = useMemo(
+    () =>
+      new Map(
+        emailProviderBindings.map((binding) => [
+          `${binding.templateId}:${binding.templateVersion}`,
+          binding,
+        ]),
+      ),
+    [emailProviderBindings],
+  )
+  const availableEmailTemplates = useMemo(
+    () =>
+      emailTemplates.filter((template) => {
+        if (!usesMsg91Email) return true
+        if (template.purpose !== 'TRANSACTIONAL' || template.publishedVersion == null) return false
+        return emailBindingByVersion.get(`${template.id}:${template.publishedVersion}`)?.sendable === true
+      }),
+    [emailBindingByVersion, emailTemplates, usesMsg91Email],
+  )
+  const selectedEmailTemplate =
+    emailTemplates.find((item) => item.id === emailTemplateId) ?? null
   const whatsappParametersReady = [
     ...whatsappParameters.header,
     ...whatsappParameters.body,
@@ -262,7 +317,12 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     channel === 'WHATSAPP'
       ? Boolean(selectedWhatsappTemplate && whatsappParametersReady)
       : channel === 'EMAIL'
-        ? Boolean(subject.trim() && body.trim())
+        ? emailTemplateId
+          ? Boolean(
+              selectedEmailTemplate &&
+                availableEmailTemplates.some((template) => template.id === emailTemplateId),
+            )
+          : !usesMsg91Email && Boolean(subject.trim() && body.trim())
         : canonicalSmsContentReady({
             sender: selectedBroadcastSender,
             body,
@@ -324,6 +384,104 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     setPreview(null)
     setPreviewOwnerKey(null)
   }, [selector, senderId, channel])
+
+  useEffect(() => {
+    if (!companyId || sourceType !== 'CONTACTS') return
+    const token = captureScope()
+    const timer = window.setTimeout(() => {
+      setContactSearchLoading(true)
+      contactsApi
+        .list(companyId, {
+          q: contactSearch.trim().length >= 2 ? contactSearch.trim() : undefined,
+          status: 'ACTIVE',
+          size: 30,
+          sort: 'UPDATED_DESC',
+        })
+        .then((page) => {
+          if (scopeIsCurrent(token)) setContacts(page.items)
+        })
+        .catch((requestError) => {
+          if (scopeIsCurrent(token)) {
+            setError(apiErrorMessage(requestError, 'Unable to search Contacts.'))
+          }
+        })
+        .finally(() => {
+          if (scopeIsCurrent(token)) setContactSearchLoading(false)
+        })
+    }, contactSearch.trim().length >= 2 ? 250 : 0)
+
+    return () => window.clearTimeout(timer)
+  }, [captureScope, companyId, contactSearch, epoch, scopeIsCurrent, sourceType])
+
+  useEffect(() => {
+    setEmailTemplates([])
+    setEmailProviderBindings([])
+    setEmailTemplateId('')
+    setEmailTemplateVariables({})
+    if (!companyId || channel !== 'EMAIL') {
+      setEmailTemplatesLoading(false)
+      return
+    }
+
+    let active = true
+    const token = captureScope()
+    setEmailTemplatesLoading(true)
+
+    void (async () => {
+      try {
+        const templates = await emailTemplateApi.published(companyId)
+        if (!active || !scopeIsCurrent(token)) return
+        setEmailTemplates(templates)
+
+        if (selectedBroadcastSender?.provider === 'MSG91_EMAIL' && selectedBroadcastSender.connectionId) {
+          const bindings = await emailTemplateApi.providerBindings(companyId, {
+            connectionId: selectedBroadcastSender.connectionId,
+          })
+          if (!active || !scopeIsCurrent(token)) return
+
+          const refreshable = bindings.filter((binding) =>
+            ['SYNCING', 'SYNCED', 'PENDING_REVIEW'].includes(binding.status),
+          )
+          if (refreshable.length === 0) {
+            setEmailProviderBindings(bindings)
+            return
+          }
+
+          const refreshed = await Promise.allSettled(
+            refreshable.map((binding) => emailTemplateApi.refreshProviderBinding(companyId, binding.id)),
+          )
+          if (!active || !scopeIsCurrent(token)) return
+          const updates = new Map(
+            refreshed
+              .filter(
+                (result): result is PromiseFulfilledResult<EmailTemplateProviderBinding> =>
+                  result.status === 'fulfilled',
+              )
+              .map((result) => [result.value.id, result.value]),
+          )
+          setEmailProviderBindings(bindings.map((binding) => updates.get(binding.id) ?? binding))
+        }
+      } catch (requestError) {
+        if (active && scopeIsCurrent(token)) {
+          setError(apiErrorMessage(requestError, 'Unable to load published Email templates.'))
+        }
+      } finally {
+        if (active && scopeIsCurrent(token)) setEmailTemplatesLoading(false)
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [
+    captureScope,
+    channel,
+    companyId,
+    epoch,
+    scopeIsCurrent,
+    selectedBroadcastSender?.connectionId,
+    selectedBroadcastSender?.provider,
+  ])
 
   useEffect(() => {
     if (
@@ -519,8 +677,14 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
           body,
           whatsappTemplateId: templateId,
           whatsappTemplateParameters: whatsappParameters,
+          emailTemplateId: channel === 'EMAIL' ? emailTemplateId : null,
           managedSmsTemplateId: usesManagedSms ? managedSmsTemplateId : null,
-          templateVariables: usesManagedSms ? managedSmsTemplateVariables : undefined,
+          templateVariables:
+            channel === 'EMAIL' && emailTemplateId
+              ? emailTemplateVariables
+              : usesManagedSms
+                ? managedSmsTemplateVariables
+                : undefined,
         }),
       )
       if (!scopeIsCurrent(token)) return
@@ -576,7 +740,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                 Create {channelLabel(channel)} Broadcast
               </h1>
               <p className="mt-1 text-sm text-slate-500">
-                Use canonical Contacts, Lists or Segments. Legacy Broadcast groups remain available only for historical sends.
+                Choose who should receive the message, confirm sending eligibility, then review and launch.
               </p>
             </div>
             <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
@@ -626,8 +790,23 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                   ))}
                 </select>
               ) : (
-                <div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-slate-200">
-                  {currentContacts.map((contact) => (
+                <div className="mt-3">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Search contacts
+                    <input
+                      className="form-input mt-1"
+                      type="search"
+                      value={contactSearch}
+                      onChange={(event) => setContactSearch(event.target.value)}
+                      placeholder="Name, email, phone or company"
+                    />
+                  </label>
+                  <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-slate-200">
+                  {contactSearchLoading ? (
+                    <p className="px-3 py-5 text-center text-xs text-slate-500">Searching contacts…</p>
+                  ) : currentContacts.length === 0 ? (
+                    <p className="px-3 py-5 text-center text-xs text-slate-500">No contacts found.</p>
+                  ) : currentContacts.map((contact) => (
                     <label key={contact.id} className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0">
                       <input
                         type="checkbox"
@@ -647,18 +826,20 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                       </span>
                     </label>
                   ))}
-                  <p className="px-3 py-2 text-[11px] text-slate-500">
-                    Showing a bounded sample. Select up to 200 Contacts directly; use a List or Segment for larger audiences.
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    {contactIds.size > 0 ? `${contactIds.size} selected. ` : ''}
+                    Select up to 200 contacts directly. For larger audiences, use a List or Segment.
                   </p>
                 </div>
               )}
             </div>
 
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">2. Channel readiness</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">2. Sender</p>
               <div className="mt-2 rounded-xl border border-slate-200 p-3">
                 <p className="text-sm font-semibold text-slate-900">
-                  {currentReadiness?.configuration?.replaceAll('_', ' ') ?? (loading ? 'Loading…' : 'Unavailable')}
+                  {readySenders.length > 0 ? 'Ready to send' : loading ? 'Checking sender…' : 'Sender setup needed'}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   {currentReadiness?.nextAction || (readySenders.length ? 'Choose a ready sender.' : 'No ready sender is available.')}
@@ -678,9 +859,9 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                 </select>
                 {selectedReadiness && (
                   <p className="mt-2 text-[11px] leading-5 text-slate-500">
-                    Provider acceptance: {selectedReadiness.capabilities.providerAcceptance ? 'tracked' : 'not reported'} ·
-                    Delivery: {selectedReadiness.capabilities.deliveryEvents ? 'tracked' : 'not reported'} ·
-                    Read: {selectedReadiness.capabilities.readEvents ? 'tracked' : 'not reported'}
+                    Tracking: {selectedReadiness.capabilities.providerAcceptance ? 'accepted' : 'basic'}
+                    {selectedReadiness.capabilities.deliveryEvents ? ' · delivered' : ''}
+                    {selectedReadiness.capabilities.readEvents ? ' · read' : ''}
                   </p>
                 )}
               </div>
@@ -699,7 +880,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
             }
             onClick={() => void runPreview()}
           >
-            {previewing ? 'Checking eligibility…' : 'Preview eligible recipients'}
+            {previewing ? 'Checking recipients…' : 'Check recipients'}
           </button>
         </section>
 
@@ -728,14 +909,8 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         )}
 
         <section className="panel p-4 sm:p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">3. Message & launch</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">3. Message & send</p>
           <div className="mt-3 grid gap-3">
-            {channel === 'EMAIL' && (
-              <label className="text-xs font-semibold text-slate-700">
-                Subject
-                <input className="form-input mt-1" value={subject} onChange={(event) => setSubject(event.target.value)} maxLength={998} />
-              </label>
-            )}
             {channel === 'WHATSAPP' ? (
               <>
                 <label className="text-xs font-semibold text-slate-700">
@@ -762,7 +937,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                     ))}
                   </select>
                   <span className="mt-1 block font-normal text-slate-500">
-                    Only templates currently synced as APPROVED are available. Free-form Inbox session rules do not apply to Broadcast.
+                    Choose an approved WhatsApp template for this broadcast.
                   </span>
                 </label>
                 {selectedWhatsappTemplate && (
@@ -916,6 +1091,113 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                   </>
                 )}
               </div>
+            ) : channel === 'EMAIL' ? (
+              <div className="grid gap-3">
+                <label className="text-xs font-semibold text-slate-700">
+                  Start with
+                  <select
+                    className="form-input mt-1"
+                    value={emailTemplateId}
+                    disabled={emailTemplatesLoading}
+                    onChange={(event) => {
+                      const nextId = event.target.value
+                      setEmailTemplateId(nextId)
+                      setEmailTemplateVariables({})
+                      if (!nextId) return
+                      const template = emailTemplates.find((item) => item.id === nextId)
+                      if (template?.subject) setSubject(template.subject)
+                    }}
+                  >
+                    <option value="">
+                      {emailTemplatesLoading
+                        ? 'Loading templates…'
+                        : usesMsg91Email
+                          ? 'Choose approved transactional template'
+                          : 'Write from scratch'}
+                    </option>
+                    {availableEmailTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} · {template.category.toLowerCase().replaceAll('_', ' ')}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {availableEmailTemplates.length === 0 && !emailTemplatesLoading && (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500">
+                    {usesMsg91Email
+                      ? 'No approved transactional templates are ready for this MSG91 Email sender.'
+                      : 'No published email templates yet.'}
+                    <Link
+                      to={usesMsg91Email ? '/templates?create=transactional' : '/templates?create=marketing'}
+                      className="mt-2 inline-flex font-semibold text-indigo-600"
+                    >
+                      Create an email template
+                    </Link>
+                  </div>
+                )}
+
+                {emailTemplateId && selectedEmailTemplate ? (
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
+                    <p className="text-sm font-bold text-slate-900">{selectedEmailTemplate.name}</p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      Published template content is locked for this broadcast.
+                      {selectedEmailTemplate.subject ? ` Subject: ${selectedEmailTemplate.subject}` : ''}
+                    </p>
+                    {selectedEmailTemplate.variables.length > 0 && (
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {selectedEmailTemplate.variables.map((variable) => {
+                          if (automaticEmailVariables.has(variable)) {
+                            return (
+                              <div key={variable} className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2">
+                                <p className="text-xs font-semibold text-emerald-800">{'{{'}{variable}{'}}'}</p>
+                                <p className="mt-0.5 text-[10px] text-emerald-600">Filled automatically for each recipient</p>
+                              </div>
+                            )
+                          }
+                          return (
+                            <label key={variable} className="text-xs font-semibold text-slate-700">
+                              {'{{'}{variable}{'}}'}
+                              <input
+                                className="form-input mt-1"
+                                value={emailTemplateVariables[variable] ?? ''}
+                                maxLength={10000}
+                                onChange={(event) =>
+                                  setEmailTemplateVariables((current) => ({
+                                    ...current,
+                                    [variable]: event.target.value,
+                                  }))
+                                }
+                                placeholder={
+                                  recipientNameVariables.has(variable)
+                                    ? 'Optional fallback if the contact name is missing'
+                                    : 'Fallback value'
+                                }
+                              />
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : usesMsg91Email ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800">
+                    MSG91 Email sends published transactional templates only. Choose a ready
+                    template above before continuing.
+                  </div>
+                ) : (
+                  <>
+                    <label className="text-xs font-semibold text-slate-700">
+                      Subject
+                      <input className="form-input mt-1" value={subject} onChange={(event) => setSubject(event.target.value)} maxLength={998} />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-700">
+                      Message
+                      <textarea className="form-input mt-1 min-h-36" value={body} onChange={(event) => setBody(event.target.value)} maxLength={500000} />
+                    </label>
+                  </>
+                )}
+              </div>
             ) : (
               <label className="text-xs font-semibold text-slate-700">
                 Message
@@ -931,7 +1213,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-slate-500">
-              Accepted means the provider accepted the request. Delivered/Read are shown only when supported by provider events.
+              Final delivery and read tracking appears when the selected provider supports those events.
             </p>
             <button type="button" className="primary-button" disabled={!canLaunch} onClick={() => setLaunchConfirmOpen(true)}>
               {busy ? 'Starting…' : scheduledAt ? 'Schedule Broadcast' : 'Send Broadcast'}
@@ -944,7 +1226,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         title={scheduledAt ? 'Schedule this broadcast?' : 'Send this broadcast now?'}
         description={
           currentPreview
-            ? `${scheduledAt ? 'Schedule' : 'Send'} to ${currentPreview.eligibleCount.toLocaleString()} eligible recipients? The previewed audience will be frozen for this broadcast, while consent and suppression are rechecked at send time.`
+            ? `${scheduledAt ? 'Schedule' : 'Send'} to ${currentPreview.eligibleCount.toLocaleString()} eligible recipients? UnifyDesk will use the audience you just reviewed and recheck permission and delivery restrictions before sending.`
             : ''
         }
         confirmLabel={scheduledAt ? 'Yes, schedule broadcast' : 'Yes, send broadcast'}

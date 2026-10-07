@@ -277,6 +277,7 @@ export type BroadcastMessageSummary = {
   audienceSourceType?: BroadcastAudienceSourceType | null
   audienceSourceId?: string | null
   audienceSnapshotId?: string | null
+  channelType?: ChannelType | null
   senderId?: string | null
   sourceTemplateId?: string | null
   sourceTemplateVersion?: number | null
