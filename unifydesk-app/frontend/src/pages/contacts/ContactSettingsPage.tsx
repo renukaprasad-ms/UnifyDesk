@@ -25,7 +25,7 @@ export default function ContactSettingsPage() {
   const [tags, setTags] = useState<TagSummary[]>([])
   const [fields, setFields] = useState<CustomFieldDefinition[]>([])
   const [tagName, setTagName] = useState('')
-  const [tagColor, setTagColor] = useState('')
+  const [tagColor, setTagColor] = useState('#3b82f6')
   const [fieldLabel, setFieldLabel] = useState('')
   const [fieldKey, setFieldKey] = useState('')
   const [fieldType, setFieldType] = useState<CustomFieldType>('TEXT')
@@ -75,7 +75,7 @@ export default function ContactSettingsPage() {
       'Tag created.',
     )
     setTagName('')
-    setTagColor('')
+    setTagColor('#3b82f6')
   }
 
   const createField = async () => {
@@ -152,9 +152,23 @@ export default function ContactSettingsPage() {
               </p>
             </div>
             {can(PERMISSIONS.CONTACT_MODIFY) && (
-              <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_160px_auto]">
-                <input className="form-input" placeholder="Tag name" value={tagName} onChange={(event) => setTagName(event.target.value)} />
-                <input className="form-input" placeholder="Color (optional)" value={tagColor} onChange={(event) => setTagColor(event.target.value)} />
+              <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_150px_auto]">
+                <input
+                  className="form-input"
+                  placeholder="Tag name"
+                  value={tagName}
+                  onChange={(event) => setTagName(event.target.value)}
+                />
+                <label className="flex h-[42px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600">
+                  <input
+                    type="color"
+                    value={tagColor}
+                    onChange={(event) => setTagColor(event.target.value)}
+                    aria-label="Tag color"
+                    className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent p-0"
+                  />
+                  <span className="font-mono text-[11px] uppercase">{tagColor}</span>
+                </label>
                 <button className="primary-button" disabled={busy || !tagName.trim()} onClick={() => void createTag()}>
                   Create tag
                 </button>

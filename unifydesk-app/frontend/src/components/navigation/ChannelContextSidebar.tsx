@@ -13,7 +13,6 @@ import {
   FiSend,
   FiServer,
   FiSmartphone,
-  FiUsers,
 } from 'react-icons/fi'
 import { SiGmail } from 'react-icons/si'
 import { useLocation, useNavigate } from 'react-router'
@@ -21,8 +20,7 @@ import EmailProviderPicker from '../email/EmailProviderPicker'
 import ConversationList from '../inbox/ConversationList'
 import { channelApi } from '../../features/channel/channelApi'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
-import { fetchBroadcastGroups } from '../../store/broadcast/broadcastSlice'
-import type { BroadcastSender } from '../../features/broadcast/types'
+import type { BroadcastMessageSummary, BroadcastSender, Page } from '../../features/broadcast/types'
 import {
   broadcastSenderConnectionDetails,
   broadcastSenderProviderLabel,
@@ -101,6 +99,39 @@ const emailProviderIcon = (providerType: string) => {
   return <FiMail aria-hidden="true" />
 }
 
+const emptyBroadcastHistory = (): Page<BroadcastMessageSummary> => ({
+  content: [],
+  number: 0,
+  size: 30,
+  totalElements: 0,
+  totalPages: 0,
+  first: true,
+  last: true,
+})
+
+const broadcastHistoryTitle = (message: BroadcastMessageSummary, channel: ChannelType) =>
+  message.subject?.trim() ||
+  message.bodyPreview?.trim()?.slice(0, 58) ||
+  `${channelMeta[channel].label} broadcast`
+
+const broadcastStatusLabel = (status: BroadcastMessageSummary['status']) =>
+  status
+    .replaceAll('_', ' ')
+    .toLowerCase()
+    .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase())
+
+const broadcastHistoryDate = (value?: string | null) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date)
+}
+
 export default function ChannelContextSidebar({ mode, onNavigate }: ChannelContextSidebarProps) {
   const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
@@ -108,7 +139,6 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const workspaceScopeRef = useRef({ companyId, epoch: workspaceEpoch })
   workspaceScopeRef.current = { companyId, epoch: workspaceEpoch }
   const inbox = useAppSelector((state) => state.inbox)
-  const broadcast = useAppSelector((state) => state.broadcast)
   const { can } = useIam()
   const location = useLocation()
   const navigate = useNavigate()
@@ -120,6 +150,12 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const [senders, setSenders] = useState<Record<string, SenderIdentity[]>>({})
   const [broadcastSenders, setBroadcastSenders] = useState<BroadcastSender[]>([])
   const [broadcastSenderLoading, setBroadcastSenderLoading] = useState(false)
+  const [broadcastHistory, setBroadcastHistory] = useState<Page<BroadcastMessageSummary>>(
+    emptyBroadcastHistory,
+  )
+  const [broadcastHistoryLoading, setBroadcastHistoryLoading] = useState(false)
+  const [broadcastHistoryLoadingMore, setBroadcastHistoryLoadingMore] = useState(false)
+  const [broadcastSearch, setBroadcastSearch] = useState('')
   const [localLoading, setLocalLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -136,16 +172,12 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const selectedConnectionId = search.get('connectionId')
   const selectedSenderId = search.get('senderId')
   const selectedConversationId = search.get('conversationId')
-  const selectedGroupId = search.get('groupId')
-  const legacyBroadcastMode = search.get('legacy') === '1' || Boolean(selectedGroupId)
+  const selectedBroadcastId = search.get('broadcastId')
+  const creatingBroadcast = search.get('create') === '1'
   const selectedFolder = search.get('folder') === 'SENT' ? 'SENT' : 'INBOX'
 
   const emailMode = mode === 'inbox' && channelType === 'EMAIL'
   const broadcastMode = mode === 'broadcast'
-  const broadcastGroups =
-    broadcast.groupsCompanyId === companyId && broadcast.groupsChannelType === channelType
-      ? broadcast.groups
-      : []
   const emailConnections = inbox.connectionsCompanyId === companyId ? inbox.connections : []
   const connections = (
     channelType === 'EMAIL'
@@ -179,6 +211,14 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const visibleConversationTotalElements = searchActive
     ? searchTotalElements
     : conversationTotalElements
+  const normalizedBroadcastSearch = broadcastSearch.trim().toLowerCase()
+  const visibleBroadcasts = normalizedBroadcastSearch
+    ? broadcastHistory.content.filter((message) =>
+        [message.subject, message.bodyPreview, broadcastStatusLabel(message.status)]
+          .filter(Boolean)
+          .some((value) => value!.toLowerCase().includes(normalizedBroadcastSearch)),
+      )
+    : broadcastHistory.content
 
   useEffect(() => {
     if (!menuOpen) return
@@ -299,9 +339,41 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }, [broadcastMode, channelType, companyId, workspaceEpoch])
 
   useEffect(() => {
-    if (!companyId || !broadcastMode) return
-    void dispatch(fetchBroadcastGroups({ companyId, epoch: workspaceEpoch, channelType }))
-  }, [broadcastMode, channelType, companyId, dispatch])
+    if (!companyId || !broadcastMode) {
+      setBroadcastHistory(emptyBroadcastHistory())
+      setBroadcastHistoryLoading(false)
+      setBroadcastSearch('')
+      return
+    }
+
+    let active = true
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
+    const current = () =>
+      active &&
+      isWorkspaceEpochCurrent(
+        token,
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      )
+
+    setBroadcastHistoryLoading(true)
+    setBroadcastSearch('')
+    broadcastApi
+      .channelHistory(companyId, channelType, 0, 30)
+      .then((page) => {
+        if (current()) setBroadcastHistory(page)
+      })
+      .catch((requestError) => {
+        if (current()) setError(apiErrorMessage(requestError, 'Unable to load broadcast history'))
+      })
+      .finally(() => {
+        if (current()) setBroadcastHistoryLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [broadcastMode, channelType, companyId, creatingBroadcast, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !emailMode || !selectedConnectionId) {
@@ -539,70 +611,86 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     if (
       !desktop ||
       !broadcastMode ||
-      !legacyBroadcastMode ||
-      selectedGroupId ||
-      broadcastGroups.length === 0
+      creatingBroadcast ||
+      selectedBroadcastId ||
+      broadcastHistoryLoading ||
+      broadcastHistory.content.length === 0
     ) {
       return
     }
 
     const params = new URLSearchParams(location.search)
-    params.set('groupId', broadcastGroups[0].id)
-    params.delete('broadcastId')
-    params.delete('compose')
+    params.set('broadcastId', broadcastHistory.content[0].id)
+    params.delete('create')
+    params.delete('view')
+    params.delete('legacy')
+    params.delete('groupId')
     params.delete('newGroup')
+    params.delete('editGroup')
     navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true })
   }, [
-    broadcastGroups,
+    broadcastHistory.content,
+    broadcastHistoryLoading,
     broadcastMode,
+    creatingBroadcast,
     desktop,
-    legacyBroadcastMode,
     location.pathname,
     location.search,
     navigate,
-    selectedGroupId,
+    selectedBroadcastId,
   ])
 
-  const selectBroadcastGroup = (groupId: string) => {
+  const selectBroadcast = (broadcastId: string) => {
     const params = new URLSearchParams(location.search)
-    params.set('groupId', groupId)
-    params.set('legacy', '1')
-    params.delete('broadcastId')
-    params.delete('compose')
-    params.delete('newGroup')
-    navigate({ pathname: location.pathname, search: `?${params.toString()}` })
-    onNavigate()
-  }
-
-  const createBroadcastGroup = () => {
-    const params = new URLSearchParams(location.search)
-    params.delete('groupId')
+    params.set('broadcastId', broadcastId)
+    params.delete('create')
+    params.delete('view')
     params.delete('legacy')
+    params.delete('groupId')
     params.delete('newGroup')
-    params.delete('broadcastId')
+    params.delete('editGroup')
     params.delete('compose')
-    params.set('view', 'history')
     navigate({ pathname: location.pathname, search: `?${params.toString()}` })
     onNavigate()
   }
 
-  const loadMoreBroadcastGroups = () => {
+  const loadMoreBroadcastHistory = () => {
     if (
       !companyId ||
-      broadcast.loadingMoreGroups ||
-      broadcast.groupsPage + 1 >= broadcast.groupsTotalPages
+      broadcastHistoryLoadingMore ||
+      broadcastHistory.number + 1 >= broadcastHistory.totalPages
     ) {
       return
     }
-    void dispatch(
-      fetchBroadcastGroups({
-        companyId,
-        epoch: workspaceEpoch,
-        channelType,
-        page: broadcast.groupsPage + 1,
-        append: true,
-      }),
-    )
+
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
+    setBroadcastHistoryLoadingMore(true)
+    broadcastApi
+      .channelHistory(companyId, channelType, broadcastHistory.number + 1, 30)
+      .then((page) => {
+        if (
+          !isWorkspaceEpochCurrent(
+            token,
+            workspaceScopeRef.current.companyId,
+            workspaceScopeRef.current.epoch,
+          )
+        ) {
+          return
+        }
+        setBroadcastHistory((current) => ({
+          ...page,
+          content: [
+            ...current.content,
+            ...page.content.filter(
+              (next) => !current.content.some((item) => item.id === next.id),
+            ),
+          ],
+        }))
+      })
+      .catch((requestError) => {
+        setError(apiErrorMessage(requestError, 'Unable to load more broadcasts'))
+      })
+      .finally(() => setBroadcastHistoryLoadingMore(false))
   }
 
   const selectFolder = (folder: 'INBOX' | 'SENT') => {
@@ -928,22 +1016,6 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </div>
       )}
 
-      {broadcastMode && legacyBroadcastMode && (
-        <div className="mt-4">
-          <button
-            type="button"
-            className="secondary-button w-full gap-2"
-            onClick={createBroadcastGroup}
-          >
-            <FiSend aria-hidden="true" />
-            <span>Back to broadcast history</span>
-          </button>
-          <p className="mt-2 px-1 text-[10px] leading-4 text-slate-500">
-            Previous groups are retained for older sends. New broadcasts use Contacts, Lists or Segments.
-          </p>
-        </div>
-      )}
-
       {emailMode && (
         <div className="email-folder-switcher" role="tablist" aria-label="Email folders">
           <button
@@ -1012,112 +1084,78 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
               />
             </div>
           </>
-        ) : broadcastMode && !legacyBroadcastMode ? (
-          <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-5">
-            <p className="text-xs font-semibold text-slate-800">Audience broadcasts</p>
-            <p className="mt-1 text-[11px] leading-5 text-slate-600">
-              Send to Contacts, Lists or Segments. UnifyDesk checks marketing permission and delivery eligibility before launch.
-            </p>
-            <div className="mt-3 grid gap-2">
-              <button
-                type="button"
-                className="primary-button w-full"
-                disabled={!can(PERMISSIONS.BROADCAST_CREATE)}
-                onClick={() => {
-                  const params = new URLSearchParams(location.search)
-                  params.delete('view')
-                  params.delete('legacy')
-                  params.delete('groupId')
-                  params.delete('broadcastId')
-                  navigate({ pathname: location.pathname, search: `?${params.toString()}` })
-                  onNavigate()
-                }}
-              >
-                Create broadcast
-              </button>
-              <button
-                type="button"
-                className="secondary-button w-full"
-                onClick={() => {
-                  const params = new URLSearchParams(location.search)
-                  params.set('view', 'history')
-                  params.delete('legacy')
-                  params.delete('groupId')
-                  params.delete('broadcastId')
-                  navigate({ pathname: location.pathname, search: `?${params.toString()}` })
-                  onNavigate()
-                }}
-              >
-                Broadcast history
-              </button>
-              {channelType !== 'WHATSAPP' && (
-                <button
-                  type="button"
-                  className="secondary-button w-full"
-                  onClick={() => {
-                    const params = new URLSearchParams(location.search)
-                    params.set('legacy', '1')
-                    params.delete('view')
-                    params.delete('groupId')
-                    params.delete('broadcastId')
-                    navigate({ pathname: location.pathname, search: `?${params.toString()}` })
-                    onNavigate()
-                  }}
-                >
-                  Previous group history
-                </button>
+        ) : broadcastMode ? (
+          <>
+            <label className="relative mb-3 block">
+              <FiSearch
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="search"
+                value={broadcastSearch}
+                onChange={(event) => setBroadcastSearch(event.target.value)}
+                placeholder="Search broadcasts"
+                aria-label="Search broadcast history"
+                className="form-input w-full py-2 pl-9 pr-3 text-xs"
+              />
+            </label>
+            <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+              {broadcastHistoryLoading && broadcastHistory.content.length === 0 ? (
+                <div className="px-2 py-3"><ListSkeleton rows={6} /></div>
+              ) : visibleBroadcasts.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
+                  <FiSend className="mx-auto text-2xl text-slate-300" aria-hidden="true" />
+                  <p className="mt-3 text-xs font-semibold text-slate-700">
+                    {normalizedBroadcastSearch ? 'No matching broadcasts' : 'No broadcasts yet'}
+                  </p>
+                  <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                    {normalizedBroadcastSearch
+                      ? 'Try another search.'
+                      : 'New broadcasts will appear here after you create them.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-1.5">
+                  {visibleBroadcasts.map((message) => (
+                    <button
+                      key={message.id}
+                      type="button"
+                      className={`broadcast-group-nav-item ${
+                        selectedBroadcastId === message.id ? 'is-active' : ''
+                      }`}
+                      onClick={() => selectBroadcast(message.id)}
+                    >
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-indigo-50 text-indigo-500">
+                        <FiSend aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1 text-left">
+                        <span className="block truncate text-xs font-semibold text-slate-800">
+                          {broadcastHistoryTitle(message, channelType)}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-1.5 text-[10px] font-medium text-slate-500">
+                          <span className="truncate">{broadcastStatusLabel(message.status)}</span>
+                          <span aria-hidden="true">·</span>
+                          <span className="shrink-0">{broadcastHistoryDate(message.scheduledAt || message.createdAt)}</span>
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                  {broadcastHistory.number + 1 < broadcastHistory.totalPages &&
+                    !normalizedBroadcastSearch && (
+                      <button
+                        type="button"
+                        className="secondary-button mt-2 w-full"
+                        onClick={loadMoreBroadcastHistory}
+                        disabled={broadcastHistoryLoadingMore}
+                      >
+                        {broadcastHistoryLoadingMore ? 'Loading…' : 'Load older broadcasts'}
+                      </button>
+                    )}
+                </div>
               )}
             </div>
-          </div>
-        ) : broadcastMode ? (
-          <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-            {broadcast.groupsStatus === 'loading' && broadcastGroups.length === 0 ? (
-              <div className="px-2 py-3"><ListSkeleton rows={5} /></div>
-            ) : broadcastGroups.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
-                <FiUsers className="mx-auto text-2xl text-slate-300" aria-hidden="true" />
-                <p className="mt-3 text-xs font-semibold text-slate-700">No previous groups</p>
-                <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                  Older group-based broadcasts will appear here if they exist.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-1.5">
-                {broadcastGroups.map((group) => (
-                  <button
-                    key={group.id}
-                    type="button"
-                    className={`broadcast-group-nav-item ${
-                      selectedGroupId === group.id ? 'is-active' : ''
-                    }`}
-                    onClick={() => selectBroadcastGroup(group.id)}
-                  >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-indigo-50 text-indigo-500">
-                      <FiUsers aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0 flex-1 text-left">
-                      <span className="block truncate text-xs font-semibold text-slate-800">
-                        {group.name}
-                      </span>
-                      <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                        {group.memberCount.toLocaleString()} recipients
-                      </span>
-                    </span>
-                  </button>
-                ))}
-                {broadcast.groupsPage + 1 < broadcast.groupsTotalPages && (
-                  <button
-                    type="button"
-                    className="secondary-button mt-2 w-full"
-                    onClick={loadMoreBroadcastGroups}
-                    disabled={broadcast.loadingMoreGroups}
-                  >
-                    {broadcast.loadingMoreGroups ? 'Loading…' : 'Load more'}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+          </>
         ) : (
           <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
             <p className="text-xs font-semibold text-slate-700">
