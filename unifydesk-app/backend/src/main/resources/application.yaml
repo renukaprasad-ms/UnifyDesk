@@ -459,6 +459,27 @@ app:
       worker-concurrency: ${IMAP_SMTP_WORKER_CONCURRENCY:4}
       worker-poll-interval-ms: ${IMAP_SMTP_WORKER_POLL_INTERVAL_MS:500}
       stale-job-after: ${IMAP_SMTP_STALE_JOB_AFTER:10m}
+    zoho-mail:
+      enabled: ${ZOHO_MAIL_OAUTH_ENABLED:false}
+      client-id: ${ZOHO_MAIL_OAUTH_CLIENT_ID:}
+      client-secret: ${ZOHO_MAIL_OAUTH_CLIENT_SECRET:}
+      redirect-uri: ${ZOHO_MAIL_OAUTH_REDIRECT_URI:https://api.unifydesk.in/api/v1/oauth/zoho-mail/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
+      accounts-base-url: ${ZOHO_MAIL_OAUTH_ACCOUNTS_BASE_URL:https://accounts.zoho.com}
+      scope: ${ZOHO_MAIL_OAUTH_SCOPE:ZohoMail.accounts.READ,ZohoMail.folders.READ,ZohoMail.messages.ALL}
+      oauth-state-ttl: ${ZOHO_MAIL_OAUTH_STATE_TTL:10m}
+      token-refresh-skew: ${ZOHO_MAIL_OAUTH_TOKEN_REFRESH_SKEW:2m}
+      sync-max-messages: ${ZOHO_MAIL_SYNC_MAX_MESSAGES:10000}
+      sync-max-range-days: ${ZOHO_MAIL_SYNC_MAX_RANGE_DAYS:366}
+      sync-page-size: ${ZOHO_MAIL_SYNC_PAGE_SIZE:100}
+      worker-concurrency: ${ZOHO_MAIL_WORKER_CONCURRENCY:4}
+      worker-poll-interval-ms: ${ZOHO_MAIL_WORKER_POLL_INTERVAL_MS:500}
+      stale-job-after: ${ZOHO_MAIL_STALE_JOB_AFTER:10m}
+      incremental-poll-interval: ${ZOHO_MAIL_INCREMENTAL_POLL_INTERVAL:2m}
+      incremental-initial-delay: ${ZOHO_MAIL_INCREMENTAL_INITIAL_DELAY:1m}
+      incremental-max-messages-per-folder: ${ZOHO_MAIL_INCREMENTAL_MAX_MESSAGES_PER_FOLDER:250}
+      incremental-max-attempts: ${ZOHO_MAIL_INCREMENTAL_MAX_ATTEMPTS:12}
+      incremental-overlap: ${ZOHO_MAIL_INCREMENTAL_OVERLAP:5m}
     microsoft:
       enabled: ${MICROSOFT_OAUTH_ENABLED:false}
       tenant: ${MICROSOFT_OAUTH_TENANT:common}
