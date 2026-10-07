@@ -1354,38 +1354,53 @@ function EmailInboxView() {
               </p>
 
               <div className="mt-5 space-y-4">
-                <label className="block text-xs font-semibold text-slate-600">
-                  To
-                  <input
-                    type="text"
-                    className="form-input mt-1.5"
+                {companyId && (
+                  <ContactRecipientInput
+                    companyId={companyId}
+                    workspaceEpoch={workspaceEpoch}
+                    label="To"
                     value={composeTo}
-                    onChange={(event) => setComposeTo(event.target.value)}
-                    placeholder="one@example.com, two@example.com"
+                    onChange={setComposeTo}
+                    excludedEmails={[
+                      ...parseRecipients(composeTo),
+                      ...parseRecipients(composeCc),
+                      ...parseRecipients(composeBcc),
+                    ]}
+                    placeholder="Search contacts or type an email address"
                     autoFocus
                   />
-                </label>
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block text-xs font-semibold text-slate-600">
-                    CC
-                    <input
-                      type="text"
-                      className="form-input mt-1.5"
+                  {companyId && (
+                    <ContactRecipientInput
+                      companyId={companyId}
+                      workspaceEpoch={workspaceEpoch}
+                      label="CC"
                       value={composeCc}
-                      onChange={(event) => setComposeCc(event.target.value)}
-                      placeholder="cc@example.com"
+                      onChange={setComposeCc}
+                      excludedEmails={[
+                        ...parseRecipients(composeTo),
+                        ...parseRecipients(composeCc),
+                        ...parseRecipients(composeBcc),
+                      ]}
+                      placeholder="Search contacts or type an email"
                     />
-                  </label>
-                  <label className="block text-xs font-semibold text-slate-600">
-                    BCC
-                    <input
-                      type="text"
-                      className="form-input mt-1.5"
+                  )}
+                  {companyId && (
+                    <ContactRecipientInput
+                      companyId={companyId}
+                      workspaceEpoch={workspaceEpoch}
+                      label="BCC"
                       value={composeBcc}
-                      onChange={(event) => setComposeBcc(event.target.value)}
-                      placeholder="bcc@example.com"
+                      onChange={setComposeBcc}
+                      excludedEmails={[
+                        ...parseRecipients(composeTo),
+                        ...parseRecipients(composeCc),
+                        ...parseRecipients(composeBcc),
+                      ]}
+                      placeholder="Search contacts or type an email"
                     />
-                  </label>
+                  )}
                 </div>
                 <label className="block text-xs font-semibold text-slate-600">
                   Subject
@@ -1525,6 +1540,100 @@ function EmailInboxView() {
             </form>
           </div>
         )}
+
+        <ContactFormDialog
+          open={contactCreateOpen}
+          title="Add sender to contacts"
+          initial={contactCreateInitial}
+          saving={contactCreateSaving}
+          showMarketingPermissions
+          onClose={() => {
+            if (!contactCreateSaving) setContactCreateOpen(false)
+          }}
+          onSubmit={(draft, marketing) => {
+            if (!companyId) return
+            const scope = workspaceEpochToken(companyId, workspaceEpoch)
+            setContactCreateSaving(true)
+
+            contactsApi
+              .create(companyId, toCreateContactInput(draft))
+              .then(async (created) => {
+                if (
+                  !isWorkspaceEpochCurrent(
+                    scope,
+                    workspaceScopeRef.current.companyId,
+                    workspaceScopeRef.current.epoch,
+                  )
+                ) {
+                  return
+                }
+
+                let preferenceWarning = false
+                try {
+                  await contactsApi.applyMarketingPreferences(
+                    companyId,
+                    created.id,
+                    marketing,
+                    'Recorded while adding an Inbox sender to Contacts.',
+                  )
+                } catch {
+                  preferenceWarning = true
+                }
+
+                if (
+                  !isWorkspaceEpochCurrent(
+                    scope,
+                    workspaceScopeRef.current.companyId,
+                    workspaceScopeRef.current.epoch,
+                  )
+                ) {
+                  return
+                }
+
+                setCreatedInboxContactId(created.id)
+                setContactCreateOpen(false)
+                if (preferenceWarning) {
+                  snackbar.warning(
+                    'Contact saved, but one or more marketing permissions could not be saved.',
+                  )
+                } else {
+                  snackbar.success('Contact saved.')
+                }
+
+                if (selectedConversationId) {
+                  await dispatch(
+                    fetchInboxConversationDetail({
+                      companyId,
+                      epoch: workspaceEpoch,
+                      conversationId: selectedConversationId,
+                    }),
+                  ).unwrap()
+                }
+              })
+              .catch((requestError) => {
+                if (
+                  isWorkspaceEpochCurrent(
+                    scope,
+                    workspaceScopeRef.current.companyId,
+                    workspaceScopeRef.current.epoch,
+                  )
+                ) {
+                  snackbar.error(apiErrorMessage(requestError, 'Unable to save contact'))
+                }
+              })
+              .finally(() => {
+                if (
+                  isWorkspaceEpochCurrent(
+                    scope,
+                    workspaceScopeRef.current.companyId,
+                    workspaceScopeRef.current.epoch,
+                  )
+                ) {
+                  setContactCreateSaving(false)
+                }
+              })
+          }}
+        />
 
         {showSyncDialog && (
           <div
@@ -1731,26 +1840,27 @@ function EmailInboxView() {
                     {selectedConversation && ownAddress ? ` · ${ownAddress}` : ''}
                   </p>
                 </div>
-                {contactParticipant?.contactId && can(PERMISSIONS.CONTACT_READ) && (
+                {effectiveContactId && can(PERMISSIONS.CONTACT_READ) && (
                   <Link
                     className="secondary-button shrink-0 gap-2 px-3"
-                    to={`/contacts/${contactParticipant.contactId}`}
+                    to={`/contacts/${effectiveContactId}`}
                   >
                     <FiUsers aria-hidden="true" />
                     <span className="hidden sm:inline">View contact</span>
                   </Link>
                 )}
                 {contactParticipant &&
-                  !contactParticipant.contactId &&
+                  !effectiveContactId &&
                   contactParticipant.contactResolution !== 'AMBIGUOUS' &&
                   can(PERMISSIONS.CONTACT_CREATE) && (
-                    <Link
+                    <button
+                      type="button"
                       className="secondary-button shrink-0 gap-2 px-3"
-                      to={createContactHref(contactParticipant)}
+                      onClick={() => setContactCreateOpen(true)}
                     >
                       <FiUsers aria-hidden="true" />
                       <span className="hidden sm:inline">Add to contacts</span>
-                    </Link>
+                    </button>
                   )}
                 {contactParticipant?.contactResolution === 'AMBIGUOUS' &&
                   can(PERMISSIONS.CONTACT_READ) && (
