@@ -335,18 +335,22 @@ export default function CompanyConnections() {
     const connectProvider = url.searchParams.get('connect')
     if (connectProvider === 'broadcast-email' && can(PERMISSIONS.BROADCAST_MODIFY)) {
       setBroadcastEmailPickerOpen(true)
+      url.searchParams.set('section', 'email')
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     } else if (connectProvider === 'amazon-ses' && can(PERMISSIONS.BROADCAST_MODIFY)) {
       setSesConnectOpen(true)
+      url.searchParams.set('section', 'email')
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     } else if (connectProvider === 'sendgrid' && can(PERMISSIONS.BROADCAST_MODIFY)) {
       setSendGridConnectOpen(true)
+      url.searchParams.set('section', 'email')
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     } else if (connectProvider === 'azure-email' && can(PERMISSIONS.BROADCAST_MODIFY)) {
       setAzureEmailConnectOpen(true)
+      url.searchParams.set('section', 'email')
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     } else if (
@@ -356,10 +360,12 @@ export default function CompanyConnections() {
       can(PERMISSIONS.BROADCAST_MODIFY)
     ) {
       setMsg91SmsSetupOpen(true)
+      url.searchParams.set('section', 'sms')
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     } else if (connectProvider === 'msg91-email' && can(PERMISSIONS.BROADCAST_MODIFY)) {
       setMsg91EmailConnectOpen(true)
+      url.searchParams.set('section', 'email')
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     }
@@ -617,6 +623,7 @@ export default function CompanyConnections() {
               <button
                 key={section.id}
                 type="button"
+                aria-pressed={activeSection === section.id}
                 onClick={() => selectSection(section.id)}
                 className={`rounded-2xl border p-4 text-left transition ${
                   activeSection === section.id
@@ -745,10 +752,10 @@ export default function CompanyConnections() {
 
         <div className="panel mt-6 overflow-hidden">
           <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="text-sm font-bold text-slate-950">Email connections</h2>
+            <h2 className="text-sm font-bold text-slate-950">Your email accounts and providers</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Inbox and Broadcast providers share the company connection model. Capability badges
-              show where each connection can be used.
+              Customer-connected Inbox and broadcast providers. Managed Email is shown separately
+              above.
             </p>
           </div>
 
@@ -946,10 +953,9 @@ export default function CompanyConnections() {
 
         <div className="panel mt-6 overflow-hidden">
           <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="text-sm font-bold text-slate-950">SMS connections</h2>
+            <h2 className="text-sm font-bold text-slate-950">Your SMS providers</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Managed SMS uses your approved DLT identity without exposing delivery-provider
-              infrastructure. Customer-managed MSG91 connections remain available separately.
+              Customer-managed SMS connections. UnifyDesk Managed SMS is shown separately above.
             </p>
           </div>
 
