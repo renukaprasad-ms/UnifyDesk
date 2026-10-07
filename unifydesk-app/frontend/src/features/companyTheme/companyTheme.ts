@@ -18,6 +18,39 @@ const persistAppearanceMode = (appearanceMode: UserAppearanceMode) => {
   window.localStorage.setItem(APPEARANCE_STORAGE_KEY, appearanceMode)
 }
 
+const appearanceTokens: Record<
+  UserAppearanceMode,
+  Record<
+    | '--theme-bg'
+    | '--theme-surface'
+    | '--theme-surface-subtle'
+    | '--theme-border'
+    | '--theme-border-soft'
+    | '--theme-text'
+    | '--theme-muted',
+    string
+  >
+> = {
+  LIGHT: {
+    '--theme-bg': '#f8fafd',
+    '--theme-surface': '#ffffff',
+    '--theme-surface-subtle': '#fbfcff',
+    '--theme-border': '#e0e5f0',
+    '--theme-border-soft': '#e9edf5',
+    '--theme-text': '#0e172b',
+    '--theme-muted': '#63738c',
+  },
+  DARK: {
+    '--theme-bg': '#0f172a',
+    '--theme-surface': '#111827',
+    '--theme-surface-subtle': '#172033',
+    '--theme-border': '#263449',
+    '--theme-border-soft': '#1f2a3d',
+    '--theme-text': '#e5edf8',
+    '--theme-muted': '#94a3b8',
+  },
+}
+
 export const brandContrastColor = (hex: string | null | undefined) => {
   const value = normalizeHex(hex).slice(1)
   const red = Number.parseInt(value.slice(0, 2), 16)
@@ -54,6 +87,10 @@ export const applyCompanyTheme = (
   root.dataset.colorScheme = mode.toLowerCase()
   root.style.colorScheme = mode.toLowerCase()
   persistAppearanceMode(mode)
+
+  Object.entries(appearanceTokens[mode]).forEach(([property, value]) => {
+    root.style.setProperty(property, value)
+  })
 
   root.style.setProperty('--color-indigo-500', primary)
   root.style.setProperty('--theme-primary', primary)
