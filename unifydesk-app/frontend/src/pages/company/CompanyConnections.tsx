@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router'
 import {
+  FiBarChart2,
   FiCheckCircle,
+  FiExternalLink,
   FiLink,
   FiMail,
   FiMessageCircle,
@@ -32,6 +35,13 @@ import Msg91ConnectModal from '../../components/broadcast/Msg91ConnectModal'
 import Msg91SmsSetupGuideModal from '../../components/broadcast/Msg91SmsSetupGuideModal'
 import Msg91EmailConnectModal from '../../components/broadcast/Msg91EmailConnectModal'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
+import { adCenterApi } from '../../features/ads/adCenterApi'
+import type {
+  AdAccount,
+  AdProvider,
+  AdProviderConnection,
+  AdProviderInfo,
+} from '../../features/ads/types'
 import type { BroadcastSender, BroadcastSetupSession } from '../../features/broadcast/types'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
@@ -104,8 +114,22 @@ const whatsAppGenericStatusLabel: Record<ChannelConnection['status'], string> = 
   DISCONNECTED: 'Disconnected',
 }
 
+type ConnectionSection = 'EMAIL' | 'SMS' | 'WHATSAPP' | 'ADS'
+
+const sectionMeta: Array<{
+  id: ConnectionSection
+  label: string
+  description: string
+}> = [
+  { id: 'EMAIL', label: 'Email', description: 'Inbox and broadcast sending' },
+  { id: 'SMS', label: 'SMS', description: 'Managed DLT and provider sending' },
+  { id: 'WHATSAPP', label: 'WhatsApp', description: 'Meta Business Platform' },
+  { id: 'ADS', label: 'Ads', description: 'Google Ads and Meta Ads' },
+]
+
 export default function CompanyConnections() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
+  const [searchParams, setSearchParams] = useSearchParams()
   const { can } = useIam()
   const snackbar = useSnackbar()
   const [connections, setConnections] = useState<ChannelConnection[]>([])
@@ -133,6 +157,27 @@ export default function CompanyConnections() {
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [disconnectTarget, setDisconnectTarget] = useState<ChannelConnection | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ChannelConnection | null>(null)
+  const [adProviders, setAdProviders] = useState<AdProviderInfo[]>([])
+  const [adConnections, setAdConnections] = useState<AdProviderConnection[]>([])
+  const [adAccounts, setAdAccounts] = useState<AdAccount[]>([])
+  const [adsLoading, setAdsLoading] = useState(false)
+  const [connectingAdProvider, setConnectingAdProvider] = useState<AdProvider | null>(null)
+
+  const requestedSection = searchParams.get('section')?.toUpperCase()
+  const activeSection: ConnectionSection =
+    requestedSection === 'SMS' ||
+    requestedSection === 'WHATSAPP' ||
+    requestedSection === 'ADS'
+      ? requestedSection
+      : 'EMAIL'
+
+  const selectSection = (section: ConnectionSection) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.set('section', section.toLowerCase())
+      return next
+    })
+  }
 
   const whatsAppConnections = useMemo(
     () => connections.filter((connection) => connection.channelType === 'WHATSAPP'),
@@ -146,6 +191,58 @@ export default function CompanyConnections() {
     () => connections.filter((connection) => connection.channelType === 'SMS'),
     [connections],
   )
+
+  const loadAds = async () => {
+    if (!selectedCompany || !can(PERMISSIONS.ADS_READ)) {
+      setAdProviders([])
+      setAdConnections([])
+      setAdAccounts([])
+      return
+    }
+
+    setAdsLoading(true)
+    try {
+      const [providers, providerConnections, accounts] = await Promise.all([
+        adCenterApi.providers(selectedCompany.companyId),
+        adCenterApi.connections(selectedCompany.companyId),
+        adCenterApi.accounts(selectedCompany.companyId),
+      ])
+      setAdProviders(providers)
+      setAdConnections(providerConnections)
+      setAdAccounts(accounts)
+    } catch {
+      setAdProviders([])
+      setAdConnections([])
+      setAdAccounts([])
+    } finally {
+      setAdsLoading(false)
+    }
+  }
+
+  const connectAdProvider = async (provider: AdProviderInfo) => {
+    if (
+      !selectedCompany ||
+      !provider.configured ||
+      !can(PERMISSIONS.ADS_CONNECT) ||
+      connectingAdProvider
+    ) {
+      return
+    }
+
+    setConnectingAdProvider(provider.provider)
+    try {
+      const authorization =
+        provider.provider === 'META_ADS'
+          ? await adCenterApi.authorizeMeta(selectedCompany.companyId)
+          : await adCenterApi.authorizeGoogle(selectedCompany.companyId)
+      window.location.assign(authorization.authorizationUrl)
+    } catch (connectError) {
+      snackbar.error(
+        apiErrorMessage(connectError, `Unable to start ${provider.displayName} connection`),
+      )
+      setConnectingAdProvider(null)
+    }
+  }
 
   const loadConnections = async () => {
     if (!selectedCompany) return
@@ -230,6 +327,7 @@ export default function CompanyConnections() {
     void loadConnections()
     void loadBroadcastSetup()
     void loadMetaConnection()
+    void loadAds()
   }, [selectedCompany?.companyId])
 
   useEffect(() => {
@@ -296,6 +394,15 @@ export default function CompanyConnections() {
       void loadConnections()
     }
   }, [])
+
+  const refreshAll = async () => {
+    await Promise.all([
+      loadConnections(),
+      loadBroadcastSetup(),
+      loadMetaConnection(),
+      loadAds(),
+    ])
+  }
 
   const connectWhatsApp = async (reauthorize = false) => {
     if (!selectedCompany || connecting || !can(PERMISSIONS.WHATSAPP_CONNECT)) return
