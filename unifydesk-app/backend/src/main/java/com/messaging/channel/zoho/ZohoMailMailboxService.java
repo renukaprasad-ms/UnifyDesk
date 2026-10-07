@@ -59,7 +59,12 @@ public class ZohoMailMailboxService {
                 token.accountId(),
                 folderId,
                 message.messageId());
-        ZohoMailMessageSnapshot snapshot = mapper.map(message, content, request.folder());
+        ZohoMailMessageSnapshot snapshot =
+            mapper.map(
+                message,
+                content,
+                request.folder(),
+                attachments(token, folderId, message));
 
         if (request.mode() == EmailSyncMode.DATE_RANGE) {
           if (!within(snapshot.sentAt(), request.fromDate(), request.toDate())) continue;
@@ -115,12 +120,32 @@ public class ZohoMailMailboxService {
                 token.accountId(),
                 folderId,
                 message.messageId());
-        ZohoMailMessageSnapshot snapshot = mapper.map(message, content, folder);
+        ZohoMailMessageSnapshot snapshot =
+            mapper.map(message, content, folder, attachments(token, folderId, message));
         if (!snapshot.sentAt().isBefore(since)) result.add(snapshot);
       }
       if (reachedOld || messages.size() < pageSize) break;
     }
     return List.copyOf(result);
+  }
+
+  private List<ZohoMailApiClient.ZohoAttachment> attachments(
+      ZohoMailStoredToken token, String folderId, ZohoMessage message) {
+    if (!hasAttachment(message.hasAttachment())) return List.of();
+    return apiClient.attachmentInfo(
+        token.mailApiBaseUrl(),
+        token.accessToken(),
+        token.accountId(),
+        folderId,
+        message.messageId());
+  }
+
+  private boolean hasAttachment(Object value) {
+    if (value instanceof Boolean flag) return flag;
+    if (value instanceof Number number) return number.intValue() != 0;
+    if (value == null) return false;
+    String normalized = value.toString().trim();
+    return "true".equalsIgnoreCase(normalized) || "1".equals(normalized);
   }
 
   public String folderId(ZohoMailStoredToken token, EmailFolder folder) {
