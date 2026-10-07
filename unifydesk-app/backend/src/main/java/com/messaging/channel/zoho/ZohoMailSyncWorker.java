@@ -111,9 +111,8 @@ public class ZohoMailSyncWorker {
           "Imported " + (persisted.created() + persisted.updated()) + " Zoho Mail messages");
       asyncJobService.complete(job.jobId(), "Zoho Mail sync complete");
 
-      connection.setLastSyncAt(Instant.now());
-      connectionRepository.save(connection);
-
+      // Historical/manual sync is independent of the live polling watermark. Advancing
+      // lastSyncAt here could skip mail that arrived while a long backfill was running.
       if (!persisted.conversationIds().isEmpty() || !persisted.messageIds().isEmpty()) {
         realtimeService.sendToCompany(
             connection.getCompanyId(),
