@@ -528,6 +528,13 @@ export default function CompanyConnections() {
     }
   }
 
+  const customerEmailConnections = emailConnections.filter(
+    (connection) => broadcastSenderFor(connection.id)?.managementMode !== 'MESSAGING_MANAGED',
+  )
+  const customerSmsConnections = smsConnections.filter(
+    (connection) => broadcastSenderFor(connection.id)?.managementMode !== 'MESSAGING_MANAGED',
+  )
+
   const reconnectEmail = async (connection: ChannelConnection) => {
     if (!selectedCompany || workingConnectionId) return
     setWorkingConnectionId(connection.id)
@@ -747,17 +754,17 @@ export default function CompanyConnections() {
 
           {loading ? (
             <div className="p-4"><ListSkeleton rows={3} /></div>
-          ) : emailConnections.length === 0 ? (
+          ) : customerEmailConnections.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <FiMail className="mx-auto text-slate-300" size={28} />
-              <p className="mt-3 text-sm font-semibold text-slate-800">No email connection yet</p>
+              <p className="mt-3 text-sm font-semibold text-slate-800">No customer-managed email accounts</p>
               <p className="mt-1 text-xs text-slate-500">
-                Connect an Inbox mailbox or a Broadcast email provider above.
+                Use the options above to connect an Inbox mailbox or your own broadcast provider.
               </p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {emailConnections.map((connection) => (
+              {customerEmailConnections.map((connection) => (
                 <div
                   key={connection.id}
                   className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
@@ -948,17 +955,17 @@ export default function CompanyConnections() {
 
           {loading ? (
             <div className="p-4"><ListSkeleton rows={3} /></div>
-          ) : smsConnections.length === 0 ? (
+          ) : customerSmsConnections.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <FiSmartphone className="mx-auto text-slate-300" size={28} />
-              <p className="mt-3 text-sm font-semibold text-slate-800">No SMS provider connected</p>
+              <p className="mt-3 text-sm font-semibold text-slate-800">No customer-managed SMS provider</p>
               <p className="mt-1 text-xs text-slate-500">
-                Connect MSG91 SMS above to enable SMS Broadcast.
+                Managed SMS is available above. Connect your own MSG91 account only when needed.
               </p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {smsConnections.map((connection) => (
+              {customerSmsConnections.map((connection) => (
                 <div
                   key={connection.id}
                   className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
