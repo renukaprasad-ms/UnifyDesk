@@ -25,7 +25,7 @@ public class ZohoMailOAuthProperties {
   private Duration pollInitialDelay = Duration.ofMinutes(1);
   private int pollPageSize = 100;
   private int pollMaxPagesPerFolder = 50;
-  private int syncMaxMessages = 5000;
+  private int syncMaxMessages = 10000;
   private int syncMaxRangeDays = 366;
   private int workerConcurrency = 4;
   private int workerPollIntervalMs = 500;
