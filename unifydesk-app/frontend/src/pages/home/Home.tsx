@@ -74,6 +74,7 @@ type AdsDashboard = {
   connections: AdProviderConnection[]
   accounts: AdAccount[]
   campaigns: AdCampaign[]
+  campaignTotal: number
 }
 
 type AttentionItem = {
@@ -252,6 +253,7 @@ export default function Home() {
     connections: [],
     accounts: [],
     campaigns: [],
+    campaignTotal: 0,
   })
 
   const loadDashboard = useCallback(
@@ -342,6 +344,7 @@ export default function Home() {
             connections: adConnections ?? [],
             accounts: adAccounts ?? [],
             campaigns: campaignPage?.content ?? [],
+            campaignTotal: campaignPage?.totalElements ?? 0,
           }))
         : Promise.resolve(null)
 
@@ -378,7 +381,7 @@ export default function Home() {
           nextManagedEmail ?? { overview: null, usage: null, deliverability: null },
         )
         setManagedSms(nextManagedSms ?? { status: null, usage: null, health: null })
-        setAds(nextAds ?? { connections: [], accounts: [], campaigns: [] })
+        setAds(nextAds ?? { connections: [], accounts: [], campaigns: [], campaignTotal: 0 })
       } finally {
         if (scopeIsCurrent(scope)) {
           setLoading(false)
@@ -412,7 +415,6 @@ export default function Home() {
   const whatsAppStatus = connectionStatus(connections, 'WHATSAPP')
   const activeAdConnections = ads.connections.filter((item) => item.status === 'ACTIVE')
   const managedAdAccounts = ads.accounts.filter((item) => item.managed && item.accessible)
-  const activeAdCampaigns = ads.campaigns.filter((item) => item.status === 'ACTIVE')
 
   const attentionItems = useMemo<AttentionItem[]>(() => {
     const items: AttentionItem[] = []
@@ -633,8 +635,8 @@ export default function Home() {
       : null,
     canReadAds
       ? {
-          label: 'Active ad campaigns',
-          value: number.format(activeAdCampaigns.length),
+          label: 'Ad campaigns',
+          value: number.format(ads.campaignTotal),
           meta: `${number.format(managedAdAccounts.length)} managed accounts`,
           icon: <FiBarChart2 />,
           to: '/ad-center',
@@ -1231,8 +1233,8 @@ export default function Home() {
                   <p className="mt-1 text-[11px] text-slate-500">managed accounts</p>
                 </div>
                 <div className="rounded-xl bg-slate-50 p-4">
-                  <p className="text-2xl font-bold text-slate-950">{activeAdCampaigns.length}</p>
-                  <p className="mt-1 text-[11px] text-slate-500">active campaigns</p>
+                  <p className="text-2xl font-bold text-slate-950">{ads.campaignTotal}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">campaigns</p>
                 </div>
               </div>
               {ads.connections.length > 0 ? (
