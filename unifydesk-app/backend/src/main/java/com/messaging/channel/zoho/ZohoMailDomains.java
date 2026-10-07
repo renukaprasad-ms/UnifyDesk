@@ -37,6 +37,18 @@ final class ZohoMailDomains {
     return region;
   }
 
+  static String validateMailApiBase(String baseUrl) {
+    String normalized = stripTrailingSlash(baseUrl == null ? "" : baseUrl.trim());
+    boolean supported =
+        REGIONS.values().stream()
+            .map(Region::mailApiBaseUrl)
+            .anyMatch(value -> value.equalsIgnoreCase(normalized));
+    if (!supported) {
+      throw new BadRequestException("Zoho Mail API server is not supported");
+    }
+    return normalized;
+  }
+
   static String validateAuthorizationBase(String baseUrl) {
     String normalized = stripTrailingSlash(baseUrl == null ? "" : baseUrl.trim());
     boolean supported =
