@@ -5,6 +5,9 @@ import com.messaging.channel.gmail.GmailApiClient;
 import com.messaging.channel.gmail.GmailTokenService;
 import com.messaging.channel.microsoft.MicrosoftApiClient;
 import com.messaging.channel.microsoft.MicrosoftTokenService;
+import com.messaging.channel.zoho.ZohoMailApiClient;
+import com.messaging.channel.zoho.ZohoMailStoredToken;
+import com.messaging.channel.zoho.ZohoMailTokenService;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.inbox.entity.InboxMessageAttachment;
 import com.messaging.inbox.repository.InboxMessageAttachmentRepository;
@@ -24,6 +27,8 @@ public class InboxAttachmentStreamingService {
   private final GmailTokenService gmailTokenService;
   private final MicrosoftApiClient microsoftApiClient;
   private final MicrosoftTokenService microsoftTokenService;
+  private final ZohoMailApiClient zohoMailApiClient;
+  private final ZohoMailTokenService zohoMailTokenService;
   private final MediaService mediaService;
 
   @Transactional(readOnly = true)
@@ -68,8 +73,31 @@ public class InboxAttachmentStreamingService {
               message.getExternalMessageId(),
               attachment.getExternalAttachmentId(),
               outputStream);
+      case ZOHO_MAIL -> {
+        String[] ref = zohoAttachmentRef(attachment.getExternalAttachmentId());
+        ZohoMailStoredToken token = zohoMailTokenService.tokenSet(connection);
+        zohoMailApiClient.streamAttachment(
+            token.mailApiBaseUrl(),
+            token.accessToken(),
+            token.accountId(),
+            ref[0],
+            message.getExternalMessageId(),
+            ref[1],
+            outputStream);
+      }
       default -> throw new NotFoundException("Inbox attachment is not available for this provider");
     }
+  }
+
+  private String[] zohoAttachmentRef(String externalAttachmentId) {
+    if (externalAttachmentId == null || !externalAttachmentId.startsWith("zoho:")) {
+      throw new NotFoundException("Inbox attachment is not available");
+    }
+    String[] parts = externalAttachmentId.split(":", 3);
+    if (parts.length != 3 || parts[1].isBlank() || parts[2].isBlank()) {
+      throw new NotFoundException("Inbox attachment is not available");
+    }
+    return new String[] {parts[1], parts[2]};
   }
 
   private long parseMediaId(String externalAttachmentId) {
