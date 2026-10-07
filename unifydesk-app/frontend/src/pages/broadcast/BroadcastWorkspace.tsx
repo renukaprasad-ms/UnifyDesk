@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
-  FiArrowLeft,
   FiClock,
   FiEdit2,
   FiPause,
@@ -40,7 +39,6 @@ import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import BroadcastSenderProviderMeta from '../../components/managed-email/BroadcastSenderProviderMeta'
 import CanonicalBroadcastJourney from '../../components/broadcast/CanonicalBroadcastJourney'
-import BroadcastHistoryPanel from '../../components/broadcast/BroadcastHistoryPanel'
 import { managedSmsApi } from '../../features/managedSms/managedSmsApi'
 import {
   isManagedSmsSender,
@@ -186,7 +184,8 @@ export default function BroadcastWorkspace() {
   const editGroupOpen = searchParams.get('editGroup') === '1'
   const composeOpen = searchParams.get('compose') === '1'
   const editBroadcastId = searchParams.get('editBroadcastId')
-  const historyView = searchParams.get('view') === 'history'
+  const createBroadcastOpen = searchParams.get('create') === '1'
+  const legacyUiEnabled = false
 
   const groups =
     broadcast.groupsCompanyId === companyId &&
@@ -201,6 +200,16 @@ export default function BroadcastWorkspace() {
     broadcast.historyGroupId === selectedGroupId
       ? broadcast.messages
       : []
+
+  useEffect(() => {
+    const legacyKeys = ['groupId', 'legacy', 'newGroup', 'editGroup', 'compose', 'editBroadcastId', 'view']
+    if (!legacyKeys.some((key) => searchParams.has(key))) return
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      legacyKeys.forEach((key) => next.delete(key))
+      return next
+    }, { replace: true })
+  }, [location.search, searchParams, setSearchParams])
 
   const [senders, setSenders] = useState<BroadcastSender[]>([])
   const [selectedMessage, setSelectedMessage] = useState<BroadcastMessage | null>(null)
@@ -393,7 +402,7 @@ export default function BroadcastWorkspace() {
   }, [companyId, workspaceEpoch])
 
   useEffect(() => {
-    if (!companyId) return
+    if (!legacyUiEnabled || !companyId) return
     void dispatch(fetchBroadcastGroups({ companyId, epoch: workspaceEpoch, channelType }))
   }, [channelType, companyId, dispatch, workspaceEpoch])
 
@@ -419,7 +428,7 @@ export default function BroadcastWorkspace() {
   }, [refreshSenders])
 
   useEffect(() => {
-    if (!companyId || !selectedGroupId || selectedGroup) return
+    if (!legacyUiEnabled || !companyId || !selectedGroupId || selectedGroup) return
     let active = true
     const capturedEpoch = workspaceEpoch
     broadcastApi
@@ -440,7 +449,7 @@ export default function BroadcastWorkspace() {
   }, [companyId, dispatch, isCurrentScope, selectedGroup, selectedGroupId, workspaceEpoch])
 
   useEffect(() => {
-    if (!companyId || !selectedGroupId) return
+    if (!legacyUiEnabled || !companyId || !selectedGroupId) return
     void dispatch(fetchBroadcastHistory({ companyId, epoch: workspaceEpoch, groupId: selectedGroupId }))
   }, [companyId, dispatch, selectedGroupId, workspaceEpoch])
 
@@ -567,7 +576,7 @@ export default function BroadcastWorkspace() {
             if (!stopped && isCurrentScope(companyId, capturedEpoch)) setRecipients(page)
           }
         }
-        if (selectedGroupId) {
+        if (legacyUiEnabled && selectedGroupId) {
           await dispatch(
             fetchBroadcastHistory({
               companyId,
@@ -1212,68 +1221,35 @@ export default function BroadcastWorkspace() {
         <div className="min-w-0">
           <p className="eyebrow">BROADCAST</p>
           <p className="mt-1 truncate text-xs font-semibold text-slate-700">
-            {selectedGroup?.name ??
-              (historyView || selectedBroadcastId
-                ? `${channelLabel} Broadcasts`
-                : `Create ${channelLabel} Broadcast`)}
+            {createBroadcastOpen
+              ? `Create ${channelLabel} Broadcast`
+              : selectedBroadcastId
+                ? `${channelLabel} Broadcast`
+                : `${channelLabel} Broadcasts`}
           </p>
         </div>
 
         <div className="inbox-toolbar-actions ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            className="secondary-button gap-2"
-            onClick={() => {
-              void refreshGroups(true)
-              void refreshHistory(true)
-              void refreshSenders()
-            }}
-          >
-            <FiRefreshCw aria-hidden="true" />
-            <span className="inbox-action-label">Refresh</span>
-          </button>
-
-          {selectedGroup && can(PERMISSIONS.BROADCAST_MODIFY) && (
+          {can(PERMISSIONS.BROADCAST_CREATE) && (
             <button
               type="button"
-              className="secondary-button gap-2"
-              onClick={() => void openMembers()}
+              className="primary-button gap-2"
+              disabled={createBroadcastOpen}
+              onClick={() =>
+                updateSearch({
+                  create: '1',
+                  broadcastId: null,
+                  groupId: null,
+                  legacy: null,
+                  view: null,
+                })
+              }
             >
-              <FiUsers aria-hidden="true" />
-              <span className="inbox-action-label">Members</span>
+              <FiSend aria-hidden="true" />
+              <span className="inbox-action-label">
+                {createBroadcastOpen ? 'Creating broadcast' : 'Create broadcast'}
+              </span>
             </button>
-          )}
-
-          {!selectedGroup && !selectedBroadcastId && (
-            <>
-              {historyView ? (
-                can(PERMISSIONS.BROADCAST_CREATE) && (
-                  <button
-                    type="button"
-                    className="primary-button gap-2"
-                    onClick={() => updateSearch({ view: null, legacy: null, groupId: null })}
-                  >
-                    <FiSend aria-hidden="true" />
-                    <span className="inbox-action-label">Create broadcast</span>
-                  </button>
-                )
-              ) : (
-                <button
-                  type="button"
-                  className="secondary-button gap-2"
-                  onClick={() => updateSearch({ view: 'history', legacy: null, groupId: null })}
-                >
-                  <FiClock aria-hidden="true" />
-                  <span className="inbox-action-label">History</span>
-                </button>
-              )}
-              {channelType !== 'WHATSAPP' && (
-                <button type="button" className="secondary-button gap-2" onClick={openNewGroup}>
-                  <FiUsers aria-hidden="true" />
-                  <span className="inbox-action-label">Previous groups</span>
-                </button>
-              )}
-            </>
           )}
         </div>
       </div>
@@ -1299,29 +1275,37 @@ export default function BroadcastWorkspace() {
               }
               canEdit={can(PERMISSIONS.BROADCAST_MODIFY) && Boolean(selectedMessage?.groupId)}
               canControl={can(PERMISSIONS.BROADCAST_MODIFY)}
-              backLabel={selectedMessage?.groupId ? 'Back to group history' : 'Back to broadcast history'}
-              onBack={() =>
-                updateSearch({
-                  broadcastId: null,
-                  view: selectedMessage?.groupId ? null : 'history',
-                })
-              }
               onEdit={(id) => openComposer(id)}
               onAction={(action, id) => void runAction(action, id)}
               onRecipientsPage={(page) => void loadRecipientsPage(page)}
             />
-          ) : !selectedGroupId ? (
-            historyView ? (
-              <BroadcastHistoryPanel
-                channel={channelType}
-                onOpen={(id) => updateSearch({ broadcastId: id, groupId: null, view: 'history' })}
-                onCreate={() => updateSearch({ view: null, broadcastId: null, groupId: null, legacy: null })}
-              />
-            ) : (
+          ) : !selectedGroupId || !legacyUiEnabled ? (
+            createBroadcastOpen ? (
               <CanonicalBroadcastJourney
                 channel={channelType}
-                onCreated={(id) => updateSearch({ broadcastId: id, groupId: null, compose: null, view: 'history' })}
+                onCreated={(id) =>
+                  updateSearch({
+                    broadcastId: id,
+                    create: null,
+                    groupId: null,
+                    compose: null,
+                    view: null,
+                  })
+                }
               />
+            ) : (
+              <div className="channel-message-scroll min-h-[calc(100dvh-214px)] p-4 sm:p-5">
+                <div className="flex min-h-[420px] w-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/40 px-6 text-center">
+                  <div className="max-w-md">
+                    <FiSend className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
+                    <h1 className="mt-3 text-lg font-bold text-slate-900">Select a broadcast</h1>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      Choose a broadcast from the history on the left, or use Create broadcast in
+                      the header to start a new one.
+                    </p>
+                  </div>
+                </div>
+              </div>
             )
           ) : (
             <div className="channel-message-scroll min-h-[calc(100dvh-214px)] p-4 sm:p-5">
@@ -1431,7 +1415,7 @@ export default function BroadcastWorkspace() {
         </main>
       </div>
 
-      {newGroupOpen && (
+      {legacyUiEnabled && newGroupOpen && (
         <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4">
           <form
             className="mobile-sheet w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
@@ -1493,7 +1477,7 @@ export default function BroadcastWorkspace() {
         </div>
       )}
 
-      {editGroupOpen && selectedGroup && (
+      {legacyUiEnabled && editGroupOpen && selectedGroup && (
         <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4">
           <form
             className="mobile-sheet w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
@@ -1555,7 +1539,7 @@ export default function BroadcastWorkspace() {
         </div>
       )}
 
-      {membersOpen && selectedGroup && (
+      {legacyUiEnabled && membersOpen && selectedGroup && (
         <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4">
           <div className="mobile-sheet flex max-h-[90dvh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
@@ -1723,7 +1707,7 @@ export default function BroadcastWorkspace() {
         </div>
       )}
 
-      {composeOpen && selectedGroup && (
+      {legacyUiEnabled && composeOpen && selectedGroup && (
         <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4">
           <div className="mobile-sheet w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl">
             <div className="flex items-start justify-between gap-4">
@@ -2255,8 +2239,6 @@ function BroadcastDetail({
   canSend,
   canEdit,
   canControl,
-  backLabel,
-  onBack,
   onEdit,
   onAction,
   onRecipientsPage,
@@ -2270,8 +2252,6 @@ function BroadcastDetail({
   canSend: boolean
   canEdit: boolean
   canControl: boolean
-  backLabel: string
-  onBack: () => void
   onEdit: (id: string) => void
   onAction: (action: 'pause' | 'resume' | 'cancel' | 'send', id: string) => void
   onRecipientsPage: (page: number) => void
@@ -2289,11 +2269,7 @@ function BroadcastDetail({
   return (
     <div className="channel-message-scroll min-h-[calc(100dvh-214px)] p-4 sm:p-5">
       <div className="w-full">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <button type="button" className="secondary-button gap-2" onClick={onBack}>
-            <FiArrowLeft aria-hidden="true" />
-            {backLabel}
-          </button>
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex flex-wrap gap-2">
             {(message.status === 'DRAFT' || message.status === 'SCHEDULED') && canEdit && (
               <button
