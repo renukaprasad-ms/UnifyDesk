@@ -68,7 +68,7 @@ public class ZohoMailSendService {
                   bccAddress,
                   subject,
                   body,
-                  "reply",
+                  command.replyAll() ? "replyall" : "reply",
                   "plaintext",
                   uploaded));
     } else {
