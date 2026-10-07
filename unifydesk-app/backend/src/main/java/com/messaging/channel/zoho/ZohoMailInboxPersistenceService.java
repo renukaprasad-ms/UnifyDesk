@@ -5,12 +5,14 @@ import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.inbox.entity.InboxConversation;
 import com.messaging.inbox.entity.InboxMessage;
+import com.messaging.inbox.entity.InboxMessageAttachment;
 import com.messaging.inbox.entity.InboxParticipant;
 import com.messaging.inbox.enums.ConversationStatus;
 import com.messaging.inbox.enums.InboxMessageDirection;
 import com.messaging.inbox.enums.InboxMessageStatus;
 import com.messaging.inbox.enums.InboxParticipantType;
 import com.messaging.inbox.repository.InboxConversationRepository;
+import com.messaging.inbox.repository.InboxMessageAttachmentRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.inbox.repository.InboxParticipantRepository;
 import com.messaging.inbox.service.InboxMessagePostProcessor;
@@ -25,6 +27,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.HtmlUtils;
@@ -35,6 +39,7 @@ public class ZohoMailInboxPersistenceService {
 
   private final InboxConversationRepository conversationRepository;
   private final InboxMessageRepository messageRepository;
+  private final InboxMessageAttachmentRepository attachmentRepository;
   private final InboxParticipantRepository participantRepository;
   private final MessageStorageMeter messageStorageMeter;
   private final StorageQuotaService storageQuotaService;
@@ -142,6 +147,7 @@ public class ZohoMailInboxPersistenceService {
       }
 
       upsertParticipants(conversation, snapshot);
+      upsertAttachments(message, snapshot);
       touchedConversations.add(conversation.getId());
       touchedMessages.add(message.getId());
       if (newMessage) created++;
@@ -165,6 +171,35 @@ public class ZohoMailInboxPersistenceService {
     }
 
     return new PersistResult(created, updated, Set.copyOf(touchedConversations), Set.copyOf(touchedMessages));
+  }
+
+  private void upsertAttachments(
+      InboxMessage message, ZohoMailMessageSnapshot snapshot) {
+    if (snapshot.attachments() == null || snapshot.attachments().isEmpty()) return;
+
+    for (ZohoMailAttachmentSnapshot source : snapshot.attachments()) {
+      if (source == null || source.inline() || !hasText(source.attachmentId())) continue;
+      String externalId =
+          "zoho:" + snapshot.folderId() + ":" + source.attachmentId().trim();
+
+      InboxMessageAttachment attachment =
+          attachmentRepository
+              .findByMessageIdAndExternalAttachmentId(message.getId(), externalId)
+              .orElseGet(InboxMessageAttachment::new);
+      if (attachment.getId() == null) {
+        attachment.setMessage(message);
+        attachment.setExternalAttachmentId(externalId);
+      }
+      attachment.setFilename(source.filename());
+      attachment.setSizeBytes(source.sizeBytes());
+      attachment.setMimeType(
+          hasText(source.filename())
+              ? MediaTypeFactory.getMediaType(source.filename())
+                  .map(MediaType::toString)
+                  .orElse(null)
+              : null);
+      attachmentRepository.save(attachment);
+    }
   }
 
   private void upsertParticipants(
