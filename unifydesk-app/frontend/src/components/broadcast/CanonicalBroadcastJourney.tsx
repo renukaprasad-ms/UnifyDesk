@@ -50,13 +50,13 @@ type Props = {
 }
 
 const exclusionLabels: Record<RecipientExclusionReason, string> = {
-  DUPLICATE: 'Duplicate identity',
-  MISSING_IDENTITY: 'Missing channel identity',
-  INVALID_IDENTITY: 'Invalid channel identity',
+  DUPLICATE: 'Duplicate contact method',
+  MISSING_IDENTITY: 'Missing email or phone',
+  INVALID_IDENTITY: 'Invalid email or phone',
   OPTED_OUT: 'Opted out',
-  CONSENT_REQUIRED: 'Consent required',
-  SUPPRESSED: 'Suppressed',
-  CHANNEL_INELIGIBLE: 'Not eligible for this channel',
+  CONSENT_REQUIRED: 'Permission not recorded',
+  SUPPRESSED: 'Delivery blocked',
+  CHANNEL_INELIGIBLE: 'Channel unavailable',
 }
 
 const channelLabel = (channel: ChannelType) => (channel === 'WHATSAPP' ? 'WhatsApp' : channel)
@@ -174,6 +174,8 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   const [lists, setLists] = useState<ListSummary[]>([])
   const [segments, setSegments] = useState<SegmentDefinition[]>([])
   const [contacts, setContacts] = useState<ContactSummary[]>([])
+  const [contactSearch, setContactSearch] = useState('')
+  const [contactSearchLoading, setContactSearchLoading] = useState(false)
   const [sourceType, setSourceType] = useState<'CONTACT_LIST' | 'SEGMENT' | 'CONTACTS'>(
     searchParams.get('audienceType') === 'SEGMENT'
       ? 'SEGMENT'
@@ -324,6 +326,34 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     setPreview(null)
     setPreviewOwnerKey(null)
   }, [selector, senderId, channel])
+
+  useEffect(() => {
+    if (!companyId || sourceType !== 'CONTACTS') return
+    const token = captureScope()
+    const timer = window.setTimeout(() => {
+      setContactSearchLoading(true)
+      contactsApi
+        .list(companyId, {
+          q: contactSearch.trim().length >= 2 ? contactSearch.trim() : undefined,
+          status: 'ACTIVE',
+          size: 30,
+          sort: 'UPDATED_DESC',
+        })
+        .then((page) => {
+          if (scopeIsCurrent(token)) setContacts(page.items)
+        })
+        .catch((requestError) => {
+          if (scopeIsCurrent(token)) {
+            setError(apiErrorMessage(requestError, 'Unable to search Contacts.'))
+          }
+        })
+        .finally(() => {
+          if (scopeIsCurrent(token)) setContactSearchLoading(false)
+        })
+    }, contactSearch.trim().length >= 2 ? 250 : 0)
+
+    return () => window.clearTimeout(timer)
+  }, [captureScope, companyId, contactSearch, epoch, scopeIsCurrent, sourceType])
 
   useEffect(() => {
     if (
@@ -576,7 +606,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                 Create {channelLabel(channel)} Broadcast
               </h1>
               <p className="mt-1 text-sm text-slate-500">
-                Use canonical Contacts, Lists or Segments. Legacy Broadcast groups remain available only for historical sends.
+                Choose who should receive the message, confirm sending eligibility, then review and launch.
               </p>
             </div>
             <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
@@ -626,8 +656,23 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                   ))}
                 </select>
               ) : (
-                <div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-slate-200">
-                  {currentContacts.map((contact) => (
+                <div className="mt-3">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Search contacts
+                    <input
+                      className="form-input mt-1"
+                      type="search"
+                      value={contactSearch}
+                      onChange={(event) => setContactSearch(event.target.value)}
+                      placeholder="Name, email, phone or company"
+                    />
+                  </label>
+                  <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-slate-200">
+                  {contactSearchLoading ? (
+                    <p className="px-3 py-5 text-center text-xs text-slate-500">Searching contacts…</p>
+                  ) : currentContacts.length === 0 ? (
+                    <p className="px-3 py-5 text-center text-xs text-slate-500">No contacts found.</p>
+                  ) : currentContacts.map((contact) => (
                     <label key={contact.id} className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0">
                       <input
                         type="checkbox"
@@ -647,18 +692,20 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                       </span>
                     </label>
                   ))}
-                  <p className="px-3 py-2 text-[11px] text-slate-500">
-                    Showing a bounded sample. Select up to 200 Contacts directly; use a List or Segment for larger audiences.
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    {contactIds.size > 0 ? `${contactIds.size} selected. ` : ''}
+                    Select up to 200 contacts directly. For larger audiences, use a List or Segment.
                   </p>
                 </div>
               )}
             </div>
 
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">2. Channel readiness</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">2. Sender</p>
               <div className="mt-2 rounded-xl border border-slate-200 p-3">
                 <p className="text-sm font-semibold text-slate-900">
-                  {currentReadiness?.configuration?.replaceAll('_', ' ') ?? (loading ? 'Loading…' : 'Unavailable')}
+                  {readySenders.length > 0 ? 'Ready to send' : loading ? 'Checking sender…' : 'Sender setup needed'}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   {currentReadiness?.nextAction || (readySenders.length ? 'Choose a ready sender.' : 'No ready sender is available.')}
@@ -678,9 +725,9 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                 </select>
                 {selectedReadiness && (
                   <p className="mt-2 text-[11px] leading-5 text-slate-500">
-                    Provider acceptance: {selectedReadiness.capabilities.providerAcceptance ? 'tracked' : 'not reported'} ·
-                    Delivery: {selectedReadiness.capabilities.deliveryEvents ? 'tracked' : 'not reported'} ·
-                    Read: {selectedReadiness.capabilities.readEvents ? 'tracked' : 'not reported'}
+                    Tracking: {selectedReadiness.capabilities.providerAcceptance ? 'accepted' : 'basic'}
+                    {selectedReadiness.capabilities.deliveryEvents ? ' · delivered' : ''}
+                    {selectedReadiness.capabilities.readEvents ? ' · read' : ''}
                   </p>
                 )}
               </div>
@@ -699,7 +746,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
             }
             onClick={() => void runPreview()}
           >
-            {previewing ? 'Checking eligibility…' : 'Preview eligible recipients'}
+            {previewing ? 'Checking recipients…' : 'Check recipients'}
           </button>
         </section>
 
@@ -728,7 +775,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         )}
 
         <section className="panel p-4 sm:p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">3. Message & launch</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">3. Message & send</p>
           <div className="mt-3 grid gap-3">
             {channel === 'EMAIL' && (
               <label className="text-xs font-semibold text-slate-700">
@@ -762,7 +809,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                     ))}
                   </select>
                   <span className="mt-1 block font-normal text-slate-500">
-                    Only templates currently synced as APPROVED are available. Free-form Inbox session rules do not apply to Broadcast.
+                    Choose an approved WhatsApp template for this broadcast.
                   </span>
                 </label>
                 {selectedWhatsappTemplate && (
@@ -931,7 +978,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-slate-500">
-              Accepted means the provider accepted the request. Delivered/Read are shown only when supported by provider events.
+              Final delivery and read tracking appears when the selected provider supports those events.
             </p>
             <button type="button" className="primary-button" disabled={!canLaunch} onClick={() => setLaunchConfirmOpen(true)}>
               {busy ? 'Starting…' : scheduledAt ? 'Schedule Broadcast' : 'Send Broadcast'}
@@ -944,7 +991,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         title={scheduledAt ? 'Schedule this broadcast?' : 'Send this broadcast now?'}
         description={
           currentPreview
-            ? `${scheduledAt ? 'Schedule' : 'Send'} to ${currentPreview.eligibleCount.toLocaleString()} eligible recipients? The previewed audience will be frozen for this broadcast, while consent and suppression are rechecked at send time.`
+            ? `${scheduledAt ? 'Schedule' : 'Send'} to ${currentPreview.eligibleCount.toLocaleString()} eligible recipients? UnifyDesk will use the audience you just reviewed and recheck permission and delivery restrictions before sending.`
             : ''
         }
         confirmLabel={scheduledAt ? 'Yes, schedule broadcast' : 'Yes, send broadcast'}
