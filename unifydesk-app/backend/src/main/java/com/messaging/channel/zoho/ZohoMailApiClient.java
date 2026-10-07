@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+@Slf4j
 @Component
 public class ZohoMailApiClient {
 
@@ -258,9 +260,24 @@ public class ZohoMailApiClient {
       List<String> messageIds,
       boolean read) {
     if (messageIds == null || messageIds.isEmpty()) return;
+    List<Long> ids =
+        messageIds.stream()
+            .filter(this::hasText)
+            .map(
+                value -> {
+                  try {
+                    return Long.valueOf(value.trim());
+                  } catch (NumberFormatException exception) {
+                    throw new BadRequestException("Zoho returned a non-numeric message id");
+                  }
+                })
+            .distinct()
+            .toList();
+    if (ids.isEmpty()) return;
+
     Map<String, Object> body = new LinkedHashMap<>();
     body.put("mode", read ? "markAsRead" : "markAsUnread");
-    body.put("messageId", messageIds);
+    body.put("messageId", ids);
     apiVoid(
         "read_state",
         () ->
@@ -272,6 +289,27 @@ public class ZohoMailApiClient {
                 .body(body)
                 .retrieve()
                 .toBodilessEntity());
+  }
+
+  public void revokeBestEffort(String accountsServer, String refreshToken) {
+    if (!hasText(accountsServer) || !hasText(refreshToken)) return;
+    try {
+      String base = validatedAccountsServer(accountsServer);
+      MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+      form.add("token", refreshToken);
+      RestClient.create(base)
+          .post()
+          .uri("/oauth/v2/token/revoke")
+          .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+          .body(form)
+          .retrieve()
+          .toBodilessEntity();
+    } catch (RuntimeException exception) {
+      log.warn(
+          "zoho_oauth_revoke_failed accountsServer={} reason={}",
+          accountsServer,
+          exception.getClass().getSimpleName());
+    }
   }
 
   private RestClient client(String baseUrl) {
