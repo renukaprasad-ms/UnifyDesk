@@ -92,11 +92,14 @@ public class ZohoMailPollingScheduler {
             .minus(2, ChronoUnit.MINUTES);
     Set<Long> conversations = new LinkedHashSet<>();
     Set<Long> messages = new LinkedHashSet<>();
+    boolean complete = true;
 
     try {
       for (EmailFolder folder : new EmailFolder[] {EmailFolder.INBOX, EmailFolder.SENT}) {
-        List<ZohoMailMessageSnapshot> snapshots =
+        ZohoMailMailboxService.IncrementalResult incremental =
             mailboxService.incremental(connection, folder, baseline);
+        complete &= incremental.complete();
+        List<ZohoMailMessageSnapshot> snapshots = incremental.messages();
         if (snapshots.isEmpty()) continue;
 
         var persisted = persistenceService.persist(connection, snapshots);
@@ -104,8 +107,15 @@ public class ZohoMailPollingScheduler {
         messages.addAll(persisted.messageIds());
       }
 
-      connection.setLastSyncAt(Instant.now());
-      connectionRepository.save(connection);
+      if (complete) {
+        connection.setLastSyncAt(Instant.now());
+        connectionRepository.save(connection);
+      } else {
+        log.warn(
+            "zoho_mail_poll_page_cap_reached connectionId={} watermark={} - live watermark not advanced",
+            connection.getId(),
+            baseline);
+      }
 
       if (!conversations.isEmpty() || !messages.isEmpty()) {
         realtimeService.sendToCompany(
