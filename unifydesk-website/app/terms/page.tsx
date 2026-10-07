@@ -8,7 +8,7 @@ export const metadata:Metadata={
 };
 
 export default function Terms(){
-  return <><Header/><main className="legal">
+  return <><Header/><main id="main-content" className="legal">
     <p className="kicker">LEGAL · PRE-LAUNCH</p>
     <h1>Terms of service</h1>
     <p className="legalUpdated">Updated 29 September 2026</p>
@@ -20,3 +20,4 @@ export default function Terms(){
     <aside>The complete binding terms, billing conditions, service limitations and legal provisions will be published before public launch.</aside>
   </main><Footer/></>
 }
+
