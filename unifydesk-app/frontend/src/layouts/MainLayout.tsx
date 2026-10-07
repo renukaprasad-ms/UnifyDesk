@@ -64,7 +64,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
     if (platform || !selectedCompanyId) return
     if (
       iam.companyId === selectedCompanyId &&
-      (iam.status === 'loading' || iam.status === 'ready')
+      (iam.status === 'loading' || iam.status === 'ready' || iam.status === 'error')
     ) {
       return
     }
