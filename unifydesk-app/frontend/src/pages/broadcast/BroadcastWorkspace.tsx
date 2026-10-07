@@ -212,6 +212,8 @@ export default function BroadcastWorkspace() {
   }, [location.search, searchParams, setSearchParams])
 
   const [senders, setSenders] = useState<BroadcastSender[]>([])
+  const [canonicalHistoryTotal, setCanonicalHistoryTotal] = useState(0)
+  const [canonicalHistoryLoading, setCanonicalHistoryLoading] = useState(true)
   const [selectedMessage, setSelectedMessage] = useState<BroadcastMessage | null>(null)
   const [recipients, setRecipients] = useState<Page<BroadcastRecipient>>(emptyPage())
   const [members, setMembers] = useState<Page<BroadcastMember>>(emptyPage())
@@ -426,6 +428,41 @@ export default function BroadcastWorkspace() {
   useEffect(() => {
     void refreshSenders()
   }, [refreshSenders])
+
+  useEffect(() => {
+    if (!companyId) {
+      setCanonicalHistoryTotal(0)
+      setCanonicalHistoryLoading(false)
+      return
+    }
+
+    let active = true
+    const capturedCompanyId = companyId
+    const capturedEpoch = workspaceEpoch
+    setCanonicalHistoryLoading(true)
+
+    broadcastApi
+      .channelHistory(companyId, channelType, 0, 1)
+      .then((page) => {
+        if (active && isCurrentScope(capturedCompanyId, capturedEpoch)) {
+          setCanonicalHistoryTotal(page.totalElements)
+        }
+      })
+      .catch(() => {
+        if (active && isCurrentScope(capturedCompanyId, capturedEpoch)) {
+          setCanonicalHistoryTotal(0)
+        }
+      })
+      .finally(() => {
+        if (active && isCurrentScope(capturedCompanyId, capturedEpoch)) {
+          setCanonicalHistoryLoading(false)
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [channelType, companyId, isCurrentScope, workspaceEpoch])
 
   useEffect(() => {
     if (!legacyUiEnabled || !companyId || !selectedGroupId || selectedGroup) return
@@ -1272,7 +1309,8 @@ export default function BroadcastWorkspace() {
             createBroadcastOpen ? (
               <CanonicalBroadcastJourney
                 channel={channelType}
-                onCreated={(id) =>
+                onCreated={(id) => {
+                  setCanonicalHistoryTotal((current) => Math.max(1, current))
                   updateSearch({
                     broadcastId: id,
                     create: null,
@@ -1280,20 +1318,65 @@ export default function BroadcastWorkspace() {
                     compose: null,
                     view: null,
                   })
-                }
+                }}
               />
             ) : (
-              <div className="channel-message-scroll min-h-[calc(100dvh-214px)] p-4 sm:p-5">
-                <div className="flex min-h-[420px] w-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/40 px-6 text-center">
-                  <div className="max-w-md">
-                    <FiSend className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
-                    <h1 className="mt-3 text-lg font-bold text-slate-900">Select a broadcast</h1>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">
-                      Choose a broadcast from the history on the left, or use Create broadcast in
-                      the header to start a new one.
+              <div className="channel-message-scroll flex min-h-[calc(100dvh-214px)] items-center justify-center p-5 sm:p-8">
+                {canonicalHistoryLoading ? (
+                  <div className="w-full max-w-md">
+                    <CardSkeleton rows={3} />
+                  </div>
+                ) : canonicalHistoryTotal === 0 ? (
+                  <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-7 text-center shadow-sm sm:p-9">
+                    <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-indigo-50 text-2xl text-indigo-600">
+                      <FiSend aria-hidden="true" />
+                    </span>
+                    <p className="eyebrow mt-5">GET STARTED</p>
+                    <h1 className="mt-2 text-xl font-bold text-slate-950">
+                      Create your first {channelLabel.toLowerCase()} broadcast
+                    </h1>
+                    <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                      Choose Contacts, a List or a Segment, select your sender and message, then
+                      review eligible recipients before sending.
+                    </p>
+                    {can(PERMISSIONS.BROADCAST_CREATE) ? (
+                      <button
+                        type="button"
+                        className="primary-button mx-auto mt-6 gap-2 px-5"
+                        onClick={() =>
+                          updateSearch({
+                            create: '1',
+                            broadcastId: null,
+                            groupId: null,
+                            legacy: null,
+                            view: null,
+                          })
+                        }
+                      >
+                        <FiSend aria-hidden="true" />
+                        Create broadcast
+                      </button>
+                    ) : (
+                      <p className="mt-5 text-xs font-semibold text-slate-500">
+                        Ask a workspace administrator for Broadcast create access.
+                      </p>
+                    )}
+                    <p className="mt-4 text-[11px] text-slate-400">
+                      Your sent, scheduled and draft broadcasts will appear in the history on the left.
                     </p>
                   </div>
-                </div>
+                ) : (
+                  <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 text-center shadow-sm">
+                    <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-slate-100 text-xl text-slate-500">
+                      <FiSend aria-hidden="true" />
+                    </span>
+                    <h1 className="mt-4 text-lg font-bold text-slate-950">Select a broadcast</h1>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      Choose a broadcast from the history on the left to view delivery progress,
+                      recipients and status.
+                    </p>
+                  </div>
+                )}
               </div>
             )
           ) : (
