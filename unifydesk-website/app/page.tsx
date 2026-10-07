@@ -8,8 +8,8 @@ import {
 import {Footer,Header} from "./components";
 
 export const metadata:Metadata={
-  title:"UnifyDesk | Customer communication, campaigns & ads in one workspace",
-  description:"UnifyDesk connects customer conversations, contacts, broadcasts, email infrastructure, Google Ads and Meta Ads in one workspace.",
+  title:{absolute:"UnifyDesk | Customer Communication & Marketing Platform"},
+  description:"UnifyDesk is a customer communication and marketing platform for shared inboxes, contacts, broadcasts, email, SMS, WhatsApp, Google Ads and Meta Ads.",
   alternates:{canonical:"/"}
 };
 
