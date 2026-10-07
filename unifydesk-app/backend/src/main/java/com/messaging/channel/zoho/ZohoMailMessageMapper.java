@@ -1,6 +1,7 @@
 package com.messaging.channel.zoho;
 
 import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.zoho.ZohoMailApiClient.ZohoAttachment;
 import com.messaging.channel.zoho.ZohoMailApiClient.ZohoMessage;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -19,7 +20,10 @@ public class ZohoMailMessageMapper {
       Pattern.compile("(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}");
 
   public ZohoMailMessageSnapshot map(
-      ZohoMessage message, String content, EmailFolder folder) {
+      ZohoMessage message,
+      String content,
+      EmailFolder folder,
+      List<ZohoAttachment> attachments) {
     if (message == null || !hasText(message.messageId())) {
       throw new IllegalArgumentException("Zoho message id is missing");
     }
@@ -44,7 +48,24 @@ public class ZohoMailMessageMapper {
         html,
         timestamp(message),
         read(message.status()),
-        folder);
+        folder,
+        attachmentSnapshots(attachments));
+  }
+
+  private List<ZohoMailAttachmentSnapshot> attachmentSnapshots(
+      List<ZohoAttachment> attachments) {
+    if (attachments == null || attachments.isEmpty()) return List.of();
+    return attachments.stream()
+        .filter(java.util.Objects::nonNull)
+        .filter(item -> hasText(item.attachmentId()))
+        .map(
+            item ->
+                new ZohoMailAttachmentSnapshot(
+                    item.attachmentId().trim(),
+                    trim(item.attachmentName()),
+                    item.attachmentSize(),
+                    item.isInline()))
+        .toList();
   }
 
   private Instant timestamp(ZohoMessage message) {
