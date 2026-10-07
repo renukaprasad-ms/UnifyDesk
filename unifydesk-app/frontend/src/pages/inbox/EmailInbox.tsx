@@ -1127,50 +1127,39 @@ function EmailInboxView() {
     return (
       <section className="channel-workspace-page">
         <div className="channel-workspace-toolbar">
-          <div className="min-w-0 lg:hidden">
+          <div className="min-w-0">
             <p className="eyebrow">INBOX</p>
             <p className="mt-1 truncate text-xs font-semibold text-slate-700">Email</p>
-          </div>
-          <div className="inbox-toolbar-actions ml-auto flex items-center gap-2">
-            {can(PERMISSIONS.EMAIL_CONNECT) && (
-              <EmailProviderPicker
-                companyId={companyId}
-                returnTo="/inbox/email"
-                label="Connect email"
-                className="primary-button gap-2"
-                buttonIcon="mail"
-                onConnected={(connection) => {
-                  const params = new URLSearchParams(searchParams)
-                  params.set('connectionId', connection.connectionId)
-                  params.set('folder', 'INBOX')
-                  setSearchParams(params)
-                  void dispatch(
-                    fetchEmailConnections({
-                      companyId,
-                      epoch: workspaceEpoch,
-                      force: true,
-                    }),
-                  )
-                }}
-              />
-            )}
           </div>
         </div>
 
         <div className="channel-workspace-body">
           <main className="channel-message-surface">
-            <div className="flex min-h-[calc(100dvh-210px)] items-center justify-center px-6 py-10 text-center">
-              <div className="w-full max-w-lg rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-10">
-                <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-indigo-50 text-2xl text-indigo-500">
+            <div className="flex min-h-[calc(100dvh-210px)] items-center justify-center px-5 py-8 text-center sm:px-8">
+              <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
+                <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-indigo-50 text-2xl text-indigo-600">
                   <FiMail aria-hidden="true" />
                 </span>
-                <h1 className="mt-4 text-xl font-bold text-slate-950">Connect your email inbox</h1>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Connect Gmail, Microsoft 365 / Outlook, or another mailbox using IMAP + SMTP.
-                  Your conversations will appear here after the account is connected and synced.
+                <p className="eyebrow mt-5">EMAIL INBOX</p>
+                <h1 className="mt-2 text-xl font-bold text-slate-950">Connect your email account</h1>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                  Bring your mailbox into UnifyDesk to read and reply to customer conversations
+                  from one shared workspace.
                 </p>
+
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  {['Gmail', 'Microsoft 365', 'IMAP + SMTP'].map((provider) => (
+                    <span
+                      key={provider}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600"
+                    >
+                      {provider}
+                    </span>
+                  ))}
+                </div>
+
                 {can(PERMISSIONS.EMAIL_CONNECT) ? (
-                  <div className="mx-auto mt-5 max-w-xs">
+                  <div className="mx-auto mt-6 max-w-xs">
                     <EmailProviderPicker
                       companyId={companyId}
                       returnTo="/inbox/email"
@@ -1193,10 +1182,15 @@ function EmailInboxView() {
                     />
                   </div>
                 ) : (
-                  <p className="mt-5 text-xs font-semibold text-slate-500">
+                  <p className="mt-6 text-xs font-semibold text-slate-500">
                     Ask a workspace administrator to connect an email account.
                   </p>
                 )}
+
+                <p className="mt-4 text-[11px] leading-5 text-slate-400">
+                  After connection, UnifyDesk will sync your conversations and this screen will
+                  become your shared Inbox.
+                </p>
               </div>
             </div>
           </main>
