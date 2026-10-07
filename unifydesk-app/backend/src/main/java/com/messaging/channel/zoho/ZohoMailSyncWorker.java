@@ -5,13 +5,11 @@ import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
 import com.messaging.asyncjob.service.AsyncJobService.ClaimedAsyncJob;
 import com.messaging.channel.entity.ChannelConnection;
-import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyRepository;
 import com.messaging.inbox.dto.InboxEmailChangedEvent;
 import com.messaging.realtime.service.RealtimeService;
 import jakarta.annotation.PreDestroy;
-import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -30,7 +28,6 @@ public class ZohoMailSyncWorker {
   private final ZohoMailConnectionLookup connectionLookup;
   private final ZohoMailMailboxService mailboxService;
   private final ZohoMailInboxPersistenceService persistenceService;
-  private final ChannelConnectionRepository connectionRepository;
   private final CompanyRepository companyRepository;
   private final RealtimeService realtimeService;
   private final ObjectMapper objectMapper;
@@ -43,7 +40,6 @@ public class ZohoMailSyncWorker {
       ZohoMailConnectionLookup connectionLookup,
       ZohoMailMailboxService mailboxService,
       ZohoMailInboxPersistenceService persistenceService,
-      ChannelConnectionRepository connectionRepository,
       CompanyRepository companyRepository,
       RealtimeService realtimeService,
       ObjectMapper objectMapper) {
@@ -52,7 +48,6 @@ public class ZohoMailSyncWorker {
     this.connectionLookup = connectionLookup;
     this.mailboxService = mailboxService;
     this.persistenceService = persistenceService;
-    this.connectionRepository = connectionRepository;
     this.companyRepository = companyRepository;
     this.realtimeService = realtimeService;
     this.objectMapper = objectMapper;
