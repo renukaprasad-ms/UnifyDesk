@@ -19,4 +19,5 @@ public record ZohoMailMessageSnapshot(
     String bodyHtml,
     Instant sentAt,
     boolean read,
-    EmailFolder folder) {}
+    EmailFolder folder,
+    List<ZohoMailAttachmentSnapshot> attachments) {}
