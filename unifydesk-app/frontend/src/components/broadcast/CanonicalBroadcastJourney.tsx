@@ -322,7 +322,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
               selectedEmailTemplate &&
                 availableEmailTemplates.some((template) => template.id === emailTemplateId),
             )
-          : Boolean(subject.trim() && body.trim())
+          : !usesMsg91Email && Boolean(subject.trim() && body.trim())
         : canonicalSmsContentReady({
             sender: selectedBroadcastSender,
             body,
@@ -1179,6 +1179,11 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                         })}
                       </div>
                     )}
+                  </div>
+                ) : usesMsg91Email ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800">
+                    MSG91 Email sends published transactional templates only. Choose a ready
+                    template above before continuing.
                   </div>
                 ) : (
                   <>
