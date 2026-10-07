@@ -1022,6 +1022,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
               <button
                 type="button"
                 className="primary-button w-full"
+                disabled={!can(PERMISSIONS.BROADCAST_CREATE)}
                 onClick={() => {
                   const params = new URLSearchParams(location.search)
                   params.delete('view')
