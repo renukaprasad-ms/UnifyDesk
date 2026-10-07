@@ -3,6 +3,7 @@ package com.messaging.asyncjob.enums;
 public enum AsyncJobType {
   GMAIL_SYNC,
   MICROSOFT_SYNC,
+  ZOHO_MAIL_SYNC,
   IMAP_SMTP_SYNC,
   INBOX_READ_SYNC,
   ENTITY_CLEANUP,
