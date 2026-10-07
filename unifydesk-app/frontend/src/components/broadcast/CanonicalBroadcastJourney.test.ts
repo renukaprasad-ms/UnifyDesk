@@ -86,6 +86,24 @@ describe('canonical Broadcast audience selection', () => {
     expect(payload.templateId).not.toBe(payload.whatsappTemplateId)
   })
 
+  it('submits a published Email template without scratch content', () => {
+    const payload = buildCanonicalBroadcastPayload({
+      source: { sourceType: 'LIST', sourceId: 'list-1' },
+      channel: 'EMAIL',
+      senderId: 'sender-1',
+      subject: 'Scratch subject should not be used',
+      body: 'Scratch body should not be used',
+      whatsappTemplateParameters: emptyWhatsAppParameters,
+      emailTemplateId: 'email-template-1',
+      templateVariables: { first_name: 'Friend' },
+    })
+
+    expect(payload.templateId).toBe('email-template-1')
+    expect(payload.subject).toBeNull()
+    expect(payload.bodyText).toBeNull()
+    expect(payload.templateVariables).toEqual({ first_name: 'Friend' })
+  })
+
   it('requires a ready Managed SMS template and submits its id and variables', () => {
     const sender = {
       provider: 'MSG91_SMS' as const,

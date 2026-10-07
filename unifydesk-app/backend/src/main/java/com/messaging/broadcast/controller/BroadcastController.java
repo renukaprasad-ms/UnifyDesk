@@ -175,6 +175,19 @@ public class BroadcastController {
                 "Audience Broadcast draft created"));
   }
 
+  @GetMapping("/messages")
+  public ResponseEntity<ApiResponse<Page<BroadcastMessageSummaryResponse>>> messagesByChannel(
+      @PathVariable Long companyId,
+      @RequestParam(defaultValue = "EMAIL") ChannelType channelType,
+      @PageableDefault(size = 30) Pageable pageable) {
+    require(companyId, CompanyPermissionKeys.BROADCAST_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            messageService.listByChannel(companyId, channelType, pageable),
+            "Broadcast history fetched"));
+  }
+
   @PutMapping("/messages/{broadcastId}")
   public ResponseEntity<ApiResponse<BroadcastMessageResponse>> updateMessage(
       @PathVariable Long companyId,

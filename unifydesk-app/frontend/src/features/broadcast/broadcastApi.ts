@@ -202,6 +202,14 @@ export const broadcastApi = {
     return unwrap(response.data)
   },
 
+  async channelHistory(companyId: string, channelType: ChannelType, page = 0, size = 30) {
+    const response = await apiClient.get<ApiResponse<Page<BroadcastMessageSummary>>>(
+      `/api/v1/companies/${companyId}/broadcast/messages`,
+      { params: { channelType, page, size } },
+    )
+    return unwrap(response.data)
+  },
+
   async createMessage(companyId: string, groupId: string, input: CreateBroadcastMessageInput) {
     const response = await apiClient.post<ApiResponse<BroadcastMessage>>(
       `/api/v1/companies/${companyId}/broadcast/groups/${groupId}/messages`,

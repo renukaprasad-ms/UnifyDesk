@@ -23,6 +23,14 @@ vi.mock('../../features/contacts/contactsApi', () => ({
   },
 }))
 
+vi.mock('../../features/emailTemplate/emailTemplateApi', () => ({
+  emailTemplateApi: {
+    published: vi.fn().mockResolvedValue([]),
+    providerBindings: vi.fn().mockResolvedValue([]),
+    refreshProviderBinding: vi.fn(),
+  },
+}))
+
 vi.mock('../../features/broadcast/broadcastApi', () => ({
   broadcastApi: {
     channelReadiness: vi.fn(),
@@ -206,7 +214,7 @@ const chooseReadyEmail = async () => {
   fireEvent.change(screen.getByLabelText('Audience'), { target: { value: 'list-1' } })
   fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Subject' } })
   fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Body' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Preview eligible recipients' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Check recipients' }))
   await screen.findByLabelText('Recipient eligibility preview')
 }
 
@@ -305,7 +313,7 @@ describe('CanonicalBroadcastJourney workspace epoch remediation', () => {
     fireEvent.change(screen.getByLabelText('Audience'), { target: { value: 'list-1' } })
     fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Subject' } })
     fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Body' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Preview eligible recipients' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Check recipients' }))
     await waitFor(() => expect(broadcastApi.previewAudience).toHaveBeenCalledTimes(1))
 
     currentCompanyId = 'company-b'
@@ -423,7 +431,7 @@ describe('CanonicalBroadcastJourney workspace epoch remediation', () => {
     expect(screen.getByRole('button', { name: 'Send Broadcast' })).toBeDisabled()
     expect(broadcastApi.previewAudience).toHaveBeenCalledTimes(1)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Preview eligible recipients' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Check recipients' }))
     await waitFor(() => expect(broadcastApi.previewAudience).toHaveBeenCalledTimes(2))
     expect(await screen.findByLabelText('Recipient eligibility preview')).toBeInTheDocument()
   })
