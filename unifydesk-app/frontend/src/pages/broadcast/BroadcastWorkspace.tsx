@@ -832,17 +832,6 @@ export default function BroadcastWorkspace() {
     workspaceEpoch,
   ])
 
-  const openNewGroup = () => {
-    updateSearch({
-      legacy: '1',
-      newGroup: null,
-      broadcastId: null,
-      compose: null,
-      editBroadcastId: null,
-      view: null,
-    })
-  }
-
   const openEditGroup = () => {
     if (!selectedGroup) return
     setGroupName(selectedGroup.name)
