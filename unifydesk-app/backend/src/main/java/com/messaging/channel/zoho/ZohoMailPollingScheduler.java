@@ -15,6 +15,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -34,6 +35,7 @@ public class ZohoMailPollingScheduler {
   private final RealtimeService realtimeService;
   private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
   private final AtomicInteger inFlight = new AtomicInteger();
+  private final Set<Long> activeConnectionIds = ConcurrentHashMap.newKeySet();
 
   public ZohoMailPollingScheduler(
       ZohoMailOAuthProperties properties,
@@ -74,12 +76,15 @@ public class ZohoMailPollingScheduler {
         continue;
       }
 
+      if (!activeConnectionIds.add(connection.getId())) continue;
+
       inFlight.incrementAndGet();
       executor.submit(
           () -> {
             try {
               sync(connection);
             } finally {
+              activeConnectionIds.remove(connection.getId());
               inFlight.decrementAndGet();
             }
           });
