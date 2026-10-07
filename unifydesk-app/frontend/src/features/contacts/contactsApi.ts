@@ -1,7 +1,10 @@
 import axios from 'axios'
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
-import { createIdempotencyKey } from './contactModel'
+import {
+  createIdempotencyKey,
+  type ContactMarketingPreferences,
+} from './contactModel'
 import type {
   AsyncJob,
   BulkOperation,
@@ -313,6 +316,23 @@ export const contactsApi = {
       base(companyId) + '/' + contactId + '/preferences',
     )
     return unwrap(response.data)
+  },
+
+  async applyMarketingPreferences(
+    companyId: string,
+    contactId: string,
+    preferences: ContactMarketingPreferences,
+    reason: string,
+  ) {
+    await Promise.all(
+      (Object.entries(preferences) as Array<
+        [CommunicationPreference['channel'], CommunicationPreference['state']]
+      >)
+        .filter(([, state]) => state !== 'UNKNOWN')
+        .map(([channel, state]) =>
+          contactsApi.updatePreference(companyId, contactId, channel, state, reason),
+        ),
+    )
   },
 
   async updatePreference(

@@ -1,4 +1,5 @@
 import type {
+  ContactChannel,
   ContactDetail,
   ContactExportField,
   ContactPatchInput,
@@ -8,12 +9,21 @@ import type {
   ContactSummary,
   ContactWriteInput,
   ConsentImportDeclaration,
+  PreferenceState,
   ConsentImportMapping,
   CursorPage,
   ImportCommitInput,
   ImportFieldMapping,
   ImportFieldTarget,
 } from './types'
+
+export type ContactMarketingPreferences = Record<ContactChannel, PreferenceState>
+
+export const emptyContactMarketingPreferences: ContactMarketingPreferences = {
+  EMAIL: 'UNKNOWN',
+  SMS: 'UNKNOWN',
+  WHATSAPP: 'UNKNOWN',
+}
 
 export type ContactFormDraft = {
   displayName: string
