@@ -191,7 +191,10 @@ const AppRoutes = () => (
                 />
               }
             >
-              <Route path="company/connections" element={<CompanyConnections />} />
+              <Route
+                path="company/connections"
+                element={<WorkspaceEpochBoundary><CompanyConnections /></WorkspaceEpochBoundary>}
+              />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.USER_READ]} />}>
               <Route path="company/users" element={<CompanyUsers />} />
