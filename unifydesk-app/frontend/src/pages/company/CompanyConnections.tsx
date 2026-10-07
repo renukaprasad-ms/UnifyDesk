@@ -665,43 +665,6 @@ export default function CompanyConnections() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
-                      <FiMail aria-hidden="true" />
-                    </span>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base font-bold text-slate-950">UnifyDesk Managed Email</h3>
-                        <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                          RECOMMENDED
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs leading-5 text-slate-600">
-                        Use a customer domain or a hosted UnifyDesk domain without managing provider
-                        credentials yourself.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                {can(PERMISSIONS.BROADCAST_MODIFY) && (
-                  <button
-                    type="button"
-                    className="primary-button shrink-0 gap-2"
-                    onClick={() => {
-                      setManagedEmailDomainId(null)
-                      setManagedEmailOpen(true)
-                    }}
-                  >
-                    <FiMail aria-hidden="true" />
-                    Set up Managed Email
-                  </button>
-                )}
-              </div>
-            </div>
-
             {can(PERMISSIONS.BROADCAST_READ) && (
               <ManagedEmailPanel
                 companyId={selectedCompany.companyId}
@@ -887,38 +850,6 @@ export default function CompanyConnections() {
                 Use UnifyDesk Managed SMS first, or bring your own MSG91 account when you need
                 direct provider ownership.
               </p>
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-start gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
-                    <FiSmartphone aria-hidden="true" />
-                  </span>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-bold text-slate-950">UnifyDesk Managed SMS</h3>
-                      <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                        RECOMMENDED
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs leading-5 text-slate-600">
-                      Use your approved DLT Header and templates while UnifyDesk manages the sending
-                      infrastructure.
-                    </p>
-                  </div>
-                </div>
-                {can(PERMISSIONS.BROADCAST_MODIFY) && (
-                  <button
-                    type="button"
-                    className="primary-button shrink-0 gap-2"
-                    onClick={() => setManagedSmsOpen(true)}
-                  >
-                    <FiSmartphone aria-hidden="true" />
-                    Set up Managed SMS
-                  </button>
-                )}
-              </div>
             </div>
 
             {can(PERMISSIONS.BROADCAST_READ) && (
