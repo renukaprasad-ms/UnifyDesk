@@ -13,11 +13,19 @@ import {
   FiX,
 } from 'react-icons/fi'
 import ConversationList from '../../components/inbox/ConversationList'
+import ContactRecipientInput from '../../components/inbox/ContactRecipientInput'
+import ContactFormDialog from '../../components/contacts/ContactFormDialog'
 import EmailProviderPicker from '../../components/email/EmailProviderPicker'
 import { conversationParticipant } from '../../components/inbox/conversationListUtils'
 import WhatsAppInbox from '../../components/whatsapp/WhatsAppInbox'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
+import { contactsApi } from '../../features/contacts/contactsApi'
+import {
+  emptyContactDraft,
+  toCreateContactInput,
+  type ContactFormDraft,
+} from '../../features/contacts/contactModel'
 import type { AsyncJob } from '../../features/asyncJob/types'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { imapSmtpApi } from '../../features/channel/imapSmtpApi'
@@ -104,13 +112,6 @@ const forwardSubject = (subject?: string | null) => {
   return /^fwd?:/i.test(value) ? value : `Fwd: ${value || '(no subject)'}`
 }
 
-const createContactHref = (participant: InboxParticipant) => {
-  const params = new URLSearchParams({ new: '1' })
-  if (participant.participantType === 'EMAIL_ADDRESS') params.set('email', participant.address)
-  else params.set('phone', participant.address)
-  return `/contacts?${params.toString()}`
-}
-
 type ComposeAttachment = {
   clientId: string
   file: File
@@ -152,6 +153,9 @@ function EmailInboxView() {
   )
   const [syncing, setSyncing] = useState(false)
   const [sending, setSending] = useState(false)
+  const [contactCreateOpen, setContactCreateOpen] = useState(false)
+  const [contactCreateSaving, setContactCreateSaving] = useState(false)
+  const [createdInboxContactId, setCreatedInboxContactId] = useState<string | null>(null)
   const [readUpdatingConversationId, setReadUpdatingConversationId] = useState<string | null>(null)
   const [readUpdatingMessageId, setReadUpdatingMessageId] = useState<string | null>(null)
   const [markAllStarting, setMarkAllStarting] = useState(false)
@@ -255,6 +259,29 @@ function EmailInboxView() {
       null
     )
   }, [ownAddress, selectedConversation])
+
+  const contactCreateInitial = useMemo<ContactFormDraft | undefined>(() => {
+    if (!contactParticipant || contactParticipant.contactId) return undefined
+    return {
+      ...emptyContactDraft,
+      displayName: contactParticipant.displayName?.trim() || '',
+      email:
+        contactParticipant.participantType === 'EMAIL_ADDRESS'
+          ? contactParticipant.address
+          : '',
+      phone:
+        contactParticipant.participantType === 'PHONE_NUMBER'
+          ? contactParticipant.address
+          : '',
+    }
+  }, [contactParticipant])
+
+  const effectiveContactId = contactParticipant?.contactId ?? createdInboxContactId
+
+  useEffect(() => {
+    setCreatedInboxContactId(null)
+    setContactCreateOpen(false)
+  }, [selectedConversationId, workspaceEpoch])
 
   const loadConversations = useCallback(
     async (page = 0, append = false, force = false) => {
@@ -1038,8 +1065,12 @@ function EmailInboxView() {
     }
 
     const to = parseRecipients(composeTo)
-    const cc = parseRecipients(composeCc)
-    const bcc = parseRecipients(composeBcc)
+    const toSet = new Set(to)
+    const cc = parseRecipients(composeCc).filter((address) => !toSet.has(address))
+    const ccSet = new Set(cc)
+    const bcc = parseRecipients(composeBcc).filter(
+      (address) => !toSet.has(address) && !ccSet.has(address),
+    )
     if (to.length === 0 && cc.length === 0 && bcc.length === 0) {
       snackbar.warning('Add at least one To, CC, or BCC recipient.')
       return
