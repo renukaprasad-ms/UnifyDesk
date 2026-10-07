@@ -86,7 +86,7 @@ public class ZohoMailMailboxService {
     return List.copyOf(result);
   }
 
-  public List<ZohoMailMessageSnapshot> incremental(
+  public IncrementalResult incremental(
       ChannelConnection connection, EmailFolder folder, Instant since) {
     ZohoMailStoredToken token = tokenService.tokenSet(connection);
     String folderId = folderId(token, folder);
@@ -104,13 +104,15 @@ public class ZohoMailMailboxService {
               folderId,
               start,
               pageSize);
-      if (messages.isEmpty()) break;
+      if (messages.isEmpty()) {
+        return new IncrementalResult(List.copyOf(result), true);
+      }
 
-      boolean reachedOld = false;
+      boolean reachedWatermark = false;
       for (ZohoMessage message : messages) {
         Instant at = providerInstant(message);
         if (at != null && at.isBefore(since)) {
-          reachedOld = true;
+          reachedWatermark = true;
           continue;
         }
         String content =
@@ -124,10 +126,18 @@ public class ZohoMailMailboxService {
             mapper.map(message, content, folder, attachments(token, folderId, message));
         if (!snapshot.sentAt().isBefore(since)) result.add(snapshot);
       }
-      if (reachedOld || messages.size() < pageSize) break;
+
+      if (reachedWatermark || messages.size() < pageSize) {
+        return new IncrementalResult(List.copyOf(result), true);
+      }
     }
-    return List.copyOf(result);
+
+    // Do not let the polling caller advance its watermark when the provider page cap was
+    // exhausted before reaching the previous watermark. Reprocessing is preferable to loss.
+    return new IncrementalResult(List.copyOf(result), false);
   }
+
+  public record IncrementalResult(List<ZohoMailMessageSnapshot> messages, boolean complete) {}
 
   private List<ZohoMailApiClient.ZohoAttachment> attachments(
       ZohoMailStoredToken token, String folderId, ZohoMessage message) {
