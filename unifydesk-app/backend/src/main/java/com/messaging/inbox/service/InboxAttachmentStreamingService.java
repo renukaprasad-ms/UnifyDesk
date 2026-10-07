@@ -5,6 +5,9 @@ import com.messaging.channel.gmail.GmailApiClient;
 import com.messaging.channel.gmail.GmailTokenService;
 import com.messaging.channel.microsoft.MicrosoftApiClient;
 import com.messaging.channel.microsoft.MicrosoftTokenService;
+import com.messaging.channel.zoho.ZohoMailApiClient;
+import com.messaging.channel.zoho.ZohoMailStoredToken;
+import com.messaging.channel.zoho.ZohoMailTokenService;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.inbox.entity.InboxMessageAttachment;
 import com.messaging.inbox.repository.InboxMessageAttachmentRepository;
@@ -24,6 +27,8 @@ public class InboxAttachmentStreamingService {
   private final GmailTokenService gmailTokenService;
   private final MicrosoftApiClient microsoftApiClient;
   private final MicrosoftTokenService microsoftTokenService;
+  private final ZohoMailApiClient zohoMailApiClient;
+  private final ZohoMailTokenService zohoMailTokenService;
   private final MediaService mediaService;
 
   @Transactional(readOnly = true)
@@ -68,6 +73,21 @@ public class InboxAttachmentStreamingService {
               message.getExternalMessageId(),
               attachment.getExternalAttachmentId(),
               outputStream);
+      case ZOHO_MAIL -> {
+        ZohoMailStoredToken session = zohoMailTokenService.session(connection);
+        String folderId =
+            "SENT".equalsIgnoreCase(message.getProviderFolderKey())
+                ? session.sentFolderId()
+                : session.inboxFolderId();
+        zohoMailApiClient.streamAttachment(
+            session.accessToken(),
+            session.mailBaseUrl(),
+            session.accountId(),
+            folderId,
+            message.getExternalMessageId(),
+            attachment.getExternalAttachmentId(),
+            outputStream);
+      }
       default -> throw new NotFoundException("Inbox attachment is not available for this provider");
     }
   }
