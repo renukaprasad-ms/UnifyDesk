@@ -159,7 +159,8 @@ public class ContactRepository {
         from contacts c
         where c.company_id = ?
           and c.status = 'ACTIVE'
-          and c.created_at >= date_trunc('day', now() at time zone 'UTC') - interval '29 days'
+          and (c.created_at at time zone 'UTC') >=
+              date_trunc('day', now() at time zone 'UTC') - interval '29 days'
         group by (c.created_at at time zone 'UTC')::date
         order by day
         """,
