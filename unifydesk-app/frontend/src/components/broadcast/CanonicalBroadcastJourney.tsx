@@ -911,12 +911,6 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         <section className="panel p-4 sm:p-5">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500">3. Message & send</p>
           <div className="mt-3 grid gap-3">
-            {channel === 'EMAIL' && (
-              <label className="text-xs font-semibold text-slate-700">
-                Subject
-                <input className="form-input mt-1" value={subject} onChange={(event) => setSubject(event.target.value)} maxLength={998} />
-              </label>
-            )}
             {channel === 'WHATSAPP' ? (
               <>
                 <label className="text-xs font-semibold text-slate-700">
