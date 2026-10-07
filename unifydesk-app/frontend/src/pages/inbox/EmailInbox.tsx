@@ -30,6 +30,7 @@ import type { AsyncJob } from '../../features/asyncJob/types'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { imapSmtpApi } from '../../features/channel/imapSmtpApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
+import { zohoMailApi } from '../../features/channel/zohoMailApi'
 import type {
   EmailFolder,
   EmailSyncMode,
@@ -364,7 +365,7 @@ function EmailInboxView() {
       !companyId ||
       !selectedConnectionId ||
       !selectedProviderType ||
-      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedProviderType)
+      !['GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP'].includes(selectedProviderType)
     ) {
       setSyncJobs({})
       return
@@ -552,6 +553,7 @@ function EmailInboxView() {
       if (
         job.jobType === 'GMAIL_SYNC' ||
         job.jobType === 'MICROSOFT_SYNC' ||
+        job.jobType === 'ZOHO_MAIL_SYNC' ||
         job.jobType === 'IMAP_SMTP_SYNC'
       ) {
         setSyncJobs((current) => {
@@ -637,7 +639,7 @@ function EmailInboxView() {
     }
     if (
       selectedConnection.status !== 'ACTIVE' ||
-      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
+      !['GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP'].includes(selectedConnection.providerType)
     ) {
       snackbar.info('The selected email account does not support sync.')
       return
@@ -654,7 +656,7 @@ function EmailInboxView() {
 
     if (
       selectedConnection.status !== 'ACTIVE' ||
-      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
+      !['GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP'].includes(selectedConnection.providerType)
     ) {
       snackbar.warning('The selected email account is not active.')
       return
@@ -696,7 +698,9 @@ function EmailInboxView() {
           ? await gmailApi.sync(companyId, selectedConnection.id, request)
           : selectedConnection.providerType === 'MICROSOFT'
             ? await microsoftApi.sync(companyId, selectedConnection.id, request)
-            : await imapSmtpApi.sync(companyId, selectedConnection.id, request)
+            : selectedConnection.providerType === 'ZOHO_MAIL'
+              ? await zohoMailApi.sync(companyId, selectedConnection.id, request)
+              : await imapSmtpApi.sync(companyId, selectedConnection.id, request)
       const job = await asyncJobApi.get(queued.jobId)
       setSyncJobs({ [job.jobId]: job })
       setShowSyncDialog(false)
@@ -1058,7 +1062,7 @@ function EmailInboxView() {
   const sendEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!companyId || !selectedConnection || sending) return
-    if (!['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)) {
+    if (!['GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP'].includes(selectedConnection.providerType)) {
       snackbar.warning('Sending is not available for the selected email provider.')
       return
     }
@@ -1111,7 +1115,21 @@ function EmailInboxView() {
                 replyAll: composeMode === 'replyAll',
                 attachmentMediaIds,
               })
-            : await imapSmtpApi.send(companyId, selectedConnection.id, {
+            : selectedConnection.providerType === 'ZOHO_MAIL'
+              ? await zohoMailApi.send(companyId, selectedConnection.id, {
+                  to,
+                  cc,
+                  bcc,
+                  subject: composeSubject.trim(),
+                  bodyText: composeBody,
+                  replyToMessageId:
+                    composeMode === 'reply' || composeMode === 'replyAll'
+                      ? composeProviderMessageId || null
+                      : null,
+                  replyAll: composeMode === 'replyAll',
+                  attachmentMediaIds,
+                })
+              : await imapSmtpApi.send(companyId, selectedConnection.id, {
                 to,
                 cc,
                 bcc,
@@ -1141,6 +1159,7 @@ function EmailInboxView() {
     can(PERMISSIONS.EMAIL_SEND) &&
     (selectedConnection?.providerType === 'GMAIL' ||
       selectedConnection?.providerType === 'MICROSOFT' ||
+      selectedConnection?.providerType === 'ZOHO_MAIL' ||
       selectedConnection?.providerType === 'IMAP_SMTP')
 
   if (!companyId) {
@@ -1269,7 +1288,7 @@ function EmailInboxView() {
                 !selectedConnection ||
                 syncing ||
                 activeSyncJobs.length > 0 ||
-                !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
+                !['GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP'].includes(selectedConnection.providerType)
               }
             >
               <FiMail aria-hidden="true" />
@@ -1662,9 +1681,11 @@ function EmailInboxView() {
                 {' · '}
                 {selectedConnection?.providerType === 'MICROSOFT'
                   ? 'Microsoft'
-                  : selectedConnection?.providerType === 'IMAP_SMTP'
-                    ? 'IMAP + SMTP'
-                    : 'Gmail'}
+                  : selectedConnection?.providerType === 'ZOHO_MAIL'
+                    ? 'Zoho Mail'
+                    : selectedConnection?.providerType === 'IMAP_SMTP'
+                      ? 'IMAP + SMTP'
+                      : 'Gmail'}
               </p>
 
               <div className="mt-5">
