@@ -150,6 +150,9 @@ export default function ManagedEmailPanel({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-bold text-slate-950">UnifyDesk Managed Email</h2>
+            <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[9px] font-bold text-white">
+              RECOMMENDED
+            </span>
             {overview && (
               <span
                 className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
