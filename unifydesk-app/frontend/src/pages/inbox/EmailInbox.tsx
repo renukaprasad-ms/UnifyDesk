@@ -13,6 +13,7 @@ import {
   FiX,
 } from 'react-icons/fi'
 import ConversationList from '../../components/inbox/ConversationList'
+import EmailProviderPicker from '../../components/email/EmailProviderPicker'
 import { conversationParticipant } from '../../components/inbox/conversationListUtils'
 import WhatsAppInbox from '../../components/whatsapp/WhatsAppInbox'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
@@ -226,6 +227,11 @@ function EmailInboxView() {
   )
 
   const selectedProviderType = selectedConnection?.providerType ?? null
+  const connectionsReady =
+    inbox.connectionsCompanyId === companyId &&
+    inbox.connectionsEpoch === workspaceEpoch &&
+    inbox.connectionsStatus === 'ready'
+  const noInboxConnections = connectionsReady && connections.length === 0
 
   const ownAddress = useMemo(() => {
     if (selectedConversation) {
@@ -1112,6 +1118,88 @@ function EmailInboxView() {
       <section className="px-6 py-8">
         <div className="panel p-8 text-center text-sm text-slate-500">
           Select a workspace to open the email inbox.
+        </div>
+      </section>
+    )
+  }
+
+  if (noInboxConnections) {
+    return (
+      <section className="channel-workspace-page">
+        <div className="channel-workspace-toolbar">
+          <div className="min-w-0 lg:hidden">
+            <p className="eyebrow">INBOX</p>
+            <p className="mt-1 truncate text-xs font-semibold text-slate-700">Email</p>
+          </div>
+          <div className="inbox-toolbar-actions ml-auto flex items-center gap-2">
+            {can(PERMISSIONS.EMAIL_CONNECT) && (
+              <EmailProviderPicker
+                companyId={companyId}
+                returnTo="/inbox/email"
+                label="Connect email"
+                className="primary-button gap-2"
+                buttonIcon="mail"
+                onConnected={(connection) => {
+                  const params = new URLSearchParams(searchParams)
+                  params.set('connectionId', connection.id)
+                  params.set('folder', 'INBOX')
+                  setSearchParams(params)
+                  void dispatch(
+                    fetchEmailConnections({
+                      companyId,
+                      epoch: workspaceEpoch,
+                      force: true,
+                    }),
+                  )
+                }}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="channel-workspace-body">
+          <main className="channel-message-surface">
+            <div className="flex min-h-[calc(100dvh-210px)] items-center justify-center px-6 py-10 text-center">
+              <div className="w-full max-w-lg rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-10">
+                <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-indigo-50 text-2xl text-indigo-500">
+                  <FiMail aria-hidden="true" />
+                </span>
+                <h1 className="mt-4 text-xl font-bold text-slate-950">Connect your email inbox</h1>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Connect Gmail, Microsoft 365 / Outlook, or another mailbox using IMAP + SMTP.
+                  Your conversations will appear here after the account is connected and synced.
+                </p>
+                {can(PERMISSIONS.EMAIL_CONNECT) ? (
+                  <div className="mx-auto mt-5 max-w-xs">
+                    <EmailProviderPicker
+                      companyId={companyId}
+                      returnTo="/inbox/email"
+                      label="Connect email account"
+                      className="primary-button w-full justify-center gap-2"
+                      buttonIcon="mail"
+                      onConnected={(connection) => {
+                        const params = new URLSearchParams(searchParams)
+                        params.set('connectionId', connection.id)
+                        params.set('folder', 'INBOX')
+                        setSearchParams(params)
+                        void dispatch(
+                          fetchEmailConnections({
+                            companyId,
+                            epoch: workspaceEpoch,
+                            force: true,
+                          }),
+                        )
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-5 text-xs font-semibold text-slate-500">
+                    Ask a workspace administrator to connect an email account.
+                  </p>
+                )}
+              </div>
+            </div>
+          </main>
         </div>
       </section>
     )
