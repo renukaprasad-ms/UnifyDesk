@@ -7,6 +7,7 @@ import type {
   ContactSelection,
   ContactSummary,
   ContactWriteInput,
+  ConsentImportDeclaration,
   ConsentImportMapping,
   CursorPage,
   ImportCommitInput,
@@ -287,12 +288,14 @@ export const buildImportCommitInput = (input: {
   mappings: ImportFieldMapping[]
   duplicateStrategy: ImportCommitInput['duplicateStrategy']
   consentMappings: ImportCommitInput['consentMappings']
+  consentDeclarations?: ConsentImportDeclaration[]
   targetListId?: string | null
   idempotencyKey: string
 }): ImportCommitInput => ({
   mappings: input.mappings.filter((mapping) => mapping.target.type !== 'IGNORE'),
   duplicateStrategy: input.duplicateStrategy,
   consentMappings: input.consentMappings,
+  consentDeclarations: input.consentDeclarations ?? [],
   targetListId: input.targetListId || null,
   idempotencyKey: input.idempotencyKey,
 })

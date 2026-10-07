@@ -3,6 +3,7 @@ package com.messaging.contacts.processing;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.messaging.contacts.consent.ConsentTypes.Channel;
 import com.messaging.contacts.consent.ConsentTypes.PreferenceSource;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceState;
 import com.messaging.contacts.processing.ContactExportRowSource.SourceType;
 import com.messaging.contacts.processing.ContactImportMutationPort.DuplicateStrategy;
 import java.time.Instant;
@@ -76,10 +77,19 @@ public final class ContactProcessingApiModel {
       String evidenceColumn,
       String occurredAtColumn) {}
 
+  public record ConsentImportDeclaration(
+      Channel channel,
+      PreferenceState state,
+      PreferenceSource source,
+      String evidence,
+      Instant occurredAt,
+      boolean confirmed) {}
+
   public record ImportCommitRequest(
       List<ImportFieldMapping> mappings,
       DuplicateStrategy duplicateStrategy,
       List<ConsentImportMapping> consentMappings,
+      List<ConsentImportDeclaration> consentDeclarations,
       String targetListId,
       String idempotencyKey) {}
 

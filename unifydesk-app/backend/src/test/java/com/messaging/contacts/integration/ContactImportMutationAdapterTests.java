@@ -10,6 +10,9 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.contacts.consent.ContactPreferenceService;
+import com.messaging.contacts.consent.ConsentTypes.Channel;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceSource;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceState;
 import com.messaging.contacts.core.domain.ContactTypes.ContactStatus;
 import com.messaging.contacts.core.domain.CoreRows.ContactRow;
 import com.messaging.contacts.core.repository.ContactListRepository;
@@ -20,6 +23,7 @@ import com.messaging.contacts.core.service.ContactQuotaGuard;
 import com.messaging.contacts.core.service.CustomFieldValueCodec;
 import com.messaging.contacts.core.service.IdentityNormalizer;
 import com.messaging.contacts.core.service.IdentityNormalizer.NormalizedIdentity;
+import com.messaging.contacts.processing.ContactImportMutationPort.ConsentDeclaration;
 import com.messaging.contacts.processing.ContactImportMutationPort.DuplicateStrategy;
 import com.messaging.contacts.processing.ContactImportMutationPort.ImportMapping;
 import com.messaging.contacts.processing.ContactImportMutationPort.ImportRow;
@@ -54,6 +58,59 @@ class ContactImportMutationAdapterTests {
     assertEquals(List.of(), result.failures());
     verify(fixture.connection()).setSavepoint();
     verify(fixture.connection()).releaseSavepoint(fixture.savepoint());
+  }
+
+  @Test
+  void appliesConfirmedBulkConsentDeclarationToImportedContact() throws Exception {
+    Fixture fixture = fixture();
+    when(fixture.contactRepository().insertContact(
+            anyLong(), anyLong(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(contact(101L));
+    Instant occurredAt = Instant.parse("2026-10-01T00:00:00Z");
+
+    ImportMapping mapping =
+        new ImportMapping(
+            null,
+            null,
+            null,
+            null,
+            null,
+            0,
+            null,
+            null,
+            Map.of(),
+            List.of(),
+            List.of(
+                new ConsentDeclaration(
+                    Channel.EMAIL,
+                    PreferenceState.OPTED_IN,
+                    PreferenceSource.IMPORT,
+                    "Website form",
+                    occurredAt)),
+            null);
+
+    fixture.adapter().applyBatch(
+        1L,
+        2L,
+        3L,
+        mapping,
+        DuplicateStrategy.SKIP,
+        null,
+        List.of(new ImportRow(1L, List.of("alice@example.com"))));
+
+    verify(fixture.preferenceService())
+        .setFromImport(
+            1L,
+            101L,
+            null,
+            Channel.EMAIL,
+            com.messaging.contacts.consent.ConsentTypes.Purpose.MARKETING,
+            PreferenceState.OPTED_IN,
+            "Website form",
+            "Imported consent evidence",
+            occurredAt,
+            "import:2:row:1:EMAIL",
+            2L);
   }
 
   @Test
@@ -122,12 +179,12 @@ class ContactImportMutationAdapterTests {
             new ObjectMapper(),
             dataSource);
 
-    return new Fixture(adapter, contactRepository, connection, savepoint);
+    return new Fixture(adapter, contactRepository, preferenceService, connection, savepoint);
   }
 
   private ImportMapping emailOnlyMapping() {
     return new ImportMapping(
-        null, null, null, null, null, 0, null, null, Map.of(), List.of(), null);
+        null, null, null, null, null, 0, null, null, Map.of(), List.of(), List.of(), null);
   }
 
   private ContactRow contact(long id) {
@@ -159,6 +216,7 @@ class ContactImportMutationAdapterTests {
   private record Fixture(
       ContactImportMutationAdapter adapter,
       ContactRepository contactRepository,
+      ContactPreferenceService preferenceService,
       Connection connection,
       Savepoint savepoint) {}
 }

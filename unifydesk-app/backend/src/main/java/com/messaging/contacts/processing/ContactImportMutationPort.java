@@ -2,6 +2,8 @@ package com.messaging.contacts.processing;
 
 import com.messaging.contacts.consent.ConsentTypes.Channel;
 import com.messaging.contacts.consent.ConsentTypes.PreferenceSource;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceState;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +35,7 @@ public interface ContactImportMutationPort {
       Integer tagNamesColumn,
       Map<Long, Integer> customFieldColumns,
       List<ConsentColumnMapping> consentMappings,
+      List<ConsentDeclaration> consentDeclarations,
       String defaultCountryCode) {}
 
   record ConsentColumnMapping(
@@ -41,6 +44,13 @@ public interface ContactImportMutationPort {
       PreferenceSource source,
       Integer evidenceColumn,
       Integer occurredAtColumn) {}
+
+  record ConsentDeclaration(
+      Channel channel,
+      PreferenceState state,
+      PreferenceSource source,
+      String evidence,
+      Instant occurredAt) {}
 
   record ImportRow(long rowNumber, List<String> cells) {}
 
