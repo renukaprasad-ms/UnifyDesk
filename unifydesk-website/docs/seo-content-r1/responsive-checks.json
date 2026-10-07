@@ -1,0 +1,611 @@
+{
+  "checkedAt": "2026-10-07T06:36:28.481Z",
+  "rows": [
+    {
+      "requested": "/",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/product",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/product",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/solutions",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/solutions",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/integrations",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/integrations",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/pricing",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/pricing",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/security",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/security",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/about",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/about",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/contact",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/contact",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/privacy",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/privacy",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/terms",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/terms",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/whatsapp-shared-inbox",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/whatsapp-shared-inbox",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/whatsapp-broadcast",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/whatsapp-broadcast",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/sms-marketing",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/sms-marketing",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/email-campaigns",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/email-campaigns",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/omnichannel-inbox",
+      "viewport": 393,
+      "h1s": 1,
+      "images": [
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        },
+        {
+          "adjacentBrand": true,
+          "alt": "",
+          "hasAlt": true,
+          "src": "/logo-icon.svg"
+        }
+      ],
+      "route": "/omnichannel-inbox",
+      "scroll": 378,
+      "width": 378
+    },
+    {
+      "requested": "/",
+      "viewport": 320,
+      "h1s": 1,
+      "route": "/",
+      "scroll": 305,
+      "width": 305
+    },
+    {
+      "requested": "/product",
+      "viewport": 320,
+      "h1s": 1,
+      "route": "/product",
+      "scroll": 305,
+      "width": 305
+    },
+    {
+      "requested": "/solutions",
+      "viewport": 320,
+      "h1s": 1,
+      "route": "/solutions",
+      "scroll": 305,
+      "width": 305
+    },
+    {
+      "requested": "/integrations",
+      "viewport": 320,
+      "h1s": 1,
+      "route": "/integrations",
+      "scroll": 305,
+      "width": 305
+    },
+    {
+      "requested": "/pricing",
+      "viewport": 320,
+      "h1s": 1,
+      "route": "/pricing",
+      "scroll": 305,
+      "width": 305
+    },
+    {
+      "requested": "/security",
+      "viewport": 320,
+      "h1s": 1,
+      "route": "/security",
+      "scroll": 305,
+      "width": 305
+    },
+    {
+      "requested": "/whatsapp-shared-inbox",
+      "viewport": 320,
+      "h1s": 1,
+      "route": "/whatsapp-shared-inbox",
+      "scroll": 305,
+      "width": 305
+    },
+    {
+      "requested": "/whatsapp-broadcast",
+      "viewport": 320,
+      "h1s": 1,
+      "route": "/whatsapp-broadcast",
+      "scroll": 305,
+      "width": 305
+    },
+    {
+      "requested": "/sms-marketing",
+      "viewport": 320,
+      "h1s": 1,
+      "route": "/sms-marketing",
+      "scroll": 305,
+      "width": 305
+    },
+    {
+      "requested": "/email-campaigns",
+      "viewport": 320,
+      "h1s": 1,
+      "route": "/email-campaigns",
+      "scroll": 305,
+      "width": 305
+    },
+    {
+      "requested": "/omnichannel-inbox",
+      "viewport": 320,
+      "h1s": 1,
+      "route": "/omnichannel-inbox",
+      "scroll": 305,
+      "width": 305
+    },
+    {
+      "requested": "/",
+      "viewport": 768,
+      "h1s": 1,
+      "route": "/",
+      "scroll": 753,
+      "width": 753
+    },
+    {
+      "requested": "/product",
+      "viewport": 768,
+      "h1s": 1,
+      "route": "/product",
+      "scroll": 753,
+      "width": 753
+    },
+    {
+      "requested": "/solutions",
+      "viewport": 768,
+      "h1s": 1,
+      "route": "/solutions",
+      "scroll": 753,
+      "width": 753
+    },
+    {
+      "requested": "/integrations",
+      "viewport": 768,
+      "h1s": 1,
+      "route": "/integrations",
+      "scroll": 753,
+      "width": 753
+    },
+    {
+      "requested": "/pricing",
+      "viewport": 768,
+      "h1s": 1,
+      "route": "/pricing",
+      "scroll": 753,
+      "width": 753
+    },
+    {
+      "requested": "/security",
+      "viewport": 768,
+      "h1s": 1,
+      "route": "/security",
+      "scroll": 753,
+      "width": 753
+    },
+    {
+      "requested": "/whatsapp-shared-inbox",
+      "viewport": 768,
+      "h1s": 1,
+      "route": "/whatsapp-shared-inbox",
+      "scroll": 753,
+      "width": 753
+    },
+    {
+      "requested": "/whatsapp-broadcast",
+      "viewport": 768,
+      "h1s": 1,
+      "route": "/whatsapp-broadcast",
+      "scroll": 753,
+      "width": 753
+    },
+    {
+      "requested": "/sms-marketing",
+      "viewport": 768,
+      "h1s": 1,
+      "route": "/sms-marketing",
+      "scroll": 753,
+      "width": 753
+    },
+    {
+      "requested": "/email-campaigns",
+      "viewport": 768,
+      "h1s": 1,
+      "route": "/email-campaigns",
+      "scroll": 753,
+      "width": 753
+    },
+    {
+      "requested": "/omnichannel-inbox",
+      "viewport": 768,
+      "h1s": 1,
+      "route": "/omnichannel-inbox",
+      "scroll": 753,
+      "width": 753
+    },
+    {
+      "requested": "/",
+      "viewport": 1920,
+      "h1s": 1,
+      "route": "/",
+      "scroll": 1905,
+      "width": 1905
+    },
+    {
+      "requested": "/product",
+      "viewport": 1920,
+      "h1s": 1,
+      "route": "/product",
+      "scroll": 1905,
+      "width": 1905
+    },
+    {
+      "requested": "/solutions",
+      "viewport": 1920,
+      "h1s": 1,
+      "route": "/solutions",
+      "scroll": 1905,
+      "width": 1905
+    },
+    {
+      "requested": "/integrations",
+      "viewport": 1920,
+      "h1s": 1,
+      "route": "/integrations",
+      "scroll": 1905,
+      "width": 1905
+    },
+    {
+      "requested": "/pricing",
+      "viewport": 1920,
+      "h1s": 1,
+      "route": "/pricing",
+      "scroll": 1905,
+      "width": 1905
+    },
+    {
+      "requested": "/security",
+      "viewport": 1920,
+      "h1s": 1,
+      "route": "/security",
+      "scroll": 1905,
+      "width": 1905
+    },
+    {
+      "requested": "/whatsapp-shared-inbox",
+      "viewport": 1920,
+      "h1s": 1,
+      "route": "/whatsapp-shared-inbox",
+      "scroll": 1905,
+      "width": 1905
+    },
+    {
+      "requested": "/whatsapp-broadcast",
+      "viewport": 1920,
+      "h1s": 1,
+      "route": "/whatsapp-broadcast",
+      "scroll": 1905,
+      "width": 1905
+    },
+    {
+      "requested": "/sms-marketing",
+      "viewport": 1920,
+      "h1s": 1,
+      "route": "/sms-marketing",
+      "scroll": 1905,
+      "width": 1905
+    },
+    {
+      "requested": "/email-campaigns",
+      "viewport": 1920,
+      "h1s": 1,
+      "route": "/email-campaigns",
+      "scroll": 1905,
+      "width": 1905
+    },
+    {
+      "requested": "/omnichannel-inbox",
+      "viewport": 1920,
+      "h1s": 1,
+      "route": "/omnichannel-inbox",
+      "scroll": 1905,
+      "width": 1905
+    }
+  ]
+}

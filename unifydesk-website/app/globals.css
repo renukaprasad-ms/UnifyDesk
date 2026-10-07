@@ -2620,3 +2620,45 @@ main[id] {
     transition: none;
   }
 }
+
+/* Channel guides extend the existing marketing design system. */
+.seoHeroActions { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:24px; margin-top:30px; }
+.seoLaunchNote { display:block; margin-top:22px; color:var(--muted); line-height:1.7; }
+.seoSectionIntro { max-width:850px; margin-top:24px; font-size:18px; line-height:1.8; color:var(--muted); }
+.seoSteps { list-style:none; padding:0; margin:44px 0 0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:28px; }
+.seoSteps li { border-top:1px solid var(--line); padding-top:26px; }
+.seoStepNumber { color:var(--blue); font-size:15px; font-weight:700; }
+.seoSteps h3 { margin:18px 0 14px; font-size:23px; letter-spacing:-.5px; }
+.seoSteps p, .seoGuideLink p { color:var(--muted); line-height:1.8; }
+.seoInlineLinks { color:var(--muted); margin-top:32px; line-height:1.8; }
+.seoInlineLinks a { color:var(--blue); text-decoration:underline; text-underline-offset:4px; }
+.seoPreparation { padding:36px; border:1px solid var(--line); border-radius:14px; background:var(--soft); }
+.seoPreparation h3 { font-size:24px; margin:0 0 22px; }
+.seoPreparation ul { list-style:none; padding:0; margin:0 0 28px; display:grid; gap:20px; }
+.seoPreparation li { display:flex; gap:12px; color:var(--muted); line-height:1.7; }
+.seoPreparation li svg { color:var(--blue); flex-shrink:0; margin-top:4px; }
+.seoTwoColumns, .seoLinkGrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.seoLinkGrid { gap:20px; margin-top:36px; }
+.seoGuideLink { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; border:1px solid var(--line); border-radius:14px; padding:30px; transition:border-color .2s; }
+.seoGuideLink:hover { border-color:var(--blue); }
+.seoGuideLink h3 { font-size:22px; margin:0 0 12px; }
+.seoGuideLink > svg { color:var(--blue); flex-shrink:0; margin-top:4px; }
+.seoFaq { display:grid; grid-template-columns:1fr 1.25fr; gap:8vw; }
+.seoFaq .sectionTitle { font-size:clamp(30px,3.3vw,45px); }
+.providerRouteGrid.seoProviderGrid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.seoProviderGrid p { margin-top:18px; color:var(--muted); font-size:14px; line-height:1.8; }
+.seoProviderGrid a { display:inline-flex; margin-top:18px; font-size:14px; color:var(--blue); font-weight:600; text-decoration:underline; text-underline-offset:4px; }
+.seoSecurityDetail { margin-top:26px; }
+.seoSecurityDetail p { color:var(--muted); line-height:1.8; }
+@media (max-width:960px) {
+  .seoSteps, .seoFaq { grid-template-columns:1fr; }
+  .seoSteps { gap:32px; }
+  .providerRouteGrid.seoProviderGrid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:640px) {
+  .seoHeroActions { flex-direction:column; gap:20px; }
+  .seoHeroActions .button { width:100%; max-width:340px; }
+  .seoTwoColumns, .seoLinkGrid, .providerRouteGrid.seoProviderGrid { grid-template-columns:1fr; }
+  .seoPreparation, .seoGuideLink { padding:26px; }
+  .seoSectionIntro { font-size:16px; }
+}
