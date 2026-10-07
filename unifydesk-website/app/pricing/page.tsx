@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { Footer, Header } from "../components";
+import { ChannelLinks, ContentFaq } from "../channel-sections";
 
 export const metadata: Metadata = {
   title: "Pricing for Customer Communication Teams",
@@ -96,15 +97,15 @@ export default function Pricing() {
             {[
               [
                 "Platform subscription",
-                "Users, workspace limits, feature access and company-level entitlements.",
+                "The platform plan controls users, workspace limits, feature access and company-level entitlements. Choose the access the team needs for conversations, contacts and campaign preparation. Final paid prices and exact limits will be published before launch.",
               ],
               [
                 "Managed services",
-                "Email and SMS provider usage billed separately based on actual sending and provider costs.",
+                "Managed email and SMS have a separate usage layer based on sending and applicable rates. A workspace plan should not be interpreted as unlimited or free delivery. Confirm sender readiness, supported routes and final usage terms before budgeting a campaign.",
               ],
               [
                 "Advertising spend",
-                "Google and Meta media spend stays with the connected advertising providers.",
+                "Google and Meta media spend stays with the connected advertising providers. Platform access organizes the campaign workflow; it does not pay for the ads. Review account permissions and provider budgets alongside the workspace plan.",
               ],
             ].map(([t, b]) => (
               <article className="routeCard reveal" key={t}>
@@ -114,6 +115,13 @@ export default function Pricing() {
             ))}
           </div>
         </section>
+        <section className="splitRouteSection"><div className="routeCopy"><p className="kicker">PLAN THE WORK FIRST</p><h2>Evaluate access and delivery separately.</h2><p>Start with the team size, company controls and workflows you need. Then estimate the volume and channels of customer outreach. Managed messaging costs depend on the provider and sending setup; external advertising budgets remain a separate decision.</p><p>The Free, Starter and Growth cards show the current plan direction. Public sign-up is coming soon. Paid prices, final entitlements, usage rates and billing terms must be confirmed before purchase.</p><Link className="textLink" href="/integrations">Check provider availability</Link></div><div className="seoPreparation"><h3>Questions to bring to your evaluation</h3><ul><li><Check size={18}/><span>How many members need access, and which roles should manage providers?</span></li><li><Check size={18}/><span>Which channels and sender accounts are ready for customer work?</span></li><li><Check size={18}/><span>What sending volume and external advertising budget do you expect?</span></li></ul><Link className="textLink" href="/security">Review company and account controls</Link></div></section>
+        <ContentFaq title="Know what each cost covers." items={[
+          {title:"Does the Free plan include free email or SMS delivery?",body:"The ₹0 card describes platform access. Managed email and SMS usage are separate, and no free sending allowance is promised here. Final rates and entitlements will be published before public launch."},
+          {title:"Are Google Ads and Meta Ads budgets part of the subscription?",body:"No. Media spend stays with Google and Meta. The UnifyDesk plan concerns workspace access and supported workflows, while the connected provider account carries its advertising budget."},
+          {title:"Can I buy Starter or Growth today?",body:"Public sign-up and paid pricing are coming soon. Use the product tour to evaluate the developing workspace. Paid prices, exact limits and commercial terms will be available before launch."}
+        ]}/>
+        <ChannelLinks paths={["/email-campaigns","/sms-marketing","/whatsapp-broadcast"]} title="Match your sending plan to the channel."/>
       </main>
       <Footer />
     </>

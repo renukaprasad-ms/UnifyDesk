@@ -1,0 +1,259 @@
+{
+  "checkedAt": "2026-10-07T06:44:38.847Z",
+  "source": "Local production static export; no live deployment or Google Search Console verification",
+  "routeCount": 15,
+  "passed": true,
+  "pages": [
+    {
+      "route": "/",
+      "title": "UnifyDesk | Customer Communication & Marketing Platform",
+      "description": "Bring customer conversations, contacts, broadcasts and advertising into one connected UnifyDesk workspace.",
+      "canonical": "https://unifydesk.in",
+      "h1": "Every conversation.One connectedworkspace.",
+      "mainWords": 918,
+      "images": 3,
+      "intentionallyEmptyBrandAlt": 3,
+      "internalLinks": 33,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication"
+      ]
+    },
+    {
+      "route": "/product",
+      "title": "Customer Communication Platform | UnifyDesk",
+      "description": "Explore UnifyDesk for shared inboxes, contacts, consent, email, SMS and WhatsApp broadcasts, templates, Google Ads, Meta Ads and team controls.",
+      "canonical": "https://unifydesk.in/product",
+      "h1": "One operating layer across the customer journey.",
+      "mainWords": 518,
+      "images": 3,
+      "intentionallyEmptyBrandAlt": 3,
+      "internalLinks": 25,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication"
+      ]
+    },
+    {
+      "route": "/solutions",
+      "title": "Customer Communication & Marketing Solutions | UnifyDesk",
+      "description": "Unify customer support, marketing, shared inbox, broadcast and advertising workflows around one connected customer context.",
+      "canonical": "https://unifydesk.in/solutions",
+      "h1": "Different teams. One customer context.",
+      "mainWords": 484,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 27,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication"
+      ]
+    },
+    {
+      "route": "/integrations",
+      "title": "Integrations for WhatsApp, Email, SMS & Ads | UnifyDesk",
+      "description": "Explore UnifyDesk integrations for WhatsApp, Gmail, Microsoft, Amazon SES, SMS providers, Google Ads and Meta Ads.",
+      "canonical": "https://unifydesk.in/integrations",
+      "h1": "Keep the providers. Simplify the operating layer.",
+      "mainWords": 679,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 33,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication"
+      ]
+    },
+    {
+      "route": "/pricing",
+      "title": "Pricing for Customer Communication Teams | UnifyDesk",
+      "description": "Explore UnifyDesk pricing for customer communication, shared inbox, broadcasts, advertising workflows and managed messaging services.",
+      "canonical": "https://unifydesk.in/pricing",
+      "h1": "Plans for the workspace. Provider usage stays separate.",
+      "mainWords": 583,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 25,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication"
+      ]
+    },
+    {
+      "route": "/security",
+      "title": "Security & Data Protection | UnifyDesk",
+      "description": "Learn how UnifyDesk approaches company isolation, role-based access, 2FA, sessions, provider boundaries and secure customer communication workflows.",
+      "canonical": "https://unifydesk.in/security",
+      "h1": "Workspace controls are part of the product foundation.",
+      "mainWords": 489,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 23,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication"
+      ]
+    },
+    {
+      "route": "/about",
+      "title": "About | UnifyDesk",
+      "description": "Learn why UnifyDesk is building a connected customer communication and marketing platform for shared inboxes, broadcasts, advertising and business teams.",
+      "canonical": "https://unifydesk.in/about",
+      "h1": "Customer work should feel like one system.",
+      "mainWords": 124,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 18,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication"
+      ]
+    },
+    {
+      "route": "/contact",
+      "title": "Contact | UnifyDesk",
+      "description": "Contact UnifyDesk about customer communication software, product access, integrations, technology partnerships and business enquiries.",
+      "canonical": "https://unifydesk.in/contact",
+      "h1": "Let's talk about UnifyDesk.",
+      "mainWords": 95,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 21,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication"
+      ]
+    },
+    {
+      "route": "/privacy",
+      "title": "Privacy | UnifyDesk",
+      "description": "Pre-launch privacy information for UnifyDesk account, workspace and connected-provider data.",
+      "canonical": "https://unifydesk.in/privacy",
+      "h1": "Privacy",
+      "mainWords": 156,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 17,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication"
+      ]
+    },
+    {
+      "route": "/terms",
+      "title": "Terms | UnifyDesk",
+      "description": "Pre-launch information about the service terms being prepared for UnifyDesk.",
+      "canonical": "https://unifydesk.in/terms",
+      "h1": "Terms of service",
+      "mainWords": 152,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 17,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication"
+      ]
+    },
+    {
+      "route": "/whatsapp-shared-inbox",
+      "title": "WhatsApp Shared Inbox for Customer Support Teams | UnifyDesk",
+      "description": "Explore a team WhatsApp inbox built around customer context, company access and connected conversations. See UnifyDesk's planned support workflow.",
+      "canonical": "https://unifydesk.in/whatsapp-shared-inbox",
+      "h1": "A WhatsApp shared inbox built around the customer.",
+      "mainWords": 643,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 26,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication",
+        "WebPage",
+        "BreadcrumbList"
+      ]
+    },
+    {
+      "route": "/whatsapp-broadcast",
+      "title": "WhatsApp Broadcast Workflows for Business Teams | UnifyDesk",
+      "description": "Plan WhatsApp broadcasts with audience consent, provider templates and campaign review. Explore UnifyDesk's developing business outreach workflow.",
+      "canonical": "https://unifydesk.in/whatsapp-broadcast",
+      "h1": "Plan WhatsApp broadcasts with a clear audience and purpose.",
+      "mainWords": 617,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 26,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication",
+        "WebPage",
+        "BreadcrumbList"
+      ]
+    },
+    {
+      "route": "/sms-marketing",
+      "title": "SMS Marketing Workflows with Managed Sending | UnifyDesk",
+      "description": "Explore SMS campaign preparation, consent, sender and template readiness, and separate usage billing in UnifyDesk's developing managed SMS workflow.",
+      "canonical": "https://unifydesk.in/sms-marketing",
+      "h1": "Prepare SMS marketing that is relevant and ready to send.",
+      "mainWords": 631,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 26,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication",
+        "WebPage",
+        "BreadcrumbList"
+      ]
+    },
+    {
+      "route": "/email-campaigns",
+      "title": "Email Campaign Workflows with Managed Email | UnifyDesk",
+      "description": "Explore email campaigns with verified senders, customer audiences and managed delivery. Understand how UnifyDesk separates inbox email from campaign sending.",
+      "canonical": "https://unifydesk.in/email-campaigns",
+      "h1": "Build email campaigns around your audience and sender identity.",
+      "mainWords": 623,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 26,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication",
+        "WebPage",
+        "BreadcrumbList"
+      ]
+    },
+    {
+      "route": "/omnichannel-inbox",
+      "title": "Omnichannel Inbox for Connected Customer Conversations | UnifyDesk",
+      "description": "Explore an omnichannel inbox bringing WhatsApp, email and SMS conversations around shared customer context, company access and provider-specific workflows.",
+      "canonical": "https://unifydesk.in/omnichannel-inbox",
+      "h1": "An omnichannel inbox with one customer context.",
+      "mainWords": 634,
+      "images": 2,
+      "intentionallyEmptyBrandAlt": 2,
+      "internalLinks": 26,
+      "schemaTypes": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication",
+        "WebPage",
+        "BreadcrumbList"
+      ]
+    }
+  ],
+  "failures": []
+}
