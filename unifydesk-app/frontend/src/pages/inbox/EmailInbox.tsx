@@ -1141,7 +1141,7 @@ function EmailInboxView() {
                 buttonIcon="mail"
                 onConnected={(connection) => {
                   const params = new URLSearchParams(searchParams)
-                  params.set('connectionId', connection.id)
+                  params.set('connectionId', connection.connectionId)
                   params.set('folder', 'INBOX')
                   setSearchParams(params)
                   void dispatch(
@@ -1179,7 +1179,7 @@ function EmailInboxView() {
                       buttonIcon="mail"
                       onConnected={(connection) => {
                         const params = new URLSearchParams(searchParams)
-                        params.set('connectionId', connection.id)
+                        params.set('connectionId', connection.connectionId)
                         params.set('folder', 'INBOX')
                         setSearchParams(params)
                         void dispatch(
