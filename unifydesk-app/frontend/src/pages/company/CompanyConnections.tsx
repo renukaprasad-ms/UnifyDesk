@@ -16,6 +16,7 @@ import DeleteChannelDataModal from '../../components/channel/DeleteChannelDataMo
 import DisconnectChannelModal from '../../components/channel/DisconnectChannelModal'
 import WhatsAppDisconnectModal from '../../components/whatsapp/WhatsAppDisconnectModal'
 import EmailProviderPicker from '../../components/email/EmailProviderPicker'
+import ZohoMailWebhookModal from '../../components/email/ZohoMailWebhookModal'
 import AmazonSesConnectModal from '../../components/broadcast/AmazonSesConnectModal'
 import AzureEmailConnectModal from '../../components/broadcast/AzureEmailConnectModal'
 import BroadcastEmailProviderPickerModal, {
@@ -139,6 +140,7 @@ export default function CompanyConnections() {
   const { can } = useIam()
   const snackbar = useSnackbar()
   const [connections, setConnections] = useState<ChannelConnection[]>([])
+  const [zohoWebhookTarget, setZohoWebhookTarget] = useState<ChannelConnection | null>(null)
   const [senders, setSenders] = useState<Record<string, SenderIdentity[]>>({})
   const [broadcastSenders, setBroadcastSenders] = useState<BroadcastSender[]>([])
   const [metaConnection, setMetaConnection] = useState<MetaWhatsAppConnection | null>(null)
@@ -834,6 +836,17 @@ export default function CompanyConnections() {
                   </div>
 
                   <div className="flex w-full shrink-0 flex-wrap gap-2 lg:w-auto lg:max-w-md">
+                    {connection.providerType === 'ZOHO_MAIL' &&
+                      connection.status === 'ACTIVE' &&
+                      can(PERMISSIONS.EMAIL_CONNECT) && (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => setZohoWebhookTarget(connection)}
+                        >
+                          Realtime webhook
+                        </button>
+                      )}
                     {connection.status === 'ACTIVE' &&
                       connection.capabilities.includes('BROADCAST') &&
                       can(PERMISSIONS.BROADCAST_MODIFY) &&
@@ -1527,6 +1540,16 @@ export default function CompanyConnections() {
             setTestEmailSender(null)
             snackbar.success(`Test email accepted for ${recipient}`)
           }}
+        />
+      )}
+
+      {zohoWebhookTarget && selectedCompany && (
+        <ZohoMailWebhookModal
+          key={zohoWebhookTarget.id}
+          companyId={selectedCompany.companyId}
+          connectionId={zohoWebhookTarget.id}
+          mailbox={zohoWebhookTarget.externalAccountId || zohoWebhookTarget.name}
+          onClose={() => setZohoWebhookTarget(null)}
         />
       )}
 
