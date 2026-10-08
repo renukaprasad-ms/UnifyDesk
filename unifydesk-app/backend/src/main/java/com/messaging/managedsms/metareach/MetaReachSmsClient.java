@@ -51,7 +51,11 @@ public class MetaReachSmsClient {
         "message",body,"templateid",dltTemplateId,"route",config.getRouteId(),"format","json"));
     if (!isAscii(body)) fields.put("unicode","2");
     JsonNode response = request("apikey.php",fields,true);
-    String code = response.path("code").asText("");
+    return new ManagedSmsSendResult(acceptedMessageId(response), Instant.now());
+  }
+
+  static String acceptedMessageId(JsonNode response) {
+    String code=response.path("code").asText("");
     if (!"011".equals(code) || !"success".equalsIgnoreCase(response.path("status").asText(""))) {
       if ("008".equals(code) || "009".equals(code)) {
         throw BroadcastTransportException.permanent("MANAGED_SMS_PROVIDER_CREDIT",
@@ -61,9 +65,9 @@ public class MetaReachSmsClient {
       throw BroadcastTransportException.permanent("MANAGED_SMS_PROVIDER_REJECTED",
           "Managed SMS provider rejected the request",null);
     }
-    String messageId = response.path("data").path("messageid").asText("");
-    if (messageId.isBlank() || messageId.length()>255) throw unknown();
-    return new ManagedSmsSendResult(messageId, Instant.now());
+    String id=response.path("data").path("messageid").asText("");
+    if (id.isBlank() || id.length()>255) throw unknown();
+    return id;
   }
 
   public Optional<BigDecimal> balance() {

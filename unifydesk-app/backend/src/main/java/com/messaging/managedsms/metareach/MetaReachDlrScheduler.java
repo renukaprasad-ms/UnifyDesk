@@ -111,13 +111,7 @@ public class MetaReachDlrScheduler {
       if (!job.messageId().equals(item.path("id").asText(""))) continue;
       String actual=item.path("mobile").asText("").replaceAll("[^0-9]","");
       if (!sameIndianNumber(job.mobile(),actual)) continue;
-      String status=item.path("status").asText("").toLowerCase(Locale.ROOT);
-      String eventType=switch(status) {
-        case "delivered" -> "DELIVERED";
-        case "failed", "undelivered", "expired" -> "FAILED";
-        case "rejected", "blocked", "ndnc" -> "REJECTED";
-        default -> null;
-      };
+      String eventType=deliveryEventType(item.path("status").asText(""));
       if (eventType==null) {reschedule(job,true);return;}
       String time=item.path("delvd_time").asText("");
       Instant observedAt;
@@ -150,6 +144,16 @@ public class MetaReachDlrScheduler {
             next_poll_at=now()+(? * interval '1 second')
         where id=? and state='CLAIMED'
         """,n,delay,job.id());
+  }
+
+  static String deliveryEventType(String status) {
+    if (status==null) return null;
+    return switch(status.trim().toLowerCase(Locale.ROOT)) {
+      case "delivered" -> "DELIVERED";
+      case "failed", "undelivered", "expired" -> "FAILED";
+      case "rejected", "blocked", "ndnc" -> "REJECTED";
+      default -> null;
+    };
   }
 
   private static boolean sameIndianNumber(String expected,String actual) {

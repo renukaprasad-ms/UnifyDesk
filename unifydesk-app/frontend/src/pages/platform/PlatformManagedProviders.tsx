@@ -13,6 +13,7 @@ export default function PlatformManagedProviders() {
   const [companyProvider,setCompanyProvider]=useState('')
   const [companyProviderReason,setCompanyProviderReason]=useState('')
   const [companyRouteBusy,setCompanyRouteBusy]=useState(false)
+  const [companyLookupBusy,setCompanyLookupBusy]=useState(false)
   const [selected, setSelected] = useState<Record<string,string>>({})
   const [reason, setReason] = useState<Record<string,string>>({})
   const [busy, setBusy] = useState('')
@@ -71,6 +72,26 @@ export default function PlatformManagedProviders() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to update company mapping')
     } finally {setCompanyApproval('')}
+  }
+
+  async function loadCompanyMapping() {
+    if (!companyId.match(/^[0-9]+$/)) return
+    setCompanyLookupBusy(true)
+    setError('')
+    try {
+      const [provider,approval]=await Promise.all([
+        platformApi.managedSmsCompanyProvider(companyId),
+        platformApi.metaReachCompanyApproval(companyId)
+      ])
+      setCompanyProvider(provider ?? '')
+      setPeId(approval?.peId ?? '')
+      setEvidence(approval?.evidenceReference ?? '')
+      setNotice(approval?.active
+        ? 'MetaReach company mapping is currently approved.'
+        : 'MetaReach company mapping has not been approved.')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load company mapping')
+    } finally {setCompanyLookupBusy(false)}
   }
 
   async function saveCompanyRoute() {
@@ -141,6 +162,8 @@ export default function PlatformManagedProviders() {
           <input className="form-input mt-1" value={companyProviderReason} onChange={e=>setCompanyProviderReason(e.target.value)} maxLength={400} placeholder="Reason required (8+ characters)"/>
         </label>
       </div>
+      <button type="button" className="secondary-button" disabled={companyLookupBusy || !companyId.match(/^[0-9]+$/)}
+        onClick={()=>void loadCompanyMapping()}>{companyLookupBusy?'Loading…':'Load company mapping'}</button>
       <button type="button" className="primary-button" disabled={companyRouteBusy || !companyId.match(/^[0-9]+$/) || companyProviderReason.trim().length<8}
         onClick={()=>void saveCompanyRoute()}>{companyRouteBusy?'Saving…':'Save company provider'}</button>
     </div>
