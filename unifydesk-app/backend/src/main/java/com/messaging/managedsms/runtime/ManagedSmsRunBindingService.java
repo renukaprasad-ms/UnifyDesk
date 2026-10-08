@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ManagedSmsRunBindingService {
 
   private final JdbcTemplate jdbcTemplate;
+  private final com.messaging.admin.service.PlatformManagedProviderService providerRoutes;
 
   @Transactional
   public void bind(
@@ -23,8 +24,8 @@ public class ManagedSmsRunBindingService {
           dlt_template_id_snapshot, approved_body_snapshot, body_fingerprint_snapshot,
           variables_schema_snapshot, cta_policy_snapshot, provider_binding_id,
           provider_client_ref_snapshot, provider_template_ref_snapshot,
-          provider_flow_ref_snapshot, ruleset_version_snapshot, created_at
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+          provider_flow_ref_snapshot, ruleset_version_snapshot, delivery_provider, created_at
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
         on conflict (run_id) do nothing
         """,
         runId,
@@ -45,6 +46,7 @@ public class ManagedSmsRunBindingService {
         runtime.providerAccountKey(),
         runtime.providerTemplateRef(),
         runtime.providerFlowRef(),
-        runtime.rulesetVersion());
+        runtime.rulesetVersion(),
+        providerRoutes.smsProviderForNewRun());
   }
 }

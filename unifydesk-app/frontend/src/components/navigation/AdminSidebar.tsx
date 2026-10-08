@@ -9,6 +9,7 @@ import {
   FiFileText,
   FiHome,
   FiRadio,
+  FiServer,
   FiShield,
   FiUsers,
 } from 'react-icons/fi'
@@ -39,6 +40,7 @@ const links: AdminLink[] = [
     icon: <FiActivity />,
     superAdminOnly: true,
   },
+  { label: 'Managed providers', to: '/platform/managed-providers', icon: <FiServer />, superAdminOnly: true },
   { label: 'Admins', to: '/platform/admins', icon: <FiShield />, permission: 'ADMIN_VIEW' },
   { label: 'Audit logs', to: '/platform/audit', icon: <FiFileText />, permission: 'AUDIT_VIEW' },
 ]

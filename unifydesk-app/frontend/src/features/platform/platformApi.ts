@@ -10,10 +10,21 @@ import type {
   PlatformPlan,
   PlatformPlanInput,
   PlatformWebhookCallback,
+  ManagedProviderRoute,
   WebhookCallbackStatus,
 } from './types'
 
 export const platformApi = {
+  async managedProviders() {
+    const r = await apiClient.get<ApiResponse<ManagedProviderRoute[]>>('/api/v1/platform/managed-providers')
+    if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to load managed providers')
+    return r.data.data
+  },
+  async changeManagedProvider(channel: string, input: { provider: string; expectedRevision: number; reason: string }) {
+    const r = await apiClient.put<ApiResponse<ManagedProviderRoute>>(`/api/v1/platform/managed-providers/${channel}`, input)
+    if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to change managed provider')
+    return r.data.data
+  },
   async me() {
     const response = await apiClient.get<ApiResponse<PlatformAccess>>('/api/v1/platform/me')
     if (!response.data.data)
