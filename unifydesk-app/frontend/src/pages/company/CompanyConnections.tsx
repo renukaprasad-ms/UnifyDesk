@@ -141,6 +141,9 @@ export default function CompanyConnections() {
   const snackbar = useSnackbar()
   const [connections, setConnections] = useState<ChannelConnection[]>([])
   const [zohoWebhookTarget, setZohoWebhookTarget] = useState<ChannelConnection | null>(null)
+  useEffect(() => {
+    setZohoWebhookTarget(null)
+  }, [selectedCompanyId])
   const [senders, setSenders] = useState<Record<string, SenderIdentity[]>>({})
   const [broadcastSenders, setBroadcastSenders] = useState<BroadcastSender[]>([])
   const [metaConnection, setMetaConnection] = useState<MetaWhatsAppConnection | null>(null)
