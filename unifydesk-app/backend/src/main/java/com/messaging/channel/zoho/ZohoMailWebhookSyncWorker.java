@@ -49,8 +49,8 @@ public class ZohoMailWebhookSyncWorker {
             and connection.status='ACTIVE'
             and connection.provider_type='ZOHO_MAIL'
           order by registration.pending_at
-          for update of registration skip locked
           limit ?
+          for update of registration skip locked
         )
         update zoho_mail_webhook_registrations registration
         set lease_until=now() + interval '10 minutes', updated_at=now()
