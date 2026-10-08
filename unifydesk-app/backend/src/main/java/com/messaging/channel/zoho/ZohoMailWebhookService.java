@@ -12,7 +12,6 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
@@ -90,7 +89,7 @@ public class ZohoMailWebhookService {
             """,
             (rs, row) ->
                 new Status(
-                    true,
+                    properties.isEnabled() && properties.isWebhookEnabled(),
                     rs.getString("status"),
                     rs.getTimestamp("last_received_at") == null
                         ? null : rs.getTimestamp("last_received_at").toInstant(),
@@ -98,7 +97,7 @@ public class ZohoMailWebhookService {
                         ? null : rs.getTimestamp("last_processed_at").toInstant()),
             connectionId,
             companyId);
-    return rows.isEmpty() ? new Status(properties.isWebhookEnabled(), "NOT_CONFIGURED", null, null)
+    return rows.isEmpty() ? new Status(properties.isEnabled() && properties.isWebhookEnabled(), "NOT_CONFIGURED", null, null)
         : rows.getFirst();
   }
 
