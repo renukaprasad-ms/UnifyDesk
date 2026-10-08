@@ -445,6 +445,29 @@ app:
       realtime-safety-sync-initial-delay: ${GMAIL_REALTIME_SAFETY_SYNC_INITIAL_DELAY:2m}
       realtime-recovery-days: ${GMAIL_REALTIME_RECOVERY_DAYS:30}
       realtime-recovery-max-messages: ${GMAIL_REALTIME_RECOVERY_MAX_MESSAGES:1000}
+    zoho-mail:
+      enabled: ${ZOHO_MAIL_OAUTH_ENABLED:false}
+      client-id: ${ZOHO_MAIL_OAUTH_CLIENT_ID:}
+      client-secret: ${ZOHO_MAIL_OAUTH_CLIENT_SECRET:}
+      redirect-uri: ${ZOHO_MAIL_OAUTH_REDIRECT_URI:https://api.unifydesk.in/api/v1/oauth/zoho-mail/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
+      authorization-accounts-base-url: ${ZOHO_MAIL_OAUTH_ACCOUNTS_BASE_URL:https://accounts.zoho.com}
+      scope: ${ZOHO_MAIL_OAUTH_SCOPE:ZohoMail.accounts.READ,ZohoMail.folders.READ,ZohoMail.messages.ALL}
+      oauth-state-ttl: ${ZOHO_MAIL_OAUTH_STATE_TTL:10m}
+      token-refresh-skew: ${ZOHO_MAIL_OAUTH_TOKEN_REFRESH_SKEW:2m}
+      poll-interval: ${ZOHO_MAIL_POLL_INTERVAL:2m}
+      poll-initial-delay: ${ZOHO_MAIL_POLL_INITIAL_DELAY:1m}
+      poll-page-size: ${ZOHO_MAIL_POLL_PAGE_SIZE:100}
+      poll-max-pages-per-folder: ${ZOHO_MAIL_POLL_MAX_PAGES_PER_FOLDER:50}
+      sync-max-messages: ${ZOHO_MAIL_SYNC_MAX_MESSAGES:10000}
+      sync-max-range-days: ${ZOHO_MAIL_SYNC_MAX_RANGE_DAYS:366}
+      worker-concurrency: ${ZOHO_MAIL_WORKER_CONCURRENCY:4}
+      worker-poll-interval-ms: ${ZOHO_MAIL_WORKER_POLL_INTERVAL_MS:500}
+      stale-job-after: ${ZOHO_MAIL_STALE_JOB_AFTER:10m}
+      api-retry-max-attempts: ${ZOHO_MAIL_API_RETRY_MAX_ATTEMPTS:4}
+      api-retry-initial-backoff: ${ZOHO_MAIL_API_RETRY_INITIAL_BACKOFF:1s}
+      api-retry-max-backoff: ${ZOHO_MAIL_API_RETRY_MAX_BACKOFF:20s}
+
     imap-smtp:
       enabled: ${IMAP_SMTP_ENABLED:true}
       connect-timeout: ${IMAP_SMTP_CONNECT_TIMEOUT:10s}
