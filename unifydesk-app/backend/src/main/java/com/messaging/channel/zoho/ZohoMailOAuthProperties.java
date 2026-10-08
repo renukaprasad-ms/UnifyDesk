@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 public class ZohoMailOAuthProperties {
 
   private boolean enabled;
+  private boolean webhookEnabled;
+  private String webhookPublicBaseUrl = "https://api.unifydesk.in";
   private String clientId;
   private String clientSecret;
   private String redirectUri;
