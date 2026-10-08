@@ -37,7 +37,7 @@ public class ManagedSmsDeliveryCoordinator {
   private final ManagedSmsSegmentCalculator segmentCalculator;
   private final ManagedSmsTemplateService templateService;
   private final ManagedSmsCorrelationService correlationService;
-  private final ManagedMsg91Gateway gateway;
+  private final ManagedSmsProviderDispatch providerDispatch;
   private final ManagedSmsProviderSafetyService providerSafetyService;
   private final BroadcastDeliveryStateService stateService;
   private final BroadcastRetryPolicy retryPolicy;
@@ -54,7 +54,9 @@ public class ManagedSmsDeliveryCoordinator {
       stateService.releaseForRateLimit(recipient.getId(), Instant.now().plusSeconds(30));
       return;
     }
-    if (!rateLimiter.tryAcquire(runtime, run.getId())) {
+    String deliveryProvider = providerDispatch.requireProvider(run.getCompanyId(),run.getId());
+    String providerAccountKey = providerDispatch.accountKey(deliveryProvider,runtime);
+    if (!rateLimiter.tryAcquire(runtime, run.getId(), providerAccountKey)) {
       stateService.releaseForRateLimit(recipient.getId(), Instant.now().plusSeconds(1));
       return;
     }
@@ -90,9 +92,11 @@ public class ManagedSmsDeliveryCoordinator {
       financialExposureGuard.assertAllowed(run.getCompanyId());
       providerSubmissionStarted = true;
       ManagedSmsSendResult result =
-          gateway.send(
+          providerDispatch.send(
+              deliveryProvider,
               runtime,
               recipient.getDestination(),
+              rendered.body(),
               rendered.variables(),
               rendered.variableSpecs(),
               correlation);
@@ -121,6 +125,13 @@ public class ManagedSmsDeliveryCoordinator {
             run.getCompanyId(),
             run.getId(),
             recipient.getId());
+      }
+      try {
+        providerDispatch.afterAccepted(deliveryProvider,run.getCompanyId(),run.getId(),
+            recipient.getId(),correlation,result.providerRequestId(),recipient.getDestination());
+      } catch (RuntimeException exception) {
+        log.warn("managed_sms_dlr_poll_enqueue_deferred companyId={} runId={} recipientId={}",
+            run.getCompanyId(),run.getId(),recipient.getId());
       }
     } catch (PlanEntitlementException exception) {
       if (reserved) {
@@ -153,7 +164,7 @@ public class ManagedSmsDeliveryCoordinator {
         }
       }
       if ("MANAGED_SMS_PROVIDER_CREDIT".equals(exception.code())) {
-        providerSafetyService.tripInsufficientCredit(runtime.providerAccountKey());
+        providerSafetyService.tripInsufficientCredit(providerAccountKey);
       }
       handleTransportException(attempt, exception);
     } catch (RuntimeException exception) {

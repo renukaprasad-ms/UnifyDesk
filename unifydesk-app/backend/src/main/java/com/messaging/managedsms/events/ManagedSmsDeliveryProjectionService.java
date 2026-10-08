@@ -211,7 +211,7 @@ public class ManagedSmsDeliveryProjectionService {
         Channel.SMS,
         SuppressionReason.DND,
         PreferenceSource.MANAGED_SMS_EVENT,
-        "msg91:" + event.eventKey(),
+        (event.providerAccountKey().startsWith("metareach:") ? "metareach:" : "msg91:") + event.eventKey(),
         event.eventAt(),
         "managed-sms:" + event.eventKey());
   }

@@ -85,7 +85,14 @@ public class ManagedSmsRateLimiter {
 
   public boolean tryAcquire(
       ManagedSmsRuntimeRepository.DeliveryRuntime runtime, Long runId) {
-    if (runtime == null || !properties.providerConfigured()) return false;
+    if (!properties.providerConfigured()) return false;
+    return tryAcquire(runtime, runId, runtime == null ? null : runtime.providerAccountKey());
+  }
+
+  public boolean tryAcquire(
+      ManagedSmsRuntimeRepository.DeliveryRuntime runtime, Long runId, String providerAccountKey) {
+    if (runtime == null || !properties.isEnabled() || !properties.isPlatformSendingEnabled())
+      return false;
 
     double globalRate = properties.getGlobalMaxPerSecond();
     double accountRate = properties.getProviderAccountMaxPerSecond();
@@ -100,7 +107,7 @@ public class ManagedSmsRateLimiter {
     List<String> keys =
         List.of(
             "unifydesk:managed-sms:rate:global",
-            "unifydesk:managed-sms:rate:account:" + safe(runtime.providerAccountKey()),
+            "unifydesk:managed-sms:rate:account:" + safe(providerAccountKey),
             "unifydesk:managed-sms:rate:company:" + runtime.companyId(),
             "unifydesk:managed-sms:rate:run:" + runId,
             "unifydesk:managed-sms:new-tenant:hour:" + runtime.companyId() + ":" + HOUR.format(now),

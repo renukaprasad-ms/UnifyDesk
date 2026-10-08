@@ -10,6 +10,7 @@ const links = [
   ['Users', '/platform/users'],
   ['Plans', '/platform/plans'],
   ['Billing', '/platform/billing'],
+  ['Managed providers', '/platform/managed-providers'],
   ['Admins', '/platform/admins'],
   ['Audit logs', '/platform/audit'],
 ] as const
