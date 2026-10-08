@@ -91,7 +91,8 @@ public class PlatformManagedProviderService {
   }
 
   private boolean metareachReady() {
-    return metareachEnabled && metareachApiKey != null && !metareachApiKey.isBlank();
+    // No runtime adapter / DLR polling has been released yet. Never advertise a routable provider.
+    return false;
   }
   private record Current(String provider,long revision) {}
 }
