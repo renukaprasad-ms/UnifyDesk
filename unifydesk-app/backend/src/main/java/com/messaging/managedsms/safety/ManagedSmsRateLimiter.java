@@ -85,6 +85,7 @@ public class ManagedSmsRateLimiter {
 
   public boolean tryAcquire(
       ManagedSmsRuntimeRepository.DeliveryRuntime runtime, Long runId) {
+    if (!properties.providerConfigured()) return false;
     return tryAcquire(runtime, runId, runtime == null ? null : runtime.providerAccountKey());
   }
 

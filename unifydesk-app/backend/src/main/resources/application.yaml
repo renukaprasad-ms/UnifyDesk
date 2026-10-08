@@ -235,6 +235,13 @@ app:
     new-tenant-hourly-cap: ${APP_MANAGED_SMS_NEW_TENANT_HOURLY_CAP:100}
     new-tenant-daily-cap: ${APP_MANAGED_SMS_NEW_TENANT_DAILY_CAP:500}
     provider-balance-reserve: ${APP_MANAGED_SMS_PROVIDER_BALANCE_RESERVE:100}
+    metareach:
+      enabled: ${APP_MANAGED_SMS_METAREACH_ENABLED:false}
+      contract-confirmed: ${APP_MANAGED_SMS_METAREACH_CONTRACT_CONFIRMED:false}
+      api-key: ${APP_MANAGED_SMS_METAREACH_API_KEY:}
+      route-id: ${APP_MANAGED_SMS_METAREACH_ROUTE_ID:1}
+      dlr-poll-ms: ${APP_MANAGED_SMS_METAREACH_DLR_POLL_MS:30000}
+      dlr-reclaim-ms: ${APP_MANAGED_SMS_METAREACH_DLR_RECLAIM_MS:120000}
     event-replay-window: ${APP_MANAGED_SMS_EVENT_REPLAY_WINDOW:10m}
   managed-email:
     enabled: ${APP_MANAGED_EMAIL_ENABLED:false}

@@ -46,9 +46,11 @@ public class MetaReachSmsClient {
           "SMS exceeds the supported MetaReach message size", null);
     }
     String mobile = mobile(destination);
-    JsonNode response = request("apikey.php", Map.of(
+    Map<String,String> fields=new java.util.HashMap<>(Map.of(
         "apikey",config.getApiKey(),"senderid",header,"number",mobile,
-        "message",body,"templateid",dltTemplateId,"route",config.getRouteId(),"format","json"),true);
+        "message",body,"templateid",dltTemplateId,"route",config.getRouteId(),"format","json"));
+    if (!isAscii(body)) fields.put("unicode","2");
+    JsonNode response = request("apikey.php",fields,true);
     String code = response.path("code").asText("");
     if (!"011".equals(code) || !"success".equalsIgnoreCase(response.path("status").asText(""))) {
       if ("008".equals(code) || "009".equals(code)) {

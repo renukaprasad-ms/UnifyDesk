@@ -77,6 +77,32 @@ public class MetaReachDlrScheduler {
         """);
   }
 
+  @Scheduled(fixedDelayString="${app.managed-sms.metareach.dlr-repair-ms:60000}")
+  public void repairMissingJobs() {
+    if (!properties.ready()) return;
+    // Repair a post-acceptance database failure without ever resending the SMS.
+    jdbc.query("""
+        select c.company_id,c.run_id,c.recipient_id,c.correlation_token,
+               c.provider_request_id,r.destination
+        from managed_sms_correlations c
+        join managed_sms_run_bindings rb
+          on rb.run_id=c.run_id and rb.company_id=c.company_id
+        join broadcast_recipients r
+          on r.id=c.recipient_id and r.run_id=c.run_id and r.company_id=c.company_id
+        left join managed_sms_metareach_dlr_jobs j on j.correlation_token=c.correlation_token
+        where rb.delivery_provider='METAREACH_SMS'
+          and c.provider_request_id is not null
+          and c.created_at>now()-interval '2 hours'
+          and j.id is null
+        order by c.created_at limit 100
+        """,rs -> {
+      try {
+        enqueue(rs.getLong(1),rs.getLong(2),rs.getLong(3),
+            rs.getString(4),rs.getString(5),rs.getString(6));
+      } catch (RuntimeException ignored) { /* Periodic repair will try again. */ }
+    });
+  }
+
   private void reconcile(Job job,Optional<JsonNode> response) {
     if (response.isEmpty()) { reschedule(job,false); return; }
     JsonNode rows=response.get().path("data");
