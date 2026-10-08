@@ -106,6 +106,7 @@ public class MetaReachDlrScheduler {
   private void reconcile(Job job,Optional<JsonNode> response) {
     if (response.isEmpty()) { reschedule(job,false); return; }
     JsonNode rows=response.get().path("data");
+    if (rows.size()>200) {reschedule(job,false);return;}
     for (JsonNode item:rows) {
       if (!job.messageId().equals(item.path("id").asText(""))) continue;
       String actual=item.path("mobile").asText("").replaceAll("[^0-9]","");

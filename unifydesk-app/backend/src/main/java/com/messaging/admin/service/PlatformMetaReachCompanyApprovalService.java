@@ -44,6 +44,11 @@ public class PlatformMetaReachCompanyApprovalService {
           update managed_sms_metareach_company_approvals
           set active=false,reviewed_reason=? where company_id=?
           """,reason.trim(),companyId);
+      jdbc.update("""
+          insert into managed_sms_metareach_company_approval_events(
+            id,company_id,pe_id,action,actor_user_id,reason)
+          values(?,?,null,'REVOKED',?,?)
+          """,com.messaging.common.id.IdGenerator.nextId(),companyId,actor,reason.trim());
       eligibility.recalculate(companyId);
       return get(companyId);
     }
@@ -70,6 +75,11 @@ public class PlatformMetaReachCompanyApprovalService {
         update managed_sms_tenants set last_provider_sync_at=now(),
           provider_account_ref=?,updated_at=now() where company_id=?
         """,evidence.trim(),companyId);
+    jdbc.update("""
+        insert into managed_sms_metareach_company_approval_events(
+          id,company_id,pe_id,action,actor_user_id,reason)
+        values(?,?,?,'APPROVED',?,?)
+        """,com.messaging.common.id.IdGenerator.nextId(),companyId,peId.trim(),actor,reason.trim());
     eligibility.recalculate(companyId);
     return get(companyId);
   }

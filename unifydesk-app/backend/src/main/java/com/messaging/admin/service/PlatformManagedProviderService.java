@@ -121,12 +121,11 @@ public class PlatformManagedProviderService {
           """,companyId,provider,actor,reason.trim());
     }
     jdbc.update("""
-        insert into platform_managed_provider_route_audit(
-          id,channel,previous_provider,new_provider,previous_revision,new_revision,
-          actor_user_id,reason)
-        values(?, 'SMS',?,?,0,0,?,?)
-        """, com.messaging.common.id.IdGenerator.nextId(),previous,
-          smsProviderForCompany(companyId),actor,"company="+companyId+" "+reason.trim());
+        insert into platform_managed_sms_company_route_events(
+          id,company_id,previous_provider,new_provider,changed_by,reason)
+        values(?,?,?,?,?,?)
+        """, com.messaging.common.id.IdGenerator.nextId(),companyId,previous,
+          smsProviderForCompany(companyId),actor,reason.trim());
     return smsProviderForCompany(companyId);
   }
 

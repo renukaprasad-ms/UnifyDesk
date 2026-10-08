@@ -79,7 +79,7 @@ public class MetaReachSmsClient {
   }
 
   public Optional<JsonNode> dlr(String messageId) {
-    if (!config.ready() || messageId == null || !messageId.matches("[A-Za-z0-9_\\-]{1,255}"))
+    if (!config.ready() || messageId == null || !messageId.matches("[A-Za-z0-9_+=/-]{1,255}"))
       return Optional.empty();
     try {
       JsonNode body = request("http-dlr.php", Map.of("apikey", config.getApiKey(),
@@ -103,6 +103,10 @@ public class MetaReachSmsClient {
       if (response.statusCode()==429) throw retry("MANAGED_SMS_PROVIDER_RATE_LIMIT");
       if (response.statusCode()<200 || response.statusCode()>=300) {
         if (submission && response.statusCode()>=500) throw unknown();
+        throw retry("MANAGED_SMS_PROVIDER_CAPACITY_UNAVAILABLE");
+      }
+      if (response.body()==null || response.body().length()>1_000_000) {
+        if (submission) throw unknown();
         throw retry("MANAGED_SMS_PROVIDER_CAPACITY_UNAVAILABLE");
       }
       JsonNode json = mapper.readTree(response.body());
