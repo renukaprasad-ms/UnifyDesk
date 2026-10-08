@@ -10,6 +10,9 @@ export default function PlatformManagedProviders() {
   const [evidence,setEvidence]=useState('')
   const [approvalReason,setApprovalReason]=useState('')
   const [companyApproval,setCompanyApproval]=useState<'approve'|'revoke'|''>('')
+  const [companyProvider,setCompanyProvider]=useState('')
+  const [companyProviderReason,setCompanyProviderReason]=useState('')
+  const [companyRouteBusy,setCompanyRouteBusy]=useState(false)
   const [selected, setSelected] = useState<Record<string,string>>({})
   const [reason, setReason] = useState<Record<string,string>>({})
   const [busy, setBusy] = useState('')
@@ -70,6 +73,23 @@ export default function PlatformManagedProviders() {
     } finally {setCompanyApproval('')}
   }
 
+  async function saveCompanyRoute() {
+    if (!companyId.match(/^[0-9]+$/) || companyProviderReason.trim().length<8) return
+    if (!window.confirm('Update the provider for future Managed SMS runs in this company? In-flight runs will not be rerouted.')) return
+    setCompanyRouteBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      await platformApi.changeManagedSmsCompanyProvider(companyId,{
+        provider:companyProvider || null,reason:companyProviderReason.trim()
+      })
+      setNotice('Company SMS provider override saved. Refresh company Managed SMS status for readiness.')
+      setCompanyProviderReason('')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update provider override')
+    } finally {setCompanyRouteBusy(false)}
+  }
+
   return <section className="w-full space-y-5 p-4 sm:p-6 lg:p-8">
     <header>
       <p className="eyebrow">PLATFORM / SUPER ADMIN</p>
@@ -101,6 +121,29 @@ export default function PlatformManagedProviders() {
         <p className="text-xs text-slate-500">Revision {route.revision}. New launches only; delivery reports and in-flight sends stay with their frozen provider.</p>
       </div>)}
     </div>}
+    <div className="panel space-y-4 p-5">
+      <div>
+        <h2 className="text-lg font-bold text-slate-950">Company provider override</h2>
+        <p className="mt-1 text-xs text-slate-600">Roll out MetaReach company by company. Approve the PE/TM mapping below before assigning MetaReach.</p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <label className="text-xs font-semibold text-slate-700">Company ID
+          <input className="form-input mt-1" value={companyId} onChange={e=>setCompanyId(e.target.value)} placeholder="Numeric company ID"/>
+        </label>
+        <label className="text-xs font-semibold text-slate-700">New SMS provider
+          <select className="form-input mt-1" value={companyProvider} onChange={e=>setCompanyProvider(e.target.value)}>
+            <option value="">Use global default</option>
+            <option value="MSG91_SMS">MSG91</option>
+            <option value="METAREACH_SMS">MetaReach (approved companies only)</option>
+          </select>
+        </label>
+        <label className="text-xs font-semibold text-slate-700">Change reason
+          <input className="form-input mt-1" value={companyProviderReason} onChange={e=>setCompanyProviderReason(e.target.value)} maxLength={400} placeholder="Reason required (8+ characters)"/>
+        </label>
+      </div>
+      <button type="button" className="primary-button" disabled={companyRouteBusy || !companyId.match(/^[0-9]+$/) || companyProviderReason.trim().length<8}
+        onClick={()=>void saveCompanyRoute()}>{companyRouteBusy?'Saving…':'Save company provider'}</button>
+    </div>
     <div className="panel space-y-4 p-5">
       <div>
         <h2 className="text-lg font-bold text-slate-950">MetaReach company authorisation</h2>

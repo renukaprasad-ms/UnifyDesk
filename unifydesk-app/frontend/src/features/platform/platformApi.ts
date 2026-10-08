@@ -15,6 +15,18 @@ import type {
 } from './types'
 
 export const platformApi = {
+  async managedSmsCompanyProvider(companyId: string) {
+    const r=await apiClient.get<ApiResponse<string | null>>(
+      `/api/v1/platform/managed-providers/sms/companies/${companyId}`)
+    return r.data.data ?? null
+  },
+  async changeManagedSmsCompanyProvider(companyId: string, input: {
+    provider: string | null; reason: string
+  }) {
+    const r=await apiClient.put<ApiResponse<string>>(
+      `/api/v1/platform/managed-providers/sms/companies/${companyId}`,input)
+    return r.data.data
+  },
   async metaReachCompanyApproval(companyId: string) {
     const r=await apiClient.get<ApiResponse<{
       companyId: string; peId: string; evidenceReference: string; active: boolean; approvedAt: string
