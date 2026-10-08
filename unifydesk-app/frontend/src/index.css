@@ -398,6 +398,30 @@
   .channel-context-sidebar .workspace-menu-item {
     min-height: 52px;
   }
+  /*
+   * Keep Inbox account/folder controls compact so conversations take more
+   * of the available viewport, without changing Broadcast navigation.
+   */
+  .channel-context-sidebar .context-email-layout .admin-sidebar-header {
+    min-height: 48px;
+    padding-bottom: 10px;
+  }
+  .channel-context-sidebar .context-email-layout .email-folder-switcher {
+    margin-top: 10px;
+    padding: 3px;
+  }
+  .channel-context-sidebar .context-email-layout .email-folder-tab {
+    min-height: 32px;
+    padding: 6px 8px;
+  }
+  .context-email-layout .context-conversation-scroll {
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--theme-scrollbar-thumb) transparent;
+  }
+  .context-email-layout .context-conversation-scroll::-webkit-scrollbar-button {
+    display: none;
+  }
   .channel-workspace-page {
     min-height: calc(100dvh - 72px);
     background: var(--theme-bg);

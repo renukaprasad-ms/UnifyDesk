@@ -796,7 +796,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           : null))
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className={`flex h-full min-h-0 flex-col ${emailMode ? 'context-email-layout' : ''}`}>
       <div className="admin-sidebar-header">
         <div className="min-w-0">
           <p className="eyebrow">{mode === 'inbox' ? 'INBOX' : 'BROADCAST'}</p>
@@ -808,7 +808,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       </div>
 
       {(!broadcastMode || channelType !== 'WHATSAPP') && (
-        <div className="mt-4">
+        <div className={emailMode ? 'mt-2' : 'mt-4'}>
           <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
             {broadcastMode
               ? 'Broadcast account'
@@ -1082,7 +1082,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           </p>
         </div>
       ) : (
-      <div className="context-conversation-section mt-4 flex min-h-0 flex-1 flex-col border-t border-slate-100 pt-4">
+      <div className={`context-conversation-section flex min-h-0 flex-1 flex-col border-t border-slate-100 ${emailMode ? 'mt-2 pt-2' : 'mt-4 pt-4'}`}>
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
             {emptyListLabel}
@@ -1096,7 +1096,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
 
         {emailMode ? (
           <>
-            <label className="relative mb-3 block">
+            <label className="relative mb-2 block">
               <FiSearch
                 aria-hidden="true"
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -1107,10 +1107,10 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                 onChange={(event) => setConversationSearch(event.target.value)}
                 placeholder="Search chats"
                 aria-label="Search inbox conversations"
-                className="form-input w-full py-2 pl-9 pr-3 text-xs"
+                className="form-input h-10 w-full py-2 pl-9 pr-3 text-xs"
               />
             </label>
-            <div className="-mx-3 min-h-0 flex-1 overflow-y-auto border-t border-slate-100">
+            <div className="context-conversation-scroll -mx-3 min-h-0 flex-1 overflow-y-auto border-t border-slate-100">
               <ConversationList
                 compact
                 conversations={visibleConversations}
