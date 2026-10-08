@@ -5,6 +5,11 @@ import { CardSkeleton } from '../../components/ui/Skeleton'
 
 export default function PlatformManagedProviders() {
   const [routes, setRoutes] = useState<ManagedProviderRoute[]>([])
+  const [companyId,setCompanyId]=useState('')
+  const [peId,setPeId]=useState('')
+  const [evidence,setEvidence]=useState('')
+  const [approvalReason,setApprovalReason]=useState('')
+  const [companyApproval,setCompanyApproval]=useState<'approve'|'revoke'|''>('')
   const [selected, setSelected] = useState<Record<string,string>>({})
   const [reason, setReason] = useState<Record<string,string>>({})
   const [busy, setBusy] = useState('')
@@ -47,6 +52,24 @@ export default function PlatformManagedProviders() {
     }
   }
 
+  async function changeApproval(active: boolean) {
+    if (!companyId.match(/^[0-9]+$/) || !window.confirm(
+      active ? 'Confirm that this company and PE are authorised under the MetaReach TM account?' :
+        'Revoke this company’s MetaReach sending authorisation?')) return
+    setCompanyApproval(active?'approve':'revoke')
+    setError('')
+    setNotice('')
+    try {
+      await platformApi.changeMetaReachCompanyApproval(companyId,{
+        active,peId,evidenceReference:evidence,reason:approvalReason.trim(),
+      })
+      setNotice(active?'MetaReach company mapping approved.':'MetaReach company mapping revoked.')
+      setApprovalReason('')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update company mapping')
+    } finally {setCompanyApproval('')}
+  }
+
   return <section className="w-full space-y-5 p-4 sm:p-6 lg:p-8">
     <header>
       <p className="eyebrow">PLATFORM / SUPER ADMIN</p>
@@ -78,5 +101,37 @@ export default function PlatformManagedProviders() {
         <p className="text-xs text-slate-500">Revision {route.revision}. New launches only; delivery reports and in-flight sends stay with their frozen provider.</p>
       </div>)}
     </div>}
+    <div className="panel space-y-4 p-5">
+      <div>
+        <h2 className="text-lg font-bold text-slate-950">MetaReach company authorisation</h2>
+        <p className="mt-1 text-xs text-slate-600">Super Admin must verify the company DLT Principal Entity, PE–TM chain, and provider account evidence before MetaReach sending. Never paste an API key here.</p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <label className="text-xs font-semibold text-slate-700">Company ID
+          <input className="form-input mt-1" value={companyId} onChange={e=>setCompanyId(e.target.value)} placeholder="Numeric company ID"/>
+        </label>
+        <label className="text-xs font-semibold text-slate-700">Verified DLT PE ID
+          <input className="form-input mt-1" value={peId} onChange={e=>setPeId(e.target.value)} placeholder="Principal Entity ID"/>
+        </label>
+        <label className="text-xs font-semibold text-slate-700">Provider account evidence reference
+          <input className="form-input mt-1" value={evidence} onChange={e=>setEvidence(e.target.value)} placeholder="Provider-approved mapping reference"/>
+        </label>
+      </div>
+      <label className="block text-xs font-semibold text-slate-700">Review reason
+        <textarea className="form-input mt-1 w-full" rows={2} maxLength={500}
+          value={approvalReason} onChange={e=>setApprovalReason(e.target.value)}
+          placeholder="How was the provider DLT mapping verified?"/>
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="primary-button" disabled={companyApproval!=='' || !companyId.match(/^[0-9]+$/) || !peId || !evidence || approvalReason.trim().length<8}
+          onClick={()=>void changeApproval(true)}>
+          {companyApproval==='approve'?'Saving…':'Approve MetaReach mapping'}
+        </button>
+        <button type="button" className="secondary-button" disabled={companyApproval!=='' || !companyId.match(/^[0-9]+$/) || approvalReason.trim().length<8}
+          onClick={()=>void changeApproval(false)}>
+          {companyApproval==='revoke'?'Revoking…':'Revoke mapping'}
+        </button>
+      </div>
+    </div>
   </section>
 }

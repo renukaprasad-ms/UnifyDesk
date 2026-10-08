@@ -23,6 +23,7 @@ public class ManagedSmsEligibilityService {
   private final com.messaging.admin.service.PlatformManagedProviderService routes;
   private final com.messaging.managedsms.metareach.MetaReachProperties metaReach;
   private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+  private final com.messaging.managedsms.control.provisioning.ManagedSmsProviderAdapter providerAdapter;
 
   @Transactional
   public ManagedSmsTenant recalculate(Long companyId) {
@@ -65,13 +66,17 @@ public class ManagedSmsEligibilityService {
             && headerCount > 0
             && templateCount > 0
             && bindingRepository.findByCompanyId(companyId).stream()
-                .anyMatch(binding -> binding.getStatus() == ProviderBindingStatus.ACTIVE
-                    && (!metareachSelected
-                      || (metaReach.ready()
-                          && binding.getProviderTemplateRef()!=null
-                          && !binding.getProviderTemplateRef().isBlank()
-                          && binding.getProviderMappingRef()!=null
-                          && !binding.getProviderMappingRef().isBlank())));
+                .anyMatch(binding -> {
+                  if (binding.getStatus() != ProviderBindingStatus.ACTIVE) return false;
+                  var version=versionRepository.findByIdAndCompanyId(
+                      binding.getTemplateVersionId(),companyId).orElse(null);
+                  var header=headerRepository.findByIdAndCompanyId(
+                      binding.getHeaderId(),companyId).orElse(null);
+                  if (version==null || header==null) return false;
+                  return providerAdapter.bindingReadiness(
+                    new com.messaging.managedsms.control.provisioning.ManagedSmsProviderAdapter.BindingContext(
+                      binding,tenant,version,header)).ready();
+                });
     tenantService.updateSendingState(tenant, ready);
     return tenant;
   }

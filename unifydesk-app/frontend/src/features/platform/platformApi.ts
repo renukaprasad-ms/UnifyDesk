@@ -15,6 +15,19 @@ import type {
 } from './types'
 
 export const platformApi = {
+  async metaReachCompanyApproval(companyId: string) {
+    const r=await apiClient.get<ApiResponse<{
+      companyId: string; peId: string; evidenceReference: string; active: boolean; approvedAt: string
+    } | null>>(`/api/v1/platform/managed-providers/sms/companies/${companyId}/approval`)
+    return r.data.data ?? null
+  },
+  async changeMetaReachCompanyApproval(companyId: string, input: {
+    active: boolean; peId: string; evidenceReference: string; reason: string
+  }) {
+    const r=await apiClient.put<ApiResponse<unknown>>(
+      `/api/v1/platform/managed-providers/sms/companies/${companyId}/approval`,input)
+    return r.data.data
+  },
   async managedProviders() {
     const r = await apiClient.get<ApiResponse<ManagedProviderRoute[]>>('/api/v1/platform/managed-providers')
     if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to load managed providers')
