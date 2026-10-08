@@ -48,6 +48,30 @@ export const zohoMailApi = {
     return unwrap(response.data)
   },
 
+  async webhookStatus(companyId: string, connectionId: string) {
+    const response = await apiClient.get<ApiResponse<{
+      configured: boolean
+      status: 'NOT_CONFIGURED' | 'AWAITING_HANDSHAKE' | 'ACTIVE'
+      lastReceivedAt?: string | null
+      lastProcessedAt?: string | null
+    }>>(`/api/v1/companies/${companyId}/channels/email/zoho/${connectionId}/webhook`)
+    return unwrap(response.data)
+  },
+
+  async setupWebhook(companyId: string, connectionId: string) {
+    const response = await apiClient.post<ApiResponse<{
+      webhookUrl: string
+      status: 'AWAITING_HANDSHAKE'
+    }>>(`/api/v1/companies/${companyId}/channels/email/zoho/${connectionId}/webhook/setup`)
+    return unwrap(response.data)
+  },
+
+  async disableWebhook(companyId: string, connectionId: string) {
+    await apiClient.delete(
+      `/api/v1/companies/${companyId}/channels/email/zoho/${connectionId}/webhook`,
+    )
+  },
+
   async disconnect(
     companyId: string,
     connectionId: string,
