@@ -46,6 +46,7 @@ import type { BroadcastSender, BroadcastSetupSession } from '../../features/broa
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
+import { zohoMailApi } from '../../features/channel/zohoMailApi'
 import { metaWhatsAppApi } from '../../features/channel/metaWhatsAppApi'
 import { launchMetaWhatsAppSignup, loadMetaSdk } from '../../features/channel/metaWhatsAppSdk'
 import type {
@@ -71,6 +72,7 @@ const providerLabel = (
 ) => {
   if (broadcastSender) return broadcastSenderProviderLabel(broadcastSender)
   if (providerType === 'MICROSOFT') return 'MICROSOFT 365'
+  if (providerType === 'ZOHO_MAIL') return 'ZOHO MAIL'
   if (providerType === 'IMAP_SMTP') return 'IMAP + SMTP'
   if (providerType === 'SMTP') return 'SMTP'
   if (providerType === 'AMAZON_SES') return 'AMAZON SES'
@@ -376,6 +378,7 @@ export default function CompanyConnections() {
 
     const gmailResult = url.searchParams.get('gmail')
     const microsoftResult = url.searchParams.get('microsoft')
+    const zohoResult = url.searchParams.get('zoho')
 
     if (gmailResult) {
       if (gmailResult === 'connected') {
@@ -399,7 +402,18 @@ export default function CompanyConnections() {
       url.searchParams.delete('microsoft')
     }
 
-    if (gmailResult || microsoftResult) {
+    if (zohoResult) {
+      if (zohoResult === 'connected') {
+        snackbar.success('Zoho Mail connected successfully')
+      } else if (zohoResult === 'cancelled') {
+        snackbar.info('Zoho Mail connection was cancelled')
+      } else {
+        snackbar.error('Unable to connect Zoho Mail. Please try again.')
+      }
+      url.searchParams.delete('zoho')
+    }
+
+    if (gmailResult || microsoftResult || zohoResult) {
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
       void loadConnections()
     }
@@ -464,6 +478,8 @@ export default function CompanyConnections() {
         await gmailApi.disconnect(selectedCompany.companyId, connection.id, dataPolicy)
       } else if (connection.providerType === 'MICROSOFT') {
         await microsoftApi.disconnect(selectedCompany.companyId, connection.id, dataPolicy)
+      } else if (connection.providerType === 'ZOHO_MAIL') {
+        await zohoMailApi.disconnect(selectedCompany.companyId, connection.id, dataPolicy)
       } else if (connection.providerType === 'META_WHATSAPP') {
         await metaWhatsAppApi.disconnect(selectedCompany.companyId, dataPolicy)
       } else {
@@ -556,6 +572,11 @@ export default function CompanyConnections() {
       }
       if (connection.providerType === 'MICROSOFT') {
         const authorization = await microsoftApi.authorize(selectedCompany.companyId)
+        window.location.assign(authorization.authorizationUrl)
+        return
+      }
+      if (connection.providerType === 'ZOHO_MAIL') {
+        const authorization = await zohoMailApi.authorize(selectedCompany.companyId)
         window.location.assign(authorization.authorizationUrl)
         return
       }
@@ -710,7 +731,7 @@ export default function CompanyConnections() {
                 <div>
                   <h3 className="text-sm font-bold text-slate-950">Connect your own email accounts</h3>
                   <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Gmail, Microsoft 365 and IMAP + SMTP power Inbox. SES, SendGrid, Azure Email and
+                    Gmail, Microsoft 365, Zoho Mail and IMAP + SMTP power Inbox. SES, SendGrid, Azure Email and
                     MSG91 Email are available for customer-managed broadcast sending.
                   </p>
                 </div>
@@ -848,7 +869,8 @@ export default function CompanyConnections() {
                       working={workingConnectionId === connection.id}
                       onReconnect={
                         connection.providerType === 'GMAIL' ||
-                        connection.providerType === 'MICROSOFT'
+                        connection.providerType === 'MICROSOFT' ||
+                        connection.providerType === 'ZOHO_MAIL'
                           ? () => void reconnectEmail(connection)
                           : connection.capabilities.includes('BROADCAST') &&
                               broadcastSenderFor(connection.id)?.managementMode !==
