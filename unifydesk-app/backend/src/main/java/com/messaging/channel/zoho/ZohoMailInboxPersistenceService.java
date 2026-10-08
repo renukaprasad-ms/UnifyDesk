@@ -91,7 +91,9 @@ public class ZohoMailInboxPersistenceService {
         conversation.setLastMessagePreview(
             hasText(snapshot.summary()) ? snapshot.summary() : htmlToText(snapshot.bodyHtml()));
       }
-      conversation = conversationRepository.save(conversation);
+      // The Inbox contact-link post-processor writes via JDBC in this transaction.
+      // Flush the conversation first so its FK parent exists before that JDBC insert.
+      conversation = conversationRepository.saveAndFlush(conversation);
 
       boolean newMessage = message == null;
       if (newMessage) {

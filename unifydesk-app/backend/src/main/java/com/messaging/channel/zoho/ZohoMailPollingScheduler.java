@@ -91,7 +91,31 @@ public class ZohoMailPollingScheduler {
     }
   }
 
-  private void sync(ChannelConnection connection) {
+  /**
+   * Called only by the durable webhook worker. Uses the same watermark and
+   * per-process mailbox lock as safety polling, preventing overlapping work.
+   */
+  public boolean pollWebhookConnection(Long connectionId) {
+    if (!properties.isEnabled()
+        || inFlight.get() >= Math.max(1, properties.getWorkerConcurrency())) return false;
+    ChannelConnection connection = connectionRepository.findById(connectionId).orElse(null);
+    if (connection == null
+        || connection.getProviderType() != ProviderType.ZOHO_MAIL
+        || connection.getStatus() != ChannelConnectionStatus.ACTIVE) return false;
+    if (asyncJobService.findActive(
+            connection.getCompanyId(), AsyncJobType.ZOHO_MAIL_SYNC,
+            connectionId.toString()).isPresent()) return false;
+    if (!activeConnectionIds.add(connectionId)) return false;
+    inFlight.incrementAndGet();
+    try {
+      return sync(connection);
+    } finally {
+      activeConnectionIds.remove(connectionId);
+      inFlight.decrementAndGet();
+    }
+  }
+
+  private boolean sync(ChannelConnection connection) {
     Instant baseline =
         (connection.getLastSyncAt() == null ? connection.getCreatedAt() : connection.getLastSyncAt())
             .minus(2, ChronoUnit.MINUTES);
@@ -129,11 +153,13 @@ public class ZohoMailPollingScheduler {
             InboxEmailChangedEvent.boundedDelta(
                 connection.getId(), ProviderType.ZOHO_MAIL, conversations, messages, Set.of()));
       }
+      return complete;
     } catch (RuntimeException exception) {
       log.warn(
           "zoho_mail_poll_failed connectionId={} reason={}",
           connection.getId(),
           exception.getClass().getSimpleName());
+      return false;
     }
   }
 

@@ -66,7 +66,8 @@ class ManagedSmsProviderSafetyDatabaseTests {
     properties = new ManagedSmsRuntimeProperties();
     properties.setProviderBalanceReserve(new BigDecimal("100"));
     adapter = new FakeObservationAdapter();
-    observations = new ManagedSmsProviderObservationService(jdbc, adapter);
+    observations = new ManagedSmsProviderObservationService(jdbc, adapter,
+        new com.messaging.managedsms.metareach.MetaReachProperties());
     safety = new ManagedSmsProviderSafetyService(jdbc, properties);
   }
 

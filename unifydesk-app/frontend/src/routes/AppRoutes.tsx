@@ -57,6 +57,8 @@ import PlatformCompanies from '../pages/platform/PlatformCompanies'
 import PlatformDashboard from '../pages/platform/PlatformDashboard'
 import PlatformPlanDetails from '../pages/platform/PlatformPlanDetails'
 import PlatformPlans from '../pages/platform/PlatformPlans'
+import PlatformManagedProviders from '../pages/platform/PlatformManagedProviders'
+import PlatformManagedSmsReviews from '../pages/platform/PlatformManagedSmsReviews'
 import PlatformUsers from '../pages/platform/PlatformUsers'
 import PlatformWebhookCallbacks from '../pages/platform/PlatformWebhookCallbacks'
 import TemplateLibrary from '../pages/templates/TemplateLibrary'
@@ -220,6 +222,8 @@ const AppRoutes = () => (
           <Route path="/platform/plans" element={<PlatformPlans />} />
           <Route path="/platform/plans/:planId" element={<PlatformPlanDetails />} />
           <Route path="/platform/billing" element={<PlatformBilling />} />
+          <Route path="/platform/managed-providers" element={<PlatformManagedProviders />} />
+          <Route path="/platform/managed-sms-reviews" element={<PlatformManagedSmsReviews />} />
           <Route path="/platform/admins" element={<PlatformAdmins />} />
           <Route path="/platform/channel-analytics/webhook-callbacks" element={<PlatformWebhookCallbacks />} />
           <Route path="/platform/audit" element={<PlaceholderPage />} />

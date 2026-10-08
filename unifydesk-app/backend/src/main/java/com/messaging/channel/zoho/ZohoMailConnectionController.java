@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ZohoMailConnectionController {
 
   private final ZohoMailConnectionService connectionService;
+  private final ZohoMailWebhookService webhookService;
   private final EmailChannelOperationsService emailOperationsService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
@@ -45,6 +47,37 @@ public class ZohoMailConnectionController {
             HttpStatus.OK.value(),
             connectionService.authorization(companyId, userId, returnTo),
             "Zoho Mail authorization created"));
+  }
+
+  @GetMapping("/{connectionId}/webhook")
+  public ResponseEntity<ApiResponse<ZohoMailWebhookService.Status>> webhookStatus(
+      @PathVariable Long companyId, @PathVariable Long connectionId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_CONNECT);
+    return ResponseEntity.ok(
+        ApiResponse.success(HttpStatus.OK.value(),
+            webhookService.status(companyId, connectionId),
+            "Zoho Mail webhook status"));
+  }
+
+  @PostMapping("/{connectionId}/webhook/setup")
+  public ResponseEntity<ApiResponse<ZohoMailWebhookService.Setup>> setupWebhook(
+      @PathVariable Long companyId, @PathVariable Long connectionId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_CONNECT);
+    return ResponseEntity.ok(
+        ApiResponse.success(HttpStatus.OK.value(),
+            webhookService.create(companyId, connectionId),
+            "Configure this URL in Zoho Mail outgoing webhooks"));
+  }
+
+  @DeleteMapping("/{connectionId}/webhook")
+  public ResponseEntity<Void> disableWebhook(
+      @PathVariable Long companyId, @PathVariable Long connectionId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_CONNECT);
+    webhookService.disable(companyId, connectionId);
+    return ResponseEntity.noContent().build();
   }
 
   @GetMapping("/{connectionId}/sync/active")

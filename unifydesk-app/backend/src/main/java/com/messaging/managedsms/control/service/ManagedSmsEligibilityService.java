@@ -20,6 +20,10 @@ public class ManagedSmsEligibilityService {
   private final ManagedSmsProviderBindingRepository bindingRepository;
   private final ManagedSmsTenantService tenantService;
   private final ManagedSmsProperties properties;
+  private final com.messaging.managedsms.metareach.MetaReachProperties metaReach;
+  private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+  private final com.messaging.managedsms.control.msg91.Msg91ManagedSmsProviderAdapter msg91Adapter;
+  private final com.messaging.managedsms.metareach.MetaReachManagedSmsProviderAdapter metaReachAdapter;
 
   @Transactional
   public ManagedSmsTenant recalculate(Long companyId) {
@@ -44,18 +48,36 @@ public class ManagedSmsEligibilityService {
         headerRepository.countByCompanyIdAndStatusAndProviderMappingStatusAndArchivedAtIsNull(
             companyId, HeaderStatus.ACTIVE, ProviderMappingStatus.READY);
     long templateCount = versionRepository.countByCompanyIdAndStatus(companyId, TemplateVersionStatus.ACTIVE);
-    boolean providerTenantReady =
-        tenant.getProviderMode() == ProviderMode.SHARED_MASTER
-            || (tenant.getProviderClientRef() != null && !tenant.getProviderClientRef().isBlank());
+    Integer metaApproved = metaReach.ready()
+        ? jdbc.queryForObject("""
+            select count(*) from managed_sms_metareach_company_approvals
+            where company_id=? and active=true
+            """, Integer.class,companyId) : 0;
+    boolean metaTenantReady = Integer.valueOf(1).equals(metaApproved);
+    boolean msg91TenantReady = tenant.getProviderMode() == ProviderMode.SHARED_MASTER
+        || (tenant.getProviderClientRef() != null && !tenant.getProviderClientRef().isBlank());
 
     boolean ready =
         properties.isEnabled()
             && profileReady
-            && providerTenantReady
             && headerCount > 0
             && templateCount > 0
             && bindingRepository.findByCompanyId(companyId).stream()
-                .anyMatch(binding -> binding.getStatus() == ProviderBindingStatus.ACTIVE);
+                .anyMatch(binding -> {
+                  if (binding.getStatus() != ProviderBindingStatus.ACTIVE) return false;
+                  var version=versionRepository.findByIdAndCompanyId(
+                      binding.getTemplateVersionId(),companyId).orElse(null);
+                  var header=headerRepository.findByIdAndCompanyId(
+                      binding.getHeaderId(),companyId).orElse(null);
+                  if (version==null || header==null) return false;
+                  var ctx=new com.messaging.managedsms.control.provisioning.ManagedSmsProviderAdapter.BindingContext(
+                      binding,tenant,version,header);
+                  boolean msg91Ready=msg91TenantReady
+                      && msg91Adapter.bindingReadiness(ctx).ready();
+                  boolean metaReady=metaTenantReady
+                      && metaReachAdapter.bindingReadiness(ctx).ready();
+                  return msg91Ready || metaReady;
+                });
     tenantService.updateSendingState(tenant, ready);
     return tenant;
   }

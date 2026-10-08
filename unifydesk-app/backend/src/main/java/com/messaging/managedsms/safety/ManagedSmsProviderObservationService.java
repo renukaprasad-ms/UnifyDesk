@@ -17,6 +17,7 @@ public class ManagedSmsProviderObservationService {
 
   private final JdbcTemplate jdbcTemplate;
   private final ManagedSmsProviderObservationAdapter adapter;
+  private final com.messaging.managedsms.metareach.MetaReachProperties metaReach;
 
   @Scheduled(fixedDelayString = "${app.managed-sms.provider-observation-poll-ms:60000}")
   public void refreshKnownAccounts() {
@@ -44,6 +45,10 @@ public class ManagedSmsProviderObservationService {
       } catch (RuntimeException ignored) {
         // Observation failure is represented by absence of a fresh healthy snapshot.
       }
+    }
+    if (metaReach.ready()) {
+      try { refresh(metaReach.accountKey(),null); }
+      catch (RuntimeException ignored) { /* No fabricated healthy snapshot. */ }
     }
   }
 

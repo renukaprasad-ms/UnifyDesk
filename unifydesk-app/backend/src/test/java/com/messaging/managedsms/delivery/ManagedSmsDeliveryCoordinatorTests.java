@@ -24,7 +24,7 @@ class ManagedSmsDeliveryCoordinatorTests {
   @Test
   void ambiguousProviderOutcomeIsHeldUnknownAndNeverRetried() {
     Fixture f = fixture();
-    when(f.gateway.send(any(), anyString(), anyMap(), anyList(), anyString()))
+    when(f.gateway.send(anyString(), any(), anyString(), anyString(), anyMap(), anyList(), anyString()))
         .thenThrow(
             BroadcastTransportException.unknown(
                 "MANAGED_SMS_PROVIDER_UNKNOWN", "raw account=secret", null));
@@ -53,7 +53,7 @@ class ManagedSmsDeliveryCoordinatorTests {
 
     verify(f.usage).reserve(10L, 60L, 70L, 1, 1);
     verify(f.usage).release(10L, 60L, 70L, 1);
-    verifyNoInteractions(f.gateway);
+    verify(f.gateway, never()).send(anyString(), any(), anyString(), anyString(), anyMap(), anyList(), anyString());
     verify(f.state)
         .retry(
             f.attempt,
@@ -65,7 +65,7 @@ class ManagedSmsDeliveryCoordinatorTests {
   @Test
   void providerAcceptanceCommitsUsageOnceAtAcceptanceBoundary() {
     Fixture f = fixture();
-    when(f.gateway.send(any(), anyString(), anyMap(), anyList(), anyString()))
+    when(f.gateway.send(anyString(), any(), anyString(), anyString(), anyMap(), anyList(), anyString()))
         .thenReturn(new ManagedSmsSendResult("req-1", Instant.now()));
 
     f.service.deliver(f.run, f.connection, f.sender, f.recipient);
@@ -80,7 +80,7 @@ class ManagedSmsDeliveryCoordinatorTests {
   @Test
   void rawRateLimitDiagnosticNeverReachesRecipientState() {
     Fixture f = fixture();
-    when(f.gateway.send(any(), anyString(), anyMap(), anyList(), anyString()))
+    when(f.gateway.send(anyString(), any(), anyString(), anyString(), anyMap(), anyList(), anyString()))
         .thenThrow(
             BroadcastTransportException.retryable(
                 "MANAGED_SMS_PROVIDER_RATE_LIMIT",
@@ -104,7 +104,7 @@ class ManagedSmsDeliveryCoordinatorTests {
   @Test
   void definitePermanentFailureReleasesReservationAndUsesSafeMessage() {
     Fixture f = fixture();
-    when(f.gateway.send(any(), anyString(), anyMap(), anyList(), anyString()))
+    when(f.gateway.send(anyString(), any(), anyString(), anyString(), anyMap(), anyList(), anyString()))
         .thenThrow(
             BroadcastTransportException.permanent(
                 "MANAGED_SMS_PROVIDER_REJECTED",
@@ -130,7 +130,7 @@ class ManagedSmsDeliveryCoordinatorTests {
     ManagedSmsSegmentCalculator segments = mock(ManagedSmsSegmentCalculator.class);
     ManagedSmsTemplateService templates = mock(ManagedSmsTemplateService.class);
     ManagedSmsCorrelationService correlations = mock(ManagedSmsCorrelationService.class);
-    ManagedMsg91Gateway gateway = mock(ManagedMsg91Gateway.class);
+    ManagedSmsProviderDispatch gateway = mock(ManagedSmsProviderDispatch.class);
     ManagedSmsProviderSafetyService safety = mock(ManagedSmsProviderSafetyService.class);
     BroadcastDeliveryStateService state = mock(BroadcastDeliveryStateService.class);
     BroadcastRetryPolicy retry = mock(BroadcastRetryPolicy.class);
@@ -155,7 +155,9 @@ class ManagedSmsDeliveryCoordinatorTests {
     BroadcastDeliveryStateService.AttemptContext attempt =
         new BroadcastDeliveryStateService.AttemptContext(70L, 60L, 80L, 1);
     when(guard.eligible(run, connection, sender, recipient)).thenReturn(Optional.of(runtime));
-    when(rate.tryAcquire(runtime, 60L)).thenReturn(true);
+    when(gateway.requireProvider(10L,60L)).thenReturn("MSG91_SMS");
+    when(gateway.accountKey("MSG91_SMS",runtime)).thenReturn("client-a");
+    when(rate.tryAcquire(runtime, 60L, "client-a")).thenReturn(true);
     when(state.begin(70L, BroadcastSenderProvider.MSG91_SMS)).thenReturn(attempt);
     ManagedSmsTemplateService.VariableSpec spec =
         new ManagedSmsTemplateService.VariableSpec("code", "NUMERIC", 10, "VAR1");
@@ -246,7 +248,7 @@ class ManagedSmsDeliveryCoordinatorTests {
   private record Fixture(
       ManagedSmsDeliveryCoordinator service,
       ManagedSmsCorrelationService correlations,
-      ManagedMsg91Gateway gateway,
+      ManagedSmsProviderDispatch gateway,
       ManagedSmsUsageService usage,
       ManagedFinancialExposureGuard exposure,
       BroadcastDeliveryStateService state,
