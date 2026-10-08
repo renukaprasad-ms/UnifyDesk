@@ -22,6 +22,7 @@ public class ManagedSmsDeliveryGuard {
   private final ManagedSmsRuntimeRepository runtimeRepository;
   private final ManagedSmsRuntimeProperties properties;
   private final ManagedSmsProviderSafetyService safetyService;
+  private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
   public Optional<ManagedSmsRuntimeRepository.DeliveryRuntime> eligible(
       BroadcastRun run,
@@ -35,6 +36,11 @@ public class ManagedSmsDeliveryGuard {
         || connection.getProvider() != BroadcastSenderProvider.MSG91_SMS) {
       return Optional.empty();
     }
+    // Defend historical run routing against accidental provider changes and unsupported adapters.
+    java.util.List<String> route = jdbcTemplate.queryForList(
+        "select delivery_provider from managed_sms_run_bindings where run_id=? and company_id=?",
+        String.class, run.getId(), run.getCompanyId());
+    if (route.size() != 1 || !"MSG91_SMS".equals(route.getFirst())) return Optional.empty();
     Instant now = Instant.now();
     return runtimeRepository
         .findDeliveryRuntime(run.getCompanyId(), run.getId(), sender.getId())
