@@ -57,7 +57,10 @@ public class JdbcManagedSmsRuntimeRepository implements ManagedSmsRuntimeReposit
                else coalesce(t.provider_client_ref, t.provider_account_ref, '')
              end as provider_account_key,
              pb.provider_template_ref,
-             pb.provider_flow_ref,
+             case when (select provider_code from platform_managed_provider_routes where channel='SMS')
+                         = 'METAREACH_SMS'
+                  then pb.provider_template_ref else pb.provider_flow_ref
+             end as provider_flow_ref,
              pb.status as provider_binding_status,
              pb.last_sync_at as provider_binding_last_sync_at,
              c.status as connection_status,

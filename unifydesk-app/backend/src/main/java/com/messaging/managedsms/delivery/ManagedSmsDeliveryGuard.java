@@ -45,6 +45,22 @@ public class ManagedSmsDeliveryGuard {
     String provider=route.getFirst();
     if ("MSG91_SMS".equals(provider) && !properties.providerConfigured()) return Optional.empty();
     if ("METAREACH_SMS".equals(provider) && !metaReach.ready()) return Optional.empty();
+    if ("METAREACH_SMS".equals(provider)) {
+      Integer allowed=jdbcTemplate.queryForObject("""
+        select count(*) from managed_sms_run_bindings rb
+        join managed_sms_metareach_company_approvals a on a.company_id=rb.company_id
+        join managed_sms_dlt_profiles p
+          on p.id=rb.dlt_profile_id and p.company_id=rb.company_id
+        join managed_sms_provider_bindings pb
+          on pb.id=rb.provider_binding_id and pb.company_id=rb.company_id
+        where rb.company_id=? and rb.run_id=? and a.active=true and a.pe_id=p.pe_id
+          and p.status='ACTIVE' and p.tm_chain_status='ACTIVE'
+          and pb.status='ACTIVE' and pb.provider_mapping_ref is not null
+          and pb.provider_mapping_ref<>'' and pb.provider_template_ref=rb.dlt_template_id_snapshot
+          and rb.provider_template_ref_snapshot=rb.dlt_template_id_snapshot
+        """,Integer.class,run.getCompanyId(),run.getId());
+      if (!Integer.valueOf(1).equals(allowed)) return Optional.empty();
+    }
     if (!"MSG91_SMS".equals(provider) && !"METAREACH_SMS".equals(provider)) return Optional.empty();
     Instant now = Instant.now();
     return runtimeRepository
