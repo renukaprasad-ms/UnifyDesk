@@ -21,6 +21,23 @@ public class PlatformManagedProviderController {
       @Min(1) long expectedRevision,
       @NotBlank @Size(min=8,max=500) String reason) {}
 
+  public record CompanyRouteRequest(String provider,
+      @NotBlank @Size(min=8,max=400) String reason) {}
+
+  @GetMapping("/sms/companies/{companyId}")
+  public ResponseEntity<ApiResponse<String>> companyRoute(@PathVariable Long companyId) {
+    return ResponseEntity.ok(ApiResponse.success(200,service.companyOverride(companyId),
+      "Managed SMS company provider override fetched"));
+  }
+
+  @PutMapping("/sms/companies/{companyId}")
+  public ResponseEntity<ApiResponse<String>> setCompanyRoute(
+      @PathVariable Long companyId,@Valid @RequestBody CompanyRouteRequest request) {
+    return ResponseEntity.ok(ApiResponse.success(200,
+      service.setCompanyOverride(companyId,request.provider(),request.reason()),
+      "Company managed SMS provider updated"));
+  }
+
   @GetMapping
   public ResponseEntity<ApiResponse<List<Route>>> list() {
     return ResponseEntity.ok(ApiResponse.success(200,service.all(),"Provider routing fetched"));

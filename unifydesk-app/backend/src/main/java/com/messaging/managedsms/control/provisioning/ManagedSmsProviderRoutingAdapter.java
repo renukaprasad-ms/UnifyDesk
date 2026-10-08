@@ -14,13 +14,13 @@ public class ManagedSmsProviderRoutingAdapter implements ManagedSmsProviderAdapt
   private final Msg91ManagedSmsProviderAdapter msg91;
   private final MetaReachManagedSmsProviderAdapter metareach;
 
-  private ManagedSmsProviderAdapter current() {
-    return "METAREACH_SMS".equals(routes.smsProviderForNewRun()) ? metareach : msg91;
+  private ManagedSmsProviderAdapter current(Long companyId) {
+    return "METAREACH_SMS".equals(routes.smsProviderForCompany(companyId)) ? metareach : msg91;
   }
   @Override public ProviderResult execute(ProviderRequest request) {
-    return current().execute(request);
+    return current(request.companyId()).execute(request);
   }
   @Override public BindingReadiness bindingReadiness(BindingContext context) {
-    return current().bindingReadiness(context);
+    return current(context.binding().getCompanyId()).bindingReadiness(context);
   }
 }

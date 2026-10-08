@@ -47,6 +47,6 @@ public class ManagedSmsRunBindingService {
         runtime.providerTemplateRef(),
         runtime.providerFlowRef(),
         runtime.rulesetVersion(),
-        providerRoutes.smsProviderForNewRun());
+        providerRoutes.smsProviderForCompany(runtime.companyId()));
   }
 }

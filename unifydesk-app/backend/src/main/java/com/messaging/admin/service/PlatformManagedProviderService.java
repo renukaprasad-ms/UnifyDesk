@@ -71,6 +71,65 @@ public class PlatformManagedProviderService {
         String.class);
   }
 
+  @Transactional(readOnly = true)
+  public String smsProviderForCompany(Long companyId) {
+    if (companyId == null) throw new BadRequestException("Company is required");
+    List<String> override=jdbc.queryForList(
+      "select provider_code from platform_managed_provider_company_routes where channel='SMS' and company_id=?",
+      String.class,companyId);
+    return override.isEmpty() ? smsProviderForNewRun() : override.getFirst();
+  }
+
+  @Transactional(readOnly = true)
+  public String companyOverride(Long companyId) {
+    authorization.requireSuperAdmin(currentUser.currentUserId());
+    List<String> override=jdbc.queryForList(
+      "select provider_code from platform_managed_provider_company_routes where channel='SMS' and company_id=?",
+      String.class,companyId);
+    return override.isEmpty() ? null : override.getFirst();
+  }
+
+  @Transactional
+  public String setCompanyOverride(Long companyId,String provider,String reason) {
+    Long actor=currentUser.currentUserId();
+    authorization.requireSuperAdmin(actor);
+    if (reason==null || reason.trim().length()<8 || reason.length()>500)
+      throw new BadRequestException("A change reason of 8 to 500 characters is required");
+    if (provider!=null && !provider.equals("MSG91_SMS") && !provider.equals("METAREACH_SMS"))
+      throw new BadRequestException("Unsupported company SMS provider");
+    if ("METAREACH_SMS".equals(provider)) {
+      if (!metareachReady()) throw new BadRequestException("MetaReach is not configured");
+      Integer approved=jdbc.queryForObject("""
+          select count(*) from managed_sms_metareach_company_approvals
+          where company_id=? and active=true
+          """,Integer.class,companyId);
+      if (!Integer.valueOf(1).equals(approved))
+        throw new BadRequestException("Company MetaReach PE/TM mapping is not approved");
+    }
+    String previous=smsProviderForCompany(companyId);
+    if (provider==null) {
+      jdbc.update("delete from platform_managed_provider_company_routes where company_id=? and channel='SMS'",
+          companyId);
+    } else {
+      jdbc.update("""
+          insert into platform_managed_provider_company_routes(
+              company_id,channel,provider_code,revision,changed_by,reason)
+          values(?,'SMS',?,1,?,?)
+          on conflict(company_id,channel) do update set
+              provider_code=excluded.provider_code,revision=platform_managed_provider_company_routes.revision+1,
+              changed_by=excluded.changed_by,reason=excluded.reason,changed_at=now()
+          """,companyId,provider,actor,reason.trim());
+    }
+    jdbc.update("""
+        insert into platform_managed_provider_route_audit(
+          id,channel,previous_provider,new_provider,previous_revision,new_revision,
+          actor_user_id,reason)
+        values(?, 'SMS',?,?,0,0,?,?)
+        """, com.messaging.common.id.IdGenerator.nextId(),previous,
+          smsProviderForCompany(companyId),actor,"company="+companyId+" "+reason.trim());
+    return smsProviderForCompany(companyId);
+  }
+
   private Route get(String channel) {
     Current current = jdbc.queryForObject(
         "select provider_code, revision from platform_managed_provider_routes where channel=?",
