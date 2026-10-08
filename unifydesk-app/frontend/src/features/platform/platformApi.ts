@@ -11,10 +11,28 @@ import type {
   PlatformPlanInput,
   PlatformWebhookCallback,
   ManagedProviderRoute,
+  ManagedSmsReviewItem,
   WebhookCallbackStatus,
 } from './types'
 
 export const platformApi = {
+  async managedSmsReviewQueue() {
+    const r=await apiClient.get<ApiResponse<{items:ManagedSmsReviewItem[]}>>(
+      '/api/v1/platform/managed-sms/review-queue')
+    return r.data.data?.items ?? []
+  },
+  async decideManagedSmsReview(item:ManagedSmsReviewItem, input: {
+    decision:'APPROVE'|'REJECT';version:number;reason:string;
+    providerAccountRef:string|null;providerClientRef:string|null;
+    providerTemplateRef:string|null;providerFlowRef:string|null;
+    providerMappingRef:string|null;ctaPolicy?:unknown;
+  }) {
+    const resource=item.resourceType==='DLT_PROFILE'?'dlt-profiles':
+      item.resourceType==='HEADER'?'headers':'templates'
+    const r=await apiClient.post<ApiResponse<unknown>>(
+      `/api/v1/platform/managed-sms/${resource}/${item.id}/decision`,input)
+    return r.data.data
+  },
   async managedSmsCompanyProvider(companyId: string) {
     const r=await apiClient.get<ApiResponse<string | null>>(
       `/api/v1/platform/managed-providers/sms/companies/${companyId}`)

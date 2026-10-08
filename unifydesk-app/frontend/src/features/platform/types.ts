@@ -100,3 +100,13 @@ export type ManagedProviderRoute = {
   revision: number
   options: { code: string; name: string; available: boolean; note: string }[]
 }
+
+export type ManagedSmsReviewItem = {
+  resourceType: 'DLT_PROFILE' | 'HEADER' | 'TEMPLATE_VERSION'
+  id: string
+  companyId: string
+  state: string
+  summary: string
+  version: number
+  updatedAt: string
+}
