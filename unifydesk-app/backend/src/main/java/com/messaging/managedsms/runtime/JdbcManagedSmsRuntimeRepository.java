@@ -235,10 +235,16 @@ public class JdbcManagedSmsRuntimeRepository implements ManagedSmsRuntimeReposit
                    c.recipient_id,
                    c.attempt_no,
                    c.provider_request_id,
-                   coalesce(nullif(rb.provider_client_ref_snapshot, ''), '') as provider_account_key
+                   case
+                     when rb.delivery_provider='METAREACH_SMS' then 'metareach:master'
+                     when t.provider_mode='SHARED_MASTER' then 'master'
+                     else coalesce(nullif(rb.provider_client_ref_snapshot, ''), '')
+                   end as provider_account_key
               from managed_sms_correlations c
               join managed_sms_run_bindings rb
                 on rb.run_id = c.run_id and rb.company_id = c.company_id
+              join managed_sms_tenants t
+                on t.id=rb.tenant_id and t.company_id=rb.company_id
               join broadcast_recipients r
                 on r.id = c.recipient_id
                and r.company_id = c.company_id

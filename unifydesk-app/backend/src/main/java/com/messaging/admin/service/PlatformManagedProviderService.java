@@ -6,7 +6,7 @@ import com.messaging.common.id.IdGenerator;
 import com.messaging.security.service.CurrentUserService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +18,7 @@ public class PlatformManagedProviderService {
   private final CurrentUserService currentUser;
   private final JdbcTemplate jdbc;
 
-  @Value("${app.managed-sms.metareach.enabled:false}")
-  private boolean metareachEnabled;
-  @Value("${app.managed-sms.metareach.api-key:}")
-  private String metareachApiKey;
+  private final com.messaging.managedsms.metareach.MetaReachProperties metaReach;
 
   public record ProviderOption(String code, String name, boolean available, String note) {}
   public record Route(String channel, String provider, long revision, List<ProviderOption> options) {}
@@ -91,8 +88,7 @@ public class PlatformManagedProviderService {
   }
 
   private boolean metareachReady() {
-    // No runtime adapter / DLR polling has been released yet. Never advertise a routable provider.
-    return false;
+    return metaReach.ready();
   }
   private record Current(String provider,long revision) {}
 }

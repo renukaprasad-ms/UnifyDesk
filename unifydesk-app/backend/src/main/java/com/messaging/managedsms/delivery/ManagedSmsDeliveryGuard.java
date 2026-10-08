@@ -23,13 +23,14 @@ public class ManagedSmsDeliveryGuard {
   private final ManagedSmsRuntimeProperties properties;
   private final ManagedSmsProviderSafetyService safetyService;
   private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+  private final com.messaging.managedsms.metareach.MetaReachProperties metaReach;
 
   public Optional<ManagedSmsRuntimeRepository.DeliveryRuntime> eligible(
       BroadcastRun run,
       BroadcastSenderConnection connection,
       BroadcastSender sender,
       BroadcastRecipient recipient) {
-    if (!properties.providerConfigured()
+    if (!properties.isEnabled() || !properties.isPlatformSendingEnabled()
         || connection.getManagementMode() != BroadcastSenderManagementMode.MESSAGING_MANAGED
         || run.getProviderType() != BroadcastSenderProvider.MSG91_SMS
         || sender.getProvider() != BroadcastSenderProvider.MSG91_SMS
@@ -40,7 +41,11 @@ public class ManagedSmsDeliveryGuard {
     java.util.List<String> route = jdbcTemplate.queryForList(
         "select delivery_provider from managed_sms_run_bindings where run_id=? and company_id=?",
         String.class, run.getId(), run.getCompanyId());
-    if (route.size() != 1 || !"MSG91_SMS".equals(route.getFirst())) return Optional.empty();
+    if (route.size() != 1) return Optional.empty();
+    String provider=route.getFirst();
+    if ("MSG91_SMS".equals(provider) && !properties.providerConfigured()) return Optional.empty();
+    if ("METAREACH_SMS".equals(provider) && !metaReach.ready()) return Optional.empty();
+    if (!"MSG91_SMS".equals(provider) && !"METAREACH_SMS".equals(provider)) return Optional.empty();
     Instant now = Instant.now();
     return runtimeRepository
         .findDeliveryRuntime(run.getCompanyId(), run.getId(), sender.getId())
@@ -50,7 +55,8 @@ public class ManagedSmsDeliveryGuard {
         .filter(runtime -> runtime.senderId().equals(recipient.getSenderId()))
         .filter(runtime -> runtime.connectionId().equals(connection.getId()))
         .filter(runtime -> fresh(runtime, now))
-        .filter(runtime -> safetyService.isAvailable(runtime.providerAccountKey()));
+        .filter(runtime -> safetyService.isAvailable("METAREACH_SMS".equals(provider)
+            ? metaReach.accountKey() : runtime.providerAccountKey()));
   }
 
   boolean fresh(ManagedSmsRuntimeRepository.DeliveryRuntime runtime, Instant now) {
