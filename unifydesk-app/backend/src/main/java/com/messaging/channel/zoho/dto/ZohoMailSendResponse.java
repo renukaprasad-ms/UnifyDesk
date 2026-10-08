@@ -17,7 +17,7 @@ public record ZohoMailSendResponse(
 
   public static ZohoMailSendResponse from(EmailSendResult result) {
     return new ZohoMailSendResponse(
-        result.connectionId().toString(),
+        result.connectionId(),
         result.externalMessageId(),
         result.externalThreadId(),
         result.from(),
@@ -25,6 +25,6 @@ public record ZohoMailSendResponse(
         result.cc(),
         result.bcc(),
         result.subject(),
-        result.sentAt());
+        result.acceptedAt());
   }
 }
