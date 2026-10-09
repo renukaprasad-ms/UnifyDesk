@@ -5,7 +5,6 @@ import com.messaging.emailprovider.common.exception.ConflictException;
 import com.messaging.emailprovider.common.exception.NotFoundException;
 import com.messaging.emailprovider.common.id.IdGenerator;
 import com.messaging.emailprovider.dns.DnsResolver;
-import com.messaging.emailprovider.dns.JndiDnsResolver;
 import com.messaging.emailprovider.product.auth.ApiKeyCrypto;
 import java.net.IDN;
 import java.util.List;
@@ -100,7 +99,7 @@ public class MailboxProvisioningService {
     }
     boolean verified = dns.findTxtRecords(txtName(pending.name())).stream()
         .limit(64)
-        .map(JndiDnsResolver::normalizeTxtValue)
+        .map(txt -> txt.replace("\\\"", "").trim())
         .filter(txt -> txt.startsWith(DNS_PREFIX) && txt.length() < 120)
         .map(txt -> txt.substring(DNS_PREFIX.length()))
         .anyMatch(token -> ApiKeyCrypto.matches(token, pending.hash()));
