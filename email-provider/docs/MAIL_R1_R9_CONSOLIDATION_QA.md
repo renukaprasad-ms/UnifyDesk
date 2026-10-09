@@ -29,8 +29,9 @@ SES must remain unchanged.
 | MAIL-QA-003 | HIGH | Mailbox read authorization previously omitted current domain and organization status. The access gate now requires verified domain and active organization. |
 | MAIL-QA-004 | MED/HIGH | Outgoing message/recipient history previously omitted domain and organization state in its read gate. Both routes now reject suspended domain or organization state. |
 | MAIL-QA-005 | HIGH | Existing repo-wide Checks failed before running and cannot validate stacked PRs. Added `.github/workflows/mail-qa.yml` to build mail backend, PostgreSQL migrations and frontend feature flag variants separately after runners work. |
-| MAIL-QA-006 | HIGH | No automated **real PostgreSQL** schema upgrade gate for V14–V20. Added `MailPostgresMigrationTests` that migrates fresh V1→V20 and V13/V16/V19→V20 using disposable isolated schemas. |
+| MAIL-QA-006 | HIGH | No automated **real PostgreSQL** schema upgrade gate for V15–V21. Added `MailPostgresMigrationTests` that migrates fresh V1→V21 and V13/V16/V19→V21 using disposable isolated schemas. |
 | MAIL-QA-007 | HIGH | Ambiguous SMTP acceptance needs protocol-level regression evidence; prior tests only checked mapping. Added a local in-process fake SMTP test for 250 DATA acceptance, explicit RCPT 450, and connection lost after DATA (UNKNOWN). |
+| MAIL-QA-009 | BLOCKER | The current dev branch contains `V14__email_usage_cursor_index.sql`, conflicting with the original mail `V14__mailbox_foundation.sql`. Preserve applied dev V14; rename mailbox migrations V14–V20 to V15–V21 and assert a complete V1–V21 history in PostgreSQL QA. This resolves the duplicate Flyway migration version without mutating existing dev schema history. |
 | MAIL-QA-008 | LOW | Reply control was also shown on Sent/Spam messages, although the backend only accepts a scanned inbound reply target. It now only appears for Inbox items. |
 
 All corrections remain in **one new QA branch**; previous draft PR branches were deliberately not rewritten.
@@ -38,7 +39,7 @@ All corrections remain in **one new QA branch**; previous draft PR branches were
 ### Source checks performed
 
 - Inspected existing GitHub Actions metadata and workflow YAML.
-- Inspected all PostgreSQL Flyway SQL migrations V1–V20 and principal mailbox service/controller APIs. No real SQL execution was available, so migration validity is **unconfirmed**.
+- Inspected all PostgreSQL Flyway SQL migrations V1–V21 and principal mailbox service/controller APIs. No real SQL execution was available, so migration validity is **unconfirmed**.
 - Checked 29 mailbox Java source files for references to missing internal `com.messaging.emailprovider` classes: **no missing internal import targets found**. This is a static path check, not compilation.
 - Verified `InternalApiTokenFilter` handles `/internal/v1/mail/...` and excludes only the earlier marketing feedback route. The newer mail feedback endpoint uses its own separate secret as a second requirement.
 - Inspected MIME parsing behavior against Apache James Mime4j's published API. **Dependency downloading and executable MIME tests were unavailable.**
@@ -52,7 +53,7 @@ workflow executes:
 1. **Backend:** JDK 25, Maven Spotless check, `clean test`, packaging.
 2. **Database:** a fresh PostgreSQL 16 service container with
    `MAIL_QA_PG_URL=jdbc:postgresql://localhost:5432/mail_qa` and ephemeral
-   schemas for V1→V20, V13→V20, V16→V20 and V19→V20. It validates the schema
+   schemas for V1→V21, V13→V21, V16→V21 and V19→V21. It validates the schema
    history and key mail tables. These tests intentionally skip if the
    disposable DB variable is absent, but the CI workflow supplies it.
 3. **Frontend:** Node 24 builds with mail UI/compose/send flags **all off** and
@@ -108,3 +109,15 @@ retention. Full IAM parity with UnifyDesk App before general availability.
 integration-test specifications were committed. **Actual runtime and
 database test passes have not been obtained**, and no merge or deployment
 was performed.
+
+
+## Integration decision (October 9)
+
+The repository owner explicitly requested merging the mail work into `dev`
+despite unexecuted CI. The safe rollout contract is **source-only integration
+with all hosted-mail runtime flags disabled**; no SMTP/MX, Postfix, SES or DNS
+changes and no claims of production readiness. The current dev branch had
+advanced independently; its pre-existing V14 usage migration is preserved,
+mail migrations shifted to V15–V21. The full runtime migration chain still
+requires execution against an isolated PostgreSQL database. GitHub runner
+availability is an external deployment blocker, not a build validation.
