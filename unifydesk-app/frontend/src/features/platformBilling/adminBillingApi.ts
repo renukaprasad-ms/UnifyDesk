@@ -1,9 +1,11 @@
 import apiClient from '../../lib/api/apiClient'
-import type { ManagedUsageReport } from './types'
+import type { GlobalManagedRate, GlobalManagedRateInput, ManagedUsageReport } from './types'
 import type { ApiResponse } from '../../lib/api/types'
 import type { AssignCompanySubscriptionInput,BillingPlan,CompanyRateOverride,CompanySubscription,CreateBillingPlanInput,CreateCompanyRateOverrideInput,CreatePlanPriceInput,CreateRateCardInput,EntitlementDefinition,GrantSubscriptionInput,PlanAssignment,PlanAssignmentInput,PlanEntitlement,PlanPrice,RateCard,UpdateBillingPlanInput,UpdatePlanPriceInput,UpdateRateCardInput } from './types'
 const unwrap=<T>(response:ApiResponse<T>,fallback:string)=>{if(response.data===undefined||response.data===null)throw new Error(response.error_message??fallback);return response.data}
 export const adminBillingApi={
+ async globalManagedRates(){const r=await apiClient.get<ApiResponse<GlobalManagedRate[]>>('/api/v1/admin/billing/global-managed-rates');return unwrap(r.data,'Unable to load global managed rates')},
+ async reviseGlobalManagedRate(input:GlobalManagedRateInput){const r=await apiClient.post<ApiResponse<GlobalManagedRate>>('/api/v1/admin/billing/global-managed-rates',input);return unwrap(r.data,'Unable to publish global managed rate')},
  async managedUsage(from:string,to:string){const r=await apiClient.get<ApiResponse<ManagedUsageReport>>('/api/v1/admin/billing/analytics/managed-usage',{params:{from,to}});return unwrap(r.data,'Unable to load managed usage analytics')},
  async plans(){const r=await apiClient.get<ApiResponse<BillingPlan[]>>('/api/v1/admin/billing/plans');return unwrap(r.data,'Unable to load billing plans')},
  async createPlan(input:CreateBillingPlanInput){const r=await apiClient.post<ApiResponse<BillingPlan>>('/api/v1/admin/billing/plans',input);return unwrap(r.data,'Unable to create billing plan')},
