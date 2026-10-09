@@ -55,14 +55,39 @@ build_and_load_images() {
   build_and_load_service_image frontend
 }
 
+import_image_into_cluster() {
+  local image="$1"
+  local archive="$2"
+  local context
+
+  context="$(kubectl config current-context)"
+  if [[ "${context}" == k3d-* ]]; then
+    if ! command -v k3d >/dev/null 2>&1; then
+      echo "Kubernetes context ${context} requires the k3d CLI to import local Docker images." >&2
+      return 1
+    fi
+
+    local cluster="${context#k3d-}"
+    echo "Importing ${image} into k3d cluster ${cluster}"
+    k3d image import "${image}" --cluster "${cluster}"
+  elif command -v k3s >/dev/null 2>&1; then
+    echo "Importing ${image} into the local k3s container runtime"
+    docker save "${image}" -o "${archive}"
+    sudo k3s ctr images import "${archive}"
+  else
+    echo "Cannot import ${image}: Kubernetes context ${context} is not k3d and k3s is not installed locally." >&2
+    echo "Select your local k3d/k3s cluster before running this script." >&2
+    return 1
+  fi
+}
+
 build_and_load_service_image() {
   local service="$1"
 
   case "${service}" in
     backend)
       docker build -t "${BACKEND_IMAGE}" "${ROOT_DIR}/backend"
-      docker save "${BACKEND_IMAGE}" -o /tmp/messaging-backend.tar
-      sudo k3s ctr images import /tmp/messaging-backend.tar
+      import_image_into_cluster "${BACKEND_IMAGE}" "/tmp/messaging-backend.tar"
       ;;
     frontend)
       docker build \
@@ -70,8 +95,7 @@ build_and_load_service_image() {
         --build-arg VITE_API_BASE_URL="${K8S_VITE_API_BASE_URL:-}" \
         --build-arg VITE_CASHFREE_MODE="${VITE_CASHFREE_MODE:-sandbox}" \
         "${ROOT_DIR}/frontend"
-      docker save "${FRONTEND_IMAGE}" -o /tmp/messaging-frontend.tar
-      sudo k3s ctr images import /tmp/messaging-frontend.tar
+      import_image_into_cluster "${FRONTEND_IMAGE}" "/tmp/messaging-frontend.tar"
       ;;
   esac
 }
