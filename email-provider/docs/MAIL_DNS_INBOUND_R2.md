@@ -60,7 +60,7 @@ Recovery contract: if database commit is ambiguous, retain the MIME object rathe
 - Recipient and idempotency lookups: PostgreSQL B-tree point lookups O(log N); one mailbox row lock serializes per-mailbox quota reservation, rather than a global lock.
 - Domain/mailbox lists are bounded at 100 results; full pagination/search will need cursor indexes as accounts grow.
 - Use an existing local-path persistent volume only for the initial single-node staging topology. This consumes your own disk space rather than a new paid cloud storage product.
-- **A local PVC is not replicated or backed up automatically** and does not provide high availability. Do not advertise hosted mail as production ready until disaster recovery and storage integrity are proven.
+- **A local PVC is not replicated or backed up automatically** and does not provide high availability. It must use filesystem/volume encryption at rest (or application envelope encryption), strict Unix permissions and an encrypted off-node backup before real customer mail. Do not advertise hosted mail as production ready until disaster recovery and storage integrity are proven.
 - A per-mailbox 1 GiB quota does not protect shared disk capacity. Implement node-level disk headroom budgets, alerts, age-based quarantine cleanup, and backup restore tests before admitting real traffic.
 
 ### Required tests before enable/merge
