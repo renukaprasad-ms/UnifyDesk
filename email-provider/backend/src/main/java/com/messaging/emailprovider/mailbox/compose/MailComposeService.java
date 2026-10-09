@@ -116,7 +116,7 @@ public class MailComposeService {
         SELECT id,subject,status,revision,updated_at
         FROM email_mail_drafts
         WHERE organization_id=? AND mailbox_id=? AND author_user_id=?
-        ORDER BY id DESC LIMIT 30
+        ORDER BY id DESC LIMIT 50
         """,(rs,row)->new DraftSummary(Long.toString(rs.getLong(1)),
         rs.getString(2),rs.getString(3),rs.getLong(4),
         rs.getTimestamp(5).toInstant().toString()),
