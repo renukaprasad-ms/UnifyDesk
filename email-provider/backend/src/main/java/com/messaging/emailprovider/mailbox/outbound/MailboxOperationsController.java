@@ -1,6 +1,7 @@
 package com.messaging.emailprovider.mailbox.outbound;
 
 import com.messaging.emailprovider.common.response.ApiResponse;
+import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,13 @@ public class MailboxOperationsController {
 
   public MailboxOperationsController(MailboxOperationsService operations) {
     this.operations=operations;
+  }
+
+  @GetMapping("/reconciliation")
+  public ResponseEntity<ApiResponse<List<MailboxOperationsService.UnknownAttempt>>> unknown() {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(ApiResponse.success(200,operations.unknownAttempts(),
+            "Uncertain SMTP handoffs require operator verification; no automatic retry"));
   }
 
   @GetMapping("/ops")
