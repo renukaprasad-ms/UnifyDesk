@@ -11,13 +11,13 @@ RUN ./mvnw -B clean package
 
 FROM eclipse-temurin:25-jre-alpine
 
-RUN addgroup -S emailprovider && adduser -S emailprovider -G emailprovider
+RUN addgroup -S -g 10001 emailprovider && adduser -S -u 10001 -G emailprovider emailprovider
 
 WORKDIR /app
 
 COPY --from=build /workspace/target/email-provider-*.jar app.jar
 
-USER emailprovider
+USER 10001:10001
 
 EXPOSE 8010
 
