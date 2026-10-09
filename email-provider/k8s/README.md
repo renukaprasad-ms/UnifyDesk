@@ -95,6 +95,8 @@ openssl rand -hex 32                    # internal API, feedback, unsubscribe ke
 
 PostgreSQL 18's default PGDATA is nested beneath `/var/lib/postgresql`. The manifest mounts the PVC at `/var/lib/postgresql` to ensure database data survives pod replacement. **If you already initialized a cluster with the previous mount, back up and inspect its actual PGDATA before applying this change**. A PVC alone does not mean the original database files were persisted.
 
+The script proactively **blocks an automatic update** when an existing `email-postgres` StatefulSet still mounts `/var/lib/postgresql/data`. Restore or migrate the old cluster's actual PGDATA first, then explicitly apply the new `k8s/postgres.yaml` after the data has been secured. This check is not a substitute for verifying recovery from backup.
+
 The Email product HTTP API is ClusterIP-only. For **local-only** access to the independent console:
 
 ```bash

@@ -200,7 +200,21 @@ build_image() {
   )
 }
 
+check_existing_postgres_mount() {
+  local previous_mount
+  previous_mount="$(kubectl -n "${NAMESPACE}" get statefulset email-postgres \
+    -o jsonpath='{.spec.template.spec.containers[0].volumeMounts[0].mountPath}' \
+    2>/dev/null || true)"
+  if [[ "${previous_mount}" == "/var/lib/postgresql/data" ]]; then
+    echo "BLOCKED: existing email-postgres uses the pre-PostgreSQL-18 volume path." >&2
+    echo "Back up and verify the actual PGDATA, migrate/recover it, then apply postgres.yaml explicitly." >&2
+    echo "The helper will not auto-change the existing database volume mount." >&2
+    exit 1
+  fi
+}
+
 apply_dependencies() {
+  check_existing_postgres_mount
   kubectl apply -f "${K8S_DIR}/postgres.yaml"
   kubectl apply -f "${K8S_DIR}/redis.yaml"
 
@@ -300,6 +314,9 @@ restart_service() {
     build_image
   fi
 
+  if [[ "${service}" == "postgres" ]]; then
+    check_existing_postgres_mount
+  fi
   manifest="$(manifest_for_service "${service}")"
   workload="$(workload_for_service "${service}")"
   kubectl apply -f "${manifest}"
