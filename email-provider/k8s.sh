@@ -128,8 +128,13 @@ validate_env() {
     exit 1
   fi
 
+  require_command base64
+  if ! printf '%s' "${EMAIL_PROVIDER_MASTER_KEY}" | base64 --decode >/dev/null 2>&1; then
+    echo "EMAIL_PROVIDER_MASTER_KEY must be valid base64" >&2
+    exit 1
+  fi
   local decoded_key_bytes
-  decoded_key_bytes="$(printf '%s' "${EMAIL_PROVIDER_MASTER_KEY}" | base64 --decode 2>/dev/null | wc -c || true)"
+  decoded_key_bytes="$(printf '%s' "${EMAIL_PROVIDER_MASTER_KEY}" | base64 --decode | wc -c)"
   decoded_key_bytes="${decoded_key_bytes//[[:space:]]/}"
   if [[ "${decoded_key_bytes}" != "32" ]]; then
     echo "EMAIL_PROVIDER_MASTER_KEY must be base64 encoding of exactly 32 bytes" >&2
@@ -137,14 +142,16 @@ validate_env() {
   fi
 
   if [[ "${EMAIL_PROVIDER_FEEDBACK_ENABLED:-false}" == "true" ]]; then
-    if [[ "${#EMAIL_PROVIDER_FEEDBACK_TOKEN:-0}" -lt 32 || "${EMAIL_PROVIDER_FEEDBACK_TOKEN}" == *CHANGE_ME* ]]; then
+    local feedback_token="${EMAIL_PROVIDER_FEEDBACK_TOKEN:-}"
+    if (( ${#feedback_token} < 32 )) || [[ "${feedback_token}" == *CHANGE_ME* ]]; then
       echo "Set a secure EMAIL_PROVIDER_FEEDBACK_TOKEN (at least 32 characters)" >&2
       exit 1
     fi
   fi
 
   if [[ "${EMAIL_PROVIDER_DELIVERY_ENABLED:-false}" == "true" ]]; then
-    if (( ${#EMAIL_PROVIDER_UNSUBSCRIBE_SIGNING_KEY} < 32 )); then
+    local unsubscribe_key="${EMAIL_PROVIDER_UNSUBSCRIBE_SIGNING_KEY:-}"
+    if (( ${#unsubscribe_key} < 32 )); then
       echo "Configure EMAIL_PROVIDER_UNSUBSCRIBE_SIGNING_KEY before enabling delivery" >&2
       exit 1
     fi
@@ -164,9 +171,9 @@ ensure_namespace() {
 apply_env() {
   load_env
   validate_env
+  require_command kubectl
   ensure_namespace
 
-  require_command kubectl
   kubectl -n "${NAMESPACE}" create secret generic "${SECRET_NAME}" \
     --from-env-file="${ENV_FILE}" \
     --dry-run=client -o yaml | kubectl apply -f -
