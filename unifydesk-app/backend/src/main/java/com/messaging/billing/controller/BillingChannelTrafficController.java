@@ -32,7 +32,7 @@ public class BillingChannelTrafficController {
   private final CurrentUserService currentUserService;
 
   public record TrafficPoint(
-      String companyId, String day, String channel, String direction, long messages) {}
+      String companyId, String day, String channel, String direction, String source, long messages) {}
 
   public record TrafficReport(Instant from, Instant to, List<TrafficPoint> points) {}
 
@@ -50,6 +50,7 @@ public class BillingChannelTrafficController {
         """
         with observed as (
           select c.company_id, 'EMAIL' as channel, m.direction as direction,
+                 'CONNECTED_INBOX' as source,
                  coalesce(m.sent_at, m.created_at) as occurred_at
             from inbox_messages m
             join channel_connections c on c.id = m.connection_id
@@ -57,34 +58,34 @@ public class BillingChannelTrafficController {
              and coalesce(m.sent_at, m.created_at) >= ?
              and coalesce(m.sent_at, m.created_at) < ?
           union all
-          select d.company_id, 'EMAIL', 'OUTBOUND', d.sent_event_at
+          select d.company_id, 'EMAIL', 'OUTBOUND', 'MANAGED_EMAIL', d.sent_event_at
             from managed_email_recipient_delivery d
            where d.sent_event_at >= ? and d.sent_event_at < ?
           union all
-          select d.company_id, 'SMS', 'OUTBOUND', d.accepted_at
+          select d.company_id, 'SMS', 'OUTBOUND', 'MANAGED_SMS', d.accepted_at
             from managed_sms_recipient_delivery d
            where d.accepted_at >= ? and d.accepted_at < ?
           union all
-          select m.company_id, 'EMAIL', 'OUTBOUND', m.occurred_at
+          select m.company_id, 'EMAIL', 'OUTBOUND', 'UNIFYDESK_MAIL', m.occurred_at
             from billing_mail_usage_imports m
            where m.occurred_at >= ? and m.occurred_at < ?
           union all
-          select w.company_id, 'WHATSAPP', w.direction, w.created_at
+          select w.company_id, 'WHATSAPP', w.direction, 'META_WHATSAPP', w.created_at
             from meta_whatsapp_message_runtime w
            where w.detailed_status in ('ACCEPTED', 'SENT', 'DELIVERED', 'READ')
              and w.created_at >= ? and w.created_at < ?
         )
-        select company_id, channel, direction,
+        select company_id, channel, direction, source,
                to_char((occurred_at at time zone 'UTC')::date, 'YYYY-MM-DD') as day,
                count(*) as message_count
           from observed
-         group by company_id, channel, direction, (occurred_at at time zone 'UTC')::date
-         order by day, company_id, channel, direction
+         group by company_id, channel, direction, source, (occurred_at at time zone 'UTC')::date
+         order by day, company_id, channel, direction, source
         """,
         (rs, row) -> new TrafficPoint(
             Long.toString(rs.getLong("company_id")), rs.getString("day"),
             rs.getString("channel"), rs.getString("direction"),
-            rs.getLong("message_count")),
+            rs.getString("source"), rs.getLong("message_count")),
         start, end, start, end, start, end, start, end, start, end);
     return ResponseEntity.ok(ApiResponse.success(
         HttpStatus.OK.value(), new TrafficReport(from, to, rows), "Channel traffic fetched"));
