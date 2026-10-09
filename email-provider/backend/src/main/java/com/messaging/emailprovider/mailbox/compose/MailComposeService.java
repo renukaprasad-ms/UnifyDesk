@@ -138,6 +138,17 @@ public class MailComposeService {
     return matches.get(0);
   }
 
+  @Transactional
+  public void delete(ConsoleAuthService.Principal user, long mailboxId, long draftId) {
+    requireMailbox(user, mailboxId, true);
+    int deleted = jdbc.update("""
+        DELETE FROM email_mail_drafts
+        WHERE id=? AND organization_id=? AND mailbox_id=?
+          AND author_user_id=? AND status='DRAFT'
+        """, draftId, user.organizationId(), mailboxId, user.userId());
+    if (deleted != 1) throw new NotFoundException("Editable draft not found");
+  }
+
   /**
    * Produces a durable HELD submission only. No SMTP handoff or 'Sent'
    * confirmation is permitted until the next transport/security increment.
@@ -248,9 +259,12 @@ public class MailComposeService {
         throw new BadRequestException("Invalid reply message ID");
       }
       Boolean valid=jdbc.queryForObject("""
-          SELECT EXISTS(SELECT 1 FROM email_mailbox_messages
-            WHERE id=? AND organization_id=? AND mailbox_id=?
-              AND direction='INBOUND' AND deleted_at IS NULL)
+          SELECT EXISTS(SELECT 1 FROM email_mailbox_messages m
+            JOIN email_mail_inbound_jobs j ON j.id=m.inbound_job_id
+              AND j.organization_id=m.organization_id AND j.mailbox_id=m.mailbox_id
+            WHERE m.id=? AND m.organization_id=? AND m.mailbox_id=?
+              AND m.direction='INBOUND' AND m.deleted_at IS NULL
+              AND j.status='READY')
           """,Boolean.class,replyId,user.organizationId(),mailboxId);
       if (!Boolean.TRUE.equals(valid)) throw new NotFoundException("Reply target not found");
     }
