@@ -58,6 +58,14 @@ server:
 
 app:
   mail:
+    activation:
+      enabled: ${EMAIL_MAIL_ACTIVATION_ENABLED:false}
+    scanner:
+      enabled: ${EMAIL_MAIL_SCANNER_ENABLED:false}
+      clamd-host: ${EMAIL_MAIL_CLAMD_HOST:127.0.0.1}
+      clamd-port: ${EMAIL_MAIL_CLAMD_PORT:3310}
+      rspamd-url: ${EMAIL_MAIL_RSPAMD_URL:http://127.0.0.1:11333/checkv2}
+      interval-ms: ${EMAIL_MAIL_SCAN_INTERVAL_MS:5000}
     inbound:
       enabled: ${EMAIL_MAIL_INBOUND_ENABLED:false}
       spool-path: ${EMAIL_MAIL_INBOUND_SPOOL_PATH:}
