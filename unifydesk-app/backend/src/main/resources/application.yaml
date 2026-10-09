@@ -569,6 +569,10 @@ app:
     async: ${APP_NOTIFICATION_ASYNC:true}
     email:
       from: ${SMTP_FROM:${SMTP_USERNAME:}}
+      otp-from: ${APP_MAIL_OTP_FROM:no-reply@unifydesk.in}
+      security-from: ${APP_MAIL_SECURITY_FROM:security@unifydesk.in}
+      billing-from: ${APP_MAIL_BILLING_FROM:billing@unifydesk.in}
+      notification-from: ${APP_MAIL_NOTIFICATION_FROM:notification@unifydesk.in}
   invitation:
     frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
     expiry: ${APP_INVITATION_EXPIRY:72h}
