@@ -38,6 +38,7 @@ import GlobalManagedRatesPanel from './GlobalManagedRatesPanel'
 import BillingFinancialOverview from './BillingFinancialOverview'
 import BillingChannelTrafficOverview from './BillingChannelTrafficOverview'
 import BillingUsageReconciliationOverview from './BillingUsageReconciliationOverview'
+import BillingMailProjectLinks from './BillingMailProjectLinks'
 
 const providersByChannel: Record<ChannelType, ProviderType[]> = {
   EMAIL: ['AMAZON_SES', 'SENDGRID', 'AZURE_EMAIL', 'MSG91_EMAIL', 'UNIFYDESK_EMAIL', 'GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP', 'SMTP'],
@@ -95,7 +96,7 @@ export default function PlatformBilling() {
   const [overrideFrom, setOverrideFrom] = useState('')
   const [overrideTo, setOverrideTo] = useState('')
   const [showOverrideForm, setShowOverrideForm] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'rates' | 'companies' | 'reconciliation'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'rates' | 'companies' | 'reconciliation' | 'mail'>('overview')
 
   const privatePlans = useMemo(
     () => plans.filter((plan) => plan.status === 'PUBLISHED' && plan.visibility === 'PRIVATE'),
@@ -278,6 +279,7 @@ export default function PlatformBilling() {
             ['rates', 'Managed rates'],
             ['companies', 'Company billing'],
             ['reconciliation', 'Reconciliation'],
+            ['mail', 'Mail integration'],
           ] as const).map(([tab, label]) => (
             <button key={tab} type="button" onClick={() => setActiveTab(tab)}
               aria-current={activeTab === tab ? 'page' : undefined}
@@ -300,6 +302,7 @@ export default function PlatformBilling() {
         </>}
 
         {activeTab === 'rates' && <GlobalManagedRatesPanel />}
+        {activeTab === 'mail' && <BillingMailProjectLinks companies={companies} />}
         {activeTab === 'reconciliation' && <BillingUsageReconciliationOverview
           companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />}
 
