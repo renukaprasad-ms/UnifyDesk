@@ -18,6 +18,7 @@ export default function BillingMailProjectLinks({ companies }: Props) {
   const [usage, setUsage] = useState<MailBillingUsageTotals[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState('')
+  const [replayState, setReplayState] = useState<Record<string, { from: string; afterId: string }>>({})
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [form, setForm] = useState<MailBillingProjectLinkInput>({
@@ -84,6 +85,35 @@ export default function BillingMailProjectLinks({ companies }: Props) {
       setNotice(`Project ${projectId}: ${int(result.imported)} new handoffs imported.${result.hasMore ? ' More pages remain: synchronize again or let the scheduler continue.' : ''} No charges were created.`)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to sync Mail project')
+    } finally { setBusy('') }
+  }
+
+  const replay = async (projectId: string) => {
+    setBusy(projectId)
+    setError('')
+    setNotice('')
+    const existing = replayState[projectId] ?? {
+      from: new Date(Date.now() - 24 * 86400000).toISOString(),
+      afterId: '0',
+    }
+    try {
+      const result = await adminBillingApi.replayMailProject(projectId, existing.from, existing.afterId)
+      await reload()
+      if (result.hasMore) {
+        setReplayState((previous) => ({
+          ...previous, [projectId]: { ...existing, afterId: result.nextAfterId },
+        }))
+        setNotice(`Recovered ${int(result.imported)} missing Mail handoffs. More replay pages remain; select Continue recheck.`)
+      } else {
+        setReplayState((previous) => {
+          const next = { ...previous }
+          delete next[projectId]
+          return next
+        })
+        setNotice(`Mail handoff lookback completed. ${int(result.imported)} missing records recovered. No financial charges created.`)
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to recheck Mail usage')
     } finally { setBusy('') }
   }
 
@@ -182,6 +212,12 @@ export default function BillingMailProjectLinks({ companies }: Props) {
                       disabled={busy !== '' || link.state !== 'ACTIVE'}
                       onClick={() => { void sync(link.mailProjectId) }}>
                       {busy === link.mailProjectId ? 'Working...' : 'Sync'}
+                    </button>
+                    <button className="secondary-button" type="button"
+                      disabled={busy !== '' || link.state !== 'ACTIVE'}
+                      title="Idempotently recheck the last 24 hours of Mail handoffs"
+                      onClick={() => { void replay(link.mailProjectId) }}>
+                      {replayState[link.mailProjectId] ? 'Continue recheck' : 'Recheck 24h'}
                     </button>
                     <button className="secondary-button" type="button" disabled={busy !== ''}
                       onClick={() => { void toggle(link) }}>
