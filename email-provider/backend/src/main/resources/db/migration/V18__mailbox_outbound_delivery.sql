@@ -51,3 +51,6 @@ CREATE INDEX idx_mail_outbound_stale
   WHERE state='PROCESSING';
 CREATE INDEX idx_mail_outbound_intent_status
   ON email_mail_outbound_recipients(intent_id,state);
+
+CREATE INDEX idx_mail_outgoing_mailbox
+  ON email_mail_outbound_intents(organization_id,mailbox_id,id DESC);
