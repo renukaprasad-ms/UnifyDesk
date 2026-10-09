@@ -39,8 +39,10 @@ export default function BillingChannelTrafficOverview({ companyNames }: Props) {
     const totals = zero()
     const companies = new Map<string, Counts>()
     const daily = new Map<string, Counts>()
+    const sources = new Map<string, number>()
     for (const point of report?.points ?? []) {
       add(totals, point.channel, point.direction, point.messages)
+      sources.set(point.source, (sources.get(point.source) ?? 0) + point.messages)
       const company = companies.get(point.companyId) ?? zero()
       add(company, point.channel, point.direction, point.messages)
       companies.set(point.companyId, company)
@@ -49,7 +51,7 @@ export default function BillingChannelTrafficOverview({ companyNames }: Props) {
       add(day, point.channel, point.direction, point.messages)
       daily.set(bucket, day)
     }
-    return { totals, companies: [...companies].sort((a, b) => b[1].email + b[1].sms + b[1].whatsapp - a[1].email - a[1].sms - a[1].whatsapp), daily: [...daily].sort((a, b) => a[0].localeCompare(b[0])) }
+    return { totals, companies: [...companies].sort((a, b) => b[1].email + b[1].sms + b[1].whatsapp - a[1].email - a[1].sms - a[1].whatsapp), daily: [...daily].sort((a, b) => a[0].localeCompare(b[0])), sources: [...sources].sort(([a], [b]) => a.localeCompare(b)) }
   }, [report, groupBy])
   const peak = Math.max(1, ...aggregations.daily.map(([, row]) => row.email + row.sms + row.whatsapp))
 
@@ -57,7 +59,7 @@ export default function BillingChannelTrafficOverview({ companyNames }: Props) {
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 className="font-bold">Message processing — channel activity</h2>
-        <p className="mt-1 text-xs text-slate-500">Observed message records, not billed segments or provider webhook counts. Includes connected inbox email, managed broadcast delivery, explicitly linked Mail project handoffs and Meta WhatsApp. Unlinked Mail projects are excluded; this is operational reporting, not a charging ledger.</p>
+        <p className="mt-1 text-xs text-slate-500">Observed message records, not billed segments or provider webhook counts. Includes connected inbox email, managed broadcast delivery, explicitly linked Mail project handoffs and Meta WhatsApp. Unlinked Mail projects are excluded. Counts reflect observed source rows; the same message may appear in multiple systems until cross-source deduplication is established.</p>
       </div>
       <div className="flex gap-2">
         <select aria-label="Channel traffic period" className="form-input" value={days} onChange={(e) => setDays(Number(e.target.value))}>
@@ -102,6 +104,20 @@ export default function BillingChannelTrafficOverview({ companyNames }: Props) {
           })}
           <p className="text-xs text-slate-500">Blue: email · Amber: SMS · Green: WhatsApp</p>
         </div> : <p className="mt-3 text-sm text-slate-500">No observed message records in this period.</p>}
+      </div>
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold">Observed source breakdown</h3>
+        <p className="mt-1 text-xs text-slate-500">
+          Compare each independently counted source before treating combined totals as unique messages.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {aggregations.sources.map(([source, total]) => (
+            <div key={source} className="rounded-xl border p-3">
+              <p className="text-xs text-slate-500">{source.replaceAll('_', ' ')}</p>
+              <p className="mt-1 text-lg font-bold tabular-nums">{count(total)}</p>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="mt-6 overflow-x-auto">
         <h3 className="mb-3 font-semibold text-sm">Messages by company</h3>
