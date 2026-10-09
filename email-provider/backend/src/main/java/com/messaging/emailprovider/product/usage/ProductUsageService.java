@@ -75,25 +75,50 @@ public class ProductUsageService {
 
   @Transactional(readOnly = true)
   public HandoffPage handoffs(Long projectId, long afterId, int limit) {
+    return handoffs(projectId, afterId, limit, null, null);
+  }
+
+  @Transactional(readOnly = true)
+  public HandoffPage handoffs(Long projectId, long afterId, int limit,
+                              Instant from, Instant to) {
     if (projectId == null || projectId <= 0 || !projects.existsById(projectId)) {
       throw new NotFoundException("Email project not found");
     }
     if (afterId < 0 || limit < 1 || limit > 500) {
       throw new BadRequestException("Invalid usage cursor or page size");
     }
-    List<HandoffEntry> page = jdbc.query("""
-        select id, recipient_id, message_id, occurred_at, unit_price_micro_inr
-          from email_product_usage_entries
-         where project_id = ? and id > ?
-         order by id asc
-         limit ?
-        """,
-        (rs, row) -> new HandoffEntry(
-            Long.toString(rs.getLong("id")), Long.toString(rs.getLong("recipient_id")),
+    if ((from == null) != (to == null)
+        || (from != null && (!from.isBefore(to)
+            || from.isBefore(to.minusSeconds(31L * 86400))
+            || to.isAfter(Instant.now().plusSeconds(60))))) {
+      throw new BadRequestException("Bounded handoff replay requires a valid 31-day UTC window");
+    }
+    org.springframework.jdbc.core.RowMapper<HandoffEntry> mapper = (rs, row) ->
+        new HandoffEntry(Long.toString(rs.getLong("id")),
+            Long.toString(rs.getLong("recipient_id")),
             Long.toString(rs.getLong("message_id")),
             rs.getTimestamp("occurred_at").toInstant(),
-            rs.getLong("unit_price_micro_inr")),
-        projectId, afterId, limit + 1);
+            rs.getLong("unit_price_micro_inr"));
+    List<HandoffEntry> page;
+    if (from == null) {
+      page = jdbc.query("""
+          select id, recipient_id, message_id, occurred_at, unit_price_micro_inr
+            from email_product_usage_entries
+           where project_id = ? and id > ?
+           order by id asc
+           limit ?
+          """, mapper, projectId, afterId, limit + 1);
+    } else {
+      page = jdbc.query("""
+          select id, recipient_id, message_id, occurred_at, unit_price_micro_inr
+            from email_product_usage_entries
+           where project_id = ? and id > ?
+             and occurred_at >= ? and occurred_at < ?
+           order by id asc
+           limit ?
+          """, mapper, projectId, afterId,
+          java.sql.Timestamp.from(from), java.sql.Timestamp.from(to), limit + 1);
+    }
     boolean more = page.size() > limit;
     List<HandoffEntry> entries = more ? page.subList(0, limit) : page;
     String cursor = entries.isEmpty()
