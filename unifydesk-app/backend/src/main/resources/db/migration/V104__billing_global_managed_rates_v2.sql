@@ -7,6 +7,7 @@ create table billing_global_managed_rates (
       check (billing_sku in ('MANAGED_EMAIL_OUTBOUND', 'MANAGED_SMS_SEGMENT')),
     price numeric(19, 6) not null check (price >= 0),
     currency varchar(3) not null default 'INR' check (currency = 'INR'),
+    enabled boolean not null default true,
     effective_from timestamptz not null,
     effective_to timestamptz,
     created_by_user_id bigint,
@@ -22,7 +23,10 @@ create index idx_billing_global_rate_lookup
 
 -- A consistent, persisted activation moment per SKU. Historical records cannot be
 -- retroactively repriced because financial usage always keeps its resolved price snapshot.
-insert into billing_global_managed_rates (billing_sku, price, currency, effective_from, reason)
+insert into billing_global_managed_rates
+  (billing_sku, price, currency, enabled, effective_from, reason)
 values
-  ('MANAGED_EMAIL_OUTBOUND', 0.012000, 'INR', now(), 'Billing V2 launch baseline: per outbound email'),
-  ('MANAGED_SMS_SEGMENT', 0.250000, 'INR', now(), 'Billing V2 launch baseline: per SMS segment');
+  ('MANAGED_EMAIL_OUTBOUND', 0.012000, 'INR', true, now(),
+   'Billing V2 launch baseline: per outbound email'),
+  ('MANAGED_SMS_SEGMENT', 0.250000, 'INR', false, now(),
+   'Configured draft: activate only after explicit customer-facing SMS segment pricing approval');
