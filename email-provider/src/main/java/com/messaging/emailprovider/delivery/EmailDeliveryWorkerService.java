@@ -33,6 +33,7 @@ public class EmailDeliveryWorkerService {
   private final PostfixSmtpClient smtpClient;
   private final RecipientDeliveryStateService recipientState;
   private final EmailMessageStateService messageState;
+  private final ProductDeliveryGate productDeliveryGate;
   private final EmailSendingRateLimiter sendingRateLimiter;
   private final int maxAttempts;
   private final long initialRetrySeconds;
@@ -50,6 +51,7 @@ public class EmailDeliveryWorkerService {
       PostfixSmtpClient smtpClient,
       RecipientDeliveryStateService recipientState,
       EmailMessageStateService messageState,
+      ProductDeliveryGate productDeliveryGate,
       EmailSendingRateLimiter sendingRateLimiter,
       @Value("${app.delivery.retry.max-attempts:8}") int maxAttempts,
       @Value("${app.delivery.retry.initial-seconds:60}") long initialRetrySeconds,
@@ -65,6 +67,7 @@ public class EmailDeliveryWorkerService {
     this.smtpClient = smtpClient;
     this.recipientState = recipientState;
     this.messageState = messageState;
+    this.productDeliveryGate = productDeliveryGate;
     this.sendingRateLimiter = sendingRateLimiter;
     this.maxAttempts = maxAttempts;
     this.initialRetrySeconds = initialRetrySeconds;
@@ -75,6 +78,13 @@ public class EmailDeliveryWorkerService {
   public void deliverMessage(Long messageId) {
     EmailMessage message = messageRepository.findById(messageId).orElse(null);
     if (message == null) {
+      return;
+    }
+
+    // Independent product projects are not allowed to dispatch while disabled/suspended.
+    if (!productDeliveryGate.permitted(message.getCompanyId())) {
+      recipientRepository.deferForProductPause(messageId, Instant.now().plusSeconds(3600), Instant.now());
+      messageState.refresh(messageId);
       return;
     }
 

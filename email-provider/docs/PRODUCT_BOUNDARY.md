@@ -30,15 +30,15 @@ Delivery worker ──> DKIM/MIME ──> isolated Postfix nodes / IP pools
 
 No shared database tables, no implicit company ID trust across products, no direct connection from the browser to an internal token-authenticated endpoint.
 
-## First-party external API (proposed contract, NOT implemented yet)
+## First-party external API (R1 partial implementation, draft)
 
-- `POST /v1/emails`: single or moderate bounded send; `Idempotency-Key` required for retries.
-- `POST /v1/email-batches`: asynchronous bulk job, bounded job/chunk size, per-recipient result.
+- **Implemented in source:** `POST /v1/emails`: bounded send; `Idempotency-Key` required for retries.
+- **Implemented in source:** `POST /v1/email-batches`: async bulk job up to 1000 recipients and 100-recipient chunks; individual email submissions; basic per-chunk status.
 - `GET /v1/emails/{id}` and `GET /v1/email-batches/{id}`: project-scoped status.
-- `GET /v1/email-batches/{id}/recipients`: paginated per-recipient outcomes.
-- `POST /v1/domains`, `GET /v1/domains`, `POST /v1/domains/{id}/verify`: project/domain-scoped authorization.
-- `GET /v1/usage`, `GET /v1/events`: metering and delivery events.
-- `POST /v1/webhook-endpoints`: signed, replay-protected async event delivery.
+- **Not yet implemented:** `GET /v1/email-batches/{id}/recipients`: paginated per-recipient outcomes. Existing message events can be polled by message ID.
+- **Implemented in source:** `POST /v1/domains`, `GET /v1/domains`, `POST /v1/domains/{id}/verify`: project/domain-scoped authorization.
+- **Implemented in source:** `GET /v1/reputation`, `GET /v1/emails/{id}/events`, and `/v1/validations/jobs`: project-scoped metrics/events/validation. **Not yet implemented:** invoice-grade usage ledger.
+- **Not yet implemented:** `POST /v1/webhook-endpoints`: signed, replay-protected async event delivery.
 - Product **console**: organization/project creation, domain management, API keys (create/revoke/rotate; secret shown once), quotas, suppressions, audit logs, usage/billing, mail quality and support.
 
 Authentication: HTTPS, high-entropy random project API keys; only hashed or keyed-hash secret material stored at rest; short lookup prefix and full constant-time verification. Keys are scoped to organization and project with expiry, rotation, revocation and granular actions. Tenant/project inferred from the verified key; **never** trust a caller-supplied `companyId` to authorize an operation. Admin and user login to product console use proper user identity/roles; API keys are not human login tokens. Apply request size, concurrency, per-project/hour/day and per-sending-domain caps with abuse suspension. Require domain ownership, verified sender identity, and marketing consent/unsubscribe guardrails. Marketing and transactional mail must have distinct IP/reputation pools.
@@ -70,7 +70,7 @@ The `InternalApiTokenFilter` in draft PR #347 is a temporary private-service bar
 
 ## Existing scope
 
-The current repository contains a useful delivery engine and DB schema, Postfix integration, sender-domain verification, DKIM, validation and feedback components. It **does not** currently implement external customer onboarding, project API keys, a standalone product console, independent billing or the above public product API contracts. Do not infer production readiness from this architecture document.
+The current repository contains a useful delivery engine and DB schema, Postfix integration, sender-domain verification, DKIM, validation and feedback components. It now has operator-provisioned organizations/projects, project API keys, scoped public APIs, bounded bulk batches and Redis-based admission limits in draft PR #348. It **does not** implement customer self-service onboarding, a standalone product console, independent billing or signed delivery webhooks. Do not infer production readiness from this architecture document.
 
 ## Scope boundary for PR #347
 

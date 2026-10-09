@@ -36,7 +36,7 @@ class MimeMessageBuilderTests {
     assertTrue(raw.contains("Cc: cc@example.net\r\n"));
     assertFalse(raw.contains("Bcc:"));
     assertTrue(raw.contains("Content-Type: multipart/alternative;"));
-    assertTrue(raw.contains("Message-ID: <101@example.com>"));
+    assertTrue(raw.contains("Message-ID: <101.203@example.com>"));
   }
 
   private EmailRecipient recipient(Long id, String email, EmailRecipientType type) {

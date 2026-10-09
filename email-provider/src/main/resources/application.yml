@@ -57,6 +57,10 @@ server:
   shutdown: graceful
 
 app:
+  product:
+    quotas:
+      project-daily: ${EMAIL_PROVIDER_PRODUCT_PROJECT_DAILY_QUOTA:1000}
+      platform-daily: ${EMAIL_PROVIDER_PRODUCT_PLATFORM_DAILY_QUOTA:10000}
   security:
     api:
       internal-token: ${EMAIL_PROVIDER_INTERNAL_API_TOKEN:}

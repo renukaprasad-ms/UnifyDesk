@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -17,6 +18,16 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
   List<EmailRecipient> findAllByStatusOrderByCreatedAtAsc(EmailRecipientStatus status);
 
   Optional<EmailRecipient> findFirstByPostfixQueueId(String postfixQueueId);
+
+  @Modifying
+  @Transactional
+  @Query(value = """
+      UPDATE email_recipients SET status = 'DEFERRED', next_attempt_at = :until,
+          updated_at = :now
+      WHERE message_id = :messageId AND status IN ('QUEUED', 'DEFERRED')
+      """, nativeQuery = true)
+  int deferForProductPause(@Param("messageId") Long messageId, @Param("until") Instant until,
+                           @Param("now") Instant now);
 
   @Query(
       value =
