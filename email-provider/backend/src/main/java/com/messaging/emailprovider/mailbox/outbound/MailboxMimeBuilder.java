@@ -15,6 +15,7 @@ public class MailboxMimeBuilder {
       List<String> cc,String subject,String body,Instant acceptedAt,String replyMessageId) {}
 
   public byte[] build(Message mail) {
+    validate(mail);
     StringBuilder mime=new StringBuilder(1024+mail.body().length()*2);
     mime.append("From: ").append(mail.from()).append("\r\n");
     addresses(mime,"To",mail.to(),true);
@@ -36,6 +37,31 @@ public class MailboxMimeBuilder {
     mime.append(Base64.getMimeEncoder(76,"\r\n".getBytes(StandardCharsets.US_ASCII))
         .encodeToString(mail.body().getBytes(StandardCharsets.UTF_8))).append("\r\n");
     return mime.toString().getBytes(StandardCharsets.ISO_8859_1);
+  }
+
+  private static void validate(Message mail) {
+    if (mail==null || mail.acceptedAt()==null || mail.body()==null
+        || mail.subject()==null || mail.from()==null || mail.to()==null
+        || mail.cc()==null || mail.domain()==null || mail.intentId()<=0
+        || !mail.domain().matches("[a-z0-9-]+(\\.[a-z0-9-]+)+")
+        || !mail.from().endsWith("@"+mail.domain())
+        || mail.from().indexOf('\\r')>=0 || mail.from().indexOf('\\n')>=0
+        || mail.subject().length()>998
+        || mail.subject().indexOf('\\r')>=0 || mail.subject().indexOf('\\n')>=0
+        || mail.to().size()+mail.cc().size()>20
+        || mail.body().getBytes(StandardCharsets.UTF_8).length>65536) {
+      throw new IllegalArgumentException("Invalid mailbox MIME input");
+    }
+    for (String address:mail.to()) checkAddress(address);
+    for (String address:mail.cc()) checkAddress(address);
+  }
+
+  private static void checkAddress(String address) {
+    if(address==null || address.length()>320
+        || !address.matches("[a-z0-9][a-z0-9._%+-]{0,63}@[a-z0-9-]+(\\.[a-z0-9-]+)+")
+        || address.contains("..")) {
+      throw new IllegalArgumentException("Invalid outgoing address");
+    }
   }
 
   private static void addresses(StringBuilder out,String header,List<String> list,boolean required) {
