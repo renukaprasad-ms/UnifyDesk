@@ -1,6 +1,5 @@
 package com.messaging.emailprovider.mailbox.outbound;
 
-import com.messaging.emailprovider.common.exception.ServiceUnavailableException;
 import com.messaging.emailprovider.common.exception.UnauthorizedException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
