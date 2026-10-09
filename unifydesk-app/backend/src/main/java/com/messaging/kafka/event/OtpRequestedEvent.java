@@ -7,7 +7,8 @@ public record OtpRequestedEvent(
     String body,
     boolean html,
     String textBody,
-    String htmlBody) {
+    String htmlBody,
+    String senderPurpose) {
 
   public OtpRequestedEvent(
       String identifier,
@@ -15,11 +16,19 @@ public record OtpRequestedEvent(
       String subject,
       String body,
       boolean html) {
-    this(identifier, deliveryChannel, subject, body, html, null, null);
+    this(identifier, deliveryChannel, subject, body, html, null, null, null);
+  }
+
+  public OtpRequestedEvent(String identifier, String deliveryChannel, String subject, String body, boolean html, String textBody, String htmlBody) {
+    this(identifier, deliveryChannel, subject, body, html, textBody, htmlBody, null);
   }
 
   public static OtpRequestedEvent multipartEmail(
       String identifier, String subject, String textBody, String htmlBody) {
+    return multipartEmail(identifier, subject, textBody, htmlBody, "OTP");
+  }
+
+  public static OtpRequestedEvent multipartEmail(String identifier, String subject, String textBody, String htmlBody, String senderPurpose) {
     return new OtpRequestedEvent(
         identifier,
         "EMAIL",
@@ -27,7 +36,8 @@ public record OtpRequestedEvent(
         textBody,
         false,
         textBody,
-        htmlBody);
+        htmlBody,
+        senderPurpose);
   }
 
   public boolean multipartAlternative() {
