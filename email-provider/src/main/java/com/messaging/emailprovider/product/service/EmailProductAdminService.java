@@ -58,6 +58,39 @@ public class EmailProductAdminService {
         .map(this::project).toList();
   }
 
+  @Transactional(readOnly = true)
+  public ProductResponses.Organization organization(Long orgId) {
+    return organization(requireOrg(orgId));
+  }
+
+  @Transactional(readOnly = true)
+  public ProductResponses.Project project(Long projectId) {
+    return project(requireProject(projectId));
+  }
+
+  @Transactional
+  public ProductResponses.Organization updateOrganizationStatus(
+      Long orgId, com.messaging.emailprovider.product.model.ProductStatus status) {
+    EmailOrganization org = requireOrg(orgId);
+    org.setStatus(status.name());
+    return organization(organizations.save(org));
+  }
+
+  @Transactional
+  public ProductResponses.Project updateProjectStatus(
+      Long projectId, com.messaging.emailprovider.product.model.ProductStatus status) {
+    EmailProject project = requireProject(projectId);
+    if (status == com.messaging.emailprovider.product.model.ProductStatus.ACTIVE
+        && !"ACTIVE".equals(requireOrg(project.getOrganizationId()).getStatus())) {
+      throw new BadRequestException("Cannot reactivate project in suspended organization");
+    }
+    project.setStatus(status.name());
+    if (status == com.messaging.emailprovider.product.model.ProductStatus.SUSPENDED) {
+      project.setSendingEnabled(false);
+    }
+    return project(projects.save(project));
+  }
+
   @Transactional
   public ProductResponses.IssuedKey issue(Long projectId, ProductRequests.NewKey req) {
     requireProject(projectId);

@@ -25,4 +25,7 @@ public final class ProductRequests {
       @Future Instant expiresAt) {}
 
   public record SendingSwitch(boolean enabled) {}
+
+  public record StatusSwitch(
+      @NotNull com.messaging.emailprovider.product.model.ProductStatus status) {}
 }

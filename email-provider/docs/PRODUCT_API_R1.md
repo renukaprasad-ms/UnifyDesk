@@ -12,8 +12,10 @@ This is temporary operator provisioning for the first milestone, not the eventua
 customer console or self-service user login. No customer should receive this token.
 
 - `POST /internal/v1/email-product/organizations`: `{"name":"Demo Co","contactEmail":"ops@example.com"}`
+- `GET /internal/v1/email-product/organizations/{organizationId}` and `POST /internal/v1/email-product/organizations/{organizationId}/status`: fetch/suspend/restore organization.
 - `POST /internal/v1/email-product/organizations/{organizationId}/projects`: `{"name":"Marketing"}`
 - `GET /internal/v1/email-product/organizations/{organizationId}/projects`
+- `GET /internal/v1/email-product/projects/{projectId}` and `POST /internal/v1/email-product/projects/{projectId}/status`: fetch/suspend/restore project. Status payload is `{"status":"SUSPENDED"}`. Suspended projects lose sending capability.
 - `POST /internal/v1/email-product/projects/{projectId}/keys`:
   `{"name":"UnifyDesk App","scopes":["SEND","READ","DOMAINS"]}`
 - `GET /internal/v1/email-product/projects/{projectId}/keys`: metadata only, no raw secrets

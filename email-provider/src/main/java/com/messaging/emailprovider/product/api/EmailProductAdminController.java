@@ -27,6 +27,21 @@ public class EmailProductAdminController {
         .body(ApiResponse.success(201, admin.createOrganization(request), "Organization created"));
   }
 
+  @GetMapping("/organizations/{organizationId}")
+  public ApiResponse<ProductResponses.Organization> organization(
+      @PathVariable @Positive Long organizationId) {
+    return ApiResponse.success(200, admin.organization(organizationId), "Organization");
+  }
+
+  @PostMapping("/organizations/{organizationId}/status")
+  public ApiResponse<ProductResponses.Organization> organizationStatus(
+      @PathVariable @Positive Long organizationId,
+      @Valid @RequestBody ProductRequests.StatusSwitch request) {
+    return ApiResponse.success(200,
+        admin.updateOrganizationStatus(organizationId, request.status()),
+        "Organization status updated");
+  }
+
   @PostMapping("/organizations/{organizationId}/projects")
   public ResponseEntity<ApiResponse<ProductResponses.Project>> project(
       @PathVariable @Positive Long organizationId, @Valid @RequestBody ProductRequests.NewProject request) {
@@ -38,6 +53,20 @@ public class EmailProductAdminController {
   public ApiResponse<List<ProductResponses.Project>> projects(
       @PathVariable @Positive Long organizationId) {
     return ApiResponse.success(200, admin.projects(organizationId), "Projects");
+  }
+
+  @GetMapping("/projects/{projectId}")
+  public ApiResponse<ProductResponses.Project> project(
+      @PathVariable @Positive Long projectId) {
+    return ApiResponse.success(200, admin.project(projectId), "Project");
+  }
+
+  @PostMapping("/projects/{projectId}/status")
+  public ApiResponse<ProductResponses.Project> projectStatus(
+      @PathVariable @Positive Long projectId,
+      @Valid @RequestBody ProductRequests.StatusSwitch request) {
+    return ApiResponse.success(200, admin.updateProjectStatus(projectId, request.status()),
+        "Project status updated");
   }
 
   @PostMapping("/projects/{projectId}/keys")
