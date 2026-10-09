@@ -25,7 +25,7 @@ public record OtpRequestedEvent(
 
   public static OtpRequestedEvent multipartEmail(
       String identifier, String subject, String textBody, String htmlBody) {
-    return multipartEmail(identifier, subject, textBody, htmlBody, "OTP");
+    return multipartEmail(identifier, subject, textBody, htmlBody, null);
   }
 
   public static OtpRequestedEvent multipartEmail(String identifier, String subject, String textBody, String htmlBody, String senderPurpose) {
