@@ -56,6 +56,7 @@ public class MailComposeService {
 
   public record HeldSubmission(String draftId, String intentId, String state) {}
 
+  private record Recipient(String address,String type) {}
   private record Normalized(String to, String cc, String bcc, String subject,
       String body, Long replyId) {}
 
@@ -200,6 +201,14 @@ public class MailComposeService {
             (id,organization_id,mailbox_id,draft_id,state)
           VALUES (?,?,?,?,'HELD')
           """,intentId,user.organizationId(),mailboxId,draftId);
+      for (Recipient recipient : outboundRecipients(draft)) {
+        jdbc.update("""
+            INSERT INTO email_mail_outbound_recipients
+              (id,organization_id,mailbox_id,intent_id,recipient_address,recipient_type)
+            VALUES (?,?,?,?,?,?)
+            """,IdGenerator.nextId(),user.organizationId(),mailboxId,intentId,
+            recipient.address(),recipient.type());
+      }
     } catch (DuplicateKeyException collision) {
       // Prevent a key being applied to two separate drafts in one mailbox.
       throw new ConflictException("Submission key already used");
@@ -211,10 +220,21 @@ public class MailComposeService {
       long mailboxId,long draftId) {
     List<String> found=jdbc.query("""
         SELECT id FROM email_mail_outbound_intents
-        WHERE draft_id=? AND organization_id=? AND mailbox_id=? AND state='HELD'
+        WHERE draft_id=? AND organization_id=? AND mailbox_id=?
         """,(rs,row)->Long.toString(rs.getLong(1)),draftId,user.organizationId(),mailboxId);
     if (found.isEmpty()) throw new ServiceUnavailableException("Outgoing intent unavailable");
-    return new HeldSubmission(Long.toString(draftId),found.get(0),"HELD");
+    String state=jdbc.queryForObject("""
+        SELECT state FROM email_mail_outbound_intents WHERE id=? AND organization_id=?
+        """,String.class,Long.parseLong(found.get(0)),user.organizationId());
+    return new HeldSubmission(Long.toString(draftId),found.get(0),state);
+  }
+
+  private static List<Recipient> outboundRecipients(Draft draft) {
+    java.util.ArrayList<Recipient> results=new java.util.ArrayList<>();
+    for (String address:draft.to()) results.add(new Recipient(address,"TO"));
+    for (String address:draft.cc()) results.add(new Recipient(address,"CC"));
+    for (String address:draft.bcc()) results.add(new Recipient(address,"BCC"));
+    return results;
   }
 
   private Draft mapDraft(ResultSet rs,int row) throws SQLException {
