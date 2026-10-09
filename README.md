@@ -13,7 +13,7 @@ The primary application is a Spring Boot modular monolith with a React/Vite fron
 - `unifydesk-app/backend/src/main/resources/db/migration/` — Flyway migrations; the audited platform baseline contains migrations through V83.
 - `unifydesk-app/k8s/` — current k3s/Traefik development/small-host manifests.
 - `unifydesk-app/docs/` — feature contracts, architecture, QA history and platform documentation.
-- `email-provider/` — separate Spring Boot email-provider service and its deployment assets.
+- `email-provider/` — **UnifyDesk Email**, independently operated email API product (its own tenant/project identity, API keys, Flyway schema and mail infrastructure), currently in development; see [product API](email-provider/docs/PRODUCT_API_R1.md).
 - `unifydesk-website/` — public UnifyDesk website.
 - `.github/workflows/` — repository checks and feature-specific QA workflows.
 

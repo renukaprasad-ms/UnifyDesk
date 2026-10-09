@@ -1,23 +1,34 @@
-# Email Provider
+# UnifyDesk Email — Standalone API Product
 
-Self-hosted outbound email delivery platform for the Messaging SaaS.
+**UnifyDesk Email** is a separately operated email-sending product under the UnifyDesk
+brand, with its own customer organizations, projects, sending domains, API keys,
+delivery queues and infrastructure. It is **not** a subordinate microservice of
+the UnifyDesk App.
 
-This module is intentionally isolated from the main application runtime. The main Messaging backend remains the control plane for tenants, plans, billing, channel configuration, broadcasts, and UI-facing APIs. This directory contains the delivery-plane components required to operate a first-party email provider similar in concept to Amazon SES.
+The UnifyDesk App will be one API customer, using a project-specific key to submit
+permitted bulk email. Customers and external developers can use the Email product
+without having an account in UnifyDesk App. The product is currently in R1 development;
+customer self-service, billing, web console, IP warm-up and live deliverability QA
+are still outstanding. This is **not** generally available.
+
+See [product boundary](docs/PRODUCT_BOUNDARY.md) and
+[working API contracts](docs/PRODUCT_API_R1.md) for current implementation and release gates.
 
 ## Initial architecture
 
 ```text
-Messaging Backend (control plane)
+Any authorized customer or UnifyDesk App backend
         |
-        | Kafka commands/events
+        | HTTPS /v1 endpoints + project API key
         v
-email-provider/
+UnifyDesk Email product API (own identity, projects, key auth)
         |
-        +-- provider-api / orchestration
-        +-- delivery-worker
-        +-- feedback-worker
-        +-- reputation / suppression
-        +-- Postfix MTA
+        +-- verified sending domains / status / events / reputation
+        +-- PostgreSQL (own product and mail records)
+        +-- Redis (quotas / throttling)
+        +-- Kafka transactional outbox and async delivery
+        +-- DKIM/MIME and Postfix delivery workers
+        +-- feedback and recipient suppression
         |
         v
 Recipient MX servers
@@ -67,7 +78,7 @@ Recipient MX servers
 
 ## Important boundary
 
-The main Messaging backend should not directly open SMTP connections to destination MX servers. Outbound delivery must run in dedicated mail nodes/workers so mail reputation, IP pools, port 25 access, retry queues, and scaling are isolated from the SaaS API workload.
+UnifyDesk App and other API clients must not directly open SMTP connections to destination MX servers. Outbound delivery must run in dedicated mail nodes/workers so mail reputation, IP pools, port 25 access, retry queues, and scaling are isolated from the SaaS API workload.
 
 ## First milestone
 
@@ -136,4 +147,6 @@ Endpoints:
 - `GET /api/v1/companies/{companyId}/email-validation/jobs/{jobId}`
 - `GET /api/v1/companies/{companyId}/email-validation/jobs/{jobId}/results`
 
-For very large CSV/contact imports, the control plane should stream rows into bounded validation jobs rather than loading the complete file into memory.
+For very large CSV/contact imports, consumers should stream rows into bounded validation jobs rather than loading the complete file into memory.
+
+For public project-key API routes, see `/v1/` in [PRODUCT_API_R1.md](docs/PRODUCT_API_R1.md). The legacy `/api/v1/companies/` routes remain private operational APIs and must never be exposed directly to customers.
