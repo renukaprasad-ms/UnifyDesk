@@ -1,6 +1,7 @@
 package com.messaging.billing.controller;
 
 import com.messaging.admin.service.PlatformAdminAuthorizationService;
+import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.security.service.CurrentUserService;
 import java.sql.Timestamp;
@@ -40,7 +41,7 @@ public class BillingChannelTrafficController {
     authorization.requireSuperAdmin(currentUserService.currentUserId());
     if (!from.isBefore(to) || to.isAfter(Instant.now().plusSeconds(60))
         || from.isBefore(to.minusSeconds(93L * 86400))) {
-      throw new IllegalArgumentException("Channel traffic reporting is limited to 93 days");
+      throw new BadRequestException("Channel traffic reporting is limited to 93 days");
     }
     Timestamp start = Timestamp.from(from);
     Timestamp end = Timestamp.from(to);
