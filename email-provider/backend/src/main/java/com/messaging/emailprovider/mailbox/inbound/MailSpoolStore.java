@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
@@ -82,6 +83,23 @@ public class MailSpoolStore {
           // Reconcile orphaned partial files using an operator-only maintenance task.
         }
       }
+    }
+  }
+
+  /** Only immutable, server-generated object keys may be opened or streamed. */
+  public InputStream open(String key) {
+    if (key == null || !key.matches("[0-9a-f-]{36}\\.eml")) {
+      throw new IllegalArgumentException("Invalid MIME spool key");
+    }
+    Path file = root.resolve(key);
+    if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+      throw new ServiceUnavailableException("MIME spool object is missing or unsafe");
+    }
+    try {
+      return Channels.newInputStream(
+          FileChannel.open(file, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS));
+    } catch (IOException problem) {
+      throw new ServiceUnavailableException("MIME spool object unavailable", problem);
     }
   }
 
