@@ -47,6 +47,10 @@ public class MailSpoolStore {
     if (mime == null) throw new BadRequestException("MIME body is required");
     Path temporary = null;
     try {
+      // Shared volume headroom: do not fill the mail node with quarantined input.
+      if (Files.getFileStore(root).getUsableSpace() < maxBytes * 2 + 64L * 1024 * 1024) {
+        throw new ServiceUnavailableException("Insufficient inbound spool free space");
+      }
       temporary = Files.createTempFile(root, "receiving-", ".part");
       MessageDigest digest = MessageDigest.getInstance("SHA-256");
       long count = 0;
