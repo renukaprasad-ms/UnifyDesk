@@ -6,6 +6,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -62,13 +63,14 @@ public class MailOrphanInventoryService {
         }
         inspected++;
         String key=file.getFileName().toString();
-        if(!eligibleName(key)
-            || !Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS)) continue;
-        Instant modified=Files.getLastModifiedTime(file,LinkOption.NOFOLLOW_LINKS)
-            .toInstant();
+        if(!eligibleName(key)) continue;
+        BasicFileAttributes attrs=Files.readAttributes(
+            file,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);
+        if(!attrs.isRegularFile()) continue;
+        Instant modified=attrs.lastModifiedTime().toInstant();
         if(!oldEnough(modified,now)) continue;
         if(isReferenced(key)) continue;
-        candidates.add(new Candidate(key,Files.size(file),modified.toString()));
+        candidates.add(new Candidate(key,attrs.size(),modified.toString()));
       }
       return new Inventory(inspected,truncated,Files.getFileStore(root).getUsableSpace(),
           List.copyOf(candidates));
