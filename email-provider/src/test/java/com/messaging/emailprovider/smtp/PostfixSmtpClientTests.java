@@ -73,8 +73,8 @@ class PostfixSmtpClientTests {
   @Test
   void doesNotRetryWhenPostfixMayHaveAcceptedData() throws Exception {
     try (ServerSocket server = new ServerSocket(0)) {
-      CompletableFuture<Void> peer =
-          CompletableFuture.runAsync(
+      CompletableFuture<Boolean> peer =
+          CompletableFuture.supplyAsync(
               () -> {
                 try (Socket socket = server.accept()) {
                   BufferedReader reader =
@@ -82,20 +82,22 @@ class PostfixSmtpClientTests {
                           new InputStreamReader(
                               socket.getInputStream(), StandardCharsets.ISO_8859_1));
                   OutputStream output = socket.getOutputStream();
-                  write(output, "220 local.test ESMTP\\r\\n");
+                  write(output, "220 local.test ESMTP\r\n");
                   reader.readLine();
-                  write(output, "250 local.test\\r\\n");
+                  write(output, "250 local.test\r\n");
                   reader.readLine();
-                  write(output, "250 sender accepted\\r\\n");
+                  write(output, "250 sender accepted\r\n");
                   reader.readLine();
-                  write(output, "250 recipient accepted\\r\\n");
+                  write(output, "250 recipient accepted\r\n");
                   reader.readLine();
-                  write(output, "354 send data\\r\\n");
+                  write(output, "354 send data\r\n");
                   while (true) {
                     String line = reader.readLine();
                     if (line == null || line.equals(".")) break;
                   }
-                  // Socket closes without DATA acceptance confirmation.
+                  // The server saw the DATA terminator but deliberately withholds its final reply.
+                  // This is a genuine uncertain handoff, not a timeout during EHLO or RCPT.
+                  return true;
                 } catch (Exception e) {
                   throw new RuntimeException(e);
                 }
@@ -106,9 +108,9 @@ class PostfixSmtpClientTests {
           client.handoff(
               "sender@example.com",
               "user@example.net",
-              "From: sender@example.com\\r\\n\\r\\nHello\\r\\n".getBytes(StandardCharsets.ISO_8859_1));
+              "From: sender@example.com\r\n\r\nHello\r\n".getBytes(StandardCharsets.ISO_8859_1));
       assertEquals(SmtpDeliveryOutcome.UNKNOWN, result.outcome());
-      peer.get();
+      assertTrue(peer.get(5, java.util.concurrent.TimeUnit.SECONDS));
     }
   }
 
