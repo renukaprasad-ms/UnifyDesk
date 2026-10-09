@@ -87,6 +87,16 @@ public class BroadcastDeliveryService {
 
   private boolean recheckContactEligibility(
       BroadcastRun run, BroadcastRecipient recipient) {
+    // Standalone Email is strictly marketing-consent gated in R1. No anonymous
+    // group uploads or manually typed recipients may bypass the Contacts identity.
+    if (run.getProviderType() == BroadcastSenderProvider.UNIFYDESK_EMAIL
+        && (recipient.getContactId() == null || recipient.getContactIdentityId() == null)) {
+      stateService.skipProcessing(
+          recipient.getId(),
+          "UD_EMAIL_CONSENT_REQUIRED",
+          "Verified opted-in contact identity is required for UnifyDesk Email");
+      return false;
+    }
     if (recipient.getContactId() == null) return true;
 
     Channel channel = Channel.valueOf(run.getProviderType().channelType().name());

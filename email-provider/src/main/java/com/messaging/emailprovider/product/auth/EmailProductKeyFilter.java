@@ -27,7 +27,9 @@ public class EmailProductKeyFilter extends OncePerRequestFilter {
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
       FilterChain chain) throws ServletException, IOException {
     String path = request.getRequestURI();
-    ApiKeyScope scope = path.startsWith("/v1/webhook-endpoints")
+    ApiKeyScope scope = path.startsWith("/v1/project")
+        ? ApiKeyScope.DOMAINS
+        : path.startsWith("/v1/webhook-endpoints")
         ? ApiKeyScope.WEBHOOKS
         : path.startsWith("/v1/domains")
         ? ApiKeyScope.DOMAINS

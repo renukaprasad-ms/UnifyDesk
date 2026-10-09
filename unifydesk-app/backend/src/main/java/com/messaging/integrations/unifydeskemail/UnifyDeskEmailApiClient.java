@@ -15,8 +15,7 @@ import org.springframework.stereotype.Component;
 /**
  * Independent-product API client. Each UnifyDesk workspace must supply its own
  * encrypted-at-rest email project key. No shared database access and no key logging.
- * This is deliberately NOT registered as a broadcast provider until billing/consent
- * and connection lifecycle contracts are implemented.
+ * Used only by the gated Broadcast transport following normal tenant and consent checks.
  */
 @Component
 public class UnifyDeskEmailApiClient {
@@ -42,6 +41,60 @@ public class UnifyDeskEmailApiClient {
   public record BatchRequest(
       Long sendingDomainId, String from, String replyTo, String subject,
       String text, String html, List<String> recipients, String consentReference) {}
+
+
+  public record ProjectInfo(String projectId, boolean sendingEnabled) {}
+
+  public ProjectInfo inspectProject(String projectApiKey) throws IOException, InterruptedException {
+    if (projectApiKey == null || !projectApiKey.startsWith("ude_live_")) {
+      throw new IllegalArgumentException("Project key required");
+    }
+    HttpRequest request = HttpRequest.newBuilder(baseUrl.resolve("/v1/project"))
+        .timeout(Duration.ofSeconds(15))
+        .header("Authorization", "Bearer " + projectApiKey).GET().build();
+    HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+    if (response.statusCode() < 200 || response.statusCode() >= 300) {
+      throw new UnifyDeskEmailHttpException(response.statusCode());
+    }
+    JsonNode data = mapper.readTree(response.body()).path("data");
+    if (!data.hasNonNull("projectId") || !data.has("sendingEnabled")) {
+      throw new IOException("Invalid UnifyDesk Email project status response");
+    }
+    return new ProjectInfo(data.path("projectId").asText(), data.path("sendingEnabled").asBoolean());
+  }
+
+  public record DomainInfo(String id, String domain, String status) {}
+
+  public DomainInfo inspectDomain(String projectApiKey, Long domainId)
+      throws IOException, InterruptedException {
+    if (domainId == null || domainId <= 0
+        || projectApiKey == null || !projectApiKey.startsWith("ude_live_")) {
+      throw new IllegalArgumentException("Project key and domain ID are required");
+    }
+    HttpRequest request = HttpRequest.newBuilder(
+            baseUrl.resolve("/v1/domains/" + domainId))
+        .timeout(Duration.ofSeconds(15))
+        .header("Authorization", "Bearer " + projectApiKey)
+        .GET().build();
+    HttpResponse<String> response;
+    try {
+      response = http.send(request, HttpResponse.BodyHandlers.ofString());
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      throw interrupted;
+    }
+    if (response.statusCode() < 200 || response.statusCode() >= 300) {
+      throw new UnifyDeskEmailHttpException(response.statusCode());
+    }
+    JsonNode data = mapper.readTree(response.body()).path("data");
+    String name = data.path("domain").asText("");
+    String status = data.path("status").asText("");
+    if (!Long.toString(domainId).equals(data.path("id").asText())
+        || name.isBlank() || status.isBlank()) {
+      throw new IOException("UnifyDesk Email returned invalid domain details");
+    }
+    return new DomainInfo(data.path("id").asText(), name, status);
+  }
 
   public record BatchSubmission(String batchId, int totalRecipients, int chunksCount) {}
 
@@ -69,7 +122,7 @@ public class UnifyDeskEmailApiClient {
       throw interrupted;
     }
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
-      throw new IOException("UnifyDesk Email rejected batch with HTTP " + response.statusCode());
+      throw new UnifyDeskEmailHttpException(response.statusCode());
     }
     JsonNode data = mapper.readTree(response.body()).path("data");
     if (data.path("batchId").isMissingNode() || data.path("batchId").asText().isBlank()) {

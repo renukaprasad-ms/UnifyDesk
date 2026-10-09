@@ -90,9 +90,9 @@ public class FeedbackService {
     event.setRawPayload(truncate(rawPayload, 16384));
     event.setOccurredAt(occurredAt);
     event = eventRepository.save(event);
-    webhooks.enqueue(event, message, recipient);
 
     if (stateChanged) {
+      webhooks.enqueue(event, message, recipient);
       reputationService.recordEvent(
           message.getCompanyId(), message.getSendingDomainId(), request.eventType(), occurredAt);
       outboxService.enqueue(

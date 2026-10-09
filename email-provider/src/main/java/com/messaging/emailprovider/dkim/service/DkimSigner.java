@@ -24,7 +24,9 @@ public class DkimSigner {
           "message-id",
           "mime-version",
           "content-type",
-          "content-transfer-encoding");
+          "content-transfer-encoding",
+          "list-unsubscribe",
+          "list-unsubscribe-post");
 
   public byte[] sign(byte[] rawMessage, String domain, String selector, PrivateKey privateKey) {
     try {

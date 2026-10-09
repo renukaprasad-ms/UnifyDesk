@@ -39,6 +39,11 @@ public class EmailProductSendController {
     if (idempotencyKey == null || idempotencyKey.isBlank()) {
       throw new BadRequestException("Idempotency-Key is required for public API sends");
     }
+    if (!request.marketing() || request.consentReference() == null
+        || request.consentReference().isBlank()) {
+      throw new BadRequestException(
+          "Public sends require marketing consent evidence and unsubscribe support");
+    }
     Long projectId = EmailProductKeyFilter.require(context).projectId();
     int recipients = (request.to() == null ? 0 : request.to().size())
         + (request.cc() == null ? 0 : request.cc().size())
