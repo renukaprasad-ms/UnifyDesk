@@ -16,7 +16,7 @@ SES must remain unchanged.
 ### CI scheduler blocker (confirmed via GitHub run metadata)
 
 - [Checks workflow attempt 2](https://github.com/renukaprasad-ms/UnifyDesk/actions/runs/37923035809) on PR #362: **six jobs all failed within ~2 seconds; all have empty steps and empty runner name**.
-- A retry did not resolve it. This is **not evidence of a code test failure or success**. Possible settings/actions entitlement/billing/runner-availability causes require inspecting the GitHub Actions run banner and the repository/owner Actions settings. We have not verified the exact account-level reason.
+- A retry did not resolve it. The new standalone [Mail QA workflow](https://github.com/renukaprasad-ms/UnifyDesk/actions/runs/37941860300) also triggered on PR #372: its backend and frontend jobs both failed in 3–5 seconds with **zero steps and no runner**. This independently confirms the pre-execution scheduler/account issue persists. This is **not evidence of a code test failure or success**. Possible settings/actions entitlement/billing/runner-availability causes require inspecting the GitHub Actions run banner and the repository/owner Actions settings. We have not verified the exact account-level reason.
 - The executing environment available for this audit has Java 21 and Node 22, **not** required Java 25 and Node 24, no PostgreSQL executable or Docker daemon, and no outbound networking/private repository checkout. It cannot run Maven dependencies or the real database here.
 - **Action for repository owner:** Open the linked run in GitHub and check the workflow banner, Settings → Actions → General, account/organization Billing & Licensing → Actions usage/spending limit, and runner availability. Resolve the GitHub-side issue. Do not bypass required checks.
 
@@ -31,6 +31,7 @@ SES must remain unchanged.
 | MAIL-QA-005 | HIGH | Existing repo-wide Checks failed before running and cannot validate stacked PRs. Added `.github/workflows/mail-qa.yml` to build mail backend, PostgreSQL migrations and frontend feature flag variants separately after runners work. |
 | MAIL-QA-006 | HIGH | No automated **real PostgreSQL** schema upgrade gate for V14–V20. Added `MailPostgresMigrationTests` that migrates fresh V1→V20 and V13/V16/V19→V20 using disposable isolated schemas. |
 | MAIL-QA-007 | HIGH | Ambiguous SMTP acceptance needs protocol-level regression evidence; prior tests only checked mapping. Added a local in-process fake SMTP test for 250 DATA acceptance, explicit RCPT 450, and connection lost after DATA (UNKNOWN). |
+| MAIL-QA-008 | LOW | Reply control was also shown on Sent/Spam messages, although the backend only accepts a scanned inbound reply target. It now only appears for Inbox items. |
 
 All corrections remain in **one new QA branch**; previous draft PR branches were deliberately not rewritten.
 
