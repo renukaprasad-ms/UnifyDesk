@@ -5,7 +5,7 @@ export function Button({variant='primary',icon:Icon,children,...props}) {
   return <button className={'btn '+variant} {...props}>{Icon&&<Icon size={16}/>} {children}</button>
 }
 export function Badge({value}) {
-  const v=String(value||'Pending');const tone=['ACTIVE','VERIFIED','ENABLED'].includes(v.toUpperCase())?'good':v.toUpperCase()==='SUSPENDED'||v.toUpperCase()==='REVOKED'?'bad':'pending'
+  const v=String(value||'Pending');const tone=['ACTIVE','VERIFIED','ENABLED','HEALTHY'].includes(v.toUpperCase())?'good':v.toUpperCase()==='SUSPENDED'||v.toUpperCase()==='REVOKED'?'bad':'pending'
   return <span className={'badge '+tone}><span className="badge-dot"/>{v.toLowerCase().replaceAll('_',' ')}</span>
 }
 export function Panel({children,extra=''}) {return <div className={'panel '+extra}>{children}</div>}
