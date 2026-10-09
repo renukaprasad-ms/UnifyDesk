@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
