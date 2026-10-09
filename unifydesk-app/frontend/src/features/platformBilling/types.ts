@@ -43,3 +43,6 @@ export type FinancialAmounts = { invoicedInr: number; collectedInr: number; refu
 export type CompanyFinancial = FinancialAmounts & { companyId: string }
 export type DailyFinancial = Omit<FinancialAmounts, 'openBalanceInr'> & { day: string }
 export type BillingFinancialReport = { from: string; to: string; totals: FinancialAmounts; companies: CompanyFinancial[]; daily: DailyFinancial[] }
+
+export type ChannelTrafficPoint = { companyId: string; day: string; channel: ChannelType; direction: CommunicationDirection; messages: number }
+export type BillingChannelTrafficReport = { from: string; to: string; points: ChannelTrafficPoint[] }
