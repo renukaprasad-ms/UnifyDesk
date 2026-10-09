@@ -68,10 +68,22 @@ require_env() {
 
 load_env() {
   require_env
-  while IFS='=' read -r key value || [[ -n "${key}" ]]; do
-    key="${key%$'\r'}"
-    value="${value%$'\r'}"
-    [[ -z "${key}" || "${key}" == \#* ]] && continue
+  local line key value cr
+  printf -v cr '%b' '\015'
+  # Preserve everything after the FIRST "=" (including base64 padding).
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    line="${line%${cr}}"
+    [[ -z "${line}" || "${line}" == \#* ]] && continue
+    if [[ "${line}" != *=* ]]; then
+      echo "Invalid environment line (expected KEY=value)" >&2
+      exit 1
+    fi
+    key="${line%%=*}"
+    value="${line#*=}"
+    if [[ ! "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      echo "Invalid environment variable name in ${ENV_FILE}" >&2
+      exit 1
+    fi
     export "${key}=${value}"
   done < "${ENV_FILE}"
 }
