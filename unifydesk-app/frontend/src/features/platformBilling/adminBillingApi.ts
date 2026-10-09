@@ -1,9 +1,16 @@
 import apiClient from '../../lib/api/apiClient'
+import type { MailBillingProjectLink, MailBillingProjectLinkInput, MailBillingSyncResult, MailBillingUsageTotals } from './types'
 import type { GlobalManagedRate, GlobalManagedRateInput, ManagedUsageReport, BillingFinancialReport, BillingChannelTrafficReport, BillingUsageReconciliationReport } from './types'
 import type { ApiResponse } from '../../lib/api/types'
 import type { AssignCompanySubscriptionInput,BillingPlan,CompanyRateOverride,CompanySubscription,CreateBillingPlanInput,CreateCompanyRateOverrideInput,CreatePlanPriceInput,CreateRateCardInput,EntitlementDefinition,GrantSubscriptionInput,PlanAssignment,PlanAssignmentInput,PlanEntitlement,PlanPrice,RateCard,UpdateBillingPlanInput,UpdatePlanPriceInput,UpdateRateCardInput } from './types'
 const unwrap=<T>(response:ApiResponse<T>,fallback:string)=>{if(response.data===undefined||response.data===null)throw new Error(response.error_message??fallback);return response.data}
 export const adminBillingApi={
+ async mailProjectLinks(){const r=await apiClient.get<ApiResponse<MailBillingProjectLink[]>>('/api/v1/admin/billing/mail-project-links');return unwrap(r.data,'Unable to load Mail project links')},
+ async linkMailProject(input:MailBillingProjectLinkInput){const r=await apiClient.post<ApiResponse<MailBillingProjectLink>>('/api/v1/admin/billing/mail-project-links',input);return unwrap(r.data,'Unable to link Mail project')},
+ async mailProjectUsage(from:string,to:string){const r=await apiClient.get<ApiResponse<MailBillingUsageTotals[]>>('/api/v1/admin/billing/mail-project-links/usage',{params:{from,to}});return unwrap(r.data,'Unable to load imported Mail usage')},
+ async syncMailProject(projectId:string){const r=await apiClient.post<ApiResponse<MailBillingSyncResult>>(`/api/v1/admin/billing/mail-project-links/${projectId}/sync`);return unwrap(r.data,'Unable to sync Mail project')},
+ async changeMailProjectState(projectId:string,state:'PAUSED'|'ACTIVE'){const operation=state==='PAUSED'?'pause':'resume';const r=await apiClient.post<ApiResponse<MailBillingProjectLink>>(`/api/v1/admin/billing/mail-project-links/${projectId}/${operation}`);return unwrap(r.data,'Unable to update Mail project state')},
+
  async usageReconciliation(from:string,to:string){const r=await apiClient.get<ApiResponse<BillingUsageReconciliationReport>>('/api/v1/admin/billing/analytics/usage-reconciliation',{params:{from,to}});return unwrap(r.data,'Unable to reconcile managed usage')},
  async channelTraffic(from:string,to:string){const r=await apiClient.get<ApiResponse<BillingChannelTrafficReport>>('/api/v1/admin/billing/analytics/channel-traffic',{params:{from,to}});return unwrap(r.data,'Unable to load channel traffic')},
  async financialAnalytics(from:string,to:string){const r=await apiClient.get<ApiResponse<BillingFinancialReport>>('/api/v1/admin/billing/analytics/financial',{params:{from,to}});return unwrap(r.data,'Unable to load financial analytics')},
