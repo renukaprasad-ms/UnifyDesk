@@ -58,6 +58,10 @@ server:
 
 app:
   product:
+    webhooks:
+      enabled: ${EMAIL_PROVIDER_PRODUCT_WEBHOOKS_ENABLED:false}
+      allowed-hosts: ${EMAIL_PROVIDER_WEBHOOK_ALLOWED_HOSTS:}
+      dispatch-interval-ms: ${EMAIL_PROVIDER_WEBHOOK_INTERVAL_MS:10000}
     quotas:
       project-daily: ${EMAIL_PROVIDER_PRODUCT_PROJECT_DAILY_QUOTA:1000}
       platform-daily: ${EMAIL_PROVIDER_PRODUCT_PLATFORM_DAILY_QUOTA:10000}
