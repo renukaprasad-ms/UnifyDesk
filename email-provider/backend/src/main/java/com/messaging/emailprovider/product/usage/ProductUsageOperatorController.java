@@ -21,6 +21,11 @@ public class ProductUsageOperatorController {
    * Protected by InternalApiTokenFilter. Explicit project-scoping is mandatory because
    * independent Email product project IDs are not UnifyDesk company IDs.
    */
+  @GetMapping("/usage-head")
+  public ApiResponse<String> usageHead(@PathVariable @Positive Long projectId) {
+    return ApiResponse.success(200, usage.latestUsageId(projectId), "Current handoff high-water mark");
+  }
+
   @GetMapping("/usage-entries")
   public ApiResponse<ProductUsageService.HandoffPage> usageEntries(
       @PathVariable @Positive Long projectId,
