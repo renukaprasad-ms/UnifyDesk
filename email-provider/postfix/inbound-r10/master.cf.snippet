@@ -1,0 +1,8 @@
+# Add only to the dedicated INBOUND Postfix instance after review.
+# The Postfix account 'udmail-inbound' must exist without login and must have
+# only read access to the private /etc/unifydesk-mail/inbound-curl.conf.
+# 'n' disables chroot for the pipe script; external stdout is never a reply.
+# ${queue_id} is stable for Postfix queue retries; one recipient per process.
+udmail-inbound unix - n n - 4 pipe
+  flags=Rq user=udmail-inbound size=10485760
+  argv=/usr/local/libexec/udmail-inbound-pipe.sh ${queue_id} ${recipient}
