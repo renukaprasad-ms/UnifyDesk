@@ -79,6 +79,10 @@ app:
     stale-after-seconds: ${EMAIL_PROVIDER_OUTBOX_STALE_AFTER_SECONDS:120}
     max-attempts: ${EMAIL_PROVIDER_OUTBOX_MAX_ATTEMPTS:20}
   delivery:
+    rate:
+      platform-per-second: ${EMAIL_PROVIDER_RATE_PLATFORM_PER_SECOND:10}
+      company-per-second: ${EMAIL_PROVIDER_RATE_COMPANY_PER_SECOND:2}
+      domain-per-second: ${EMAIL_PROVIDER_RATE_DOMAIN_PER_SECOND:2}
     enabled: ${EMAIL_PROVIDER_DELIVERY_ENABLED:false}
     max-recipients-per-message: ${EMAIL_PROVIDER_MAX_RECIPIENTS:100}
     max-body-bytes: ${EMAIL_PROVIDER_MAX_BODY_BYTES:5242880}

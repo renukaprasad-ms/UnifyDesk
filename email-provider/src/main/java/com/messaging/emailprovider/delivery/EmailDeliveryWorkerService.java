@@ -33,6 +33,7 @@ public class EmailDeliveryWorkerService {
   private final PostfixSmtpClient smtpClient;
   private final RecipientDeliveryStateService recipientState;
   private final EmailMessageStateService messageState;
+  private final EmailSendingRateLimiter sendingRateLimiter;
   private final int maxAttempts;
   private final long initialRetrySeconds;
   private final long maxRetrySeconds;
@@ -49,6 +50,7 @@ public class EmailDeliveryWorkerService {
       PostfixSmtpClient smtpClient,
       RecipientDeliveryStateService recipientState,
       EmailMessageStateService messageState,
+      EmailSendingRateLimiter sendingRateLimiter,
       @Value("${app.delivery.retry.max-attempts:8}") int maxAttempts,
       @Value("${app.delivery.retry.initial-seconds:60}") long initialRetrySeconds,
       @Value("${app.delivery.retry.max-seconds:3600}") long maxRetrySeconds,
@@ -63,6 +65,7 @@ public class EmailDeliveryWorkerService {
     this.smtpClient = smtpClient;
     this.recipientState = recipientState;
     this.messageState = messageState;
+    this.sendingRateLimiter = sendingRateLimiter;
     this.maxAttempts = maxAttempts;
     this.initialRetrySeconds = initialRetrySeconds;
     this.maxRetrySeconds = maxRetrySeconds;
@@ -116,6 +119,18 @@ public class EmailDeliveryWorkerService {
       Instant startedAt = Instant.now();
       if (suppressionService.isSuppressed(message.getCompanyId(), recipient.getRecipientAddress())) {
         recipientState.suppressed(recipient, startedAt);
+        continue;
+      }
+
+      // Shared atomic limits; a Redis outage must not allow unchecked delivery.
+      if (!sendingRateLimiter.permit(message.getCompanyId(), domain.getId())) {
+        recipientState.deferred(
+            recipient,
+            new SmtpDeliveryResult(SmtpDeliveryOutcome.DEFERRED, null, "Sending rate limit reached or unavailable"),
+            startedAt,
+            maxAttempts,
+            initialRetrySeconds,
+            maxRetrySeconds);
         continue;
       }
 
