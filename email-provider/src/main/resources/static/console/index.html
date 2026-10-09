@@ -36,6 +36,8 @@ pre{background:#eff4fc;border-radius:8px;padding:14px;overflow-wrap:anywhere;whi
 <button data-tab="projects" class="active">Projects</button>
 <button data-tab="domains">Domains</button>
 <button data-tab="keys">API keys</button>
+<button data-tab="webhooks">Webhooks</button>
+<button data-tab="usage">Usage</button>
 <button data-tab="account">Account</button></aside>
 <main><header><div><h1 id="title">Projects</h1><small id="identity"></small></div>
 <div class="actions"><select id="project" aria-label="Selected project"></select><button id="logout" class="secondary">Sign out</button></div></header>
@@ -58,12 +60,14 @@ $("project").onchange=()=>{chosen=projects.find(p=>p.id===$("project").value);re
 async function load(){try{projects=await api("/projects");chosen=projects.find(p=>p.id===chosen?.id)||projects[0]||null;$("project").innerHTML=projects.map(p=>'<option value="'+safe(p.id)+'">'+safe(p.name)+'</option>').join("");if(chosen)$("project").value=chosen.id;render()}catch(x){alertMsg(x.message)}}
 function render(){
  document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
- $("title").textContent={projects:"Projects",domains:"Sending domains",keys:"API keys",account:"Account"}[tab];
+ $("title").textContent={projects:"Projects",domains:"Sending domains",keys:"API keys",webhooks:"Webhooks",usage:"Usage & billing",account:"Account"}[tab];
  if(tab==="projects"){ $("content").innerHTML='<div class="row"><h2>Projects</h2><button id="create">New project</button></div>'+projects.map(p=>'<div class="row"><div><b>'+safe(p.name)+'</b><br><small>'+safe(p.id)+'</small></div><small>'+(p.sendingEnabled?"Sending enabled":"Sending disabled")+'</small></div>').join("");
  $("create").onclick=async()=>{let name=prompt("Project name");if(!name)return;try{await api("/projects","POST",{name});await load()}catch(x){alertMsg(x.message)}};return}
  if(!chosen){$("content").textContent="Create a project first.";return}
  if(tab==="domains")return domains();
  if(tab==="keys")return keys();
+ if(tab==="webhooks")return webhooks();
+ if(tab==="usage")return usage();
  $("content").innerHTML="<h2>Account</h2><p>"+safe(user.email)+" · "+safe(user.role)+"</p><p>Organization: "+safe(user.organizationId)+"</p><p>Project sending must be approved before use.</p>";
 }
 async function domains(){const id=chosen.id;$("content").innerHTML='<h2>Sending domains</h2><div class="actions"><input id="new-domain" placeholder="example.com"><button id="add-domain">Add domain</button></div><div id="domain-list"></div>';
@@ -81,5 +85,26 @@ async function showKeys(id){try{const data=await api("/projects/"+id+"/keys");if
  $("keys-list").innerHTML=data.map(k=>'<div class="row"><div><b>'+safe(k.name)+'</b><br><small>'+safe(k.prefix)+' · '+safe(k.scopes)+' · '+(k.revokedAt?"Revoked":"Active")+'</small></div>'+(k.revokedAt?'':'<button class="danger" data-revoke="'+safe(k.id)+'">Revoke</button>')+'</div>').join("")||"<p>No API keys</p>";
  document.querySelectorAll("[data-revoke]").forEach(b=>b.onclick=async()=>{if(!confirm("Revoke this key?"))return;try{await api("/projects/"+id+"/keys/"+b.dataset.revoke,"DELETE");showKeys(id)}catch(x){alertMsg(x.message)}})
  }catch(x){alertMsg(x.message)}}
+async function webhooks(){
+ const id=chosen.id;
+ $("content").innerHTML='<h2>Signed delivery webhooks</h2><p>HTTPS destinations must be approved by the operator.</p><div class="actions"><input id="hook-url" placeholder="https://your-domain.com/mail/events" style="min-width:340px"><button id="hook-add">Create webhook</button></div><div id="hook-secret"></div><div id="hook-list"></div>';
+ $("hook-add").onclick=async()=>{try{
+   let data=await api("/projects/"+id+"/webhooks","POST",{url:$("hook-url").value});
+   $("hook-secret").innerHTML='<p>Store this signing secret now:</p><pre id="new-hook-secret"></pre>';
+   $("new-hook-secret").textContent=data.signingSecret;showWebhooks(id)
+ }catch(e){alertMsg(e.message)}};showWebhooks(id);
+}
+async function showWebhooks(id){
+ try{let data=await api("/projects/"+id+"/webhooks");if(chosen?.id!==id)return;
+ $("hook-list").innerHTML=data.map(x=>'<div class="row"><div><b>'+safe(x.url)+'</b><br><small>'+(x.enabled?"Active":"Disabled")+'</small></div>'+(x.enabled?'<button class="danger" data-hook="'+safe(x.id)+'">Disable</button>':"")+'</div>').join("")||"<p>No webhooks</p>";
+ document.querySelectorAll("[data-hook]").forEach(b=>b.onclick=async()=>{try{await api("/projects/"+id+"/webhooks/"+b.dataset.hook,"DELETE");showWebhooks(id)}catch(e){alertMsg(e.message)}})
+ }catch(e){alertMsg(e.message)}
+}
+async function usage(){
+ const id=chosen.id;$("content").innerHTML='<h2>Usage & billing estimate</h2><p>Postfix handoff units are billed once. Payment collection and tax invoices are not active.</p><div id="meter"></div>';
+ try{let data=await api("/projects/"+id+"/usage");if(chosen?.id!==id)return;
+ $("meter").innerHTML='<div class="row"><b>Accepted delivery handoffs</b><h2>'+safe(data.handedOff)+'</h2></div><div class="row"><b>Accrued INR (estimated)</b><h2>₹'+(Number(data.chargedMicroInr||0)/1000000).toFixed(4)+'</h2></div><p>UTC period: '+safe(data.from)+' – '+safe(data.to)+'</p>';
+ }catch(e){alertMsg(e.message)}
+}
 })();
 </script></body></html>

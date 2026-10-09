@@ -27,12 +27,15 @@ public class EmailConsoleController {
   private final EmailProjectRepository projects;
   private final EmailProductAdminService admin;
   private final SendingDomainService domains;
+  private final com.messaging.emailprovider.product.webhook.WebhookService webhooks;
 
   public EmailConsoleController(EmailProjectRepository projects,
-      EmailProductAdminService admin, SendingDomainService domains) {
+      EmailProductAdminService admin, SendingDomainService domains,
+      com.messaging.emailprovider.product.webhook.WebhookService webhooks) {
     this.projects = projects;
     this.admin = admin;
     this.domains = domains;
+    this.webhooks = webhooks;
   }
 
   @GetMapping("/projects")
@@ -98,6 +101,35 @@ public class EmailConsoleController {
       @PathVariable @Positive Long projectId, @PathVariable @Positive Long domainId) {
     checkManage(own(req, projectId));
     return ApiResponse.success(200, domains.verify(projectId, domainId), "DNS verification");
+  }
+
+
+  public record WebhookRequest(@jakarta.validation.constraints.NotBlank
+      @jakarta.validation.constraints.Size(max=1024) String url) {}
+
+  @GetMapping("/projects/{projectId}/webhooks")
+  public ApiResponse<List<com.messaging.emailprovider.product.webhook.WebhookService.View>> webhooks(
+      HttpServletRequest req, @PathVariable @Positive Long projectId) {
+    own(req, projectId);
+    return ApiResponse.success(200, webhooks.list(projectId), "Webhook endpoints");
+  }
+
+  @PostMapping("/projects/{projectId}/webhooks")
+  public ResponseEntity<ApiResponse<com.messaging.emailprovider.product.webhook.WebhookService.Created>>
+      createWebhook(HttpServletRequest req, @PathVariable @Positive Long projectId,
+      @Valid @RequestBody WebhookRequest body) {
+    checkManage(own(req, projectId));
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponse.success(201, webhooks.create(projectId, body.url()),
+            "Signing secret returned once"));
+  }
+
+  @DeleteMapping("/projects/{projectId}/webhooks/{endpointId}")
+  public ApiResponse<Void> disableWebhook(HttpServletRequest req,
+      @PathVariable @Positive Long projectId, @PathVariable @Positive Long endpointId) {
+    checkManage(own(req, projectId));
+    webhooks.disable(projectId, endpointId);
+    return ApiResponse.success(200, "Webhook disabled");
   }
 
   private ConsoleAuthService.Principal own(HttpServletRequest req, Long projectId) {
