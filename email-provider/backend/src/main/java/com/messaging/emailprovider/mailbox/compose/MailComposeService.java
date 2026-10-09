@@ -9,7 +9,6 @@ import com.messaging.emailprovider.product.console.ConsoleAuthService;
 import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -65,7 +64,7 @@ public class MailComposeService {
     requireMailbox(user, mailboxId, true);
     Long count = jdbc.queryForObject("""
         SELECT COUNT(*) FROM email_mail_drafts
-        WHERE organization_id=? AND mailbox_id=? AND author_user_id=? AND status='DRAFT'
+        WHERE organization_id=? AND mailbox_id=? AND author_user_id=?
         """, Long.class, user.organizationId(), mailboxId, user.userId());
     if (count == null || count >= MAX_DRAFTS) {
       throw new ConflictException("Maximum saved draft count reached");
@@ -271,7 +270,7 @@ public class MailComposeService {
     return new Normalized(to,cc,bcc,subject,body,replyId);
   }
 
-  private static String canonical(List<String> addresses,Set<String> unique) {
+  static String canonical(List<String> addresses,Set<String> unique) {
     if (addresses==null) return "";
     if (addresses.size()>MAX_RECIPIENTS) throw new BadRequestException("Too many recipients");
     java.util.ArrayList<String> output=new java.util.ArrayList<>();
