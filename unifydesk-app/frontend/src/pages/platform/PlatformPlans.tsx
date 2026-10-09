@@ -19,6 +19,7 @@ const emptyPlan: CreateBillingPlanInput = {
   basePrice: 0,
   currency: 'INR',
   version: 1,
+  visibility: 'PUBLIC',
 }
 
 const statusClass: Record<PlanStatus, string> = {
@@ -44,6 +45,7 @@ export default function PlatformPlans() {
   const [plans, setPlans] = useState<BillingPlan[]>([])
   const [form, setForm] = useState<CreateBillingPlanInput>(emptyPlan)
   const [showCreate, setShowCreate] = useState(false)
+  const [visibilityFilter, setVisibilityFilter] = useState<'ALL' | 'PUBLIC' | 'PRIVATE' | 'INTERNAL'>('ALL')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -74,9 +76,12 @@ export default function PlatformPlans() {
       total: plans.length,
       published: plans.filter((plan) => plan.status === 'PUBLISHED').length,
       drafts: plans.filter((plan) => plan.status === 'DRAFT').length,
+      private: plans.filter((plan) => plan.visibility === 'PRIVATE').length,
     }),
     [plans],
   )
+
+  const visiblePlans = useMemo(() => plans.filter((plan) => visibilityFilter === 'ALL' || plan.visibility === visibilityFilter), [plans, visibilityFilter])
 
   const create = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -250,6 +255,16 @@ export default function PlatformPlans() {
                   required
                 />
               </label>
+              <label className="text-xs font-semibold text-slate-600">
+                Plan visibility
+                <select className="form-input mt-1.5" value={form.visibility ?? 'PUBLIC'}
+                  onChange={(e) => setForm({ ...form, visibility: e.target.value as 'PUBLIC' | 'PRIVATE' | 'INTERNAL' })}>
+                  <option value="PUBLIC">Public — available to eligible companies</option>
+                  <option value="PRIVATE">Private — assigned companies only</option>
+                  <option value="INTERNAL">Internal — not customer-selectable</option>
+                </select>
+              </label>
+              {form.visibility === 'PRIVATE' && <p className="self-center text-xs text-slate-500">After publishing, assign this plan to a company under Admin Billing → Private plan assignment.</p>}
               <label className="text-xs font-semibold text-slate-600 md:col-span-2 xl:col-span-3">
                 Description
                 <textarea
@@ -275,10 +290,20 @@ export default function PlatformPlans() {
             <p className="mt-1 text-xs text-slate-500">
               Open a plan to configure prices, entitlements and per-channel rate cards.
             </p>
+            <label className="mt-3 inline-flex items-center gap-2 text-xs font-semibold">
+              Plan visibility
+              <select aria-label="Filter plans by visibility" className="form-input" value={visibilityFilter}
+                onChange={(e) => setVisibilityFilter(e.target.value as typeof visibilityFilter)}>
+                <option value="ALL">All plans</option>
+                <option value="PUBLIC">Public</option>
+                <option value="PRIVATE">Private</option>
+                <option value="INTERNAL">Internal</option>
+              </select>
+            </label>
           </div>
-          {plans.length === 0 ? (
+          {visiblePlans.length === 0 ? (
             <div className="px-5 py-12 text-center text-sm text-slate-500">
-              No plans yet. Create the first draft to start the billing catalog.
+              {plans.length === 0 ? 'No plans yet. Create the first draft to start the billing catalog.' : 'No plans match this visibility filter.'}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -287,6 +312,7 @@ export default function PlatformPlans() {
                   <tr>
                     <th className="px-5 py-3">Plan</th>
                     <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Visibility</th>
                     <th className="px-4 py-3">Base price</th>
                     <th className="px-4 py-3">Prices</th>
                     <th className="px-4 py-3">Limits</th>
@@ -294,7 +320,7 @@ export default function PlatformPlans() {
                   </tr>
                 </thead>
                 <tbody>
-                  {plans.map((plan) => (
+                  {visiblePlans.map((plan) => (
                     <tr
                       key={plan.planId}
                       className="border-t border-slate-100 hover:bg-slate-50/60"
@@ -311,6 +337,9 @@ export default function PlatformPlans() {
                         >
                           {plan.status}
                         </span>
+                      </td>
+                      <td className="px-4 py-4 text-xs font-semibold text-slate-700" data-label="Visibility">
+                        {plan.visibility === 'PRIVATE' ? '🔒 PRIVATE' : plan.visibility}
                       </td>
                       <td
                         className="px-4 py-4 font-semibold text-slate-700"
