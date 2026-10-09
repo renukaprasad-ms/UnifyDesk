@@ -32,6 +32,10 @@ public class MailProjectBillingBridgeService {
   public record SyncResult(String mailProjectId, String companyId, int imported,
                            String nextAfterId, boolean hasMore) {}
 
+  /** Mail-product-side estimated charges are observational, NOT UnifyDesk invoice money. */
+  public record MailUsageTotals(String companyId, String mailProjectId, long handoffs,
+                                java.math.BigDecimal productPriceMicroInr) {}
+
   private final JdbcTemplate jdbc;
   private final CompanyRepository companies;
   private final MailProductUsageClient mail;
@@ -67,6 +71,26 @@ public class MailProjectBillingBridgeService {
                last_external_usage_id, last_synced_at, ownership_proof
           from billing_mail_project_links order by created_at desc, mail_project_id
         """, (rs, index) -> map(rs));
+  }
+
+  public List<MailUsageTotals> usage(Instant from, Instant to) {
+    if (from == null || to == null || !from.isBefore(to)
+        || to.isAfter(Instant.now().plusSeconds(60))
+        || from.isBefore(to.minusSeconds(366L * 86400))) {
+      throw new BadRequestException("Mail usage reporting interval must span at most 366 days");
+    }
+    return jdbc.query("""
+        select company_id, mail_project_id, count(*) as handoffs,
+               coalesce(sum(product_price_micro_inr),0) as product_price_micro_inr
+          from billing_mail_usage_imports
+         where occurred_at >= ? and occurred_at < ?
+         group by company_id, mail_project_id
+         order by handoffs desc, company_id, mail_project_id
+        """, (rs, row) -> new MailUsageTotals(
+            Long.toString(rs.getLong("company_id")),
+            Long.toString(rs.getLong("mail_project_id")),
+            rs.getLong("handoffs"), rs.getBigDecimal("product_price_micro_inr")),
+        Timestamp.from(from), Timestamp.from(to));
   }
 
   public Link link(Long companyId, Long mailProjectId, Long actorId,
