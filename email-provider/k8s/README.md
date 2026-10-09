@@ -231,3 +231,30 @@ EMAIL_PROVIDER_VALIDATION_SMTP_ENABLED=false
 ```
 
 until a dedicated validator IP/node exists. Recipient probing must not use the production sending IP.
+
+## Why Flyway is necessary
+
+`SPRING_JPA_HIBERNATE_DDL_AUTO=validate` intentionally refuses to run if a
+migration-created table is missing (for example `dkim_keys`). Spring Boot 4
+requires **`spring-boot-starter-flyway`** for migration auto-configuration;
+`org.flywaydb:flyway-core` by itself is not sufficient in the modular starter
+architecture. Keep `flyway-database-postgresql` for PostgreSQL.
+
+On a *new* empty database the application applies the versioned migrations
+from `src/main/resources/db/migration/` (starting with `V1`), then Hibernate
+validates tables. On an existing database, Flyway uses its schema history to
+apply pending migrations; **do not delete or rewrite migration history** to
+work around a startup error. Migrations and credentials must be tested before
+any production rollout.
+
+To inspect the schema version on the local k3d PostgreSQL pod **without
+revealing the database password** (the DB pod has a local Unix socket):
+
+```bash
+kubectl -n email-platform exec email-postgres-0 -- sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT installed_rank, version, description, success FROM flyway_schema_history ORDER BY installed_rank;"'
+```
+
+If the history table is missing, the CLI may report `relation does not exist`
+until the newly configured Flyway starter completes its first migration. This
+is not a reason to reset persistent volumes.
