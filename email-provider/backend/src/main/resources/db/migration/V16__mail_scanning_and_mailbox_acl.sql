@@ -25,6 +25,9 @@ ALTER TABLE email_mail_inbound_jobs
 CREATE INDEX idx_mail_scan_due ON email_mail_inbound_jobs(scan_retry_after, received_at, id)
   WHERE status IN ('PENDING_SCAN','SCANNING');
 
+CREATE INDEX idx_mail_scan_stale ON email_mail_inbound_jobs(claimed_at)
+  WHERE status='SCANNING';
+
 ALTER TABLE email_mailbox_messages
   ADD COLUMN inbound_job_id BIGINT UNIQUE
     REFERENCES email_mail_inbound_jobs(id);
