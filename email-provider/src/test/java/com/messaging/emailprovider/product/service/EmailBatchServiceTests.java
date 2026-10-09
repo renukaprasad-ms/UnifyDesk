@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.messaging.emailprovider.common.exception.BadRequestException;
 import com.messaging.emailprovider.common.exception.ConflictException;
 import com.messaging.emailprovider.mail.dto.EmailAcceptedResponse;
@@ -27,7 +27,7 @@ class EmailBatchServiceTests {
   private final EmailMessageService emails = mock(EmailMessageService.class);
   private final ProductAdmissionQuota quota = mock(ProductAdmissionQuota.class);
   private final EmailBatchService service =
-      new EmailBatchService(batches, chunks, emails, new ObjectMapper(), quota);
+      new EmailBatchService(batches, chunks, emails, JsonMapper.builder().build(), quota);
 
   @Test
   void duplicatesAreRejectedBeforeReservingQuota() {
