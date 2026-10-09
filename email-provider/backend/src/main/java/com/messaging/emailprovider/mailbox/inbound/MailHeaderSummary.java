@@ -2,7 +2,6 @@ package com.messaging.emailprovider.mailbox.inbound;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 /** Bounded metadata extraction. This is not a full MIME renderer or HTML sanitizer. */
