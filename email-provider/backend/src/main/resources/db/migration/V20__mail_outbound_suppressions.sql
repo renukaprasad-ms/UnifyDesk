@@ -11,3 +11,7 @@ CREATE TABLE email_mail_outbound_suppressions (
 );
 CREATE INDEX idx_mail_suppression_recency
   ON email_mail_outbound_suppressions(organization_id,created_at DESC);
+
+-- The orphan inventory checks legacy mailbox object keys by equality.
+CREATE INDEX idx_mail_message_object_key
+  ON email_mailbox_messages(mime_object_key);
