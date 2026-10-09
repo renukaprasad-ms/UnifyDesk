@@ -34,6 +34,7 @@ import type {
 import { workspaceApi } from '../../features/workspace/workspaceApi'
 import { PageSkeleton } from '../../components/ui/Skeleton'
 import BillingUsageOverview from './BillingUsageOverview'
+import GlobalManagedRatesPanel from './GlobalManagedRatesPanel'
 
 const providersByChannel: Record<ChannelType, ProviderType[]> = {
   EMAIL: ['AMAZON_SES', 'SENDGRID', 'AZURE_EMAIL', 'MSG91_EMAIL', 'GMAIL', 'MICROSOFT', 'IMAP_SMTP', 'SMTP'],
@@ -273,6 +274,7 @@ export default function PlatformBilling() {
           </div>
         )}
 
+        <GlobalManagedRatesPanel />
         <BillingUsageOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
 
         <div className="mt-6 grid gap-5 xl:grid-cols-3">
