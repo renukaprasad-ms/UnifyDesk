@@ -44,7 +44,8 @@ export type CompanyFinancial = FinancialAmounts & { companyId: string }
 export type DailyFinancial = Pick<FinancialAmounts, 'invoicedInr' | 'collectedInr' | 'refundedInr'> & { day: string }
 export type BillingFinancialReport = { from: string; to: string; totals: FinancialAmounts; companies: CompanyFinancial[]; daily: DailyFinancial[] }
 
-export type ChannelTrafficPoint = { companyId: string; day: string; channel: ChannelType; direction: CommunicationDirection; messages: number }
+export type ChannelTrafficSource = 'CONNECTED_INBOX' | 'MANAGED_EMAIL' | 'MANAGED_SMS' | 'UNIFYDESK_MAIL' | 'META_WHATSAPP'
+export type ChannelTrafficPoint = { companyId: string; day: string; channel: ChannelType; direction: CommunicationDirection; source: ChannelTrafficSource; messages: number }
 export type BillingChannelTrafficReport = { from: string; to: string; points: ChannelTrafficPoint[] }
 
 export type CompanyUsageReconciliation = { companyId: string; events: number; ratedInr: number; allocatedInr: number; finalizedUnallocatedEvents: number; missingInvoiceLines: number; priceMathMismatches: number }
