@@ -7,6 +7,9 @@ K8S_DIR="${ROOT_DIR}/k8s"
 NAMESPACE="email-platform"
 SECRET_NAME="email-provider-env"
 APP_IMAGE="email-provider:latest"
+FRONTEND_IMAGE="email-console:latest"
+BACKEND_DIR="${ROOT_DIR}/backend"
+FRONTEND_DIR="${ROOT_DIR}/frontend"
 
 usage() {
   cat <<'EOF'
@@ -23,11 +26,12 @@ Usage:
   ./k8s.sh build
   ./k8s.sh apply-env
   ./k8s.sh validate
-  ./k8s.sh port-forward [local_port]
+  ./k8s.sh port-forward [local_port]      # React UI (18010)
+  ./k8s.sh api-port-forward [local_port]  # Spring Boot (18012)
   ./k8s.sh mailpit [local_port]      # k3d-only SMTP sandbox web UI
 
 Services:
-  app | postgres | redis | kafka | mailpit (k3d only)
+  app | frontend | postgres | redis | kafka | mailpit (k3d only)
 
 Examples:
   ./k8s.sh start
@@ -41,6 +45,8 @@ Examples:
   ./k8s.sh top 5
   ./k8s.sh top 1 once
   ./k8s.sh port-forward 18010
+  ./k8s.sh api-port-forward 18012
+  ./k8s.sh restart frontend
   ./k8s.sh mailpit 18025
 
 Notes:
@@ -229,36 +235,34 @@ build_image() {
     echo "Docker daemon unavailable. Start Docker Desktop with WSL integration." >&2
     exit 1
   fi
-
-  local runtime cluster
+  local target="${1:-app}" image context runtime cluster
+  case "${target}" in
+    app) image="${APP_IMAGE}"; context="${BACKEND_DIR}" ;;
+    frontend) image="${FRONTEND_IMAGE}"; context="${FRONTEND_DIR}" ;;
+    *) echo "Invalid image target: ${target}" >&2; exit 1 ;;
+  esac
   runtime="$(current_runtime)"
   if [[ "${runtime}" == "k3d" ]]; then
     require_command k3d
     cluster="$(current_cluster_name)"
-    # Refuse to build when kubectl is pointed at a stopped/wrong k3d cluster.
     if ! kubectl get nodes >/dev/null 2>&1; then
       echo "Current k3d cluster ${cluster} is not reachable." >&2
       exit 1
     fi
   fi
-  docker build -t "${APP_IMAGE}" "${ROOT_DIR}"
-
+  docker build -t "${image}" "${context}"
   if [[ "${runtime}" == "k3d" ]]; then
-    echo "Importing ${APP_IMAGE} into local k3d cluster ${cluster}"
-    k3d image import "${APP_IMAGE}" -c "${cluster}"
+    echo "Importing ${image} into local k3d cluster ${cluster}"
+    k3d image import "${image}" -c "${cluster}"
     return
   fi
-
   require_command k3s
-  if [[ "${EUID}" -ne 0 ]]; then
-    require_command sudo
-  fi
-
+  if [[ "${EUID}" -ne 0 ]]; then require_command sudo; fi
   (
     local archive
     archive="$(mktemp "${TMPDIR:-/tmp}/email-provider-image.XXXXXXXX.tar")"
     trap 'rm -f "${archive}"' EXIT
-    docker save "${APP_IMAGE}" -o "${archive}"
+    docker save "${image}" -o "${archive}"
     if [[ "${EUID}" -eq 0 ]]; then
       k3s ctr images import "${archive}"
     else
@@ -313,7 +317,8 @@ wait_for_dependencies() {
 start() {
   require_command kubectl
   apply_env
-  build_image
+  build_image app
+  build_image frontend
   apply_dependencies
   # kubectl apply may keep a previous scale-to-zero replica setting.
   scale_if_exists statefulset email-postgres 1
@@ -330,6 +335,10 @@ start() {
   # Reusing image:latest requires a new pod for the imported image to take effect.
   kubectl -n "${NAMESPACE}" rollout restart deployment/email-provider
   kubectl -n "${NAMESPACE}" rollout status deployment/email-provider --timeout=240s
+  kubectl apply -f "${K8S_DIR}/frontend.yaml"
+  scale_if_exists deployment email-console 1
+  kubectl -n "${NAMESPACE}" rollout restart deployment/email-console
+  kubectl -n "${NAMESPACE}" rollout status deployment/email-console --timeout=180s
   status
 }
 
@@ -345,6 +354,7 @@ scale_if_exists() {
 
 stop() {
   require_command kubectl
+  scale_if_exists deployment email-console 0
   scale_if_exists deployment email-provider 0
   if [[ "$(current_runtime)" == "k3d" ]]; then
     scale_if_exists deployment email-mailpit 0
@@ -358,6 +368,7 @@ stop() {
 workload_for_service() {
   case "${1:-}" in
     app) echo "deployment/email-provider" ;;
+    frontend) echo "deployment/email-console" ;;
     postgres) echo "statefulset/email-postgres" ;;
     redis) echo "statefulset/email-redis" ;;
     kafka) echo "statefulset/email-kafka" ;;
@@ -372,6 +383,7 @@ workload_for_service() {
 manifest_for_service() {
   case "${1:-}" in
     app) app_manifest ;;
+    frontend) echo "${K8S_DIR}/frontend.yaml" ;;
     mailpit) echo "${K8S_DIR}/mailpit.yaml" ;;
     postgres) echo "${K8S_DIR}/postgres.yaml" ;;
     redis) echo "${K8S_DIR}/redis.yaml" ;;
@@ -398,8 +410,8 @@ restart_service() {
     exit 1
   fi
 
-  if [[ "${service}" == "app" ]]; then
-    build_image
+  if [[ "${service}" == "app" || "${service}" == "frontend" ]]; then
+    build_image "${service}"
   fi
 
   if [[ "${service}" == "postgres" ]]; then
@@ -420,7 +432,8 @@ restart() {
   apply_env
 
   if [[ "${service}" == "all" ]]; then
-    build_image
+    build_image app
+    build_image frontend
     apply_dependencies
     scale_if_exists statefulset email-postgres 1
     scale_if_exists statefulset email-redis 1
@@ -436,6 +449,10 @@ restart() {
     scale_if_exists deployment email-provider 1
     kubectl -n "${NAMESPACE}" rollout restart deployment/email-provider
     kubectl -n "${NAMESPACE}" rollout status deployment/email-provider --timeout=240s
+    kubectl apply -f "${K8S_DIR}/frontend.yaml"
+    scale_if_exists deployment email-console 1
+    kubectl -n "${NAMESPACE}" rollout restart deployment/email-console
+    kubectl -n "${NAMESPACE}" rollout status deployment/email-console --timeout=180s
   else
     restart_service "${service}"
   fi
@@ -451,6 +468,7 @@ delete_all() {
     exit 1
   fi
 
+  kubectl delete -f "${K8S_DIR}/frontend.yaml" --ignore-not-found
   kubectl delete -f "$(app_manifest)" --ignore-not-found
   if [[ "$(current_runtime)" == "k3d" ]]; then
     kubectl delete -f "${K8S_DIR}/mailpit.yaml" --ignore-not-found
@@ -507,6 +525,7 @@ SQL
 selector_for_service() {
   case "${1:-}" in
     app) echo "app=email-provider" ;;
+    frontend) echo "app=email-console" ;;
     postgres) echo "app=email-postgres" ;;
     redis) echo "app=email-redis" ;;
     kafka) echo "app=email-kafka" ;;
@@ -611,7 +630,19 @@ port_forward() {
     echo "local_port must be between 1024 and 65535" >&2
     exit 1
   fi
-  echo "Local console: http://127.0.0.1:${local_port}/console/index.html"
+  echo "React console: http://127.0.0.1:${local_port}/"
+  kubectl -n "${NAMESPACE}" port-forward --address 127.0.0.1 \
+    svc/email-console "${local_port}:8080"
+}
+
+api_port_forward() {
+  require_command kubectl
+  local local_port="${1:-18012}"
+  if ! [[ "${local_port}" =~ ^[0-9]+$ ]] || (( local_port < 1024 || local_port > 65535 )); then
+    echo "local_port must be between 1024 and 65535" >&2
+    exit 1
+  fi
+  echo "Backend API: http://127.0.0.1:${local_port}/actuator/health"
   kubectl -n "${NAMESPACE}" port-forward --address 127.0.0.1 \
     svc/email-provider "${local_port}:8010"
 }
@@ -647,6 +678,7 @@ case "${command}" in
   apply-env) apply_env ;;
   validate) validate_only ;;
   port-forward) shift; port_forward "$@" ;;
+  api-port-forward) shift; api_port_forward "$@" ;;
   mailpit) shift; mailpit_ui "$@" ;;
   *) usage; exit 1 ;;
 esac

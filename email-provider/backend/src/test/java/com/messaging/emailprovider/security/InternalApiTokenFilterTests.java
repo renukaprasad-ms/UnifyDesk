@@ -32,10 +32,10 @@ class InternalApiTokenFilterTests {
   }
 
   @Test
-  void permitsOnlyStaticConsoleHtmlForAnonymousGetAndHead() throws ServletException, IOException {
+  void protectsOldStaticConsoleUrlNowThatFrontendServesIt() throws ServletException, IOException {
     var filter = new InternalApiTokenFilter(TOKEN);
-    assertEquals(200, callMethod(filter, "GET", "/console/index.html", null));
-    assertEquals(200, callMethod(filter, "HEAD", "/console/index.html", null));
+    assertEquals(401, callMethod(filter, "GET", "/console/index.html", null));
+    assertEquals(401, callMethod(filter, "HEAD", "/console/index.html", null));
     assertEquals(401, callMethod(filter, "POST", "/console/index.html", null));
     assertEquals(401, callMethod(filter, "GET", "/console/other.html", null));
     assertEquals(401, callMethod(filter, "GET", "/api/v1/companies/1/emails", null));

@@ -94,10 +94,14 @@ must remain unchanged. Before enabling broadcasts through this product:
 - On network timeout, treat result as UNKNOWN until the same idempotency key
   is reconciled; do not create another campaign ID automatically.
 
+## React customer console
+
+The React frontend in `email-provider/frontend/` now supports session-based login and activation, projects, sender-domain verification/DNS records, scoped API keys, webhooks, usage and account views. Initial organizations/owner invitations still require the trusted internal API over a loopback-only operator tunnel. The Nginx frontend does not proxy `/internal/v1/` or project-key `/v1/` routes.
+
 ## Not implemented yet / release gates
 
-Customer portal + login/SSO/roles, customer-facing onboarding and pricing,
-full audit trails, signed outbound webhooks, attachment payloads, advanced
+Self-service registration/SSO, automated customer onboarding and pricing,
+full audit trails, attachment payloads, advanced
 mail templates, subscription/usage billing, multiple sending IP pools and
 IP warm-up, opt-out enforcement in product APIs, bounce reconciliation at scale,
 detailed per-recipient bulk query, live host Postfix/DNS and end-to-end QA.

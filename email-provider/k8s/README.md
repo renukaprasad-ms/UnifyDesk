@@ -26,7 +26,8 @@ In **this mode**, the namespace `email-platform` contains:
 
 | Component | Role |
 |---|---|
-| `email-provider` | Standalone UnifyDesk Email Spring Boot API + HTML console |
+| `email-provider` | Standalone UnifyDesk Email Spring Boot API |
+| `email-console` | Separate React/Vite Nginx UI; proxies only console session APIs |
 | `email-postgres` | Local PostgreSQL 18 + PVC |
 | `email-redis` | Local Redis + PVC |
 | `email-kafka` | Local Kafka (when `EMAIL_PROVIDER_KAFKA_MODE=local`) |
@@ -43,7 +44,7 @@ persistent records or deliverability verification.
 Use separate terminals to open the two local UIs:
 
 ```bash
-./k8s.sh port-forward                # localhost:18010/console/index.html
+./k8s.sh port-forward                # localhost:18010/
 ./k8s.sh mailpit                     # localhost:18025 — sandbox email inbox
 ```
 
@@ -84,6 +85,7 @@ EC2 mail node
 │   └── Postfix
 └── K3s namespace: email-platform
     ├── email-provider
+    ├── email-console (React/Nginx)
     ├── email-postgres
     ├── email-redis
     └── email-kafka (optional/local mode)
@@ -150,7 +152,7 @@ openssl rand -hex 32
 ./k8s.sh delete
 ```
 
-**`start` restores the workloads after `stop`**, including their persisted volumes. `restart` (all) rebuilds/redeploys only the app, waiting for dependencies; it **does not restart Postgres**. `restart postgres` is the explicit database restart.
+**`start` restores the workloads after `stop`**, including their persisted volumes. `restart` (all) rebuilds/redeploys backend and frontend, waiting for dependencies; it **does not restart Postgres**. `restart postgres` is the explicit database restart.
 
 `clear-db` and `delete` require explicit confirmation. `clear-db` also refuses to clear data while the email app is running; stop first and then run `clear-db`. It will temporarily start Postgres as needed.
 
@@ -175,7 +177,7 @@ The Email product HTTP API is ClusterIP-only. For **local-only** access to the i
 
 ```bash
 ./k8s.sh port-forward
-# open http://127.0.0.1:18010/console/index.html
+# open http://127.0.0.1:18010/
 ```
 
 Do not expose `/internal/v1/` over a public ingress. Postfix stays on the host, outside Kubernetes; the email pod uses `hostNetwork: true`, so firewall/restrict **host TCP 8010**. K3s must run on the dedicated mail node (Postfix reachable on host loopback). The script never configures a Postfix open relay, routes public email traffic, or opens port 25.
@@ -258,3 +260,7 @@ kubectl -n email-platform exec email-postgres-0 -- sh -c \
 If the history table is missing, the CLI may report `relation does not exist`
 until the newly configured Flyway starter completes its first migration. This
 is not a reason to reset persistent volumes.
+
+## Split applications
+
+The Spring Boot build lives at `backend/` and the React/Vite Nginx build at `frontend/`. The root `k8s.sh` handles both. Use `./k8s.sh restart frontend` to redeploy only the React console; `./k8s.sh restart app` rebuilds only Spring Boot. `./k8s.sh port-forward` serves the React UI at `http://127.0.0.1:18010/`. Use `./k8s.sh api-port-forward` for the **loopback-only** backend on port 18012. See the root README for operator-controlled onboarding.
