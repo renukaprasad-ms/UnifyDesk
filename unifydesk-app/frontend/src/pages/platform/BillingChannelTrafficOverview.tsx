@@ -57,7 +57,7 @@ export default function BillingChannelTrafficOverview({ companyNames }: Props) {
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 className="font-bold">Message processing — channel activity</h2>
-        <p className="mt-1 text-xs text-slate-500">Observed message records, not billed segments or provider webhook counts. Includes connected inbox email, legacy managed broadcasts and Meta WhatsApp. The separate UnifyDesk Mail service is not yet connected.</p>
+        <p className="mt-1 text-xs text-slate-500">Observed message records, not billed segments or provider webhook counts. Includes connected inbox email, managed broadcast delivery, explicitly linked Mail project handoffs and Meta WhatsApp. Unlinked Mail projects are excluded; this is operational reporting, not a charging ledger.</p>
       </div>
       <div className="flex gap-2">
         <select aria-label="Channel traffic period" className="form-input" value={days} onChange={(e) => setDays(Number(e.target.value))}>
@@ -75,7 +75,7 @@ export default function BillingChannelTrafficOverview({ companyNames }: Props) {
     {!loading && report && <>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ['Email messages', aggregations.totals.email, 'Connected inbox + managed delivery'],
+          ['Email messages', aggregations.totals.email, 'Inbox + broadcast + linked Mail'],
           ['SMS messages', aggregations.totals.sms, 'Accepted recipients, not segments'],
           ['WhatsApp messages', aggregations.totals.whatsapp, 'Recorded accepted/sent messages'],
           ['All observed messages', aggregations.totals.email + aggregations.totals.sms + aggregations.totals.whatsapp, `${count(aggregations.totals.inbound)} inbound · ${count(aggregations.totals.outbound)} outbound`],
