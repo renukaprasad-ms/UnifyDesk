@@ -28,11 +28,14 @@ export default function MailDrafts({mailboxId, mailboxAddress, replySeed}) {
   const [refresh, setRefresh] = useState(0)
 
   useEffect(() => {
-    let active = true
     setForm(EMPTY)
     setDrafts([])
     setError('')
     setNotice('')
+  }, [mailboxId])
+
+  useEffect(() => {
+    let active = true
     if (!mailboxId) return () => { active = false }
     request('/mail/mailboxes/' + mailboxId + '/drafts')
       .then(items => { if (active) setDrafts(Array.isArray(items) ? items : []) })
@@ -56,6 +59,7 @@ export default function MailDrafts({mailboxId, mailboxAddress, replySeed}) {
       : 'Reply draft prepared. Enter the recipient address before saving.')
   }, [replySeed, mailboxId])
 
+  const held = drafts.some(item => item.id === form.id && item.state !== 'DRAFT')
   const set = (key, value) => setForm(current => ({...current, [key]: value}))
   const base = '/mail/mailboxes/' + mailboxId + '/drafts'
 
@@ -136,22 +140,22 @@ export default function MailDrafts({mailboxId, mailboxAddress, replySeed}) {
       </aside>
       <form className="mail-draft-editor" onSubmit={save}>
         <div className="mail-draft-from"><strong>From</strong> <span>{mailboxAddress}</span></div>
-        <Field label="To (comma-separated)"><input value={form.to} disabled={busy || form.id && drafts.some(d => d.id === form.id && d.state !== 'DRAFT')} maxLength={7000}
+        <Field label="To (comma-separated)"><input value={form.to} disabled={busy || held} maxLength={7000}
           placeholder="recipient@example.com" onChange={event => set('to', event.target.value)}/></Field>
-        <Field label="Cc"><input value={form.cc} disabled={busy} maxLength={7000} onChange={event => set('cc', event.target.value)}/></Field>
+        <Field label="Cc"><input value={form.cc} disabled={busy || held} maxLength={7000} onChange={event => set('cc', event.target.value)}/></Field>
         <Field label="Bcc"><input value={form.bcc} disabled={busy} maxLength={7000} onChange={event => set('bcc', event.target.value)}/></Field>
-        <Field label="Subject"><input value={form.subject} disabled={busy} maxLength={998} onChange={event => set('subject', event.target.value)}/></Field>
-        <Field label="Plain-text message"><textarea value={form.bodyText} disabled={busy}
+        <Field label="Subject"><input value={form.subject} disabled={busy || held} maxLength={998} onChange={event => set('subject', event.target.value)}/></Field>
+        <Field label="Plain-text message"><textarea value={form.bodyText} disabled={busy || held}
           maxLength={65536} rows={9} placeholder="Write your message…"
           onChange={event => set('bodyText', event.target.value)}/></Field>
         {form.replyToMessageId && <p className="mail-muted">Replying to received message {form.replyToMessageId}</p>}
         {error && <Notice tone="error">{error}</Notice>}
         {notice && <Notice>{notice}</Notice>}
         <div className="mail-actions">
-          <Button type="submit" disabled={busy} icon={Save}>
+          <Button type="submit" disabled={busy || held} icon={Save}>
             {busy ? 'Saving…' : form.id ? 'Save changes' : 'Save draft'}
           </Button>
-          {form.id && <Button type="button" variant="danger" disabled={busy}
+          {form.id && !held && <Button type="button" variant="danger" disabled={busy}
             icon={Trash2} onClick={deleteDraft}>Delete</Button>}
         </div>
         <p className="mail-compose-warning">These drafts are saved privately. No Send button is available until
