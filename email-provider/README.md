@@ -8,11 +8,79 @@ the UnifyDesk App.
 The UnifyDesk App will be one API customer, using a project-specific key to submit
 permitted bulk email. Customers and external developers can use the Email product
 without having an account in UnifyDesk App. The product is currently in R1 development;
-customer self-service, billing, web console, IP warm-up and live deliverability QA
+self-service registration, billing, IP warm-up and live deliverability QA
 are still outstanding. This is **not** generally available.
 
 See [product boundary](docs/PRODUCT_BOUNDARY.md) and
 [working API contracts](docs/PRODUCT_API_R1.md) for current implementation and release gates.
+
+## Backend and frontend structure
+
+- `backend/` — all Java 25 / Spring Boot 4, Maven wrapper, SQL migrations, tests and backend Dockerfile.
+- `frontend/` — separate React 19 + Vite console, Nginx configuration and frontend Dockerfile.
+- `k8s/` — isolated Email API, Email Console, Kafka, Redis, PostgreSQL and local Mailpit.
+- `postfix/` — mail-node scripts and Postfix configuration; not browser-side code.
+- Root `.env`, `k8s.sh`, docs and operation tools remain in `email-provider/`.
+
+The frontend only proxies session-authenticated `/console/v1/` calls to Spring Boot.
+Private `/internal/v1/` and project-key `/v1/` routes are **not** browser-exposed.
+
+### Start from WSL2 + k3d
+
+```bash
+cd ~/projects/UnifyDesk/email-provider
+./tests/k8s-script-smoke.sh
+./k8s.sh validate
+./k8s.sh start
+kubectl get pods -n email-platform
+```
+
+Expected: 6 ready workloads with local Kafka (backend, frontend, PostgreSQL,
+Redis, Kafka, Mailpit). Keep `EMAIL_PROVIDER_DELIVERY_ENABLED=false`.
+
+In three WSL terminals:
+```bash
+./k8s.sh port-forward       # React: http://127.0.0.1:18010/
+./k8s.sh api-port-forward   # private API: http://127.0.0.1:18012/actuator/health
+./k8s.sh mailpit            # local sandbox: http://127.0.0.1:18025/
+```
+
+For frontend-only changes: `./k8s.sh restart frontend`.
+For backend-only changes: `./k8s.sh restart app`.
+Both preserve database, Redis and Kafka PVCs. The initial frontend build
+will download Node/npm dependencies inside the Docker build stage.
+
+For live React development install Node in WSL, open the API-only port-forward,
+then run `cd frontend && npm install && npm run dev` and visit localhost:5173.
+To run Maven directly: `cd backend && ./mvnw clean package`.
+
+### Initial owner onboarding (operator controlled)
+
+The console intentionally has no public registration or privileged API routes.
+Create the first organization and invitation over the loopback-only **private
+backend API**. In one terminal start `./k8s.sh api-port-forward`.
+
+In another terminal, enter the existing `EMAIL_PROVIDER_INTERNAL_API_TOKEN`
+with a hidden prompt (never commit/paste that token into the React UI):
+
+```bash
+read -rsp 'Internal API token: ' TOKEN; echo
+curl -fsS -X POST http://127.0.0.1:18012/internal/v1/email-product/organizations \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"name":"Demo Workspace","contactEmail":"owner@example.com"}'
+# Copy the data.id returned above as ORG_ID; preserve all digits.
+curl -fsS -X POST http://127.0.0.1:18012/internal/v1/email-product/organizations/ORG_ID/invitations \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"email":"owner@example.com","displayName":"Owner","role":"OWNER"}'
+unset TOKEN
+```
+
+Save the returned one-time invitation token privately. On the React console
+select **Activate your account**, use the token and create a 12+ character
+password. Then sign in with organization ID, email and password. The frontend
+stores the short-lived session in browser-tab sessionStorage, never long-lived
+project API keys. These internal provisioning commands are local operations,
+not public signup.
 
 ## Initial architecture
 
@@ -163,7 +231,7 @@ cd email-provider
 ./k8s.sh validate
 ./k8s.sh start
 ./k8s.sh status
-./k8s.sh port-forward         # http://127.0.0.1:18010/console/index.html
+./k8s.sh port-forward         # http://127.0.0.1:18010/
 ./k8s.sh mailpit              # http://127.0.0.1:18025
 ```
 
@@ -185,4 +253,4 @@ cp .env.example .env
 ./k8s.sh port-forward
 ```
 
-Open `http://127.0.0.1:18010/console/index.html` from the same host after port forwarding. `./email-k8s.sh` remains supported as an alias; see [K8s deployment instructions](k8s/README.md) for operating commands, Postgres-18 migration warnings and live sending safeguards.
+Open `http://127.0.0.1:18010/` from the same host after port forwarding. `./email-k8s.sh` remains supported as an alias; see [K8s deployment instructions](k8s/README.md) for operating commands, Postgres-18 migration warnings and live sending safeguards.
