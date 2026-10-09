@@ -96,7 +96,7 @@ fi
 
 : > "${EMAIL_K8S_TEST_LOG}"
 "${ROOT_DIR}/k8s.sh" port-forward 18010 >/dev/null
-grep -q 'port-forward --address 127.0.0.1 svc/email-provider 18010:8010' "${EMAIL_K8S_TEST_LOG}"
+grep -q 'port-forward --address 127.0.0.1 svc/email-console 18010:8080' "${EMAIL_K8S_TEST_LOG}"
 
 echo 'PASS: shell syntax, environment validation, start/stop scaling, restart safety, alias, local port-forward'
 
@@ -105,6 +105,11 @@ export EMAIL_PROVIDER_MOCK_CONTEXT=k3d-unifydesk-local
 : > "${EMAIL_K8S_TEST_LOG}"
 "${ROOT_DIR}/k8s.sh" start >/dev/null
 grep -q 'k3d image import email-provider:latest -c unifydesk-local' "${EMAIL_K8S_TEST_LOG}"
+grep -q 'k3d image import email-console:latest -c unifydesk-local' "${EMAIL_K8S_TEST_LOG}"
+grep -q 'docker build -t email-provider:latest .*/email-provider/backend' "${EMAIL_K8S_TEST_LOG}"
+grep -q 'docker build -t email-console:latest .*/email-provider/frontend' "${EMAIL_K8S_TEST_LOG}"
+grep -q 'kubectl apply -f .*k8s/frontend.yaml' "${EMAIL_K8S_TEST_LOG}"
+grep -q 'rollout status deployment/email-console' "${EMAIL_K8S_TEST_LOG}"
 grep -q 'kubectl apply -f .*k8s/mailpit.yaml' "${EMAIL_K8S_TEST_LOG}"
 grep -q 'kubectl apply -f .*k8s/app-k3d.yaml' "${EMAIL_K8S_TEST_LOG}"
 if grep -q '^k3s ctr images import' "${EMAIL_K8S_TEST_LOG}"; then
@@ -124,7 +129,7 @@ echo 'PASS: local k3d context, image import, isolated app config, Mailpit UI and
 
 # The runtime image must have a numeric non-root UID/GID so Kubernetes'
 # runAsNonRoot check can validate the container rather than rejecting a USER name.
-grep -q '^USER 10001:10001$' "${ROOT_DIR}/Dockerfile"
+grep -q '^USER 10001:10001$' "${ROOT_DIR}/backend/Dockerfile"
 grep -q 'addgroup -S -g 10001 emailprovider' "${ROOT_DIR}/Dockerfile"
 for app_manifest in "${ROOT_DIR}/k8s/app.yaml" "${ROOT_DIR}/k8s/app-k3d.yaml"; do
   grep -q 'runAsNonRoot: true' "${app_manifest}"
@@ -132,3 +137,22 @@ for app_manifest in "${ROOT_DIR}/k8s/app.yaml" "${ROOT_DIR}/k8s/app-k3d.yaml"; d
   grep -q 'runAsGroup: 10001' "${app_manifest}"
 done
 echo 'PASS: numeric non-root container identity in native K3s and local k3d'
+
+: > "${EMAIL_K8S_TEST_LOG}"
+"${ROOT_DIR}/k8s.sh" api-port-forward 18012 >/dev/null
+grep -q 'port-forward --address 127.0.0.1 svc/email-provider 18012:8010' "${EMAIL_K8S_TEST_LOG}"
+: > "${EMAIL_K8S_TEST_LOG}"
+"${ROOT_DIR}/k8s.sh" restart frontend >/dev/null
+grep -q 'docker build -t email-console:latest .*/email-provider/frontend' "${EMAIL_K8S_TEST_LOG}"
+grep -q 'rollout restart deployment/email-console' "${EMAIL_K8S_TEST_LOG}"
+if grep -q 'rollout restart deployment/email-provider' "${EMAIL_K8S_TEST_LOG}"; then
+  echo "ERROR: frontend restart restarted backend" >&2
+  exit 1
+fi
+if grep -q 'rollout restart statefulset/email-postgres' "${EMAIL_K8S_TEST_LOG}"; then
+  echo "ERROR: frontend restart restarted Postgres" >&2
+  exit 1
+fi
+grep -q 'runAsNonRoot: true' "${ROOT_DIR}/k8s/frontend.yaml"
+grep -q 'proxy_pass http://email-provider.email-platform.svc.cluster.local:8010;' "${ROOT_DIR}/frontend/nginx.conf"
+echo 'PASS: separate frontend image, port-forward and non-disruptive restart'
