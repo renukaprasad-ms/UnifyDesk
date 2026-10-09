@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DuplicateKeyException;
@@ -36,11 +37,20 @@ public class MailComposeService {
 
   private final JdbcTemplate jdbc;
   private final boolean submissionEnabled;
+  private final boolean outboundEnabled;
 
+  @Autowired
   public MailComposeService(JdbcTemplate jdbc,
-      @Value("${app.mail.compose.submission-enabled:false}") boolean submissionEnabled) {
+      @Value("${app.mail.compose.submission-enabled:false}") boolean submissionEnabled,
+      @Value("${app.mail.outbound.enabled:false}") boolean outboundEnabled) {
     this.jdbc = jdbc;
     this.submissionEnabled = submissionEnabled;
+    this.outboundEnabled = outboundEnabled;
+  }
+
+  /** Small constructor retained for isolated validation tests. */
+  public MailComposeService(JdbcTemplate jdbc, boolean submissionEnabled) {
+    this(jdbc, submissionEnabled, false);
   }
 
   public record DraftInput(List<String> to, List<String> cc, List<String> bcc,
@@ -156,10 +166,29 @@ public class MailComposeService {
   @Transactional
   public HeldSubmission hold(ConsoleAuthService.Principal user,long mailboxId,long draftId,
       String idempotencyKey) {
-    if (!submissionEnabled) {
+    if (!submissionEnabled || !outboundEnabled) {
       throw new ServiceUnavailableException("Mailbox sending transport is not available");
     }
     requireMailbox(user,mailboxId,true);
+    Boolean ready=jdbc.queryForObject("""
+        SELECT EXISTS(SELECT 1 FROM email_mailboxes m
+          JOIN email_mail_domains d ON d.id=m.domain_id
+            AND d.organization_id=m.organization_id
+          JOIN email_product_organizations org ON org.id=m.organization_id
+          JOIN email_product_projects p ON p.organization_id=org.id
+            AND p.status='ACTIVE' AND p.sending_enabled=true
+          JOIN sending_domains sd ON sd.company_id=p.id
+            AND sd.domain_name=d.domain_name AND sd.status='VERIFIED'
+            AND sd.dkim_verified_at IS NOT NULL
+          JOIN dkim_keys k ON k.sending_domain_id=sd.id
+            AND k.active=true AND k.verified_at IS NOT NULL
+          WHERE m.id=? AND m.organization_id=? AND m.status='ACTIVE'
+            AND d.status='VERIFIED' AND d.outbound_enabled=true
+            AND org.status='ACTIVE')
+        """,Boolean.class,mailboxId,user.organizationId());
+    if(!Boolean.TRUE.equals(ready)) {
+      throw new ServiceUnavailableException("Mailbox outbound domain is not approved");
+    }
     if (idempotencyKey == null || !idempotencyKey.matches("[A-Za-z0-9][A-Za-z0-9._:-]{7,127}")) {
       throw new BadRequestException("Idempotency key must contain 8-128 safe characters");
     }
