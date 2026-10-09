@@ -1,6 +1,7 @@
 package com.messaging.billing.controller;
 
 import com.messaging.admin.service.PlatformAdminAuthorizationService;
+import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.security.service.CurrentUserService;
 import java.math.BigDecimal;
@@ -39,7 +40,7 @@ public class BillingUsageReconciliationController {
     authorization.requireSuperAdmin(currentUserService.currentUserId());
     if (!from.isBefore(to) || to.isAfter(Instant.now().plusSeconds(60))
         || from.isBefore(to.minusSeconds(366L * 86400))) {
-      throw new IllegalArgumentException("Reconciliation reporting period must span at most 366 days");
+      throw new BadRequestException("Reconciliation reporting period must span at most 366 days");
     }
     List<CompanyReconciliation> rows = jdbcTemplate.query(
         """
