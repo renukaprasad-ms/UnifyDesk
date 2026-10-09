@@ -72,4 +72,66 @@ if [[ -n "${R10_QA_PG_DSN:-}" ]]; then
   psql "$R10_QA_PG_DSN" -v ON_ERROR_STOP=1 -v delivery_key="$key" \
     -f "$root/tests/inbound-r10-verify.sql"
 fi
-echo "R10 API smoke complete. Verify scanner promotion, private ACL and Inbox separately."
+# Optional true mailbox read-path test: this uses a NORMAL mailbox console
+# session (not the internal MTA bearer) to prove explicit ACL and scan promotion.
+if [[ -n "${R10_TEST_MAILBOX_ID:-}" || -n "${R10_CONSOLE_CURL_CONFIG:-}" ]]; then
+  mailbox_id="${R10_TEST_MAILBOX_ID:-}"
+  console_config="${R10_CONSOLE_CURL_CONFIG:-}"
+  if [[ ! "$mailbox_id" =~ ^[1-9][0-9]{0,18}$ || ! -r "$console_config" ]]; then
+    echo "Both R10_TEST_MAILBOX_ID and readable R10_CONSOLE_CURL_CONFIG required" >&2
+    exit 2
+  fi
+  # At most 90 seconds for async ClamAV/Rspamd. Never expose console token
+  # in process arguments or logs. No action here modifies the mailbox.
+  found=""
+  for attempt in {1..18}; do
+    for folder in INBOX SPAM; do
+      curl --config "$console_config" \
+        --url "http://127.0.0.1:8010/console/v1/mail/mailboxes/$mailbox_id/messages?folder=$folder&limit=100" \
+        --proto '=http' --noproxy '*' --retry 0 \
+        --connect-timeout 3 --max-time 10 --silent --show-error --fail \
+        --output "$work/$folder.json" ||
+        { echo "Console mailbox read failed: verify session and ACL" >&2; exit 1; }
+    done
+    if found="$(python3 - "$key" "$work/INBOX.json" "$work/SPAM.json" <<'PY'
+import json,sys
+needle=sys.argv[1]
+for path,folder in zip(sys.argv[2:],("INBOX","SPAM")):
+    result=json.load(open(path,encoding="utf-8"))
+    if result.get("status") is not True: raise SystemExit("Mailbox read not authorized")
+    for m in result.get("data",[]):
+        if needle in (m.get("subject") or "") and m.get("folder")==folder:
+            print(m["id"]+":"+folder)
+            raise SystemExit(0)
+raise SystemExit(1)
+PY
+)"; then
+      break
+    fi
+    sleep 5
+  done
+  if [[ -z "$found" ]]; then
+    echo "MIME did not appear in Inbox or Spam within 90s; inspect scanner jobs" >&2
+    exit 1
+  fi
+  message_id="${found%%:*}"
+  folder="${found#*:}"
+  curl --config "$console_config" \
+    --url "http://127.0.0.1:8010/console/v1/mail/mailboxes/$mailbox_id/messages/$message_id/preview" \
+    --proto '=http' --noproxy '*' --retry 0 \
+    --connect-timeout 3 --max-time 15 --silent --show-error --fail \
+    --output "$work/preview.json"
+  python3 - "$work/preview.json" <<'PY'
+import json,sys
+result=json.load(open(sys.argv[1],encoding="utf-8"))
+data=result.get("data") or {}
+if result.get("status") is not True or data.get("textAvailable") is not True:
+    raise SystemExit("Plain-text preview was not authorized or decoded")
+if "Synthetic R10-only test body." not in (data.get("plainText") or ""):
+    raise SystemExit("Preview body does not match test MIME")
+print("PASS: scanner promoted MIME and authorized reader returned expected plain-text")
+PY
+  printf 'Mailbox visible in %s, message ID %s\n' "$folder" "$message_id"
+fi
+echo "R10 local API smoke complete; public SMTP/port 25 remain untested."
+
