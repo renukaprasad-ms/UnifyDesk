@@ -122,6 +122,10 @@ public class MailboxOutboundWorker {
           AND dr.mailbox_id=intent.mailbox_id
         JOIN email_mailboxes m ON m.id=r.mailbox_id
           AND m.organization_id=r.organization_id
+        JOIN email_console_users author ON author.id=dr.author_user_id
+          AND author.organization_id=dr.organization_id AND author.status='ACTIVE'
+        JOIN email_mailbox_access acl ON acl.mailbox_id=m.id
+          AND acl.organization_id=m.organization_id AND acl.user_id=author.id
         JOIN email_mail_domains d ON d.id=m.domain_id
           AND d.organization_id=m.organization_id
         JOIN email_product_organizations org ON org.id=m.organization_id
