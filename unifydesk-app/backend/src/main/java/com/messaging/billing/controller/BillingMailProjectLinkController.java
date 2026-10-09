@@ -10,6 +10,8 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.util.List;
+import java.time.Instant;
+import org.springframework.web.bind.annotation.RequestParam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -57,6 +59,14 @@ public class BillingMailProjectLinkController {
     authorize();
     return ResponseEntity.ok(ApiResponse.success(
         HttpStatus.OK.value(), bridge.links(), "Mail project links fetched"));
+  }
+
+  @GetMapping("/usage")
+  public ResponseEntity<ApiResponse<List<MailProjectBillingBridgeService.MailUsageTotals>>> usage(
+      @RequestParam Instant from, @RequestParam Instant to) {
+    authorize();
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
+        bridge.usage(from, to), "Imported Mail project handoff totals fetched"));
   }
 
   @PostMapping
