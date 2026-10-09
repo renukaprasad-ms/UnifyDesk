@@ -7,11 +7,17 @@ ALTER TABLE email_mail_outbound_intents ADD CONSTRAINT chk_mail_outbound_state C
   (state IN ('HELD','PROCESSING','HANDOFF_COMPLETED','PARTIAL','UNKNOWN','FAILED'));
 ALTER TABLE email_mail_outbound_intents ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
+ALTER TABLE email_mail_outbound_intents ADD CONSTRAINT uq_mail_intent_tenant
+  UNIQUE (organization_id,mailbox_id,id);
+
 CREATE TABLE email_mail_outbound_recipients (
   id BIGINT PRIMARY KEY,
   organization_id BIGINT NOT NULL,
   mailbox_id BIGINT NOT NULL,
-  intent_id BIGINT NOT NULL REFERENCES email_mail_outbound_intents(id),
+  intent_id BIGINT NOT NULL,
+  CONSTRAINT fk_mail_recipient_intent_tenant
+    FOREIGN KEY (organization_id,mailbox_id,intent_id)
+    REFERENCES email_mail_outbound_intents(organization_id,mailbox_id,id),
   recipient_address VARCHAR(320) NOT NULL,
   recipient_type VARCHAR(3) NOT NULL,
   state VARCHAR(20) NOT NULL DEFAULT 'PENDING',
