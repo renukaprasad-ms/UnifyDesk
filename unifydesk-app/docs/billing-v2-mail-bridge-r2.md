@@ -29,7 +29,7 @@ Previously sent Mail messages are not automatically re-rated or back-billed.
   and `productPriceMicroInr`. The last value is a Mail product-side snapshot, **NOT**
   a UnifyDesk platform invoice or collected payment.
 
-The API is protected by existing `InternalApiTokenFilter`; do not route it publicly.
+The API is protected by existing `InternalApiTokenFilter`; do not route it publicly.\nThe Mail database migration `V14__email_usage_cursor_index.sql` provides a compound `(project_id,id)` index for reliable bounded paging.
 
 ### UnifyDesk Backend (JWT + Super Admin authorization)
 
