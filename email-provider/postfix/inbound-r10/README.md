@@ -68,6 +68,10 @@ Example local checks (on the dedicated Postfix node):
   postmap -q unknown@test.example.net pgsql:/etc/postfix/pgsql-udmail-recipients.cf
   postfix check
 
+Run bash email-provider/tests/inbound-r10-smoke.sh from the repository root
+on the isolated Postfix node; this performs syntax/pgsql checks and does
+NOT send email unless R10_SEND_LOCAL_FIXTURE=YES is set explicitly.
+
 The first two pgsql lookups return a value for a prepared test domain/mailbox;
 the unknown recipient returns no value. With inbound_enabled=false, neither
 domain nor recipient lookup should return a value.
@@ -80,11 +84,14 @@ outage, DB outage and full PVC; ensure Postfix RETAINS queued mail.
 
 ## Boundaries and safety
 
+- Set enable_long_queue_ids=yes and preserve a unique, stable node ID;
+  Postfix short queue IDs can be reused after older deliveries.
 - Postfix pipe expands queue_id + recipient; the one-recipient delivery limit
   prevents sending one MIME to multiple mailboxes using one queue header.
 - Stable keys include unique node ID, queue ID, and recipient SHA256 prefix.
 - Only HTTP 202 confirms durable handoff. Redirects and HTTP 200 fail CLOSED.
-- One message is capped at 10 MiB in Postfix and the backend. The Java spool
+- Postfix accepts at most 10,000,000 bytes (headroom for generated headers),
+  while the backend imposes an independent 10 MiB cap. The Java spool
   reads in 8 KiB chunks; there is no new managed service or daemon to pay for.
 - Public MX requires genuine inbound TCP 25, stable public IP, TLS/STARTTLS,
   SPF/DKIM/DMARC policy, queue alerts, firewall and rate/abuse protection.
