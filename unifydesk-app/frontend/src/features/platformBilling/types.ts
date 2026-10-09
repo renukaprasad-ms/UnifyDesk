@@ -39,9 +39,9 @@ export type ManagedBillingSku = 'MANAGED_EMAIL_OUTBOUND' | 'MANAGED_SMS_SEGMENT'
 export type GlobalManagedRate = { rateId: string; billingSku: ManagedBillingSku; price: number; currency: 'INR'; effectiveFrom: string; effectiveTo: string | null; createdByUserId: string | null; reason: string | null }
 export type GlobalManagedRateInput = { billingSku: ManagedBillingSku; price: number; effectiveFrom?: string | null; reason?: string }
 
-export type FinancialAmounts = { invoicedInr: number; collectedInr: number; refundedInr: number; openBalanceInr: number }
+export type FinancialAmounts = { invoicedInr: number; collectedInr: number; refundedInr: number; openBalanceInr: number; invoicedPlanLinesInr: number; invoicedManagedLinesInr: number }
 export type CompanyFinancial = FinancialAmounts & { companyId: string }
-export type DailyFinancial = Omit<FinancialAmounts, 'openBalanceInr'> & { day: string }
+export type DailyFinancial = Pick<FinancialAmounts, 'invoicedInr' | 'collectedInr' | 'refundedInr'> & { day: string }
 export type BillingFinancialReport = { from: string; to: string; totals: FinancialAmounts; companies: CompanyFinancial[]; daily: DailyFinancial[] }
 
 export type ChannelTrafficPoint = { companyId: string; day: string; channel: ChannelType; direction: CommunicationDirection; messages: number }
