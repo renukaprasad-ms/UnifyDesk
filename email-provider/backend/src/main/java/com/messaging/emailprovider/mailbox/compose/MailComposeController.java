@@ -80,6 +80,15 @@ public class MailComposeController {
             draftId,body.revision(),body.draft().toInput()),"Draft saved"));
   }
 
+  @DeleteMapping("/{draftId}")
+  public ResponseEntity<ApiResponse<Void>> delete(
+      HttpServletRequest context,@PathVariable @Positive long mailboxId,
+      @PathVariable @Positive long draftId) {
+    compose.delete(principal(context),mailboxId,draftId);
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(ApiResponse.success(200,"Draft deleted"));
+  }
+
   @PostMapping("/{draftId}/hold")
   public ResponseEntity<ApiResponse<MailComposeService.HeldSubmission>> hold(
       HttpServletRequest context,@PathVariable @Positive long mailboxId,
