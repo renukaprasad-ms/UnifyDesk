@@ -1,5 +1,6 @@
 package com.messaging.emailprovider.mailbox.outbound;
 
+import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -54,6 +55,22 @@ public class MailboxOperationsService {
         """);
     return new Snapshot(accepted,failed,unknown,bounced,complained,
         scanWaiting,quarantined);
+  }
+
+  /** Read-only reconciliation queue. An uncertain DATA response is never retried. */
+  public record UnknownAttempt(String recipientId,String intentId,String organizationId,
+      String mailboxId,int attempts,String lastUpdated) {}
+
+  public List<UnknownAttempt> unknownAttempts() {
+    return jdbc.query("""
+        SELECT id,intent_id,organization_id,mailbox_id,attempts,updated_at
+        FROM email_mail_outbound_recipients
+        WHERE state='UNKNOWN'
+        ORDER BY updated_at DESC,id DESC LIMIT 100
+        """,(rs,row)->new UnknownAttempt(
+            Long.toString(rs.getLong(1)),Long.toString(rs.getLong(2)),
+            Long.toString(rs.getLong(3)),Long.toString(rs.getLong(4)),
+            rs.getInt(5),rs.getTimestamp(6).toInstant().toString()));
   }
 
   private long number(String query) {
