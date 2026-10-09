@@ -32,11 +32,11 @@ export default function BillingFinancialOverview({ companyNames }: Props) {
   const maxBilled = useMemo(() => Math.max(1, ...(report?.daily ?? []).map((day) => day.invoicedInr)), [report])
   const exportRows = () => {
     if (!report) return
-    const headers = ['company_id', 'company_name', 'invoiced_inr', 'collected_inr', 'refunded_inr', 'current_open_balance_inr']
+    const headers = ['company_id', 'company_name', 'invoiced_inr', 'plan_lines_inr', 'managed_lines_inr', 'collected_inr', 'refunded_inr', 'current_open_balance_inr']
     const escapeCsv = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`
     const rows = report.companies.map((company) => [
       company.companyId, companyNames[company.companyId] || 'Unknown company',
-      company.invoicedInr, company.collectedInr, company.refundedInr, company.openBalanceInr,
+      company.invoicedInr, company.invoicedPlanLinesInr, company.invoicedManagedLinesInr, company.collectedInr, company.refundedInr, company.openBalanceInr,
     ])
     const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
@@ -70,6 +70,8 @@ export default function BillingFinancialOverview({ companyNames }: Props) {
           ['Invoices issued', inr(report.totals.invoicedInr), 'Finalized invoices (tax included)'],
           ['Payments collected', inr(report.totals.collectedInr), 'Succeeded Cashfree payments'],
           ['Refunds paid', inr(report.totals.refundedInr), 'Succeeded refunds'],
+          ['Plan invoice lines', inr(report.totals.invoicedPlanLinesInr), 'Pre-tax and pre-discount'],
+          ['Managed invoice lines', inr(report.totals.invoicedManagedLinesInr), 'Pre-tax and pre-discount'],
           ['Current open balance', inr(report.totals.openBalanceInr), 'OPEN invoices, all periods'],
         ].map(([title, value, subtitle]) =>
           <div key={title} className="rounded-xl border p-4">
@@ -94,20 +96,24 @@ export default function BillingFinancialOverview({ companyNames }: Props) {
       </div>
       <div className="mt-6 overflow-x-auto">
         <h3 className="mb-3 font-semibold text-sm">Company financial breakdown</h3>
-        <table className="w-full min-w-[680px] text-left text-sm">
+        <table className="w-full min-w-[940px] text-left text-sm">
           <thead><tr className="border-b text-xs text-slate-500">
             <th className="py-3 pr-3">Company</th><th className="px-3 text-right">Invoiced</th>
+            <th className="px-3 text-right">Plan lines</th><th className="px-3 text-right">Managed lines</th>
             <th className="px-3 text-right">Collected</th><th className="px-3 text-right">Refunded</th>
             <th className="px-3 text-right">Current open</th>
           </tr></thead>
           <tbody>{report.companies.map((company) => <tr key={company.companyId} className="border-b">
             <td className="py-3 pr-3">{companyNames[company.companyId] ?? `Company ${company.companyId}`}</td>
             <td className="px-3 text-right tabular-nums">{inr(company.invoicedInr)}</td>
+            <td className="px-3 text-right tabular-nums">{inr(company.invoicedPlanLinesInr)}</td>
+            <td className="px-3 text-right tabular-nums">{inr(company.invoicedManagedLinesInr)}</td>
             <td className="px-3 text-right tabular-nums">{inr(company.collectedInr)}</td>
             <td className="px-3 text-right tabular-nums">{inr(company.refundedInr)}</td>
             <td className="px-3 text-right tabular-nums">{inr(company.openBalanceInr)}</td>
           </tr>)}</tbody>
         </table>
+        <p className="mt-2 text-xs text-slate-500">Plan and managed line amounts are before tax, discounts and adjustments. They are not collected cash.</p>
         {!report.companies.length && <p className="mt-3 text-sm text-slate-500">No financial activity or open invoices.</p>}
       </div>
     </>}
