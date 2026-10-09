@@ -3,6 +3,7 @@ import { CheckCircle2, ClipboardCopy, Download, Inbox, MailPlus, RefreshCw, Shie
 import { request, downloadMail } from './api'
 import { Badge, Button, Empty, Field, Notice, Panel } from './components'
 import './mail.css'
+import MailDrafts from './MailDrafts'
 
 /**
  * Operator-controlled mail UI. Every request uses an authenticated console
@@ -10,6 +11,7 @@ import './mail.css'
  */
 export default function MailConsole({ session }) {
   const canManage = ['OWNER', 'ADMIN'].includes(session.role)
+  const composeEnabled = import.meta.env.VITE_MAIL_COMPOSE_UI_ENABLED === 'true'
   const [domains, setDomains] = useState([])
   const [domainId, setDomainId] = useState('')
   const [mailboxes, setMailboxes] = useState([])
@@ -31,6 +33,7 @@ export default function MailConsole({ session }) {
   const [plainPreview, setPlainPreview] = useState(null)
   const [plainLoading, setPlainLoading] = useState(false)
   const [plainError, setPlainError] = useState('')
+  const [replySeed, setReplySeed] = useState(null)
   const [revision, setRevision] = useState(0)
 
   const currentDomain = domains.find(domain => domain.id === domainId)
@@ -63,6 +66,7 @@ export default function MailConsole({ session }) {
     setCursor(null)
     setPages([])
     setSelectedMessage(null)
+    setReplySeed(null)
     if (!domainId) return () => { active = false }
     request('/mail/domains/' + domainId + '/mailboxes')
       .then(list => {
@@ -291,11 +295,19 @@ export default function MailConsole({ session }) {
                     <pre className="mail-text-body" dir="auto">{plainPreview.plainText}</pre>
                   </> :
                   <div className="mail-preview-placeholder"><ShieldCheck size={21}/><span>This message has no supported plain-text body. For safety, HTML and attachments are never rendered inline. You can download the original message for a trusted mail client.</span></div>}
-                <Button variant="outline" icon={Download} disabled={busy} onClick={() => saveRaw(selectedMessage)}>Download original (.eml)</Button>
+                <div className="mail-actions">
+                  <Button variant="outline" icon={Download} disabled={busy} onClick={() => saveRaw(selectedMessage)}>Download original (.eml)</Button>
+                  {composeEnabled && <Button variant="outline" disabled={busy}
+                    onClick={() => setReplySeed({id: selectedMessage.id, from: selectedMessage.from,
+                      subject: selectedMessage.subject, nonce: Date.now()})}>Prepare reply draft</Button>}
+                </div>
               </> : <div className="mail-reader-empty">Select an email to view its details.</div>}
             </div>
           </div>}
       </Panel>
+      {composeEnabled && currentMailbox?.status === 'ACTIVE' &&
+        <MailDrafts mailboxId={mailboxId} mailboxAddress={currentMailbox.address}
+          replySeed={replySeed}/>}
     </>}
   </section>
 }
