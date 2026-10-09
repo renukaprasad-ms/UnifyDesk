@@ -8,7 +8,7 @@
 - Draft PR: #363 (not merged).
 - Currency: INR.
 - **Global fallback rate: Managed Email INR 0.012 per outbound MESSAGE.**
-- **Global fallback rate: Managed SMS INR 0.25 per billable SEGMENT.** This is the current runtime's financial unit; a multipart SMS may incur multiple segments. Confirm the commercial messaging before production.
+- **Configured Managed SMS: INR 0.25 per billable SEGMENT, initially DISABLED.** The customer asked for INR 0.25 per SMS; the runtime bills segments. A multipart SMS may incur multiple segments. Activate the fallback only after an explicit commercial decision.
 - WhatsApp: operational reporting only until managed financial SKU/rate contracts exist.
 
 ## Verified pre-existing functionality
@@ -24,7 +24,7 @@
 ## Implemented on feature branch (not deployed)
 
 ### Global pricing
-- Flyway `V104__billing_global_managed_rates_v2.sql` seeds canonical email/SMS prices effective from migration activation. No backdating or rewriting of prior usage.
+- Flyway `V104__billing_global_managed_rates_v2.sql` seeds canonical email pricing as ACTIVE and SMS INR 0.25/segment as INACTIVE. No SMS global fallback activates just by deploying. An explicit Super Admin revision creates an active rule after the multipart-SMS policy is approved. No backdating or rewriting of prior usage.
 - `GlobalManagedRateService`: serializes price revisions per SKU with database advisory transaction lock, half-open effective intervals and immutable price history. Only previous interval end time is closed when publishing a revision.
 - `PricingResolver`: company override > plan-specific rate > global SKU default; unsupported/inbound shapes fail closed.
 - `PricingSource.GLOBAL_RATE` stored with numeric global rate row ID, while `rate_card_id` remains null for a global rate.
@@ -35,7 +35,7 @@
 - `GET /api/v1/admin/billing/analytics/managed-usage`: priced managed usage events, totals by SKU/day/company. These are charges, not actual payments.
 - `GET /api/v1/admin/billing/analytics/financial`: finalized invoiced totals, succeeded collections, successful refunds, current open balances, invoiced platform-plan and managed-usage line breakdown. Distinguishes invoice issuance from cash collection; NOT accrual revenue recognition.
 - `GET /api/v1/admin/billing/analytics/channel-traffic`: operational message records from connected inbox email, legacy managed email recipients, managed SMS recipients and Meta WhatsApp runtime. Excludes independent `email-provider` mail service until integrated.
-- `GET /api/v1/admin/billing/analytics/usage-reconciliation`: rated managed usage vs invoice allocation, finalized unallocated events, missing invoice lines and price arithmetic anomalies.
+- `GET /api/v1/admin/billing/analytics/usage-reconciliation`: rated managed usage vs invoice allocation, finalized unallocated events, missing invoice lines and price arithmetic anomalies; also compares managed email COMMIT handoffs and managed SMS COMMITTED reservations to financial usage keys and quantities.
 - Date-filtered admin UI, company tables, daily/UTC-weekly trends, financial CSV export. All endpoints enforce Super Admin.
 - Company IDs serialized as **strings** to avoid JavaScript Snowflake precision loss.
 - Flyway `V105__billing_v2_reporting_indexes.sql`: global reporting time-window indexes.
@@ -61,7 +61,7 @@
 
 - **Unverified build:** PR GitHub Actions jobs are failing before any workflow steps execute (no checkout/test steps/logs), including unrelated jobs. Do not treat their failure as code-test results or merge without independent compilation.
 - Audit possible overlap/dedup between inbox and legacy managed email event sources using live provider-level reconciliation.
-- Connect the separate `email-provider` system's usage billing ledger and send/receive metrics to UnifyDesk central billing; no cross-database adapter is implemented here.
+- Connect the separate `email-provider` system's usage billing ledger and send/receive metrics to UnifyDesk central billing; no cross-database adapter is implemented here. Its product project IDs are NOT UnifyDesk company IDs (V8 standalone migration explicitly documents that distinction); require explicit verified project↔company mapping, authenticated service-to-service access, incremental idempotency and a no-double-charge policy before ingestion.
 - MetaReach provider routing must be verified end-to-end against logical `MSG91_SMS` billing provider identity.
 - WhatsApp managed billing remains unconfigured; do not charge until a validated SKU/category rate and usage rule is approved.
 - Provider costs, profitability and tax/recognized-revenue accounting dashboards remain out of scope.
