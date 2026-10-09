@@ -159,3 +159,81 @@ with its own spool and master.cf. Test swaks with port 2526 instead of
 port 25 when exercising this setup. No public MX/port 25 until the
 dedicated instance, local auth bridge, scanner, bounce behavior and
 anti-relay restrictions are verified.
+
+
+## R10 local verification without GitHub Actions
+
+These scripts **do not install anything** or change MX/DNS settings. Run them
+from the checked-out R10 branch on the Ubuntu test node.
+
+1. Inspect the existing k3s/Postfix/PVC prerequisites (read-only):
+
+   bash email-provider/tests/inbound-r10-readiness.sh
+
+   This may report blocked items until the separately reviewed staging
+   Postfix, persistent volume and private backend are actually installed.
+
+2. Test only the shell/Postfix transport response contract (fully offline):
+
+   bash email-provider/tests/inbound-r10-pipe-qa.sh
+
+   This uses mock curl and temporary files, so it sends no message.
+
+3. After V22 migration, a test domain with inbound_enabled=true, ACTIVE
+   mailbox, private token, writable encrypted persistent PVC and actual
+   ClamAV/Rspamd services are ready, run the private API test:
+
+   export R10_API_SMOKE_ENABLE=YES
+   export R10_TEST_RECIPIENT='owner@your-approved-test-domain.example'
+   export R10_INTERNAL_CURL_CONFIG=/etc/unifydesk-mail/inbound-curl.conf
+   bash email-provider/tests/inbound-r10-api-smoke.sh
+
+   The script posts the **same synthetic MIME twice** to loopback port 8010,
+   requires HTTP 202 each time, then compares the job ID and duplicate flag.
+   Neither external SMTP nor public MX is used. This DOES insert a staging
+   test email and consume staging quota/storage; do not use a customer domain.
+
+4. For an additional read-only PostgreSQL assertion (exactly one inbound
+   job), set R10_QA_PG_DSN to a staging DB connection with SELECT permission
+   on email_mail_inbound_jobs. Store the password in ~/.pgpass or PGPASSFILE,
+   not in the shell command or URL. Re-run the script.
+
+5. To ALSO prove scan-to-Inbox/Spam and mailbox grant checks, create a
+   local-only console curl config with a test-user bearer session token,
+   mode 0600, and set:
+
+   export R10_TEST_MAILBOX_ID='123456789012345678'
+   export R10_CONSOLE_CURL_CONFIG=/private/path/console-curl.conf
+   bash email-provider/tests/inbound-r10-api-smoke.sh
+
+   Example config file content (create privately; DO NOT COMMIT it):
+
+   header = "Authorization: Bearer REPLACE_WITH_TEST_CONSOLE_SESSION_TOKEN"
+
+   The script waits at most 90 seconds for ClamAV/Rspamd promotion,
+   searches Inbox and Spam through the console API, then fetches its
+   MIME-safe plain-text preview. It does NOT assume every message is Inbox;
+   Rspamd may place the test message in Spam. It fails closed on missing
+   ACL, scanner outages, bad session or absent message.
+
+6. Only after all prior checks, run the opt-in Postfix local SMTP test with
+   staging listener 2526, not port 25:
+
+   export R10_TEST_DOMAIN='your-approved-test-domain.example'
+   export R10_TEST_ACCEPT_RCPT='owner@your-approved-test-domain.example'
+   export R10_SEND_LOCAL_FIXTURE=YES
+   export R10_SMTP_PORT=2526
+   bash email-provider/tests/inbound-r10-smoke.sh
+
+   Verify the corresponding backend job and Inbox/Spam message separately.
+   The Postfix smoke only confirms SMTP response and routing, NOT durable
+   ingestion or scanner promotion by itself.
+
+### Fast rollback of test admission
+
+To close NEW inbound admission for the exact approved test domain, an
+authorized database operator can set inbound_enabled=false for that domain.
+The R10 scanner now rechecks this gate before Inbox/Spam promotion as well:
+previously staged messages remain quarantined instead of becoming visible.
+Existing Postfix queue entries may retry and require a separate operator
+queue policy. Do not automatically delete accepted or quarantined MIME.
