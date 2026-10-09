@@ -33,6 +33,28 @@ public class RspamdSpamScanner {
     this.json = json;
   }
 
+  static Decision classify(JsonNode node) {
+    if (node == null || !node.isObject()
+        || node.path("is_skipped").asBoolean(false)) {
+      throw new ServiceUnavailableException("Spam scan was skipped");
+    }
+    JsonNode actionNode = node.get("action");
+    JsonNode score = node.get("score");
+    JsonNode threshold = node.get("required_score");
+    if (actionNode == null || !actionNode.isTextual()
+        || score == null || !score.isNumber()
+        || threshold == null || !threshold.isNumber()) {
+      throw new ServiceUnavailableException("Incomplete spam scan result");
+    }
+    String action = actionNode.asText();
+    if ("reject".equals(action) || "discard".equals(action)) return Decision.QUARANTINE;
+    if ("add header".equals(action) || "rewrite subject".equals(action)
+        || score.doubleValue() >= threshold.doubleValue()) return Decision.SPAM;
+    if ("no action".equals(action) && score.doubleValue() < threshold.doubleValue()) {
+      return Decision.INBOX;
+  
+  }
+
   public Decision scan(InputStream mime, long bytes) {
     if (bytes < 1 || bytes > 10485760L) {
       throw new ServiceUnavailableException("Invalid MIME length for spam scan");
@@ -68,27 +90,7 @@ public class RspamdSpamScanner {
       if (reply.length > 65536) {
         throw new ServiceUnavailableException("Oversized spam scanner response");
       }
-      JsonNode node = json.readTree(reply);
-      if (node == null || !node.isObject()
-          || node.path("is_skipped").asBoolean(false)) {
-        throw new ServiceUnavailableException("Spam scan was skipped");
-      }
-      JsonNode actionNode = node.get("action");
-      JsonNode score = node.get("score");
-      JsonNode threshold = node.get("required_score");
-      if (actionNode == null || !actionNode.isTextual()
-          || score == null || !score.isNumber()
-          || threshold == null || !threshold.isNumber()) {
-        throw new ServiceUnavailableException("Incomplete spam scan result");
-      }
-      String action = actionNode.asText();
-      if ("reject".equals(action) || "discard".equals(action)) return Decision.QUARANTINE;
-      if ("add header".equals(action) || "rewrite subject".equals(action)
-          || score.doubleValue() >= threshold.doubleValue()) return Decision.SPAM;
-      if ("no action".equals(action) && score.doubleValue() < threshold.doubleValue()) {
-        return Decision.INBOX;
-      }
-      throw new ServiceUnavailableException("Unhandled spam scanner action");
+      return classify(json.readTree(reply));
     } catch (IOException | RuntimeException failure) {
       if (failure instanceof ServiceUnavailableException unavailable) throw unavailable;
       throw new ServiceUnavailableException("Spam scanner unavailable", failure);
