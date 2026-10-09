@@ -16,7 +16,7 @@ import { useSnackbar } from '../feedback/SnackbarProvider'
 import type { BroadcastSenderProvider, BroadcastSetupStatus } from '../../features/broadcast/types'
 import { CardSkeleton } from '../ui/Skeleton'
 
-export type BroadcastEmailProviderChoice = 'AMAZON_SES' | 'SENDGRID' | 'AZURE_EMAIL' | 'MSG91_EMAIL'
+export type BroadcastEmailProviderChoice = 'AMAZON_SES' | 'UNIFYDESK_EMAIL' | 'SENDGRID' | 'AZURE_EMAIL' | 'MSG91_EMAIL'
 
 type Props = {
   companyId: string
@@ -46,7 +46,28 @@ type ProviderInfo = {
   steps: SetupStep[]
 }
 
+const unifyDeskEmailEnabled = import.meta.env.VITE_UNIFYDESK_EMAIL_ENABLED === 'true'
+
 const providers: ProviderInfo[] = [
+  ...(unifyDeskEmailEnabled ? [{
+    id: 'UNIFYDESK_EMAIL' as const,
+    name: 'UnifyDesk Email',
+    description: 'A standalone email API product from UnifyDesk.',
+    icon: <FiMail aria-hidden="true" />,
+    consoleUrl: 'https://email.unifydesk.in/console/index.html',
+    goodFor: ['Independent API-key email service', 'Verified sending domains', 'Bulk broadcast email'],
+    needs: ['UnifyDesk Email project', 'Verified sender domain', 'API key with SEND and DOMAINS scopes'],
+    steps: [
+      {title: 'Create your Email product account',
+       description: 'Sign in to the independent UnifyDesk Email console with your organization.'},
+      {title: 'Verify a sender domain',
+       description: 'Add your domain, publish the DNS records and complete verification.'},
+      {title: 'Generate a project API key',
+       description: 'Create a key with SEND and DOMAINS scopes. Copy it securely only once.'},
+      {title: 'Connect the project to this workspace',
+       description: 'Enter the domain ID, API key, and your verified From address.'},
+    ],
+  }] : []),
   {
     id: 'AMAZON_SES',
     name: 'Amazon SES',
@@ -226,6 +247,7 @@ const isEmailProvider = (
   provider: BroadcastSenderProvider,
 ): provider is BroadcastEmailProviderChoice =>
   provider === 'AMAZON_SES' ||
+  (unifyDeskEmailEnabled && provider === 'UNIFYDESK_EMAIL') ||
   provider === 'SENDGRID' ||
   provider === 'AZURE_EMAIL' ||
   provider === 'MSG91_EMAIL'
