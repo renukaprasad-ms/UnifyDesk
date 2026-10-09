@@ -39,7 +39,7 @@ import BillingFinancialOverview from './BillingFinancialOverview'
 import BillingChannelTrafficOverview from './BillingChannelTrafficOverview'
 
 const providersByChannel: Record<ChannelType, ProviderType[]> = {
-  EMAIL: ['AMAZON_SES', 'SENDGRID', 'AZURE_EMAIL', 'MSG91_EMAIL', 'GMAIL', 'MICROSOFT', 'IMAP_SMTP', 'SMTP'],
+  EMAIL: ['AMAZON_SES', 'SENDGRID', 'AZURE_EMAIL', 'MSG91_EMAIL', 'UNIFYDESK_EMAIL', 'GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP', 'SMTP'],
   WHATSAPP: ['META_WHATSAPP'],
   SMS: ['MSG91_SMS'],
 }
