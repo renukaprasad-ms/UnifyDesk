@@ -135,7 +135,7 @@ class PricingResolverGlobalManagedRatesTests {
   }
 
   private GlobalManagedRateResponse global(BillingSku sku, String amount) {
-    return new GlobalManagedRateResponse("900", sku, new BigDecimal(amount), "INR",
+    return new GlobalManagedRateResponse("900", sku, new BigDecimal(amount), "INR", true,
         AT.minusSeconds(60), null, null, "test");
   }
 }
