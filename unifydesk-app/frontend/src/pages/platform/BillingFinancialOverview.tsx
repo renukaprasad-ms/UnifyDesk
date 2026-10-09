@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { adminBillingApi } from '../../features/platformBilling/adminBillingApi'
+import { utcWeekStart } from '../../features/platformBilling/analyticsBucketing'
 import type { BillingFinancialReport } from '../../features/platformBilling/types'
 
 type Props = { companyNames: Record<string, string> }
@@ -9,6 +10,7 @@ const inr = (value: number) => new Intl.NumberFormat('en-IN', {
 
 export default function BillingFinancialOverview({ companyNames }: Props) {
   const [days, setDays] = useState(30)
+  const [groupBy, setGroupBy] = useState<'daily' | 'weekly'>('daily')
   const [reload, setReload] = useState(0)
   const [report, setReport] = useState<BillingFinancialReport | null>(null)
   const [loading, setLoading] = useState(true)
@@ -29,7 +31,15 @@ export default function BillingFinancialOverview({ companyNames }: Props) {
       }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [days, reload])
-  const maxBilled = useMemo(() => Math.max(1, ...(report?.daily ?? []).map((day) => day.invoicedInr)), [report])
+  const financialBuckets = useMemo(() => {
+    const grouped = new Map<string, number>()
+    for (const row of report?.daily ?? []) {
+      const key = groupBy === 'weekly' ? utcWeekStart(row.day) : row.day
+      grouped.set(key, (grouped.get(key) ?? 0) + row.invoicedInr)
+    }
+    return [...grouped].sort(([a], [b]) => a.localeCompare(b))
+  }, [report, groupBy])
+  const maxBilled = Math.max(1, ...financialBuckets.map(([, value]) => value))
   const exportRows = () => {
     if (!report) return
     const headers = ['company_id', 'company_name', 'invoiced_inr', 'plan_lines_inr', 'managed_lines_inr', 'collected_inr', 'refunded_inr', 'current_open_balance_inr']
@@ -58,6 +68,10 @@ export default function BillingFinancialOverview({ companyNames }: Props) {
         <select aria-label="Financial reporting period" className="form-input" value={days} onChange={(event) => setDays(Number(event.target.value))}>
           <option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option>
         </select>
+        <select aria-label="Financial chart grouping" className="form-input" value={groupBy}
+          onChange={(event) => setGroupBy(event.target.value as 'daily' | 'weekly')}>
+          <option value="daily">Daily</option><option value="weekly">Weekly</option>
+        </select>
         <button type="button" className="secondary-button" disabled={loading || !report} onClick={exportRows}>Export CSV</button>
         <button type="button" className="secondary-button" disabled={loading} onClick={() => setReload((value) => value + 1)}>Refresh</button>
       </div>
@@ -83,14 +97,14 @@ export default function BillingFinancialOverview({ companyNames }: Props) {
       </div>
       <p className="mt-3 text-sm font-semibold">Net confirmed payments after refunds: {inr(report.totals.collectedInr - report.totals.refundedInr)}</p>
       <div className="mt-6">
-        <h3 className="font-semibold text-sm">Daily invoiced amounts (UTC)</h3>
-        {report.daily.length ? <div className="mt-3 space-y-2">
-          {report.daily.map((day) => <div key={day.day} className="flex items-center gap-3 text-xs">
-            <span className="w-24 shrink-0">{day.day}</span>
+        <h3 className="font-semibold text-sm">{groupBy === 'weekly' ? 'Weekly' : 'Daily'} invoiced amounts (UTC)</h3>
+        {financialBuckets.length ? <div className="mt-3 space-y-2">
+          {financialBuckets.map(([day, billed]) => <div key={day} className="flex items-center gap-3 text-xs">
+            <span className="w-24 shrink-0">{day}</span>
             <div className="h-3 flex-1 rounded-full bg-slate-100">
-              <div className="h-3 rounded-full bg-blue-500" style={{ width: `${day.invoicedInr / maxBilled * 100}%` }} />
+              <div className="h-3 rounded-full bg-blue-500" style={{ width: `${billed / maxBilled * 100}%` }} />
             </div>
-            <span className="w-28 text-right tabular-nums">{inr(day.invoicedInr)}</span>
+            <span className="w-28 text-right tabular-nums">{inr(billed)}</span>
           </div>)}
         </div> : <p className="mt-3 text-sm text-slate-500">No finalized invoices or payment activity in this period.</p>}
       </div>
