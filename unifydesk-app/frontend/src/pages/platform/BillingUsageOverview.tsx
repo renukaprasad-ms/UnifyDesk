@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { adminBillingApi } from '../../features/platformBilling/adminBillingApi'
+import { utcWeekStart } from '../../features/platformBilling/analyticsBucketing'
 import type { ManagedUsageReport } from '../../features/platformBilling/types'
 
 type Props = { companyNames: Record<string, string> }
@@ -8,6 +9,7 @@ const number = (amount: number) => new Intl.NumberFormat('en-IN').format(amount)
 
 export default function BillingUsageOverview({ companyNames }: Props) {
   const [days, setDays] = useState(7)
+  const [groupBy, setGroupBy] = useState<'daily' | 'weekly'>('daily')
   const [report, setReport] = useState<ManagedUsageReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -24,7 +26,20 @@ export default function BillingUsageOverview({ companyNames }: Props) {
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [days, reload])
-  const maxCount = useMemo(() => Math.max(1, ...((report?.daily ?? []).map((day) => day.emailMessages + day.smsSegments + day.whatsappMessages))), [report])
+  const periodUsage = useMemo(() => {
+    const grouped = new Map<string, { emailMessages: number; smsSegments: number; whatsappMessages: number; managedChargesInr: number }>()
+    for (const row of report?.daily ?? []) {
+      const key = groupBy === 'weekly' ? utcWeekStart(row.day) : row.day
+      const current = grouped.get(key) ?? { emailMessages: 0, smsSegments: 0, whatsappMessages: 0, managedChargesInr: 0 }
+      current.emailMessages += row.emailMessages
+      current.smsSegments += row.smsSegments
+      current.whatsappMessages += row.whatsappMessages
+      current.managedChargesInr += row.managedChargesInr
+      grouped.set(key, current)
+    }
+    return [...grouped].sort(([a], [b]) => a.localeCompare(b))
+  }, [report, groupBy])
+  const maxCount = Math.max(1, ...periodUsage.map(([, row]) => row.emailMessages + row.smsSegments + row.whatsappMessages))
   return (
     <section className="panel mt-6 p-5" aria-label="Managed service usage analytics">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -35,6 +50,10 @@ export default function BillingUsageOverview({ companyNames }: Props) {
         <div className="flex gap-2">
           <select aria-label="Usage reporting period" className="form-input" value={days} onChange={(event) => setDays(Number(event.target.value))}>
             <option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option>
+          </select>
+          <select className="form-input" aria-label="Managed usage grouping" value={groupBy}
+            onChange={(event) => setGroupBy(event.target.value as 'daily' | 'weekly')}>
+            <option value="daily">Daily</option><option value="weekly">Weekly</option>
           </select>
           <button type="button" className="secondary-button" disabled={loading} onClick={() => setReload((v) => v + 1)}>Refresh</button>
         </div>
@@ -58,13 +77,13 @@ export default function BillingUsageOverview({ companyNames }: Props) {
             ))}
           </div>
           <div className="mt-5">
-            <h3 className="text-sm font-semibold">Daily processed usage</h3>
-            {report.daily.length === 0 ? <p className="mt-3 text-sm text-slate-500">No rated managed usage in this period.</p> : (
+            <h3 className="text-sm font-semibold">{groupBy === 'weekly' ? 'Weekly' : 'Daily'} processed usage</h3>
+            {periodUsage.length === 0 ? <p className="mt-3 text-sm text-slate-500">No rated managed usage in this period.</p> : (
               <div className="mt-3 space-y-2">
-                {report.daily.map((row) => {
+                {periodUsage.map(([day, row]) => {
                   const count = row.emailMessages + row.smsSegments + row.whatsappMessages
-                  return <div key={row.day} className="flex items-center gap-3 text-xs">
-                    <span className="w-24 shrink-0">{row.day}</span>
+                  return <div key={day} className="flex items-center gap-3 text-xs">
+                    <span className="w-24 shrink-0">{day}</span>
                     <div className="h-3 flex-1 rounded-full bg-slate-100"><div className="h-3 rounded-full bg-blue-500" style={{ width: `${count / maxCount * 100}%` }} /></div>
                     <span className="w-24 text-right tabular-nums">{number(count)} units</span>
                     <span className="w-24 text-right tabular-nums">{money(row.managedChargesInr)}</span>
