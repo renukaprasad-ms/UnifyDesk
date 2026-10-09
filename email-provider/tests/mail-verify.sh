@@ -6,7 +6,9 @@ set -Eeuo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 backend="$root/backend"
 frontend="$root/frontend"
-echo "== UnifyDesk Mail: R1–R4 verification =="
+echo "== UnifyDesk Mail: R1–R10 verification =="
+# R10 adapter behavior is entirely offline; run before Maven/Node checks.
+bash "$root/tests/inbound-r10-pipe-qa.sh"
 
 if ! command -v java >/dev/null || ! java -version 2>&1 | grep -q '"25'; then
   echo "ERROR: JDK 25 is required." >&2
@@ -30,5 +32,5 @@ else
 fi
 
 VITE_MAIL_UI_ENABLED=false npm run build
-VITE_MAIL_UI_ENABLED=true npm run build
-echo "Local build/unit checks completed. Manual PostgreSQL, scanner, tenant and disaster-recovery QA remain mandatory."
+VITE_MAIL_UI_ENABLED=true VITE_MAIL_COMPOSE_UI_ENABLED=true VITE_MAIL_SEND_UI_ENABLED=true npm run build
+echo "Local build/unit checks completed. Real PostgreSQL migrations, Postfix SMTP, scanner, tenant and recovery QA remain mandatory."
