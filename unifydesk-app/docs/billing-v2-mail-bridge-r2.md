@@ -86,9 +86,7 @@ The bridge defaults to disabled if not configured. HTTPS for internal transit (o
 mesh with mTLS and network policy) is recommended for production; private HTTP within the
 cluster is accepted only for internal `.svc` DNS, localhost or loopback.
 
-The scheduler polls up to 25 active projects per run (one page/project each); manual
-Sync can import another page. A paused project stops importing. One project's failed
-fetch does not stop others.
+The scheduler polls up to 25 active projects per run (one forward page and one bounded replay page per project); manual Sync can import another page. Flyway `V107__billing_mail_replay_checkpoints.sql` retains a stable per-project 24-hour replay window and cursor across runs, including high-volume windows. A replay checkpoint is advanced only after the corresponding immutable imports succeed. A paused project stops importing. One project's failed fetch does not stop others.
 
 ## QA / known limitations
 
