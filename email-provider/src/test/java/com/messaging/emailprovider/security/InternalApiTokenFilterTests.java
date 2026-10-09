@@ -31,6 +31,32 @@ class InternalApiTokenFilterTests {
     assertEquals(200, call(filter, "/actuator/health/readiness", null));
   }
 
+  @Test
+  void permitsOnlyStaticConsoleHtmlForAnonymousGetAndHead() throws ServletException, IOException {
+    var filter = new InternalApiTokenFilter(TOKEN);
+    assertEquals(200, callMethod(filter, "GET", "/console/index.html", null));
+    assertEquals(200, callMethod(filter, "HEAD", "/console/index.html", null));
+    assertEquals(401, callMethod(filter, "POST", "/console/index.html", null));
+    assertEquals(401, callMethod(filter, "GET", "/console/other.html", null));
+    assertEquals(401, callMethod(filter, "GET", "/api/v1/companies/1/emails", null));
+  }
+
+  @Test
+  void leavesConsoleApiToItsOwnSessionAuthenticationFilter() throws ServletException, IOException {
+    var filter = new InternalApiTokenFilter(TOKEN);
+    // InternalApiTokenFilter delegates /console/v1/*; ConsoleAuthFilter checks sessions.
+    assertEquals(200, callMethod(filter, "GET", "/console/v1/projects", null));
+  }
+
+  private int callMethod(InternalApiTokenFilter filter, String method, String uri, String token)
+      throws ServletException, IOException {
+    var request = new MockHttpServletRequest(method, uri);
+    if (token != null) request.addHeader("Authorization", "Bearer " + token);
+    var response = new MockHttpServletResponse();
+    filter.doFilter(request, response, new MockFilterChain());
+    return response.getStatus();
+  }
+
   private int call(InternalApiTokenFilter filter, String uri, String token)
       throws ServletException, IOException {
     var request = new MockHttpServletRequest("GET", uri);
