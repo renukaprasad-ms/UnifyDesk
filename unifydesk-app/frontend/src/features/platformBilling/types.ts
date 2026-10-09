@@ -48,4 +48,5 @@ export type ChannelTrafficPoint = { companyId: string; day: string; channel: Cha
 export type BillingChannelTrafficReport = { from: string; to: string; points: ChannelTrafficPoint[] }
 
 export type CompanyUsageReconciliation = { companyId: string; events: number; ratedInr: number; allocatedInr: number; finalizedUnallocatedEvents: number; missingInvoiceLines: number; priceMathMismatches: number }
-export type BillingUsageReconciliationReport = { from: string; to: string; companies: CompanyUsageReconciliation[] }
+export type SourceUsageReconciliation = { companyId: string; acceptedEmailHandoffs: number; committedSmsRecipients: number; missingEmailFinancialEvents: number; missingSmsFinancialEvents: number; mismatchedSmsSegments: number }
+export type BillingUsageReconciliationReport = { from: string; to: string; companies: CompanyUsageReconciliation[]; sourceChecks: SourceUsageReconciliation[] }
