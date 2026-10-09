@@ -32,24 +32,35 @@ public class PricingResolver {
   private final CompanySubscriptionRepository subscriptionRepository;
   private final SubscriptionTransitionRepository transitionRepository;
   private final RateCardRepository rateCardRepository;
+  private final GlobalManagedRateService globalManagedRateService;
 
   @Autowired
   public PricingResolver(
       CompanyRateOverrideRepository overrideRepository,
       CompanySubscriptionRepository subscriptionRepository,
       SubscriptionTransitionRepository transitionRepository,
-      RateCardRepository rateCardRepository) {
+      RateCardRepository rateCardRepository,
+      GlobalManagedRateService globalManagedRateService) {
     this.overrideRepository = overrideRepository;
     this.subscriptionRepository = subscriptionRepository;
     this.transitionRepository = transitionRepository;
     this.rateCardRepository = rateCardRepository;
+    this.globalManagedRateService = globalManagedRateService;
+  }
+
+  PricingResolver(
+      CompanyRateOverrideRepository overrideRepository,
+      CompanySubscriptionRepository subscriptionRepository,
+      SubscriptionTransitionRepository transitionRepository,
+      RateCardRepository rateCardRepository) {
+    this(overrideRepository, subscriptionRepository, transitionRepository, rateCardRepository, null);
   }
 
   PricingResolver(
       CompanyRateOverrideRepository overrideRepository,
       CompanySubscriptionRepository subscriptionRepository,
       RateCardRepository rateCardRepository) {
-    this(overrideRepository, subscriptionRepository, null, rateCardRepository);
+    this(overrideRepository, subscriptionRepository, null, rateCardRepository, null);
   }
 
   @Transactional(readOnly = true)
@@ -156,6 +167,19 @@ public class PricingResolver {
             .toList();
 
     if (planRates.isEmpty()) {
+      // Global defaults only apply to canonical MANAGED outbound email or SMS segment usage.
+      // Company and plan-specific rates always take precedence.
+      var sku = GlobalManagedRateService.skuFor(channel, billingCategory, direction, unit);
+      if (sku != null && globalManagedRateService != null) {
+        var global = globalManagedRateService.effectiveRate(sku, occurredAt);
+        if (global.isPresent()) {
+          var rule = global.get();
+          return new ResolvedPrice(
+              rule.price(), rule.currency(), PricingSource.GLOBAL_RATE,
+              rule.rateId(), context.planId().toString(),
+              context.subscriptionId() == null ? null : context.subscriptionId().toString());
+        }
+      }
       throw new NotFoundException(
           "No pricing rule configured for " + provider + " / " + billingCategory);
     }
