@@ -62,6 +62,18 @@ class ProductUsageHandoffPagingTests {
   }
 
   @Test
+  void dateBoundedReplayRejectsMissingOrOversizedIntervals() {
+    var from = Instant.parse("2026-10-01T00:00:00Z");
+    assertThrows(BadRequestException.class,
+        () -> service.handoffs(123L, 0L, 50, from, null));
+    assertThrows(BadRequestException.class,
+        () -> service.handoffs(123L, 0L, 50, from, from));
+    assertThrows(BadRequestException.class,
+        () -> service.handoffs(123L, 0L, 50, from, from.plusSeconds(32L * 86400)));
+    verifyNoInteractions(jdbc);
+  }
+
+  @Test
   void highWaterMarkIsProjectScoped() {
     when(jdbc.queryForObject(anyString(), eq(Long.class), eq(123L)))
         .thenReturn(9007199254740993L);
