@@ -63,6 +63,17 @@ public class ProductUsageService {
       String projectId, List<HandoffEntry> entries, String nextAfterId, boolean hasMore) {}
 
   @Transactional(readOnly = true)
+  public String latestUsageId(Long projectId) {
+    if (projectId == null || projectId <= 0 || !projects.existsById(projectId)) {
+      throw new NotFoundException("Email project not found");
+    }
+    Long latest = jdbc.queryForObject(
+        "select coalesce(max(id),0) from email_product_usage_entries where project_id = ?",
+        Long.class, projectId);
+    return Long.toString(latest == null ? 0L : latest);
+  }
+
+  @Transactional(readOnly = true)
   public HandoffPage handoffs(Long projectId, long afterId, int limit) {
     if (projectId == null || projectId <= 0 || !projects.existsById(projectId)) {
       throw new NotFoundException("Email project not found");
