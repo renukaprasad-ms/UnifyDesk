@@ -58,3 +58,17 @@ CREATE INDEX idx_mail_remote_terminal
 -- Snapshot rows are at most 20 recipients per held intent.
 CREATE INDEX idx_mail_outbound_ops_recent
   ON email_mail_outbound_recipients(updated_at,state);
+
+-- Partial indexes keep regular operator scans small on a low-cost database.
+CREATE INDEX idx_mail_smtp_unknown
+  ON email_mail_outbound_recipients(updated_at)
+  WHERE state='UNKNOWN';
+CREATE INDEX idx_mail_smtp_handed24h
+  ON email_mail_outbound_recipients(handed_off_at)
+  WHERE state='HANDED_OFF';
+CREATE INDEX idx_mail_quarantine_ops
+  ON email_mail_inbound_jobs(received_at)
+  WHERE status='QUARANTINED';
+CREATE INDEX idx_mail_remote_recent
+  ON email_mail_outbound_recipients(remote_status,remote_status_at)
+  WHERE remote_status IN ('BOUNCED','COMPLAINED');
