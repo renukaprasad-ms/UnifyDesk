@@ -1,8 +1,10 @@
 import apiClient from '../../lib/api/apiClient'
+import type { ManagedUsageReport } from './types'
 import type { ApiResponse } from '../../lib/api/types'
 import type { AssignCompanySubscriptionInput,BillingPlan,CompanyRateOverride,CompanySubscription,CreateBillingPlanInput,CreateCompanyRateOverrideInput,CreatePlanPriceInput,CreateRateCardInput,EntitlementDefinition,GrantSubscriptionInput,PlanAssignment,PlanAssignmentInput,PlanEntitlement,PlanPrice,RateCard,UpdateBillingPlanInput,UpdatePlanPriceInput,UpdateRateCardInput } from './types'
 const unwrap=<T>(response:ApiResponse<T>,fallback:string)=>{if(response.data===undefined||response.data===null)throw new Error(response.error_message??fallback);return response.data}
 export const adminBillingApi={
+ async managedUsage(from:string,to:string){const r=await apiClient.get<ApiResponse<ManagedUsageReport>>('/api/v1/admin/billing/analytics/managed-usage',{params:{from,to}});return unwrap(r.data,'Unable to load managed usage analytics')},
  async plans(){const r=await apiClient.get<ApiResponse<BillingPlan[]>>('/api/v1/admin/billing/plans');return unwrap(r.data,'Unable to load billing plans')},
  async createPlan(input:CreateBillingPlanInput){const r=await apiClient.post<ApiResponse<BillingPlan>>('/api/v1/admin/billing/plans',input);return unwrap(r.data,'Unable to create billing plan')},
  async updatePlan(planId:string,input:UpdateBillingPlanInput){const r=await apiClient.patch<ApiResponse<BillingPlan>>(`/api/v1/admin/billing/plans/${planId}`,input);return unwrap(r.data,'Unable to update billing plan')},
