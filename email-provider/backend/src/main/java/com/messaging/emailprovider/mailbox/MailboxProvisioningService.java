@@ -99,7 +99,7 @@ public class MailboxProvisioningService {
     }
     boolean verified = dns.findTxtRecords(txtName(pending.name())).stream()
         .limit(64)
-        .map(txt -> txt.replace("\\\"", "").trim())
+        .map(txt -> txt.replace("\"", "").trim())
         .filter(txt -> txt.startsWith(DNS_PREFIX) && txt.length() < 120)
         .map(txt -> txt.substring(DNS_PREFIX.length()))
         .anyMatch(token -> ApiKeyCrypto.matches(token, pending.hash()));
