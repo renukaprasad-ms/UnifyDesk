@@ -28,6 +28,9 @@ printf '0123456789abcdef0123456789abcdef' | base64 -w 0 |
 cat > "${TEMP_DIR}/bin/kubectl" <<'EOF'
 #!/usr/bin/env bash
 printf 'kubectl %s\n' "$*" >> "${EMAIL_K8S_TEST_LOG}"
+if [[ "$*" == "config current-context" && -n "${EMAIL_PROVIDER_MOCK_CONTEXT:-}" ]]; then
+  printf '%s\n' "${EMAIL_PROVIDER_MOCK_CONTEXT}"
+fi
 if [[ " $* " == *" create secret generic "* ]]; then
   printf 'apiVersion: v1\nkind: Secret\nmetadata:\n  name: email-provider-env\n'
 fi
@@ -41,6 +44,11 @@ EOF
 cat > "${TEMP_DIR}/bin/k3s" <<'EOF'
 #!/usr/bin/env bash
 printf 'k3s %s\n' "$*" >> "${EMAIL_K8S_TEST_LOG}"
+exit 0
+EOF
+cat > "${TEMP_DIR}/bin/k3d" <<'EOF'
+#!/usr/bin/env bash
+printf 'k3d %s\n' "$*" >> "${EMAIL_K8S_TEST_LOG}"
 exit 0
 EOF
 cat > "${TEMP_DIR}/bin/sudo" <<'EOF'
@@ -91,3 +99,25 @@ fi
 grep -q 'port-forward --address 127.0.0.1 svc/email-provider 18010:8010' "${EMAIL_K8S_TEST_LOG}"
 
 echo 'PASS: shell syntax, environment validation, start/stop scaling, restart safety, alias, local port-forward'
+
+# WSL/Docker Desktop has a k3d cluster instead of a native k3s executable.
+export EMAIL_PROVIDER_MOCK_CONTEXT=k3d-unifydesk-local
+: > "${EMAIL_K8S_TEST_LOG}"
+"${ROOT_DIR}/k8s.sh" start >/dev/null
+grep -q 'k3d image import email-provider:latest -c unifydesk-local' "${EMAIL_K8S_TEST_LOG}"
+grep -q 'kubectl apply -f .*k8s/mailpit.yaml' "${EMAIL_K8S_TEST_LOG}"
+grep -q 'kubectl apply -f .*k8s/app-k3d.yaml' "${EMAIL_K8S_TEST_LOG}"
+if grep -q '^k3s ctr images import' "${EMAIL_K8S_TEST_LOG}"; then
+  echo "ERROR: attempted native k3s import while connected to k3d" >&2
+  exit 1
+fi
+
+: > "${EMAIL_K8S_TEST_LOG}"
+"${ROOT_DIR}/k8s.sh" mailpit 18025 >/dev/null
+grep -q 'port-forward --address 127.0.0.1 svc/email-mailpit 18025:8025' "${EMAIL_K8S_TEST_LOG}"
+: > "${EMAIL_K8S_TEST_LOG}"
+"${ROOT_DIR}/k8s.sh" restart app >/dev/null
+grep -q 'k3d image import email-provider:latest -c unifydesk-local' "${EMAIL_K8S_TEST_LOG}"
+grep -q 'kubectl apply -f .*k8s/app-k3d.yaml' "${EMAIL_K8S_TEST_LOG}"
+unset EMAIL_PROVIDER_MOCK_CONTEXT
+echo 'PASS: local k3d context, image import, isolated app config, Mailpit UI and restarts'
