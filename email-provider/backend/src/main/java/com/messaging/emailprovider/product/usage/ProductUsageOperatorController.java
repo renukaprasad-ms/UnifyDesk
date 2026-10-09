@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import java.time.Instant;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -30,8 +31,10 @@ public class ProductUsageOperatorController {
   public ApiResponse<ProductUsageService.HandoffPage> usageEntries(
       @PathVariable @Positive Long projectId,
       @RequestParam(defaultValue = "0") @Min(0) long afterId,
-      @RequestParam(defaultValue = "100") @Min(1) int limit) {
-    return ApiResponse.success(200, usage.handoffs(projectId, afterId, limit),
+      @RequestParam(defaultValue = "100") @Min(1) int limit,
+      @RequestParam(required = false) Instant from,
+      @RequestParam(required = false) Instant to) {
+    return ApiResponse.success(200, usage.handoffs(projectId, afterId, limit, from, to),
         "Immutable recipient handoffs");
   }
 
