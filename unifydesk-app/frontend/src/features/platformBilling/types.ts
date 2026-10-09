@@ -29,3 +29,8 @@ export type AssignCompanySubscriptionInput = { planId:string; planPriceId?:strin
 export type PlanAssignment = { assignmentId:string; planId:string; companyId:string; assignedAt:string; assignedByUserId:string; effectiveFrom?:string|null; effectiveTo?:string|null; revokedAt?:string|null; revokedByUserId?:string|null; reason?:string|null }
 export type PlanAssignmentInput = { effectiveFrom?:string|null; effectiveTo?:string|null; reason?:string }
 export type GrantSubscriptionInput = { planId:string; planPriceId?:string|null; status?:SubscriptionStatus; startedAt?:string|null; endsAt?:string|null; trialEndsAt?:string|null; currentPeriodEnd?:string|null; paymentPolicy:Extract<PaymentPolicy,'COMPED'|'OFFLINE_CONTRACT'>; reason:string; externalContractReference?:string }
+
+export type ManagedUsageTotals = { emailMessages: number; smsSegments: number; whatsappMessages: number; managedChargesInr: number }
+export type ManagedCompanyUsage = ManagedUsageTotals & { companyId: string }
+export type ManagedDailyUsage = ManagedUsageTotals & { day: string }
+export type ManagedUsageReport = { from: string; to: string; totals: ManagedUsageTotals; companies: ManagedCompanyUsage[]; daily: ManagedDailyUsage[] }
