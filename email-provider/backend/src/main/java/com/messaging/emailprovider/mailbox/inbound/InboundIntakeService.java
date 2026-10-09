@@ -37,7 +37,7 @@ public class InboundIntakeService {
   public record Intake(String id, String state, boolean duplicate) {}
   record Recipient(String localPart, String domain) {}
   private record Target(long id, long organizationId, long quota, long used) {}
-  private record Existing(long id, long size, String digest) {}
+  private record Existing(long id, long size, String digest, String status) {}
 
   public Intake accept(String envelopeTo, String deliveryKey, InputStream message) {
     Recipient recipient = parseRecipient(envelopeTo);
@@ -53,10 +53,16 @@ public class InboundIntakeService {
     // The transaction rechecks authorization, locks the mailbox for per-mailbox
     // idempotency and quota reservation, and inserts the quarantine job.
     // On uncertain commit failures, deliberately retain the object for reconciliation.
-    Intake accepted = transactions.execute(ignored -> persist(recipient, deliveryKey, stored));
-    if (accepted == null) throw new IllegalStateException("Intake transaction returned no result");
-    if (accepted.duplicate()) spool.delete(stored);
-    return accepted;
+    try {
+      Intake accepted = transactions.execute(ignored -> persist(recipient, deliveryKey, stored));
+      if (accepted == null) throw new IllegalStateException("Intake transaction returned no result");
+      if (accepted.duplicate()) spool.delete(stored);
+      return accepted;
+    } catch (BadRequestException | ConflictException | NotFoundException rejected) {
+      // These are definitive application rejections, not ambiguous DB commit failures.
+      spool.delete(stored);
+      throw rejected;
+    }
   }
 
   private Intake persist(Recipient recipient, String deliveryKey, MailSpoolStore.Stored stored) {
@@ -64,16 +70,16 @@ public class InboundIntakeService {
     if (matches.isEmpty()) throw new NotFoundException("Recipient unavailable");
     Target mailbox = matches.get(0);
     List<Existing> seen = jdbc.query("""
-        SELECT id,mime_size_bytes,sha256 FROM email_mail_inbound_jobs
+        SELECT id,mime_size_bytes,sha256,status FROM email_mail_inbound_jobs
         WHERE mailbox_id=? AND delivery_key=?
-        """, (rs, row) -> new Existing(rs.getLong(1),rs.getLong(2),rs.getString(3)),
+        """, (rs, row) -> new Existing(rs.getLong(1),rs.getLong(2),rs.getString(3),rs.getString(4)),
         mailbox.id(),deliveryKey);
     if (!seen.isEmpty()) {
       Existing previous = seen.get(0);
       if (previous.size() != stored.bytes() || !previous.digest().equals(stored.sha256())) {
         throw new ConflictException("Delivery key already used for different MIME");
       }
-      return new Intake(Long.toString(previous.id()), "PENDING_SCAN", true);
+      return new Intake(Long.toString(previous.id()), previous.status(), true);
     }
     if (stored.bytes() > mailbox.quota() - mailbox.used()) {
       throw new ConflictException("Mailbox storage quota reached");
