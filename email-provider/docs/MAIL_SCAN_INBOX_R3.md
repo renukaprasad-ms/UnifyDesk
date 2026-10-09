@@ -51,7 +51,7 @@ ClamAV's `StreamMaxLength` must be at least the configured inbound maximum. Rspa
 
 Requires authenticated email-console **user** sessions, not developer/project API keys.
 
-- `POST /console/v1/mail/mailboxes/{mailboxId}/activate` with JSON `{"userId":123}`: OWNER/ADMIN only; requires verified domain, the exact same organization, active user and enabled security gates. Creates explicit `email_mailbox_access` record.
+- `POST /console/v1/mail/mailboxes/{mailboxId}/activate` with JSON `{"userId":"123"}`: OWNER/ADMIN only; requires verified domain, the exact same organization, active user and enabled security gates. Creates explicit `email_mailbox_access` record. Send Snowflake IDs as strings to avoid JavaScript integer precision loss.
 - `GET /console/v1/mail/mailboxes/{mailboxId}/messages?folder=INBOX&beforeId=...&limit=30`: returns up to 100 message summaries for that authenticated user **only**; SPAM is also supported. Cursor uses descending Snowflake ID.
 - `GET /console/v1/mail/mailboxes/{mailboxId}/messages/{messageId}/raw`: streams the original RFC 5322 bytes as an **attachment** (not inline HTML), with `nosniff` and `no-store`.
 
