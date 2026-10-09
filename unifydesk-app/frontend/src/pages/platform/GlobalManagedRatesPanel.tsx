@@ -23,7 +23,7 @@ export default function GlobalManagedRatesPanel() {
   const current = useMemo(() => {
     const now = Date.now()
     return Object.fromEntries(SKUS.map(({ sku }) => [
-      sku, rates.find((rate) => rate.billingSku === sku && new Date(rate.effectiveFrom).getTime() <= now &&
+      sku, rates.find((rate) => rate.billingSku === sku && rate.enabled && new Date(rate.effectiveFrom).getTime() <= now &&
         (!rate.effectiveTo || new Date(rate.effectiveTo).getTime() > now)),
     ])) as Partial<Record<ManagedBillingSku, GlobalManagedRate>>
   }, [rates])
@@ -109,6 +109,8 @@ export default function GlobalManagedRatesPanel() {
         </div>
         <p className="mt-4 text-xl font-bold tabular-nums">{current[sku] ? priceText(current[sku]!.price) : 'No active rate'} <span className="text-sm font-normal">/{unit}</span></p>
         {current[sku] && <p className="mt-1 text-xs text-slate-500">Effective since {when(current[sku]!.effectiveFrom)}</p>}
+        {!current[sku] && rates.some((rate) => rate.billingSku === sku && !rate.enabled) &&
+          <p className="mt-2 text-xs text-amber-700">Configured but inactive. Requires an explicit Super Admin revision to activate.</p>}
       </div>)}
     </div>}
     {editing && <form className="mt-5 rounded-xl border p-4" onSubmit={prepare}>
@@ -141,8 +143,8 @@ export default function GlobalManagedRatesPanel() {
     <details className="mt-5">
       <summary className="cursor-pointer text-sm font-semibold">Rate history and scheduled revisions ({rates.length})</summary>
       <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[650px] text-left text-xs">
-        <thead><tr className="border-b"><th className="py-2">Channel / SKU</th><th className="px-2">Rate</th><th className="px-2">From</th><th className="px-2">To</th><th className="px-2">Reason</th></tr></thead>
-        <tbody>{rates.map((rate) => <tr className="border-b" key={rate.rateId}><td className="py-3">{rate.billingSku}</td><td className="px-2 tabular-nums">{priceText(rate.price)}</td><td className="px-2">{when(rate.effectiveFrom)}</td><td className="px-2">{when(rate.effectiveTo)}</td><td className="px-2">{rate.reason || '—'}</td></tr>)}</tbody>
+        <thead><tr className="border-b"><th className="py-2">Channel / SKU</th><th className="px-2">Status</th><th className="px-2">Rate</th><th className="px-2">From</th><th className="px-2">To</th><th className="px-2">Reason</th></tr></thead>
+        <tbody>{rates.map((rate) => <tr className="border-b" key={rate.rateId}><td className="py-3">{rate.billingSku}</td><td className="px-2">{rate.enabled ? "Active rule" : "Inactive"}</td><td className="px-2 tabular-nums">{priceText(rate.price)}</td><td className="px-2">{when(rate.effectiveFrom)}</td><td className="px-2">{when(rate.effectiveTo)}</td><td className="px-2">{rate.reason || '—'}</td></tr>)}</tbody>
       </table></div>
     </details>
   </section>
