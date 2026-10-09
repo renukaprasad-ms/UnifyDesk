@@ -5,7 +5,6 @@ import com.messaging.emailprovider.common.exception.ConflictException;
 import com.messaging.emailprovider.common.exception.NotFoundException;
 import com.messaging.emailprovider.common.id.IdGenerator;
 import java.util.List;
-import java.util.Locale;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
