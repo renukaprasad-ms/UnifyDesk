@@ -1,0 +1,32 @@
+# R10: EXAMPLE INBOUND MX CONFIG for a DEDICATED Postfix INSTANCE.
+# Staging only. Do NOT replace existing outbound Postfix main.cf.
+# The public port 25 listener must not be enabled until all QA gates pass.
+myhostname = mx1.mail.example.net
+mydestination = localhost
+inet_interfaces = loopback-only
+inet_protocols = ipv4
+mynetworks = 127.0.0.0/8
+# Never treat other Internet recipients as relaying destinations.
+relay_domains =
+smtpd_relay_restrictions = reject_unauth_destination
+smtpd_recipient_restrictions = reject_non_fqdn_recipient, reject_unlisted_recipient, reject_unauth_destination
+smtpd_reject_unlisted_recipient = yes
+disable_vrfy_command = yes
+# Unknown users are rejected at RCPT before accepting message DATA.
+# Domain and recipient queries each enforce VERIFIED+inbound_enabled+ACTIVE.
+virtual_mailbox_domains = pgsql:/etc/postfix/pgsql-udmail-domains.cf
+virtual_mailbox_maps = pgsql:/etc/postfix/pgsql-udmail-recipients.cf
+virtual_alias_maps =
+virtual_transport = udmail-inbound:
+udmail-inbound_destination_recipient_limit = 1
+# Limit accepted message size AND pipe size; the backend independently caps
+# MIME bytes at 10MiB and stores to a durable PVC before HTTP 202.
+message_size_limit = 10485760
+# No public relay, no MX loopback DNS changes in this sample.
+smtpd_tls_security_level = may
+# Supply real TLS cert/key before enabling public port 25.
+# smtpd_tls_cert_file = /etc/letsencrypt/live/mx1.mail.example.net/fullchain.pem
+# smtpd_tls_key_file = /etc/letsencrypt/live/mx1.mail.example.net/privkey.pem
+smtpd_banner = $myhostname ESMTP
+maximal_queue_lifetime = 5d
+bounce_queue_lifetime = 5d
