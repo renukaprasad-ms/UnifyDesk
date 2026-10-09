@@ -15,7 +15,6 @@ public class MailboxSmtpRelay {
   public MailboxSmtpRelay(
       @Value("${app.mail.outbound.smtp-host:}") String host,
       @Value("${app.mail.outbound.smtp-port:0}") int port,
-      @Value("${app.smtp.host:127.0.0.1}") String bulkHost,
       @Value("${app.smtp.port:25}") int bulkPort,
       @Value("${app.mail.outbound.ehlo-host:}") String ehlo) {
     if (!"127.0.0.1".equals(host) && !"localhost".equals(host) && !"::1".equals(host)) {
@@ -32,6 +31,11 @@ public class MailboxSmtpRelay {
   }
 
   public SmtpDeliveryResult submit(String sender,String recipient,byte[] dkimSignedMime) {
+    if(sender==null || recipient==null
+        || !sender.matches("[a-z0-9][a-z0-9._%+-]{0,63}@[a-z0-9-]+(\\.[a-z0-9-]+)+")
+        || !recipient.matches("[a-z0-9][a-z0-9._%+-]{0,63}@[a-z0-9-]+(\\.[a-z0-9-]+)+")) {
+      throw new IllegalArgumentException("Invalid outgoing SMTP envelope");
+    }
     return smtp.handoff(sender,recipient,dkimSignedMime);
   }
 }
