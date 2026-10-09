@@ -83,6 +83,19 @@ public class MailboxDeliveryFeedbackService {
           WHERE id=? AND organization_id=? AND mailbox_id=? AND intent_id=?
           """,desired,event.smtpCode(),recipient,org,mailbox,intent);
     }
+    if ("COMPLAINED".equals(desired) || "BOUNCED".equals(desired)
+        && event.smtpCode()!=null && event.smtpCode().startsWith("5.")) {
+      jdbc.update("""
+          INSERT INTO email_mail_outbound_suppressions
+            (organization_id,recipient_address,reason,first_recipient_id)
+          VALUES (?,?,?,?)
+          ON CONFLICT (organization_id,recipient_address) DO UPDATE
+            SET reason=CASE WHEN EXCLUDED.reason='COMPLAINT'
+                            THEN 'COMPLAINT'
+                            ELSE email_mail_outbound_suppressions.reason END
+          """,org,current.address(),
+          "COMPLAINED".equals(desired)?"COMPLAINT":"HARD_BOUNCE",recipient);
+    }
     return new Result(Long.toString(recipient),desired,false,changed);
   }
 
