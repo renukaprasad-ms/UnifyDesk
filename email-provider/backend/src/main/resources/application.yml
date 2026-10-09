@@ -57,6 +57,36 @@ server:
   shutdown: graceful
 
 app:
+  mail:
+    bounce:
+      domain: ${EMAIL_MAIL_BOUNCE_DOMAIN:}
+      hmac-secret: ${EMAIL_MAIL_BOUNCE_HMAC_SECRET:}
+    feedback:
+      enabled: ${EMAIL_MAIL_FEEDBACK_ENABLED:false}
+      token: ${EMAIL_MAIL_FEEDBACK_TOKEN:}
+    ops:
+      enabled: ${EMAIL_MAIL_OPS_ENABLED:false}
+    outbound:
+      enabled: ${EMAIL_MAIL_OUTBOUND_ENABLED:false}
+      interval-ms: ${EMAIL_MAIL_OUTBOUND_INTERVAL_MS:5000}
+      smtp-host: ${EMAIL_MAIL_OUTBOUND_SMTP_HOST:}
+      smtp-port: ${EMAIL_MAIL_OUTBOUND_SMTP_PORT:0}
+      ehlo-host: ${EMAIL_MAIL_OUTBOUND_EHLO_HOST:}
+    compose:
+      enabled: ${EMAIL_MAIL_COMPOSE_ENABLED:false}
+      submission-enabled: ${EMAIL_MAIL_SUBMISSION_ENABLED:false}
+    activation:
+      enabled: ${EMAIL_MAIL_ACTIVATION_ENABLED:false}
+    scanner:
+      enabled: ${EMAIL_MAIL_SCANNER_ENABLED:false}
+      clamd-host: ${EMAIL_MAIL_CLAMD_HOST:127.0.0.1}
+      clamd-port: ${EMAIL_MAIL_CLAMD_PORT:3310}
+      rspamd-url: ${EMAIL_MAIL_RSPAMD_URL:http://127.0.0.1:11333/checkv2}
+      interval-ms: ${EMAIL_MAIL_SCAN_INTERVAL_MS:5000}
+    inbound:
+      enabled: ${EMAIL_MAIL_INBOUND_ENABLED:false}
+      spool-path: ${EMAIL_MAIL_INBOUND_SPOOL_PATH:}
+      max-bytes: ${EMAIL_MAIL_INBOUND_MAX_BYTES:10485760}
   product:
     unsubscribe:
       signing-key: ${EMAIL_PROVIDER_UNSUBSCRIBE_SIGNING_KEY:}

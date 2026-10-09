@@ -1,14 +1,17 @@
 import React,{useEffect,useState,useCallback} from 'react'
-import { Activity, ArrowRight, ChevronDown, FolderKanban, Globe2, KeyRound, LayoutDashboard, LogOut, Mail, Menu, RefreshCw, Settings2, ShieldCheck, Webhook, X } from 'lucide-react'
+import { Activity, ArrowRight, ChevronDown, FolderKanban, Globe2, Inbox, KeyRound, LayoutDashboard, LogOut, Mail, Menu, RefreshCw, Settings2, ShieldCheck, Webhook, X } from 'lucide-react'
 import {clearSession,readSession,request} from './api'
 import Login from './Login'
 import {Button} from './components'
 import {Overview,Projects,Domains,Keys,Webhooks,Usage,Account} from './screens'
+import MailConsole from './mail'
 
+const MAIL_UI_ENABLED = import.meta.env.VITE_MAIL_UI_ENABLED === 'true'
 const NAV=[
   {id:'overview',text:'Overview',icon:LayoutDashboard},{id:'projects',text:'Projects',icon:FolderKanban},
   {id:'domains',text:'Sending domains',icon:Globe2},{id:'keys',text:'API keys',icon:KeyRound},
   {id:'webhooks',text:'Webhooks',icon:Webhook},{id:'usage',text:'Usage & billing',icon:Activity},
+  ...(MAIL_UI_ENABLED ? [{id:'mail',text:'Hosted mail',icon:Inbox}] : []),
   {id:'account',text:'Account',icon:Settings2}
 ]
 const EMPTY={domains:[],keys:[],webhooks:[],usage:null}
@@ -79,8 +82,9 @@ function Dashboard({session,onLogout}) {
     <div className="main-column">
       <header className="topbar"><div className="breadcrumbs"><button className="menu-trigger" onClick={()=>setMenu(true)} aria-label="Open navigation"><Menu size={22}/></button><span>Workspace</span><span>/</span><strong>{activeLabel}</strong></div><div className="top-actions"><span className="connection"><i/> Console connected</span><button className="icon-button" onClick={()=>{refreshProjects().catch(e=>notify(e.message));refresh()}} aria-label="Refresh" title="Refresh data"><RefreshCw size={18}/></button><button className="avatar header-avatar" aria-label="Account" onClick={()=>go('account')}>{session.email?.[0]?.toUpperCase()||'U'}</button></div></header>
       <main className="content">
-        <div className="page-top"><div><span className="eyebrow">UNIFYDESK EMAIL</span><h1>{tab==='overview'?'Good to see you.':activeLabel}</h1><p>{tab==='overview'?"Here's what's happening across your email workspace.":'Your tools to manage and monitor independent email delivery.'}</p></div><div className="project-picker"><label htmlFor="active-project">ACTIVE PROJECT</label><div><FolderKanban size={18}/><select id="active-project" value={projectId} onChange={e=>setProjectId(e.target.value)}>{projects.length===0?<option value="">No projects yet</option>:projects.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select><ChevronDown size={15}/></div></div></div>
+        <div className="page-top"><div><span className="eyebrow">UNIFYDESK EMAIL</span><h1>{tab==='overview'?'Good to see you.':activeLabel}</h1><p>{tab==='overview'?"Here's what's happening across your email workspace.":tab==='mail'?'Host and read business email with explicit security controls.':'Your tools to manage and monitor independent email delivery.'}</p></div>{tab!=='mail'&&<div className="project-picker"><label htmlFor="active-project">ACTIVE PROJECT</label><div><FolderKanban size={18}/><select id="active-project" value={projectId} onChange={e=>setProjectId(e.target.value)}>{projects.length===0?<option value="">No projects yet</option>:projects.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select><ChevronDown size={15}/></div></div>}</div>
         {loading?<div className="loading"><RefreshCw className="spin" size={24}/> Loading your workspace…</div>:<>
+          {tab==='mail'&&MAIL_UI_ENABLED&&<MailConsole session={session}/>}
           {tab==='overview'&&<Overview projects={projects} project={selected} data={details} go={go}/>}
           {tab==='projects'&&<Projects projects={projects} create={createProject} busy={busy}/>}
           {tab==='domains'&&<Domains key={projectId} project={selected} items={details.domains} busy={busy} notify={notify} create={body=>mutate(path+'/domains','POST',body,'Domain added')} verify={id=>mutate(path+'/domains/'+id+'/verify','POST',undefined,'DNS verification completed')}/>}
