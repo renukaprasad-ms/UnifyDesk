@@ -148,13 +148,14 @@ public class MailboxOutboundWorker {
       return;
     }
     Context context=matches.get(0);
+    // Prepare/sign before SMTP I/O: preflight failures may safely be retried.
+    byte[] signed;
     try {
       DkimKey key=dkimKeys.getActiveForDomain(context.sendingDomainId());
       if(key.getVerifiedAt()==null) {
         complete(job,"DEFERRED",null,"MAILBOX_DKIM_NOT_VERIFIED");
         return;
       }
-      // Never admit unbounded mail traffic when Redis is unavailable.
       if(!limiter.permit(job.organizationId(),job.mailboxId())) {
         complete(job,"DEFERRED",null,"MAILBOX_RATE_LIMITED_OR_UNAVAILABLE");
         return;
@@ -163,21 +164,26 @@ public class MailboxOutboundWorker {
           context.domain(),context.sender(),addresses(context.to()),
           addresses(context.cc()),context.subject(),context.body(),
           context.acceptedAt(),context.replyMessageId()));
-      byte[] signed=signer.sign(unsigned,context.domain(),key.getSelector(),
+      signed=signer.sign(unsigned,context.domain(),key.getSelector(),
           dkimKeys.loadPrivateKey(context.sendingDomainId()));
-      // If anything throws after SMTP begins, classify as UNKNOWN, never retry.
-      SmtpDeliveryResult result;
-      try {
-        result=relay.submit(context.sender(),job.recipient(),signed);
-      } catch (Exception uncertain) {
-        complete(job,"UNKNOWN",null,"SMTP_HANDOFF_RESULT_UNCERTAIN");
-        return;
-      }
-      complete(job,mapOutcome(result),result==null?null:result.statusCode(),
-          "SMTP_HANDOFF_"+(result==null?"UNKNOWN":result.outcome().name()));
     } catch(Exception preflightFailed) {
+      // If recording this fails, the lease expires into UNKNOWN; no send occurred.
       complete(job,"DEFERRED",null,"MAILBOX_OUTBOUND_PREFLIGHT_FAILED");
+      return;
     }
+
+    // SMTP may accept DATA even if the client subsequently fails. Never wrap
+    // outcome persistence in a catch that changes HANDED_OFF/UNKNOWN into DEFERRED.
+    SmtpDeliveryResult result;
+    try {
+      result=relay.submit(context.sender(),job.recipient(),signed);
+    } catch(Exception uncertain) {
+      result=new SmtpDeliveryResult(SmtpDeliveryOutcome.UNKNOWN,null,
+          "SMTP_HANDOFF_RESULT_UNCERTAIN");
+    }
+    complete(job,mapOutcome(result),result==null?null:result.statusCode(),
+        "SMTP_HANDOFF_"+(result==null || result.outcome()==null
+            ?"UNKNOWN":result.outcome().name()));
   }
 
   static String mapOutcome(SmtpDeliveryResult result) {
