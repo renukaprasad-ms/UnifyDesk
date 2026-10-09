@@ -43,6 +43,14 @@ public record SendNotificationRequest(
         htmlBody);
   }
 
+  public static SendNotificationRequest billingEmail(String recipient, String subject, String body, boolean html) {
+    return email(recipient, subject, body, html).withSenderPurpose("BILLING");
+  }
+
+  public static SendNotificationRequest securityEmail(String recipient, String subject, String body, boolean html) {
+    return email(recipient, subject, body, html).withSenderPurpose("SECURITY");
+  }
+
   public SendNotificationRequest withSenderPurpose(String purpose) {
     return new SendNotificationRequest(channel, recipient, subject, body, html, textBody, htmlBody, purpose);
   }
