@@ -36,6 +36,7 @@ import { PageSkeleton } from '../../components/ui/Skeleton'
 import BillingUsageOverview from './BillingUsageOverview'
 import GlobalManagedRatesPanel from './GlobalManagedRatesPanel'
 import BillingFinancialOverview from './BillingFinancialOverview'
+import BillingChannelTrafficOverview from './BillingChannelTrafficOverview'
 
 const providersByChannel: Record<ChannelType, ProviderType[]> = {
   EMAIL: ['AMAZON_SES', 'SENDGRID', 'AZURE_EMAIL', 'MSG91_EMAIL', 'GMAIL', 'MICROSOFT', 'IMAP_SMTP', 'SMTP'],
@@ -275,6 +276,7 @@ export default function PlatformBilling() {
           </div>
         )}
 
+        <BillingChannelTrafficOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
         <BillingFinancialOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
         <GlobalManagedRatesPanel />
         <BillingUsageOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
