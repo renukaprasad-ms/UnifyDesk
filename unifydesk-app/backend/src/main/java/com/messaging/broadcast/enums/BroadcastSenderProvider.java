@@ -41,7 +41,8 @@ public enum BroadcastSenderProvider {
   }
 
   public boolean isBulkProvider() {
-    return this == AMAZON_SES
+    return this == UNIFYDESK_EMAIL
+        || this == AMAZON_SES
         || this == AZURE_EMAIL
         || this == SENDGRID
         || this == MSG91_EMAIL;
