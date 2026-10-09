@@ -149,6 +149,8 @@ public class EmailDeliveryWorkerService {
 
       if (result.outcome() == SmtpDeliveryOutcome.HANDED_OFF) {
         recipientState.handedOff(recipient, result, startedAt);
+      } else if (result.outcome() == SmtpDeliveryOutcome.UNKNOWN) {
+        recipientState.unknown(recipient, result, startedAt);
       } else if (result.outcome() == SmtpDeliveryOutcome.DEFERRED) {
         recipientState.deferred(
             recipient,

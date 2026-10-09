@@ -52,6 +52,18 @@ public class RecipientDeliveryStateService {
   }
 
   @Transactional
+  public void unknown(
+      EmailRecipient recipient, SmtpDeliveryResult result, Instant startedAt) {
+    EmailRecipient current = require(recipient.getId());
+    current.setStatus(EmailRecipientStatus.UNKNOWN);
+    current.setSmtpStatusCode(result.statusCode());
+    current.setSmtpResponse(truncate(result.response()));
+    current.setNextAttemptAt(null);
+    recipientRepository.save(current);
+    audit(current, DeliveryAttemptOutcome.UNKNOWN, result, startedAt);
+  }
+
+  @Transactional
   public void deferred(
       EmailRecipient recipient,
       SmtpDeliveryResult result,

@@ -72,8 +72,8 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
       value =
           """
           UPDATE email_recipients
-          SET status = 'DEFERRED',
-              next_attempt_at = :now,
+          SET status = 'UNKNOWN',
+              next_attempt_at = NULL,
               updated_at = :now
           WHERE status = 'PROCESSING'
             AND last_attempt_at < :staleBefore
