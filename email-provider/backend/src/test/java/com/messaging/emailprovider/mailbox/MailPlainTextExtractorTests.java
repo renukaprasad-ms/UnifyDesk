@@ -59,6 +59,17 @@ class MailPlainTextExtractorTests {
   }
 
   @Test
+  void ignoresPlainTextNestedInsideAnAttachedMultipart() {
+    var result = parse("MIME-Version: 1.0\r\n"
+        + "Content-Type: multipart/mixed; boundary=\"outer\"\r\n\r\n"
+        + "--outer\r\nContent-Type: multipart/alternative; boundary=\"inner\"\r\n"
+        + "Content-Disposition: attachment; filename=\"attached-message.eml\"\r\n\r\n"
+        + "--inner\r\nContent-Type: text/plain\r\n\r\n"
+        + "PRIVATE_ATTACHMENT\r\n--inner--\r\n--outer--\r\n");
+    assertFalse(result.available());
+  }
+
+  @Test
   void capsDecodedTextInMemory() {
     var result = parse("Content-Type: text/plain; charset=utf-8\r\n\r\n"
         + "x".repeat(MailPlainTextExtractor.MAX_CHARS + 100));
