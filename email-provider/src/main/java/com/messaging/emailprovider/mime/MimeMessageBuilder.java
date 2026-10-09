@@ -37,7 +37,10 @@ public class MimeMessageBuilder {
             .map(EmailRecipient::getRecipientAddress)
             .toList();
 
-    appendAddressHeader(headers, "To", to, true);
+    // Bulk BCC-only sending personalizes the visible recipient without exposing a list.
+    appendAddressHeader(headers, "To",
+        to.isEmpty() && target.getRecipientType() == EmailRecipientType.BCC
+            ? List.of(target.getRecipientAddress()) : to, true);
     if (!cc.isEmpty()) {
       appendAddressHeader(headers, "Cc", cc, false);
     }
@@ -53,6 +56,8 @@ public class MimeMessageBuilder {
     headers
         .append("Message-ID: <")
         .append(message.getId())
+        .append(".")
+        .append(target.getId())
         .append("@")
         .append(domain)
         .append(">\r\n");
