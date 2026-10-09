@@ -95,6 +95,7 @@ export default function PlatformBilling() {
   const [overrideFrom, setOverrideFrom] = useState('')
   const [overrideTo, setOverrideTo] = useState('')
   const [showOverrideForm, setShowOverrideForm] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overview' | 'rates' | 'companies' | 'reconciliation'>('overview')
 
   const privatePlans = useMemo(
     () => plans.filter((plan) => plan.status === 'PUBLISHED' && plan.visibility === 'PRIVATE'),
@@ -153,8 +154,8 @@ export default function PlatformBilling() {
   }
 
   useEffect(() => {
-    if (companyId && superAdmin) void loadCompany(companyId)
-  }, [companyId, superAdmin, privatePlans.length])
+    if (companyId && superAdmin && activeTab === 'companies') void loadCompany(companyId)
+  }, [companyId, superAdmin, privatePlans.length, activeTab])
 
   const reset = () => {
     setError('')
@@ -265,11 +266,26 @@ export default function PlatformBilling() {
     <section className="p-4 sm:p-6 lg:p-8">
       <div className="w-full">
         <header className="flex flex-col gap-4 lg:flex-row lg:justify-between">
-          <div><p className="eyebrow">Admin billing</p><h1 className="mt-2 text-2xl font-bold">Company billing operations</h1></div>
-          <select className="form-input max-w-sm" value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
+          <div><p className="eyebrow">Platform Finance</p><h1 className="mt-2 text-2xl font-bold">Billing &amp; Revenue</h1><p className="mt-1 text-sm text-slate-500">Subscription and managed-channel activity, customer charges and cash collection.</p></div>
+          {activeTab === 'companies' && <select aria-label="Company billing operations" className="form-input max-w-sm" value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
             {companies.map((company) => <option key={company.companyId} value={company.companyId}>{company.name}</option>)}
-          </select>
+          </select>}
         </header>
+
+        <nav aria-label="Billing sections" className="mt-6 flex flex-wrap gap-2 border-b pb-3">
+          {([
+            ['overview', 'Dashboard'],
+            ['rates', 'Managed rates'],
+            ['companies', 'Company billing'],
+            ['reconciliation', 'Reconciliation'],
+          ] as const).map(([tab, label]) => (
+            <button key={tab} type="button" onClick={() => setActiveTab(tab)}
+              aria-current={activeTab === tab ? 'page' : undefined}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === tab ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+              {label}
+            </button>
+          ))}
+        </nav>
 
         {(error || notice) && (
           <div className={`mt-5 rounded-xl border p-4 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
@@ -277,12 +293,17 @@ export default function PlatformBilling() {
           </div>
         )}
 
-        <BillingChannelTrafficOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
-        <BillingFinancialOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
-        <GlobalManagedRatesPanel />
-        <BillingUsageReconciliationOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
-        <BillingUsageOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
+        {activeTab === 'overview' && <>
+          <BillingChannelTrafficOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
+          <BillingFinancialOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
+          <BillingUsageOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
+        </>}
 
+        {activeTab === 'rates' && <GlobalManagedRatesPanel />}
+        {activeTab === 'reconciliation' && <BillingUsageReconciliationOverview
+          companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />}
+
+        {activeTab === 'companies' && <>
         <div className="mt-6 grid gap-5 xl:grid-cols-3">
           <article className="panel p-5 xl:col-span-2">
             <div className="flex gap-3"><FiCreditCard /><div><h2 className="font-bold">Current subscription</h2><p className="text-xs text-slate-500">Backend effective subscription.</p></div><button className="secondary-button ml-auto" onClick={() => void loadCompany(companyId)}><FiRefreshCw /></button></div>
@@ -354,6 +375,7 @@ export default function PlatformBilling() {
             ))}
           </div>
         </div>
+        </>}
       </div>
     </section>
   )
