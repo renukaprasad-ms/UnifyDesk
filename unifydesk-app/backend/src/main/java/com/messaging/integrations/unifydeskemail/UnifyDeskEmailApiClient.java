@@ -41,7 +41,7 @@ public class UnifyDeskEmailApiClient {
 
   public record BatchRequest(
       Long sendingDomainId, String from, String replyTo, String subject,
-      String text, String html, List<String> recipients) {}
+      String text, String html, List<String> recipients, String consentReference) {}
 
   public record BatchSubmission(String batchId, int totalRecipients, int chunksCount) {}
 

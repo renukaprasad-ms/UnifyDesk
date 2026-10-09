@@ -58,6 +58,13 @@ server:
 
 app:
   product:
+    unsubscribe:
+      signing-key: ${EMAIL_PROVIDER_UNSUBSCRIBE_SIGNING_KEY:}
+      public-base-url: ${EMAIL_PROVIDER_PUBLIC_BASE_URL:https://email.unifydesk.in}
+    webhooks:
+      enabled: ${EMAIL_PROVIDER_PRODUCT_WEBHOOKS_ENABLED:false}
+      allowed-hosts: ${EMAIL_PROVIDER_WEBHOOK_ALLOWED_HOSTS:}
+      dispatch-interval-ms: ${EMAIL_PROVIDER_WEBHOOK_INTERVAL_MS:10000}
     quotas:
       project-daily: ${EMAIL_PROVIDER_PRODUCT_PROJECT_DAILY_QUOTA:1000}
       platform-daily: ${EMAIL_PROVIDER_PRODUCT_PLATFORM_DAILY_QUOTA:10000}

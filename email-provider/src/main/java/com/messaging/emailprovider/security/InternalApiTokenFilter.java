@@ -26,7 +26,8 @@ public class InternalApiTokenFilter extends OncePerRequestFilter {
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
     String path = request.getRequestURI();
-    return path.startsWith("/v1/")
+    return path.startsWith("/console/v1/")
+        || path.startsWith("/v1/")
         || path.equals("/api/v1/health")
         || path.equals("/actuator/health")
         || path.startsWith("/actuator/health/")

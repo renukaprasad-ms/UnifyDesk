@@ -30,6 +30,7 @@ public class FeedbackService {
   private final LifecycleEventEncoder eventEncoder;
   private final com.messaging.emailprovider.delivery.EmailMessageStateService messageStateService;
   private final String lifecycleTopic;
+  private final com.messaging.emailprovider.product.webhook.WebhookService webhooks;
 
   public FeedbackService(
       EmailRecipientRepository recipientRepository,
@@ -40,7 +41,8 @@ public class FeedbackService {
       EmailOutboxService outboxService,
       LifecycleEventEncoder eventEncoder,
       com.messaging.emailprovider.delivery.EmailMessageStateService messageStateService,
-      @Value("${app.kafka.topics.lifecycle:email.lifecycle.events}") String lifecycleTopic) {
+      @Value("${app.kafka.topics.lifecycle:email.lifecycle.events}") String lifecycleTopic,
+      com.messaging.emailprovider.product.webhook.WebhookService webhooks) {
     this.recipientRepository = recipientRepository;
     this.messageRepository = messageRepository;
     this.eventRepository = eventRepository;
@@ -50,6 +52,7 @@ public class FeedbackService {
     this.eventEncoder = eventEncoder;
     this.messageStateService = messageStateService;
     this.lifecycleTopic = lifecycleTopic;
+    this.webhooks = webhooks;
   }
 
   @Transactional
@@ -86,7 +89,8 @@ public class FeedbackService {
     event.setDiagnostic(truncate(request.diagnostic(), 2048));
     event.setRawPayload(truncate(rawPayload, 16384));
     event.setOccurredAt(occurredAt);
-    eventRepository.save(event);
+    event = eventRepository.save(event);
+    webhooks.enqueue(event, message, recipient);
 
     if (stateChanged) {
       reputationService.recordEvent(

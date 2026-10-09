@@ -19,14 +19,17 @@ public class EmailProductKeyFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return !request.getRequestURI().startsWith("/v1/");
+    return request.getRequestURI().startsWith("/v1/unsubscribe/")
+        || !request.getRequestURI().startsWith("/v1/");
   }
 
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
       FilterChain chain) throws ServletException, IOException {
     String path = request.getRequestURI();
-    ApiKeyScope scope = path.startsWith("/v1/domains")
+    ApiKeyScope scope = path.startsWith("/v1/webhook-endpoints")
+        ? ApiKeyScope.WEBHOOKS
+        : path.startsWith("/v1/domains")
         ? ApiKeyScope.DOMAINS
         : path.startsWith("/v1/validations")
             ? ApiKeyScope.VALIDATE

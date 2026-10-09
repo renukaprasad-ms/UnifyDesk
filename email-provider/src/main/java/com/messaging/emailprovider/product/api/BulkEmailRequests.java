@@ -23,5 +23,6 @@ public final class BulkEmailRequests {
       String text,
       String html,
       @NotEmpty @Size(max = 1000)
-          List<@NotBlank @Email @Size(max = 320) String> recipients) {}
+          List<@NotBlank @Email @Size(max = 320) String> recipients,
+      @NotBlank @Size(max = 128) String consentReference) {}
 }

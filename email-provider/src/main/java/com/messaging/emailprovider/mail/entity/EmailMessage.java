@@ -58,6 +58,12 @@ public class EmailMessage extends BaseEntity {
   @Column(name = "request_hash", length = 64)
   private String requestHash;
 
+  @Column(name = "marketing", nullable = false)
+  private boolean marketing;
+
+  @Column(name = "consent_reference", length = 128)
+  private String consentReference;
+
   @Column(name = "accepted_at")
   private Instant acceptedAt;
 }

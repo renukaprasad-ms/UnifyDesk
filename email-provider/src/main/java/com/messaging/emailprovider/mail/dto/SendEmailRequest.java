@@ -16,4 +16,13 @@ public record SendEmailRequest(
     List<@Email @Size(max = 320) String> bcc,
     @NotBlank @Size(max = 998) String subject,
     String text,
-    String html) {}
+    String html,
+    boolean marketing,
+    @Size(max = 128) String consentReference) {
+  public SendEmailRequest(Long sendingDomainId, String from, String replyTo,
+      List<String> to, List<String> cc, List<String> bcc, String subject,
+      String text, String html) {
+    this(sendingDomainId, from, replyTo, to, cc, bcc, subject, text, html,
+        false, null);
+  }
+}

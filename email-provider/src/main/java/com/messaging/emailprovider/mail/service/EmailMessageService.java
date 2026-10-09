@@ -44,6 +44,7 @@ public class EmailMessageService {
   private final String deliveryTopic;
   private final int maxRecipients;
   private final int maxBodyBytes;
+  private final com.messaging.emailprovider.product.unsubscribe.UnsubscribeTokenService unsubscribe;
 
   public EmailMessageService(
       EmailMessageRepository messageRepository,
@@ -55,7 +56,8 @@ public class EmailMessageService {
       ReputationService reputationService,
       @Value("${app.kafka.topics.delivery-requested:email.delivery.requested}") String deliveryTopic,
       @Value("${app.delivery.max-recipients-per-message:100}") int maxRecipients,
-      @Value("${app.delivery.max-body-bytes:5242880}") int maxBodyBytes) {
+      @Value("${app.delivery.max-body-bytes:5242880}") int maxBodyBytes,
+      com.messaging.emailprovider.product.unsubscribe.UnsubscribeTokenService unsubscribe) {
     this.messageRepository = messageRepository;
     this.recipientRepository = recipientRepository;
     this.domainRepository = domainRepository;
@@ -66,6 +68,7 @@ public class EmailMessageService {
     this.deliveryTopic = deliveryTopic;
     this.maxRecipients = maxRecipients;
     this.maxBodyBytes = maxBodyBytes;
+    this.unsubscribe = unsubscribe;
   }
 
   @Transactional
@@ -112,6 +115,12 @@ public class EmailMessageService {
     }
 
     validateBody(request);
+    if (request.marketing()) {
+      unsubscribe.requireConfigured();
+      if (request.consentReference() == null || request.consentReference().isBlank()) {
+        throw new BadRequestException("Marketing email requires a consent reference");
+      }
+    }
     Map<String, EmailRecipientType> recipients = recipients(request);
     if (recipients.isEmpty()) {
       throw new BadRequestException("At least one recipient is required");
@@ -129,6 +138,8 @@ public class EmailMessageService {
             ? null
             : normalizeEmail(request.replyTo()));
     message.setSubject(request.subject().trim());
+    message.setMarketing(request.marketing());
+    message.setConsentReference(request.marketing() ? request.consentReference().trim() : null);
     message.setTextBody(blankToNull(request.text()));
     message.setHtmlBody(blankToNull(request.html()));
     message.setIdempotencyKey(normalizedKey);

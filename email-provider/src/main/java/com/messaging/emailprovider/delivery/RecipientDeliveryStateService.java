@@ -16,14 +16,17 @@ public class RecipientDeliveryStateService {
   private final EmailRecipientRepository recipientRepository;
   private final EmailDeliveryAttemptRepository attemptRepository;
   private final PostfixQueueIdExtractor queueIdExtractor;
+  private final com.messaging.emailprovider.product.usage.ProductUsageService usage;
 
   public RecipientDeliveryStateService(
       EmailRecipientRepository recipientRepository,
       EmailDeliveryAttemptRepository attemptRepository,
-      PostfixQueueIdExtractor queueIdExtractor) {
+      PostfixQueueIdExtractor queueIdExtractor,
+      com.messaging.emailprovider.product.usage.ProductUsageService usage) {
     this.recipientRepository = recipientRepository;
     this.attemptRepository = attemptRepository;
     this.queueIdExtractor = queueIdExtractor;
+    this.usage = usage;
   }
 
   @Transactional
@@ -49,6 +52,7 @@ public class RecipientDeliveryStateService {
     current.setNextAttemptAt(null);
     recipientRepository.save(current);
     audit(current, DeliveryAttemptOutcome.HANDED_OFF, result, startedAt);
+    usage.recordHandoff(current);
   }
 
   @Transactional
