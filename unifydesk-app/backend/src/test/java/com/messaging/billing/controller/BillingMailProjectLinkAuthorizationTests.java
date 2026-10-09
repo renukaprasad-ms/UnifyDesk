@@ -24,12 +24,15 @@ class BillingMailProjectLinkAuthorizationTests {
     assertThrows(ForbiddenException.class, () -> controller.sync("123"));
     assertThrows(ForbiddenException.class, () -> controller.pause("123"));
     assertThrows(ForbiddenException.class, () -> controller.resume("123"));
+    assertThrows(ForbiddenException.class, () -> controller.replay("123",
+        new BillingMailProjectLinkController.MailReplayRequest(
+            Instant.parse("2026-10-09T00:00:00Z"), "0")));
     assertThrows(ForbiddenException.class, () -> controller.usage(
         Instant.parse("2026-10-01T00:00:00Z"), Instant.parse("2026-10-02T00:00:00Z")));
     assertThrows(ForbiddenException.class, () -> controller.link(
         new BillingMailProjectLinkController.CreateLinkRequest(
             "1", "123", "approved-onboarding-case-123", true)));
     verifyNoInteractions(bridge);
-    verify(authorization, times(6)).requireSuperAdmin(77L);
+    verify(authorization, times(7)).requireSuperAdmin(77L);
   }
 }
