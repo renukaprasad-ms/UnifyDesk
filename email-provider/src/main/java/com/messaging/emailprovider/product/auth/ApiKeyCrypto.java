@@ -17,6 +17,13 @@ public final class ApiKeyCrypto {
     return Base64.getUrlEncoder().withoutPadding().encodeToString(buf);
   }
 
+  /** Hex prefix cannot contain the underscore delimiter used in API key tokens. */
+  public static String prefix() {
+    byte[] bytes = new byte[6];
+    RANDOM.nextBytes(bytes);
+    return HexFormat.of().formatHex(bytes);
+  }
+
   public static String hash(String token) {
     try {
       byte[] digest = MessageDigest.getInstance("SHA-256")

@@ -64,7 +64,7 @@ public class EmailProductAdminService {
     if (req.scopes() == null || req.scopes().isEmpty()) {
       throw new BadRequestException("At least one API key scope is required");
     }
-    String prefix = ApiKeyCrypto.random(9);
+    String prefix = ApiKeyCrypto.prefix();
     String secret = "ude_live_" + prefix + "_" + ApiKeyCrypto.random(32);
     EmailApiKey key = new EmailApiKey();
     key.setProjectId(projectId);
