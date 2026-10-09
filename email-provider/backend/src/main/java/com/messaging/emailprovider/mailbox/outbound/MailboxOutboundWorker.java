@@ -157,6 +157,15 @@ public class MailboxOutboundWorker {
       return;
     }
     Context context=matches.get(0);
+    Boolean suppressed=jdbc.queryForObject("""
+        SELECT EXISTS(SELECT 1 FROM email_mail_outbound_suppressions
+          WHERE organization_id=? AND recipient_address=?)
+        """,Boolean.class,job.organizationId(),job.recipient());
+    if(Boolean.TRUE.equals(suppressed)) {
+      complete(job,"FAILED",null,"RECIPIENT_SUPPRESSED_BY_BOUNCE_OR_COMPLAINT");
+      return;
+    }
+
     // Prepare/sign before SMTP I/O: preflight failures may safely be retried.
     byte[] signed;
     try {
