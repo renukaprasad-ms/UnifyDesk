@@ -24,6 +24,7 @@ Previously sent Mail messages are not automatically re-rated or back-billed.
   immutable handoff usage ID, string representation.
 - `GET /internal/v1/email-product/projects/{projectId}/billing/usage-entries?afterId=0&limit=100`:
   project-scoped immutable handoff page, entries ordered by source usage ID, at most 500 per page.
+  Optional `from` and `to` ISO-8601 timestamps constrain bounded lookback/replay to at most 31 days.
   Each entry has string-form `usageId`, `recipientId`, `messageId`, RFC3339 `occurredAt`,
   and `productPriceMicroInr`. The last value is a Mail product-side snapshot, **NOT**
   a UnifyDesk platform invoice or collected payment.
@@ -37,6 +38,8 @@ The API is protected by existing `InternalApiTokenFilter`; do not route it publi
   `{"companyId":"...","mailProjectId":"...","ownershipProof":"approved ticket ...","ownershipVerified":true}`
 - `GET /api/v1/admin/billing/mail-project-links/usage?from=...&to=...`
 - `POST /api/v1/admin/billing/mail-project-links/{projectId}/sync`
+- `POST /api/v1/admin/billing/mail-project-links/{projectId}/replay`: JSON
+  `{"from":"2026-10-09T00:00:00Z","afterId":"0"}` for a bounded recent source replay.
 - `POST /api/v1/admin/billing/mail-project-links/{projectId}/pause`
 - `POST /api/v1/admin/billing/mail-project-links/{projectId}/resume`
 
@@ -51,6 +54,8 @@ It creates **no** `usage_events` or invoice allocations.
 - New Mail handoffs are imported idempotently into `billing_mail_usage_imports` with unique
   `(mail_project_id,remote_usage_id)` and unique `(mail_project_id,remote_recipient_id)`.
 - Imports preserve the original source's micro-INR price for independent reconciliation.
+  Duplicate handoffs are accepted only if all imported immutable source fields match; conflicting
+  event contents fail closed rather than being silently overwritten.
 - Analytics count linked Mail handoffs as outbound email traffic, separate from central PAYG
   charge amounts. Do not add Mail product estimates to platform collections/revenue.
 - Existing managed SES email charges still use **INR 0.012 per accepted message** as a
@@ -90,10 +95,11 @@ fetch does not stop others.
 1. **Not yet run on real PostgreSQL or compiled in CI:** current GitHub Actions jobs fail before
    checkout/runner steps; review and execute tests before merge.
 2. Link ownership is operator-attested, not cryptographically proven by the Mail server.
-3. Initial high-water cursor creates **no historical backfill**. Source ID ordering is suitable
-   for one-instance ingestion, but concurrently committed lower-ID records may be missed by
-   forward-only cursors; implement bounded lookback reconciliation before relying on this
-   as complete externally audited traffic accounting.
+3. Initial high-water cursor creates **no historical backfill**. Source ID ordering can miss
+   late-committing lower-ID records in forward-only sync; the Super Admin **Recheck 24h** action
+   now performs a bounded `occurred_at` source replay without modifying the forward cursor.
+   Repeat until `hasMore=false`. This is a manual repair path; automatic, full-coverage
+   reconciliation under high concurrency still requires verification and scheduling.
 4. The Mail service's separate project rate/collection truth must be reconciled before adding
    an optional **central billable** mode. This phase must not charge users twice.
 5. The operational dashboard combines several message stores; investigate overlap across
