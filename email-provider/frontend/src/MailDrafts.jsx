@@ -210,7 +210,8 @@ export default function MailDrafts({mailboxId, mailboxAddress, replySeed}) {
           <small>{item.state.replaceAll('_', ' ').toLowerCase()} ·
             {item.acceptedByPostfix} handed to Postfix ·
             {item.pending} pending · {item.failed} failed ·
-            {item.unknown} uncertain</small>
+            {item.unknown} uncertain · {item.remotelyDelivered} confirmed delivered ·
+            {item.bounced} bounced · {item.complained} complaints</small>
         </div>)}
       <p className="mail-compose-warning">Postfix handoff is not recipient inbox delivery.
         UNKNOWN requires investigation; automatic retries are suppressed for uncertain outcomes.</p>
