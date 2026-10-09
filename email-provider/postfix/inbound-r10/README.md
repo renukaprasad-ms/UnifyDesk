@@ -103,3 +103,43 @@ outage, DB outage and full PVC; ensure Postfix RETAINS queued mail.
   no actual end-to-end tests can be claimed until executed on the mail node.
 - Full hosted mailbox GA still needs attachments, retention, IAM parity,
   recovery and operational monitoring.
+
+
+## K3s persistent storage — optional, not automatically applied
+
+The existing email-provider Deployment uses hostNetwork=true, with NO
+persistent mail-object volume. For isolated staging only:
+
+  kubectl -n email-platform apply -f email-provider/k8s/mail-inbound-r10-pvc.yaml
+  kubectl -n email-platform get pvc email-mail-objects
+  kubectl -n email-platform patch deployment email-provider --type strategic --patch-file email-provider/k8s/mail-inbound-r10-deployment-patch.yaml
+
+Then set EMAIL_MAIL_INBOUND_SPOOL_PATH=/var/lib/unifydesk-mail/objects in
+the private server environment (NOT Vite). Test the mounted PVC under
+application UID 10001, actual fsync/restart durability, capacity and
+off-node encrypted backups. A k3s local-path PVC IS NOT automatically
+encrypted or backed up. R10 never applies this manifest itself.
+
+Since hostNetwork=true binds application port 8010 on the node, restrict
+it with host firewall rules to the trusted mail host/loopback and k3s
+service network; an HTTP bearer token is necessary but NOT a substitute
+for a private network. Public Cloudflare routing must never expose
+/internal/v1/mail/inbound.
+
+## Port 25 collision and staging listener
+
+The previous outbound Postfix sample may already listen on 127.0.0.1:25.
+A separate inbound Postfix INSTANCE cannot bind that same IP/port.
+In local staging use a dedicated Postfix configuration/instance with an
+SMTP listener on 127.0.0.1:2526 (disable its default port-25 smtp service)
+and leave outgoing Postfix untouched. Confirm with:
+
+  sudo ss -ltnp | grep -E ':25 |:2526 |:8010 '
+  sudo postconf -c /etc/postfix-inbound -n
+  sudo postfix -c /etc/postfix-inbound check
+
+The actual -c path must be the reviewed isolated instance directory,
+with its own spool and master.cf. Test swaks with port 2526 instead of
+port 25 when exercising this setup. No public MX/port 25 until the
+dedicated instance, local auth bridge, scanner, bounce behavior and
+anti-relay restrictions are verified.
