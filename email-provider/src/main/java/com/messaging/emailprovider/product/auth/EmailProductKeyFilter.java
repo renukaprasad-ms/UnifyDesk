@@ -28,7 +28,9 @@ public class EmailProductKeyFilter extends OncePerRequestFilter {
     String path = request.getRequestURI();
     ApiKeyScope scope = path.startsWith("/v1/domains")
         ? ApiKeyScope.DOMAINS
-        : "POST".equals(request.getMethod()) ? ApiKeyScope.SEND : ApiKeyScope.READ;
+        : path.startsWith("/v1/validations")
+            ? ApiKeyScope.VALIDATE
+            : "POST".equals(request.getMethod()) ? ApiKeyScope.SEND : ApiKeyScope.READ;
 
     AuthenticatedProject project;
     try {

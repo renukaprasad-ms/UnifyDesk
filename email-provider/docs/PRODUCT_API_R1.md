@@ -36,10 +36,14 @@ All reads/writes route through that project identifier.
 - `POST /v1/domains/{id}/verify` — DOMAINS scope.
 - `POST /v1/emails` — SEND scope, **Idempotency-Key required**, max 100 recipients.
 - `GET /v1/emails/{id}` — READ scope.
+- `GET /v1/emails/{id}/events` — READ scope; per-recipient provider feedback.
 - `POST /v1/email-batches` — SEND scope, **Idempotency-Key required**, up to 1000
   unique recipients per batch, automatically split into BCC-only chunks of 100
   recipients. Each recipient gets a separate SMTP submission.
 - `GET /v1/email-batches/{id}` — READ scope, lists underlying chunk/message states.
+- `GET /v1/reputation` — READ scope; date-bounded accepted/delivered/bounce metrics.
+- `POST /v1/validations/jobs` — VALIDATE scope, max 1,000 addresses/job.
+- `GET /v1/validations/jobs/{id}` and `GET /v1/validations/jobs/{id}/results` — VALIDATE scope.
 
 Example batch request:
 

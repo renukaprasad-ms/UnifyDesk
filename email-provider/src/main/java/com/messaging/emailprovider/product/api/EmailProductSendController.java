@@ -20,12 +20,15 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/v1/emails")
 public class EmailProductSendController {
   private final EmailMessageService emails;
+  private final com.messaging.emailprovider.feedback.EmailEventQueryService events;
   private final com.messaging.emailprovider.product.service.ProductAdmissionQuota quota;
 
   public EmailProductSendController(EmailMessageService emails,
-      com.messaging.emailprovider.product.service.ProductAdmissionQuota quota) {
+      com.messaging.emailprovider.product.service.ProductAdmissionQuota quota,
+      com.messaging.emailprovider.feedback.EmailEventQueryService events) {
     this.emails = emails;
     this.quota = quota;
+    this.events = events;
   }
 
   @PostMapping
@@ -54,5 +57,11 @@ public class EmailProductSendController {
       @PathVariable @Positive Long messageId) {
     Long projectId = EmailProductKeyFilter.require(context).projectId();
     return ApiResponse.success(200, emails.get(projectId, messageId), "Email details");
+  }
+  @GetMapping("/{messageId}/events")
+  public ApiResponse<java.util.List<com.messaging.emailprovider.feedback.dto.EmailEventResponse>> events(
+      HttpServletRequest context, @PathVariable @Positive Long messageId) {
+    Long projectId = EmailProductKeyFilter.require(context).projectId();
+    return ApiResponse.success(200, events.list(projectId, messageId), "Email events");
   }
 }
