@@ -136,10 +136,10 @@ public class MailboxReadService {
         JOIN email_mail_domains d ON d.id=m.domain_id
           AND d.organization_id=m.organization_id
         JOIN email_product_organizations o ON o.id=m.organization_id
-        JOIN email_mailbox_access access ON access.mailbox_id=m.id
-          AND access.organization_id=m.organization_id
+        JOIN email_mailbox_access a ON a.mailbox_id=m.id
+          AND a.organization_id=m.organization_id
         WHERE msg.id=? AND msg.mailbox_id=? AND msg.organization_id=?
-          AND access.user_id=? AND m.status='ACTIVE'
+          AND a.user_id=? AND m.status='ACTIVE'
           AND d.status='VERIFIED' AND o.status='ACTIVE'
           AND j.status='READY' AND msg.direction='INBOUND'
           AND msg.deleted_at IS NULL AND msg.folder IN ('INBOX','SPAM')
