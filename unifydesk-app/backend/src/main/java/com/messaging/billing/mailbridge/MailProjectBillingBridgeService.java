@@ -152,6 +152,38 @@ public class MailProjectBillingBridgeService {
     if (page.projectId() != mailProjectId) {
       throw new ConflictException("Mail project ownership changed during usage sync");
     }
+    return importPage(mailProjectId, initial, page, true);
+  }
+
+  /** Repair a bounded source window without moving the forward-ingestion cursor. */
+  public SyncResult replay(Long mailProjectId, Instant requestedFrom, long afterId) {
+    requireEnabled();
+    Link initial = requireLink(mailProjectId);
+    if (!"ACTIVE".equals(initial.state())) {
+      throw new ConflictException("Mail project link is paused");
+    }
+    Instant now = Instant.now();
+    Instant replayTo = now.minusSeconds(60);
+    if (requestedFrom == null || afterId < 0
+        || requestedFrom.isBefore(now.minusSeconds(30L * 86400))
+        || requestedFrom.isAfter(replayTo)) {
+      throw new BadRequestException("Mail replay requires a valid starting instant within 30 days");
+    }
+    Instant from = requestedFrom.isBefore(initial.effectiveFrom())
+        ? initial.effectiveFrom() : requestedFrom;
+    if (!from.isBefore(replayTo)) {
+      throw new BadRequestException("No eligible handoffs yet; retry after one minute");
+    }
+    MailProductUsageClient.Page page = mail.replay(
+        mailProjectId, afterId, batchSize, from, replayTo);
+    return importPage(mailProjectId, initial, page, false);
+  }
+
+  private SyncResult importPage(Long mailProjectId, Link initial,
+                                MailProductUsageClient.Page page, boolean advanceCursor) {
+    if (page.projectId() != mailProjectId) {
+      throw new ConflictException("Mail project identity mismatch during sync");
+    }
     return tx.execute(status -> {
       List<Link> locked = jdbc.query("""
           select mail_project_id, company_id, mode, state, effective_from,
@@ -163,7 +195,7 @@ public class MailProjectBillingBridgeService {
       Link link = locked.getFirst();
       if (!"ACTIVE".equals(link.state())
           || !link.companyId().equals(initial.companyId())
-          || !link.lastExternalUsageId().equals(initial.lastExternalUsageId())) {
+          || (advanceCursor && !link.lastExternalUsageId().equals(initial.lastExternalUsageId()))) {
         throw new ConflictException("Mail project link changed; retry synchronization");
       }
       int imported = 0;
@@ -180,11 +212,13 @@ public class MailProjectBillingBridgeService {
             entry.recipientId(), entry.messageId(), Timestamp.from(entry.occurredAt()),
             entry.productPriceMicroInr());
       }
-      jdbc.update("""
-          update billing_mail_project_links
-             set last_external_usage_id = ?, last_synced_at = now(), updated_at = now()
-           where mail_project_id = ?
-          """, page.nextAfterId(), mailProjectId);
+      if (advanceCursor) {
+        jdbc.update("""
+            update billing_mail_project_links
+               set last_external_usage_id = ?, last_synced_at = now(), updated_at = now()
+             where mail_project_id = ?
+            """, page.nextAfterId(), mailProjectId);
+      }
       return new SyncResult(link.mailProjectId(), link.companyId(), imported,
           Long.toString(page.nextAfterId()), page.hasMore());
     });
