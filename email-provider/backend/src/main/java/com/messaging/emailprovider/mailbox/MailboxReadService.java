@@ -1,0 +1,127 @@
+package com.messaging.emailprovider.mailbox;
+
+import com.messaging.emailprovider.common.exception.BadRequestException;
+import com.messaging.emailprovider.common.exception.ForbiddenException;
+import com.messaging.emailprovider.common.exception.NotFoundException;
+import com.messaging.emailprovider.common.exception.ServiceUnavailableException;
+import com.messaging.emailprovider.mailbox.inbound.MailSpoolStore;
+import com.messaging.emailprovider.product.console.ConsoleAuthService;
+import java.io.InputStream;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/** Explicit per-user mailbox grants; even organization admins cannot implicitly read mail. */
+@Service
+@ConditionalOnProperty(prefix = "app.mail.inbound", name = "enabled", havingValue = "true")
+public class MailboxReadService {
+  private final JdbcTemplate jdbc;
+  private final MailSpoolStore spool;
+  private final boolean activationEnabled;
+  private final boolean scanningEnabled;
+
+  public MailboxReadService(JdbcTemplate jdbc, MailSpoolStore spool,
+      @Value("${app.mail.activation.enabled:false}") boolean activationEnabled,
+      @Value("${app.mail.scanner.enabled:false}") boolean scanningEnabled) {
+    this.jdbc = jdbc;
+    this.spool = spool;
+    this.activationEnabled = activationEnabled;
+    this.scanningEnabled = scanningEnabled;
+  }
+
+  public record MailboxView(String id, String status) {}
+  public record Message(String id, String folder, String from, String subject,
+      long sizeBytes, String receivedAt) {}
+  public record RawMail(InputStream body, long sizeBytes) {}
+  private record ObjectRecord(String key, long size) {}
+
+  /** Controlled activation binds one active console user to one verified mailbox. */
+  @Transactional
+  public MailboxView activate(ConsoleAuthService.Principal principal,
+      long mailboxId, long ownerUserId) {
+    if (!principal.role().canManage()) {
+      throw new ForbiddenException("Admin permission required");
+    }
+    if (!activationEnabled || !scanningEnabled) {
+      throw new ServiceUnavailableException("Mailbox activation requires approved scanner controls");
+    }
+    List<Long> mailbox = jdbc.query("""
+        SELECT m.id FROM email_mailboxes m
+        JOIN email_mail_domains d ON d.id=m.domain_id AND d.organization_id=m.organization_id
+        WHERE m.id=? AND m.organization_id=? AND d.status='VERIFIED'
+          AND m.status IN ('DISABLED','ACTIVE')
+        FOR UPDATE OF m
+        """, (rs, row) -> rs.getLong(1),mailboxId,principal.organizationId());
+    if (mailbox.isEmpty()) throw new NotFoundException("Verified mailbox not found");
+    Boolean validOwner = jdbc.queryForObject("""
+        SELECT EXISTS (SELECT 1 FROM email_console_users u
+          WHERE u.id=? AND u.organization_id=? AND u.status='ACTIVE')
+        """,Boolean.class,ownerUserId,principal.organizationId());
+    if (!Boolean.TRUE.equals(validOwner)) throw new NotFoundException("Active mailbox user not found");
+    jdbc.update("""
+        INSERT INTO email_mailbox_access(organization_id,mailbox_id,user_id)
+        VALUES (?,?,?) ON CONFLICT(mailbox_id,user_id) DO NOTHING
+        """,principal.organizationId(),mailboxId,ownerUserId);
+    jdbc.update("""
+        UPDATE email_mailboxes SET status='ACTIVE',updated_at=now()
+        WHERE id=? AND organization_id=? AND status IN ('DISABLED','ACTIVE')
+        """,mailboxId,principal.organizationId());
+    return new MailboxView(Long.toString(mailboxId),"ACTIVE");
+  }
+
+  @Transactional(readOnly = true)
+  public List<Message> list(ConsoleAuthService.Principal user, long mailboxId,
+      String folder, Long beforeId, int limit) {
+    requireGrant(user,mailboxId);
+    String normalized = folder == null ? "INBOX" : folder;
+    if (!("INBOX".equals(normalized) || "SPAM".equals(normalized))
+        || limit < 1 || limit > 100 || (beforeId != null && beforeId <= 0)) {
+      throw new BadRequestException("Invalid folder, page size or cursor");
+    }
+    return jdbc.query("""
+        SELECT id,folder,from_address,subject,mime_size_bytes,received_at
+        FROM email_mailbox_messages
+        WHERE organization_id=? AND mailbox_id=? AND folder=? AND deleted_at IS NULL
+          AND id < ?
+        ORDER BY id DESC LIMIT ?
+        """, (rs, row) -> new Message(Long.toString(rs.getLong(1)),rs.getString(2),
+          rs.getString(3),rs.getString(4),rs.getLong(5),
+          rs.getTimestamp(6).toInstant().toString()),
+        user.organizationId(),mailboxId,normalized,
+        beforeId == null ? Long.MAX_VALUE : beforeId,limit);
+  }
+
+  /** Download-only untrusted MIME. NEVER inline it as HTML or execute attachments. */
+  @Transactional(readOnly = true)
+  public RawMail raw(ConsoleAuthService.Principal user,long mailboxId,long messageId) {
+    requireGrant(user,mailboxId);
+    List<ObjectRecord> messages=jdbc.query("""
+        SELECT mime_object_key,mime_size_bytes FROM email_mailbox_messages
+        WHERE id=? AND mailbox_id=? AND organization_id=?
+          AND direction='INBOUND' AND deleted_at IS NULL AND folder IN ('INBOX','SPAM')
+        """,(rs,row)->new ObjectRecord(rs.getString(1),rs.getLong(2)),
+        messageId,mailboxId,user.organizationId());
+    if(messages.isEmpty()) throw new NotFoundException("Mail message not found");
+    ObjectRecord message=messages.get(0);
+    return new RawMail(spool.open(message.key()),message.size());
+  }
+
+  @Transactional(readOnly = true)
+  public void requireGrant(ConsoleAuthService.Principal user,long mailboxId) {
+    Boolean allowed=jdbc.queryForObject("""
+        SELECT EXISTS (
+          SELECT 1 FROM email_mailbox_access a
+          JOIN email_mailboxes m ON m.id=a.mailbox_id
+            AND m.organization_id=a.organization_id
+          WHERE a.organization_id=? AND a.mailbox_id=? AND a.user_id=?
+            AND m.status='ACTIVE')
+        """,Boolean.class,user.organizationId(),mailboxId,user.userId());
+    if (!Boolean.TRUE.equals(allowed)) {
+      // Do not disclose that a different user's mailbox exists.
+      throw new NotFoundException("Mailbox not found");
+    }
+  }
+}
