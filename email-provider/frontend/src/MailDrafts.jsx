@@ -167,7 +167,7 @@ export default function MailDrafts({mailboxId, mailboxAddress, replySeed}) {
             className={'mail-draft-item ' + (item.id === form.id ? 'active' : '')}
             disabled={busy} onClick={() => openDraft(item.id)}>
             <span>{item.subject || '(No subject)'}</span>
-            <small>{item.state === 'DRAFT' ? 'Unsent draft' : 'Held · not sent'}</small>
+            <small>{item.state === 'DRAFT' ? 'Unsent draft' : 'Submitted · see outgoing status'}</small>
           </button>)}
       </aside>
       <form className="mail-draft-editor" onSubmit={save}>
