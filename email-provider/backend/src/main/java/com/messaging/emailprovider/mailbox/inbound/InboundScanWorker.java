@@ -92,7 +92,7 @@ public class InboundScanWorker {
       }
       RspamdSpamScanner.Decision disposition;
       try (InputStream data = spool.open(job.objectKey())) {
-        disposition = spam.scan(data, job.bytes());
+        disposition = spam.scan(data, job.bytes(), job.digest());
       }
       if (disposition == RspamdSpamScanner.Decision.QUARANTINE) {
         finish(job, "QUARANTINED", null, null);
