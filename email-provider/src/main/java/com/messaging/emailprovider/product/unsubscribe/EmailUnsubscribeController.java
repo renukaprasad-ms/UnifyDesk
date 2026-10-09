@@ -7,7 +7,6 @@ import com.messaging.emailprovider.mail.repository.EmailRecipientRepository;
 import com.messaging.emailprovider.suppression.SuppressionReason;
 import com.messaging.emailprovider.suppression.SuppressionService;
 import org.springframework.http.CacheControl;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -42,7 +41,7 @@ public class EmailUnsubscribeController {
         + "<form method='post' action='/v1/unsubscribe/" + token + "'>"
         + "<button type='submit'>Confirm unsubscribe</button></form></main></body></html>";
     return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-        .header(HttpHeaders.CONTENT_SECURITY_POLICY,
+        .header("Content-Security-Policy",
             "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'")
         .contentType(MediaType.TEXT_HTML).body(content);
   }

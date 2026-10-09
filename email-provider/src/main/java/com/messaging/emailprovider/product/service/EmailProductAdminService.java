@@ -130,7 +130,8 @@ public class EmailProductAdminService {
   @Transactional
   public ProductResponses.Project setSending(Long projectId, boolean enabled) {
     EmailProject project = requireProject(projectId);
-    if (enabled && !"ACTIVE".equals(requireOrg(project.getOrganizationId()).getStatus())) {
+    if (enabled && (!"ACTIVE".equals(requireOrg(project.getOrganizationId()).getStatus())
+        || !"ACTIVE".equals(project.getStatus()))) {
       throw new BadRequestException("Organization is not active");
     }
     project.setSendingEnabled(enabled);
