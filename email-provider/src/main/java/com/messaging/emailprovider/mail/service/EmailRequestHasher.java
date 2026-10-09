@@ -29,7 +29,11 @@ public class EmailRequestHasher {
             + "\n"
             + value(request.text())
             + "\n"
-            + value(request.html());
+            + value(request.html())
+            + "\\n"
+            + request.marketing()
+            + "\\n"
+            + value(request.consentReference());
     try {
       return HexFormat.of()
           .formatHex(MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8)));

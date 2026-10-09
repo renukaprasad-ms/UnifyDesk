@@ -112,6 +112,11 @@ public class EmailMessageService {
     }
 
     validateBody(request);
+    if (request.marketing()) {
+      if (request.consentReference() == null || request.consentReference().isBlank()) {
+        throw new BadRequestException("Marketing email requires a consent reference");
+      }
+    }
     Map<String, EmailRecipientType> recipients = recipients(request);
     if (recipients.isEmpty()) {
       throw new BadRequestException("At least one recipient is required");
@@ -129,6 +134,8 @@ public class EmailMessageService {
             ? null
             : normalizeEmail(request.replyTo()));
     message.setSubject(request.subject().trim());
+    message.setMarketing(request.marketing());
+    message.setConsentReference(request.marketing() ? request.consentReference().trim() : null);
     message.setTextBody(blankToNull(request.text()));
     message.setHtmlBody(blankToNull(request.html()));
     message.setIdempotencyKey(normalizedKey);

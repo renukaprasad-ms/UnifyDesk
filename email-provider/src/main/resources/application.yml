@@ -58,6 +58,9 @@ server:
 
 app:
   product:
+    unsubscribe:
+      signing-key: ${EMAIL_PROVIDER_UNSUBSCRIBE_SIGNING_KEY:}
+      public-base-url: ${EMAIL_PROVIDER_PUBLIC_BASE_URL:https://email.unifydesk.in}
     webhooks:
       enabled: ${EMAIL_PROVIDER_PRODUCT_WEBHOOKS_ENABLED:false}
       allowed-hosts: ${EMAIL_PROVIDER_WEBHOOK_ALLOWED_HOSTS:}

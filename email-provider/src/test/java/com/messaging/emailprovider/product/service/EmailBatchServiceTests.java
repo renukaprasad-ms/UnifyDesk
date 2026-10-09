@@ -72,6 +72,6 @@ class EmailBatchServiceTests {
 
   private BulkEmailRequests.NewBatch request(List<String> recipients) {
     return new BulkEmailRequests.NewBatch(
-        1L, "sender@example.com", null, "Hello", "Hello there", null, recipients);
+        1L, "sender@example.com", null, "Hello", "Hello there", null, recipients, "customer-import-2026");
   }
 }

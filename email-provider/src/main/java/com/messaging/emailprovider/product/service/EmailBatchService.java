@@ -84,7 +84,7 @@ public class EmailBatchService {
           request.sendingDomainId(), request.from(), request.replyTo(),
           List.of(), List.of(),
           addresses.subList(offset, Math.min(offset + CHUNK_SIZE, addresses.size())),
-          request.subject(), request.text(), request.html());
+          request.subject(), request.text(), request.html(), true, request.consentReference());
       EmailAcceptedResponse result = emails.accept(
           projectId, "email-batch:" + batch.getId() + ":" + number, payload);
       EmailBatchChunk chunk = new EmailBatchChunk();

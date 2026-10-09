@@ -19,7 +19,8 @@ public class EmailProductKeyFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return !request.getRequestURI().startsWith("/v1/");
+    return request.getRequestURI().startsWith("/v1/unsubscribe/")
+        || !request.getRequestURI().startsWith("/v1/");
   }
 
   @Override

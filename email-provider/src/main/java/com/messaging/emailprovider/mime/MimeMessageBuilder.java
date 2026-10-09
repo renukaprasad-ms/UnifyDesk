@@ -12,9 +12,22 @@ import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.messaging.emailprovider.product.unsubscribe.UnsubscribeTokenService;
 
 @Component
 public class MimeMessageBuilder {
+  private final UnsubscribeTokenService unsubscribe;
+
+  @Autowired
+  public MimeMessageBuilder(UnsubscribeTokenService unsubscribe) {
+    this.unsubscribe = unsubscribe;
+  }
+
+  /** Kept for isolated unit tests that only build transactional messages. */
+  public MimeMessageBuilder() {
+    this.unsubscribe = null;
+  }
 
   public byte[] build(
       EmailMessage message,
@@ -65,8 +78,20 @@ public class MimeMessageBuilder {
     headers.append("X-UnifyDesk-Message-ID: ").append(message.getId()).append("\r\n");
     headers.append("X-UnifyDesk-Recipient-ID: ").append(target.getId()).append("\r\n");
 
+    String unsubscribeUrl = null;
+    if (message.isMarketing()) {
+      if (unsubscribe == null) throw new IllegalStateException("Unsubscribe signer unavailable");
+      unsubscribeUrl = unsubscribe.url(message.getId(), target.getId());
+      headers.append("List-Unsubscribe: <").append(unsubscribeUrl).append(">\\r\\n");
+      headers.append("List-Unsubscribe-Post: List-Unsubscribe=One-Click\\r\\n");
+    }
+    String textBody = message.getTextBody() == null ? null : message.getTextBody()
+        + (unsubscribeUrl == null ? "" : "\\n\\nUnsubscribe: " + unsubscribeUrl);
+    String htmlBody = message.getHtmlBody() == null ? null : message.getHtmlBody()
+        + (unsubscribeUrl == null ? "" :
+            "<p><a href=\\\"" + unsubscribeUrl + "\\">Unsubscribe</a></p>");
     String body;
-    if (message.getTextBody() != null && message.getHtmlBody() != null) {
+    if (textBody != null && htmlBody != null) {
       String boundary =
           "=_unifydesk_" + message.getId() + "_" + UUID.randomUUID().toString().replace("-", "");
       headers
@@ -79,24 +104,24 @@ public class MimeMessageBuilder {
               + "\r\n"
               + "Content-Type: text/plain; charset=UTF-8\r\n"
               + "Content-Transfer-Encoding: base64\r\n\r\n"
-              + base64(message.getTextBody())
+              + base64(textBody)
               + "\r\n--"
               + boundary
               + "\r\n"
               + "Content-Type: text/html; charset=UTF-8\r\n"
               + "Content-Transfer-Encoding: base64\r\n\r\n"
-              + base64(message.getHtmlBody())
+              + base64(htmlBody)
               + "\r\n--"
               + boundary
               + "--\r\n";
     } else {
-      boolean html = message.getHtmlBody() != null;
+      boolean html = htmlBody != null;
       headers
           .append("Content-Type: ")
           .append(html ? "text/html" : "text/plain")
           .append("; charset=UTF-8\r\n");
       headers.append("Content-Transfer-Encoding: base64\r\n");
-      body = base64(html ? message.getHtmlBody() : message.getTextBody()) + "\r\n";
+      body = base64(html ? htmlBody : textBody) + "\r\n";
     }
 
     return (headers + "\r\n" + body).getBytes(StandardCharsets.ISO_8859_1);
