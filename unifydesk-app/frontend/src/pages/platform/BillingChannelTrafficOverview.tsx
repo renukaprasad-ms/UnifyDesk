@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { adminBillingApi } from '../../features/platformBilling/adminBillingApi'
+import { utcWeekStart } from '../../features/platformBilling/analyticsBucketing'
 import type { BillingChannelTrafficReport } from '../../features/platformBilling/types'
 
 type Props = { companyNames: Record<string, string> }
@@ -15,6 +16,7 @@ const add = (value: Counts, channel: string, direction: string, n: number) => {
 }
 export default function BillingChannelTrafficOverview({ companyNames }: Props) {
   const [days, setDays] = useState(7)
+  const [groupBy, setGroupBy] = useState<'daily' | 'weekly'>('daily')
   const [reload, setReload] = useState(0)
   const [report, setReport] = useState<BillingChannelTrafficReport | null>(null)
   const [loading, setLoading] = useState(true)
@@ -42,12 +44,13 @@ export default function BillingChannelTrafficOverview({ companyNames }: Props) {
       const company = companies.get(point.companyId) ?? zero()
       add(company, point.channel, point.direction, point.messages)
       companies.set(point.companyId, company)
-      const day = daily.get(point.day) ?? zero()
+      const bucket = groupBy === 'weekly' ? utcWeekStart(point.day) : point.day
+      const day = daily.get(bucket) ?? zero()
       add(day, point.channel, point.direction, point.messages)
-      daily.set(point.day, day)
+      daily.set(bucket, day)
     }
     return { totals, companies: [...companies].sort((a, b) => b[1].email + b[1].sms + b[1].whatsapp - a[1].email - a[1].sms - a[1].whatsapp), daily: [...daily].sort((a, b) => a[0].localeCompare(b[0])) }
-  }, [report])
+  }, [report, groupBy])
   const peak = Math.max(1, ...aggregations.daily.map(([, row]) => row.email + row.sms + row.whatsapp))
 
   return <section className="panel mt-6 p-5" aria-label="Channel message traffic">
@@ -59,6 +62,10 @@ export default function BillingChannelTrafficOverview({ companyNames }: Props) {
       <div className="flex gap-2">
         <select aria-label="Channel traffic period" className="form-input" value={days} onChange={(e) => setDays(Number(e.target.value))}>
           <option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option>
+        </select>
+        <select aria-label="Channel traffic grouping" className="form-input" value={groupBy}
+          onChange={(event) => setGroupBy(event.target.value as 'daily' | 'weekly')}>
+          <option value="daily">Daily</option><option value="weekly">Weekly</option>
         </select>
         <button type="button" className="secondary-button" disabled={loading} onClick={() => setReload((v) => v + 1)}>Refresh</button>
       </div>
@@ -79,7 +86,7 @@ export default function BillingChannelTrafficOverview({ companyNames }: Props) {
         </div>)}
       </div>
       <div className="mt-6">
-        <h3 className="font-semibold text-sm">Daily processed messages (UTC)</h3>
+        <h3 className="font-semibold text-sm">{groupBy === 'weekly' ? 'Weekly' : 'Daily'} processed messages (UTC)</h3>
         {aggregations.daily.length ? <div className="mt-3 space-y-2">
           {aggregations.daily.map(([day, row]) => {
             const width = (n: number) => `${n / peak * 100}%`
