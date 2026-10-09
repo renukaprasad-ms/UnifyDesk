@@ -30,13 +30,16 @@ public class EmailBatchService {
   private final EmailBatchChunkRepository chunks;
   private final EmailMessageService emails;
   private final ObjectMapper mapper;
+  private final ProductAdmissionQuota quota;
 
   public EmailBatchService(EmailBatchRepository batches, EmailBatchChunkRepository chunks,
-                           EmailMessageService emails, ObjectMapper mapper) {
+                           EmailMessageService emails, ObjectMapper mapper,
+                           ProductAdmissionQuota quota) {
     this.batches = batches;
     this.chunks = chunks;
     this.emails = emails;
     this.mapper = mapper;
+    this.quota = quota;
   }
 
   @Transactional
@@ -62,6 +65,9 @@ public class EmailBatchService {
     if (new LinkedHashSet<>(addresses).size() != addresses.size()) {
       throw new BadRequestException("Bulk recipients must be unique");
     }
+
+    // Reserve at API ingress as well as limiting actual Postfix submission per second.
+    quota.reserve(projectId, "batch:" + key, addresses.size());
 
     EmailBatch batch = new EmailBatch();
     batch.setProjectId(projectId);
