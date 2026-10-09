@@ -263,7 +263,7 @@ export default function PlatformBilling() {
   const sub = details?.subscription
   return (
     <section className="p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
+      <div className="w-full">
         <header className="flex flex-col gap-4 lg:flex-row lg:justify-between">
           <div><p className="eyebrow">Admin billing</p><h1 className="mt-2 text-2xl font-bold">Company billing operations</h1></div>
           <select className="form-input max-w-sm" value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
