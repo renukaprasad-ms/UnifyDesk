@@ -31,8 +31,18 @@ public class BillingUsageReconciliationController {
       long events, BigDecimal ratedInr, BigDecimal allocatedInr,
       long finalizedUnallocatedEvents, long missingInvoiceLines, long priceMathMismatches) {}
 
+  /** Cross-check successful provider handoffs against canonical billable events. */
+  public record SourceReconciliation(
+      String companyId,
+      long acceptedEmailHandoffs,
+      long committedSmsRecipients,
+      long missingEmailFinancialEvents,
+      long missingSmsFinancialEvents,
+      long mismatchedSmsSegments) {}
+
   public record ReconciliationReport(
-      Instant from, Instant to, List<CompanyReconciliation> companies) {}
+      Instant from, Instant to, List<CompanyReconciliation> companies,
+      List<SourceReconciliation> sourceChecks) {}
 
   @GetMapping("/usage-reconciliation")
   public ResponseEntity<ApiResponse<ReconciliationReport>> reconcile(
@@ -73,8 +83,71 @@ public class BillingUsageReconciliationController {
             rs.getLong("finalized_unallocated"), rs.getLong("line_missing"),
             rs.getLong("bad_price_math")),
         Timestamp.from(from), Timestamp.from(to));
+    // Operational handoff records are authoritative for their own service. A missing
+    // canonical usage record is an accounting gap, not proof of a billable charge.
+    // Check the source's occurrence interval, not just usage_events.occurred_at: late
+    // financial events may be inserted in a different time window.
+    List<SourceReconciliation> sourceChecks = jdbcTemplate.query(
+        """
+        with source_email as (
+          select e.company_id, e.recipient_id
+            from managed_email_usage_events e
+           where e.event_type = 'COMMIT'
+             and e.created_at >= ? and e.created_at < ?
+        ),
+        email_summary as (
+          select e.company_id,
+                 count(*) as accepted,
+                 count(*) filter (where not exists (
+                   select 1 from usage_events u
+                    where u.company_id = e.company_id
+                      and u.service_ownership = 'MANAGED'
+                      and u.billing_sku = 'MANAGED_EMAIL_OUTBOUND'
+                      and u.idempotency_key =
+                        'managed-email:recipient:' || e.recipient_id::text || ':accepted'
+                 )) as missing
+            from source_email e
+           group by e.company_id
+        ),
+        source_sms as (
+          select r.company_id, r.recipient_id, r.estimated_segments
+            from managed_sms_usage_reservations r
+           where r.state = 'COMMITTED'
+             and r.updated_at >= ? and r.updated_at < ?
+        ),
+        sms_summary as (
+          select r.company_id, count(*) as accepted,
+                 count(*) filter (where u.id is null) as missing,
+                 count(*) filter (where u.id is not null
+                                     and u.quantity <> r.estimated_segments) as mismatched
+            from source_sms r
+            left join usage_events u
+              on u.company_id = r.company_id
+             and u.service_ownership = 'MANAGED'
+             and u.billing_sku = 'MANAGED_SMS_SEGMENT'
+             and u.idempotency_key =
+                 'managed-sms:recipient:' || r.recipient_id::text || ':accepted'
+           group by r.company_id
+        )
+        select coalesce(e.company_id,s.company_id) as company_id,
+               coalesce(e.accepted,0) as email_accepted,
+               coalesce(s.accepted,0) as sms_accepted,
+               coalesce(e.missing,0) as email_missing,
+               coalesce(s.missing,0) as sms_missing,
+               coalesce(s.mismatched,0) as sms_mismatched
+          from email_summary e
+          full outer join sms_summary s on s.company_id = e.company_id
+         order by email_missing desc, sms_missing desc, sms_mismatched desc, company_id
+        """,
+        (rs, row) -> new SourceReconciliation(
+            Long.toString(rs.getLong("company_id")),
+            rs.getLong("email_accepted"), rs.getLong("sms_accepted"),
+            rs.getLong("email_missing"), rs.getLong("sms_missing"),
+            rs.getLong("sms_mismatched")),
+        Timestamp.from(from), Timestamp.from(to),
+        Timestamp.from(from), Timestamp.from(to));
     return ResponseEntity.ok(ApiResponse.success(
-        HttpStatus.OK.value(), new ReconciliationReport(from, to, rows),
+        HttpStatus.OK.value(), new ReconciliationReport(from, to, rows, sourceChecks),
         "Managed usage reconciliation fetched"));
   }
 }
