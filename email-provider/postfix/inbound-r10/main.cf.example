@@ -24,7 +24,7 @@ enable_long_queue_ids = yes
 udmail-inbound_destination_recipient_limit = 1
 # Limit accepted message size AND pipe size; the backend independently caps
 # MIME bytes at 10MiB and stores to a durable PVC before HTTP 202.
-message_size_limit = 10485760
+message_size_limit = 10000000
 # No public relay, no MX loopback DNS changes in this sample.
 smtpd_tls_security_level = may
 # Supply real TLS cert/key before enabling public port 25.
