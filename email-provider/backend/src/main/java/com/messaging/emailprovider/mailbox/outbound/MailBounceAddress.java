@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
  * configured bounce domain and an HMAC. No mail body/header IDs are trusted.
  */
 @Component
-@ConditionalOnProperty(prefix="app.mail.outbound",name="enabled",havingValue="true")
+@ConditionalOnExpression("${app.mail.outbound.enabled:false} || ${app.mail.feedback.enabled:false}")
 public class MailBounceAddress {
   private static final Pattern LOCAL = Pattern.compile(
       "^ud\\+([1-9][0-9]{0,18})\\.([1-9][0-9]{0,18})\\.([0-9a-f]{16})$");
