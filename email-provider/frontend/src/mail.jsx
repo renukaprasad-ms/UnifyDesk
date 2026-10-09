@@ -34,10 +34,11 @@ export default function MailConsole({ session }) {
   const currentMailbox = mailboxes.find(mailbox => mailbox.id === mailboxId)
 
   const reloadDomains = useCallback(async () => {
-    const list = await request('/mail/domains')
-    setDomains(Array.isArray(list) ? list : [])
-    setDomainId(previous => list?.some(item => item.id === previous)
-      ? previous : (list?.[0]?.id ?? ''))
+    const result = await request('/mail/domains')
+    const list = Array.isArray(result) ? result : []
+    setDomains(list)
+    setDomainId(previous => list.some(item => item.id === previous)
+      ? previous : (list[0]?.id ?? ''))
   }, [])
 
   useEffect(() => {
