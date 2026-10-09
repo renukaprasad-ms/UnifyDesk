@@ -37,7 +37,12 @@ if [[ "${R10_SEND_LOCAL_FIXTURE:-NO}" == YES ]]; then
   command -v swaks >/dev/null ||
     { echo "Install swaks to run the isolated SMTP test" >&2; exit 2; }
   # This is a REAL staging delivery; never use customer addresses.
-  swaks --server 127.0.0.1 --port 25 --from r10-probe@example.invalid \
+  # Keep the inbound instance on a dedicated staging port by default.
+  port="${R10_SMTP_PORT:-2526}"
+  if [[ ! "$port" =~ ^[0-9]{2,5}$ ]] || ((port<1 || port>65535)); then
+    echo "Invalid staging SMTP port" >&2; exit 2
+  fi
+  swaks --server 127.0.0.1 --port "$port" --from r10-probe@example.invalid \
     --to "$R10_TEST_ACCEPT_RCPT" --timeout 25 \
     --header "Subject: UnifyDesk R10 private SMTP test" \
     --body "Fixture only. Verify one PENDING_SCAN row, READY/INBOX, idempotency."
