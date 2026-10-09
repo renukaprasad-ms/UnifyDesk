@@ -9,6 +9,7 @@ export const adminBillingApi={
  async linkMailProject(input:MailBillingProjectLinkInput){const r=await apiClient.post<ApiResponse<MailBillingProjectLink>>('/api/v1/admin/billing/mail-project-links',input);return unwrap(r.data,'Unable to link Mail project')},
  async mailProjectUsage(from:string,to:string){const r=await apiClient.get<ApiResponse<MailBillingUsageTotals[]>>('/api/v1/admin/billing/mail-project-links/usage',{params:{from,to}});return unwrap(r.data,'Unable to load imported Mail usage')},
  async syncMailProject(projectId:string){const r=await apiClient.post<ApiResponse<MailBillingSyncResult>>(`/api/v1/admin/billing/mail-project-links/${projectId}/sync`);return unwrap(r.data,'Unable to sync Mail project')},
+ async replayMailProject(projectId:string,from:string,afterId:string){const r=await apiClient.post<ApiResponse<MailBillingSyncResult>>(`/api/v1/admin/billing/mail-project-links/${projectId}/replay`,{from,afterId});return unwrap(r.data,'Unable to replay Mail handoffs')},
  async changeMailProjectState(projectId:string,state:'PAUSED'|'ACTIVE'){const operation=state==='PAUSED'?'pause':'resume';const r=await apiClient.post<ApiResponse<MailBillingProjectLink>>(`/api/v1/admin/billing/mail-project-links/${projectId}/${operation}`);return unwrap(r.data,'Unable to update Mail project state')},
 
  async usageReconciliation(from:string,to:string){const r=await apiClient.get<ApiResponse<BillingUsageReconciliationReport>>('/api/v1/admin/billing/analytics/usage-reconciliation',{params:{from,to}});return unwrap(r.data,'Unable to reconcile managed usage')},
