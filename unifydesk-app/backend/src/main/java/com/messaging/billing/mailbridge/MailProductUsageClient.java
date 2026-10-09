@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -30,6 +31,7 @@ public class MailProductUsageClient {
                         Instant occurredAt, long productPriceMicroInr) {}
   public record Page(long projectId, List<Handoff> entries, long nextAfterId, boolean hasMore) {}
 
+  @Autowired
   public MailProductUsageClient(
       @Value("${app.billing.mail-bridge.base-url:}") String baseUrl,
       @Value("${app.billing.mail-bridge.internal-token:}") String token,
