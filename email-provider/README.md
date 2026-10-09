@@ -151,6 +151,25 @@ For very large CSV/contact imports, consumers should stream rows into bounded va
 
 For public project-key API routes, see `/v1/` in [PRODUCT_API_R1.md](docs/PRODUCT_API_R1.md). The legacy `/api/v1/companies/` routes remain private operational APIs and must never be exposed directly to customers.
 
+## Local WSL2 + k3d (your laptop)
+
+`./k8s.sh start` automatically supports your existing `k3d-unifydesk-local`
+context. It builds with Docker, imports with `k3d image import`, and starts
+PostgreSQL, Redis, Kafka and a **Mailpit SMTP test inbox** locally, alongside
+the Email product API. Native K3s is not required inside WSL.
+
+```bash
+cd email-provider
+./k8s.sh validate
+./k8s.sh start
+./k8s.sh status
+./k8s.sh port-forward         # http://127.0.0.1:18010/console/index.html
+./k8s.sh mailpit              # http://127.0.0.1:18025
+```
+
+See [local k3d deployment](k8s/README.md#windows-wsl2--local-k3d-development)
+for details. Captured emails do not reach real recipients.
+
 ## Dedicated Kubernetes deployment
 
 Use the independent email-provider script on your **dedicated K3s mail node**:

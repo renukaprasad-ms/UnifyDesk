@@ -2,6 +2,80 @@
 
 This directory is the isolated runtime stack for the first-party email platform.
 
+## Windows WSL2 + local k3d development
+
+You can run the entire **local outbound Email product development stack** inside
+Windows WSL2 via the k3d cluster you created. No native `k3s` executable is
+required inside WSL. The script detects a kubectl context starting in `k3d-`,
+builds with Docker, then uses `k3d image import` into that specific cluster.
+
+**Your current local cluster** is `k3d-unifydesk-local`. Use:
+
+```bash
+cd ~/projects/UnifyDesk/email-provider
+kubectl config current-context         # k3d-unifydesk-local
+docker info >/dev/null                  # Docker Desktop WSL integration enabled
+./tests/k8s-script-smoke.sh            # mocked shell tests, safe
+./k8s.sh validate
+./k8s.sh start                          # Docker build, k3d import, deploy all components
+./k8s.sh status
+./k8s.sh logs app 100
+```
+
+In **this mode**, the namespace `email-platform` contains:
+
+| Component | Role |
+|---|---|
+| `email-provider` | Standalone UnifyDesk Email Spring Boot API + HTML console |
+| `email-postgres` | Local PostgreSQL 18 + PVC |
+| `email-redis` | Local Redis + PVC |
+| `email-kafka` | Local Kafka (when `EMAIL_PROVIDER_KAFKA_MODE=local`) |
+| `email-mailpit` | Local SMTP capture, test inbox, **never a public mail sender** |
+
+The k3d-only manifest `k8s/app-k3d.yaml` has `hostNetwork: false` and
+overrides `EMAIL_PROVIDER_SMTP_HOST=email-mailpit.email-platform.svc.cluster.local`
+and `EMAIL_PROVIDER_SMTP_PORT=1025`. The original `k8s/app.yaml` is unchanged
+for native K3s/Postfix deployment. The SMTP override wins over values in
+`.env`; you cannot accidentally route messages to a public SMTP server through
+the default k3d deployment. Mailpit's in-memory test inbox is not intended for
+persistent records or deliverability verification.
+
+Use separate terminals to open the two local UIs:
+
+```bash
+./k8s.sh port-forward                # localhost:18010/console/index.html
+./k8s.sh mailpit                     # localhost:18025 — sandbox email inbox
+```
+
+Other supported local commands:
+
+```bash
+./k8s.sh restart app                 # rebuild + reimport, keep Postgres running
+./k8s.sh restart mailpit
+./k8s.sh stop                        # scales namespace workloads down, keeps PVCs
+./k8s.sh start                       # restores the same persisted data
+kubectl -n email-platform get pods -w
+kubectl -n email-platform describe pod -l app=email-provider
+```
+
+**Keep `EMAIL_PROVIDER_DELIVERY_ENABLED=false` initially**. After the Email
+API starts and you create a test project/domain, enabling it can hand off emails
+to **Mailpit only** for sandbox testing. This does *not* send external email,
+exercise Postfix queue IDs or prove bounces, complaint feedback, production DNS
+alignment, inbox placement, IP warm-up or real provider acceptance. Do not point
+`EMAIL_PROVIDER_SMTP_HOST` at a real SMTP service from this local environment.
+
+The k3d cluster itself runs as Docker containers. Removing the **entire k3d
+cluster** may destroy `local-path` PVC-backed development data; `./k8s.sh stop`
+does not remove the cluster or PVCs. Give Docker Desktop enough memory for
+Kafka, PostgreSQL, Redis, the email-provider JVM and mail capture (6 GiB+
+recommended for smoother local development).
+
+If Docker build fails because Maven or application code fails compilation,
+check its error separately; image import will run only after a successful build.
+
+The native K3s guidance below applies only to a dedicated mail server, **not WSL2**.
+
 ## Runtime boundary
 
 ```text
