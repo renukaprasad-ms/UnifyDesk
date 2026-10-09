@@ -403,7 +403,7 @@ export default function PlatformPlanDetails() {
 
   return (
     <section className="p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
+      <div className="w-full">
         <button
           className="mb-5 inline-flex items-center gap-2 text-xs font-semibold text-slate-500"
           onClick={() => navigate('/platform/plans')}
