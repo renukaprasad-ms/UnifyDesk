@@ -150,3 +150,20 @@ Endpoints:
 For very large CSV/contact imports, consumers should stream rows into bounded validation jobs rather than loading the complete file into memory.
 
 For public project-key API routes, see `/v1/` in [PRODUCT_API_R1.md](docs/PRODUCT_API_R1.md). The legacy `/api/v1/companies/` routes remain private operational APIs and must never be exposed directly to customers.
+
+## Dedicated Kubernetes deployment
+
+Use the independent email-provider script on your **dedicated K3s mail node**:
+
+```bash
+cd email-provider
+cp .env.example .env
+# Edit .env to configure secrets and runtime addresses
+./k8s.sh validate
+./k8s.sh start
+./k8s.sh status
+./k8s.sh logs app
+./k8s.sh port-forward
+```
+
+Open `http://127.0.0.1:18010/console/index.html` from the same host after port forwarding. `./email-k8s.sh` remains supported as an alias; see [K8s deployment instructions](k8s/README.md) for operating commands, Postgres-18 migration warnings and live sending safeguards.

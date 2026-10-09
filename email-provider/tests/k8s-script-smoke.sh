@@ -22,7 +22,7 @@ EMAIL_PROVIDER_FEEDBACK_ENABLED=false
 EMAIL_PROVIDER_DELIVERY_ENABLED=false
 EMAIL_PROVIDER_INTERNAL_API_TOKEN=a-long-unique-test-internal-token-12345678901234567890
 EOF
-printf 'test-only-32-byte-key-must-be-long' | base64 -w 0 |
+printf '0123456789abcdef0123456789abcdef' | base64 -w 0 |
   awk '{print "EMAIL_PROVIDER_MASTER_KEY=" $0}' >> "${EMAIL_PROVIDER_ENV_FILE}"
 
 cat > "${TEMP_DIR}/bin/kubectl" <<'EOF'
@@ -52,6 +52,12 @@ chmod +x "${TEMP_DIR}/bin/"*
 bash -n "${ROOT_DIR}/k8s.sh"
 bash -n "${ROOT_DIR}/email-k8s.sh"
 "${ROOT_DIR}/k8s.sh" validate
+cp "${EMAIL_PROVIDER_ENV_FILE}" "${TEMP_DIR}/bad.env"
+sed -i 's/a-long-unique-test-internal-token-12345678901234567890/short/' "${TEMP_DIR}/bad.env"
+if EMAIL_PROVIDER_ENV_FILE="${TEMP_DIR}/bad.env" "${ROOT_DIR}/k8s.sh" validate >/dev/null 2>&1; then
+  echo "ERROR: accepted invalid internal API secret" >&2
+  exit 1
+fi
 "${ROOT_DIR}/k8s.sh" status >/dev/null
 "${ROOT_DIR}/k8s.sh" stop >/dev/null
 "${ROOT_DIR}/k8s.sh" start >/dev/null

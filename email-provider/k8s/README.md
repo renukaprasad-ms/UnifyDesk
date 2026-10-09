@@ -106,6 +106,17 @@ Do not expose `/internal/v1/` over a public ingress. Postfix stays on the host, 
 
 `EMAIL_PROVIDER_KAFKA_MODE=external` does not delete a previously-created local Kafka deployment automatically, avoiding unintended queue loss. Clean up local Kafka separately after migrating data.
 
+## Local smoke check (no Kubernetes changes)
+
+```bash
+./tests/k8s-script-smoke.sh
+```
+
+The smoke check uses temporary fake `kubectl`, `docker`, and `k3s` binaries to
+validate script syntax, configuration security, service scaling and database restart
+safety without accessing your cluster. It does **not** test the actual Docker image
+build, Postfix, real Postgres persistence, or Kubernetes rollout.
+
 ## Kafka mode
 
 The default isolated test deployment uses:
