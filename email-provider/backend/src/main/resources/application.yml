@@ -58,6 +58,9 @@ server:
 
 app:
   mail:
+    compose:
+      enabled: ${EMAIL_MAIL_COMPOSE_ENABLED:false}
+      submission-enabled: ${EMAIL_MAIL_SUBMISSION_ENABLED:false}
     activation:
       enabled: ${EMAIL_MAIL_ACTIVATION_ENABLED:false}
     scanner:
