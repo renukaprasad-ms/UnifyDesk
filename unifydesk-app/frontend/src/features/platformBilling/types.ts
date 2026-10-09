@@ -38,3 +38,8 @@ export type ManagedUsageReport = { from: string; to: string; totals: ManagedUsag
 export type ManagedBillingSku = 'MANAGED_EMAIL_OUTBOUND' | 'MANAGED_SMS_SEGMENT'
 export type GlobalManagedRate = { rateId: string; billingSku: ManagedBillingSku; price: number; currency: 'INR'; effectiveFrom: string; effectiveTo: string | null; createdByUserId: string | null; reason: string | null }
 export type GlobalManagedRateInput = { billingSku: ManagedBillingSku; price: number; effectiveFrom?: string | null; reason?: string }
+
+export type FinancialAmounts = { invoicedInr: number; collectedInr: number; refundedInr: number; openBalanceInr: number }
+export type CompanyFinancial = FinancialAmounts & { companyId: string }
+export type DailyFinancial = Omit<FinancialAmounts, 'openBalanceInr'> & { day: string }
+export type BillingFinancialReport = { from: string; to: string; totals: FinancialAmounts; companies: CompanyFinancial[]; daily: DailyFinancial[] }
