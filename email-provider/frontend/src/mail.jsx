@@ -28,6 +28,9 @@ export default function MailConsole({ session }) {
   const [loading, setLoading] = useState(true)
   const [messageLoading, setMessageLoading] = useState(false)
   const [selectedMessage, setSelectedMessage] = useState(null)
+  const [plainPreview, setPlainPreview] = useState(null)
+  const [plainLoading, setPlainLoading] = useState(false)
+  const [plainError, setPlainError] = useState('')
   const [revision, setRevision] = useState(0)
 
   const currentDomain = domains.find(domain => domain.id === domainId)
@@ -87,6 +90,22 @@ export default function MailConsole({ session }) {
       .finally(() => { if (active) setMessageLoading(false) })
     return () => { active = false }
   }, [mailboxId, currentMailbox?.status, folder, cursor, revision])
+
+  useEffect(() => {
+    let active = true
+    setPlainPreview(null)
+    setPlainError('')
+    if (!selectedMessage || !mailboxId) {
+      setPlainLoading(false)
+      return () => { active = false }
+    }
+    setPlainLoading(true)
+    request('/mail/mailboxes/' + mailboxId + '/messages/' + selectedMessage.id + '/preview')
+      .then(result => { if (active) setPlainPreview(result) })
+      .catch(failure => { if (active) setPlainError(failure.message) })
+      .finally(() => { if (active) setPlainLoading(false) })
+    return () => { active = false }
+  }, [mailboxId, selectedMessage?.id])
 
   const run = async (operation, successMessage) => {
     setBusy(true)
@@ -265,7 +284,13 @@ export default function MailConsole({ session }) {
                 <h3>{selectedMessage.subject || '(No subject)'}</h3>
                 <p><strong>From:</strong> {selectedMessage.from || 'Unknown sender'}</p>
                 <p><strong>Received:</strong> {selectedMessage.receivedAt ? new Date(selectedMessage.receivedAt).toLocaleString() : '—'}</p>
-                <div className="mail-preview-placeholder"><ShieldCheck size={21}/><span>Untrusted email HTML is not displayed in this version. Download the original message to inspect it using a trusted email client.</span></div>
+                {plainLoading ? <div className="mail-preview-placeholder">Loading safe text preview…</div> :
+                  plainError ? <Notice tone="error">{plainError}</Notice> :
+                  plainPreview?.textAvailable ? <>
+                    <div className="mail-text-title">Plain-text message {plainPreview.truncated ? '· Preview truncated' : ''}</div>
+                    <pre className="mail-text-body" dir="auto">{plainPreview.plainText}</pre>
+                  </> :
+                  <div className="mail-preview-placeholder"><ShieldCheck size={21}/><span>This message has no supported plain-text body. For safety, HTML and attachments are never rendered inline. You can download the original message for a trusted mail client.</span></div>}
                 <Button variant="outline" icon={Download} disabled={busy} onClick={() => saveRaw(selectedMessage)}>Download original (.eml)</Button>
               </> : <div className="mail-reader-empty">Select an email to view its details.</div>}
             </div>
