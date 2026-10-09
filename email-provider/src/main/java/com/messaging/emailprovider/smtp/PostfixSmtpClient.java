@@ -38,6 +38,8 @@ public class PostfixSmtpClient {
     validateCommandValue(envelopeFrom, "Envelope sender");
     validateCommandValue(recipient, "Recipient");
 
+    // A failed/lost response after DATA may mean Postfix accepted this mail.
+    boolean acceptanceUncertain = false;
     try (Socket socket = new Socket()) {
       socket.connect(new InetSocketAddress(host, port), connectTimeoutMs);
       socket.setSoTimeout(readTimeoutMs);
@@ -72,6 +74,7 @@ public class PostfixSmtpClient {
         return classify(data);
       }
 
+      acceptanceUncertain = true;
       writeMessage(output, rawMessage);
       SmtpResponse accepted = readResponse(reader);
       try {
@@ -88,7 +91,8 @@ public class PostfixSmtpClient {
       return classify(accepted);
     } catch (IOException exception) {
       return new SmtpDeliveryResult(
-          SmtpDeliveryOutcome.DEFERRED, null, safeMessage(exception));
+          acceptanceUncertain ? SmtpDeliveryOutcome.UNKNOWN : SmtpDeliveryOutcome.DEFERRED,
+          null, safeMessage(exception));
     }
   }
 

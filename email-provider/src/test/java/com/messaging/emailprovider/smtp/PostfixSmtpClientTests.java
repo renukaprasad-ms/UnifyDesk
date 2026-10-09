@@ -69,6 +69,49 @@ class PostfixSmtpClientTests {
     }
   }
 
+
+  @Test
+  void doesNotRetryWhenPostfixMayHaveAcceptedData() throws Exception {
+    try (ServerSocket server = new ServerSocket(0)) {
+      CompletableFuture<Void> peer =
+          CompletableFuture.runAsync(
+              () -> {
+                try (Socket socket = server.accept()) {
+                  BufferedReader reader =
+                      new BufferedReader(
+                          new InputStreamReader(
+                              socket.getInputStream(), StandardCharsets.ISO_8859_1));
+                  OutputStream output = socket.getOutputStream();
+                  write(output, "220 local.test ESMTP\\r\\n");
+                  reader.readLine();
+                  write(output, "250 local.test\\r\\n");
+                  reader.readLine();
+                  write(output, "250 sender accepted\\r\\n");
+                  reader.readLine();
+                  write(output, "250 recipient accepted\\r\\n");
+                  reader.readLine();
+                  write(output, "354 send data\\r\\n");
+                  while (true) {
+                    String line = reader.readLine();
+                    if (line == null || line.equals(".")) break;
+                  }
+                  // Socket closes without DATA acceptance confirmation.
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              });
+      PostfixSmtpClient client =
+          new PostfixSmtpClient("127.0.0.1", server.getLocalPort(), 2000, 2000, "app.local");
+      var result =
+          client.handoff(
+              "sender@example.com",
+              "user@example.net",
+              "From: sender@example.com\\r\\n\\r\\nHello\\r\\n".getBytes(StandardCharsets.ISO_8859_1));
+      assertEquals(SmtpDeliveryOutcome.UNKNOWN, result.outcome());
+      peer.get();
+    }
+  }
+
   private static void write(OutputStream output, String value) throws Exception {
     output.write(value.getBytes(StandardCharsets.US_ASCII));
     output.flush();

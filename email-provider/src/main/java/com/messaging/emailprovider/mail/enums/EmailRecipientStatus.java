@@ -5,6 +5,7 @@ public enum EmailRecipientStatus {
   PROCESSING,
   DEFERRED,
   HANDED_OFF,
+  UNKNOWN,
   REMOTE_DEFERRED,
   DELIVERED,
   BOUNCED,

@@ -49,6 +49,7 @@ public class EmailMessageStateService {
                 r ->
                     r.getStatus() == EmailRecipientStatus.PROCESSING
                         || r.getStatus() == EmailRecipientStatus.QUEUED);
+    boolean unknown = recipients.stream().anyMatch(r -> r.getStatus() == EmailRecipientStatus.UNKNOWN);
     boolean deferred =
         recipients.stream()
             .anyMatch(
@@ -58,7 +59,7 @@ public class EmailMessageStateService {
 
     if (processing) {
       message.setStatus(EmailMessageStatus.PROCESSING);
-    } else if (deferred) {
+    } else if (unknown || deferred) {
       message.setStatus(EmailMessageStatus.DEFERRED);
     } else if (delivered == recipients.size()) {
       message.setStatus(EmailMessageStatus.DELIVERED);

@@ -57,13 +57,13 @@ public class MimeMessageBuilder {
         .append(domain)
         .append(">\r\n");
     headers.append("MIME-Version: 1.0\r\n");
-    headers.append("X-Reachlyo-Message-ID: ").append(message.getId()).append("\r\n");
-    headers.append("X-Reachlyo-Recipient-ID: ").append(target.getId()).append("\r\n");
+    headers.append("X-UnifyDesk-Message-ID: ").append(message.getId()).append("\r\n");
+    headers.append("X-UnifyDesk-Recipient-ID: ").append(target.getId()).append("\r\n");
 
     String body;
     if (message.getTextBody() != null && message.getHtmlBody() != null) {
       String boundary =
-          "=_reachlyo_" + message.getId() + "_" + UUID.randomUUID().toString().replace("-", "");
+          "=_unifydesk_" + message.getId() + "_" + UUID.randomUUID().toString().replace("-", "");
       headers
           .append("Content-Type: multipart/alternative; boundary=\"")
           .append(boundary)

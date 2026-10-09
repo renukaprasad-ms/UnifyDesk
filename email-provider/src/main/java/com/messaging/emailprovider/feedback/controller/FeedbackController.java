@@ -35,7 +35,7 @@ public class FeedbackController {
 
   @PostMapping({"/event", "/postfix"})
   public ApiResponse<FeedbackResultResponse> event(
-      @RequestHeader("X-Reachlyo-Feedback-Token") String token,
+      @RequestHeader("X-UnifyDesk-Feedback-Token") String token,
       @Valid @RequestBody PostfixFeedbackRequest request) {
     authenticator.verify(token);
     return ApiResponse.success(
@@ -44,8 +44,8 @@ public class FeedbackController {
 
   @PostMapping(value = "/dsn", consumes = {"text/plain", "message/rfc822", "application/octet-stream"})
   public ApiResponse<FeedbackResultResponse> dsn(
-      @RequestHeader("X-Reachlyo-Feedback-Token") String token,
-      @RequestHeader("X-Reachlyo-Envelope-Recipient") String envelopeRecipient,
+      @RequestHeader("X-UnifyDesk-Feedback-Token") String token,
+      @RequestHeader("X-UnifyDesk-Envelope-Recipient") String envelopeRecipient,
       @RequestBody String rawMessage) {
     authenticator.verify(token);
     PostfixFeedbackRequest request = dsnFeedbackParser.parse(envelopeRecipient, rawMessage);
