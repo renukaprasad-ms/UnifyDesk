@@ -7,7 +7,9 @@ import com.messaging.emailprovider.common.id.IdGenerator;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import com.messaging.emailprovider.common.exception.ServiceUnavailableException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -26,12 +28,15 @@ public class InboundIntakeService {
   private final JdbcTemplate jdbc;
   private final TransactionTemplate transactions;
   private final MailSpoolStore spool;
+  private final boolean scannerEnabled;
 
   public InboundIntakeService(JdbcTemplate jdbc, TransactionTemplate transactions,
-      MailSpoolStore spool) {
+      MailSpoolStore spool,
+      @Value("${app.mail.scanner.enabled:false}") boolean scannerEnabled) {
     this.jdbc = jdbc;
     this.transactions = transactions;
     this.spool = spool;
+    this.scannerEnabled = scannerEnabled;
   }
 
   public record Intake(String id, String state, boolean duplicate) {}
@@ -40,6 +45,9 @@ public class InboundIntakeService {
   private record Existing(long id, long size, String digest, String status) {}
 
   public Intake accept(String envelopeTo, String deliveryKey, InputStream message) {
+    if (!scannerEnabled) {
+      throw new ServiceUnavailableException("Inbound admission requires an available security scanner");
+    }
     Recipient recipient = parseRecipient(envelopeTo);
     if (deliveryKey == null || deliveryKey.length() > 128
         || !deliveryKey.matches("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")) {
