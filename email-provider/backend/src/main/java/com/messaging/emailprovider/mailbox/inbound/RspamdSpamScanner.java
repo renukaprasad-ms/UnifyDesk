@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -56,9 +59,10 @@ public class RspamdSpamScanner {
     throw new ServiceUnavailableException("Unhandled spam scanner action");
   }
 
-  public Decision scan(InputStream mime, long bytes) {
-    if (bytes < 1 || bytes > 10485760L) {
-      throw new ServiceUnavailableException("Invalid MIME length for spam scan");
+  public Decision scan(InputStream mime, long bytes, String expectedSha256) {
+    if (bytes < 1 || bytes > 10485760L || expectedSha256 == null
+        || !expectedSha256.matches("[0-9a-f]{64}")) {
+      throw new ServiceUnavailableException("Invalid MIME integrity metadata for spam scan");
     }
     HttpURLConnection connection = null;
     try {
@@ -70,6 +74,7 @@ public class RspamdSpamScanner {
       connection.setRequestProperty("Content-Type", "message/rfc822");
       connection.setFixedLengthStreamingMode(bytes);
       connection.setDoOutput(true);
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
       try (var out = connection.getOutputStream()) {
         byte[] buffer = new byte[8192];
         int count;
@@ -77,9 +82,13 @@ public class RspamdSpamScanner {
         while ((count = mime.read(buffer)) != -1) {
           seen += count;
           if (seen > bytes) throw new IOException("MIME length changed");
+          digest.update(buffer, 0, count);
           out.write(buffer, 0, count);
         }
         if (seen != bytes) throw new IOException("MIME length mismatch");
+      }
+      if (!HexFormat.of().formatHex(digest.digest()).equals(expectedSha256)) {
+        throw new ServiceUnavailableException("MIME changed after antivirus scan");
       }
       if (connection.getResponseCode() != 200) {
         throw new ServiceUnavailableException("Spam scanner did not complete");
@@ -92,7 +101,7 @@ public class RspamdSpamScanner {
         throw new ServiceUnavailableException("Oversized spam scanner response");
       }
       return classify(json.readTree(reply));
-    } catch (IOException | RuntimeException failure) {
+    } catch (IOException | NoSuchAlgorithmException | RuntimeException failure) {
       if (failure instanceof ServiceUnavailableException unavailable) throw unavailable;
       throw new ServiceUnavailableException("Spam scanner unavailable", failure);
     } finally {
