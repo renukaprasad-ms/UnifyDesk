@@ -9,7 +9,8 @@ public record SendNotificationRequest(
     String body,
     boolean html,
     String textBody,
-    String htmlBody) {
+    String htmlBody,
+    String senderPurpose) {
 
   public SendNotificationRequest(
       NotificationChannel channel,
@@ -17,7 +18,11 @@ public record SendNotificationRequest(
       String subject,
       String body,
       boolean html) {
-    this(channel, recipient, subject, body, html, null, null);
+    this(channel, recipient, subject, body, html, null, null, null);
+  }
+
+  public SendNotificationRequest(NotificationChannel channel, String recipient, String subject, String body, boolean html, String textBody, String htmlBody) {
+    this(channel, recipient, subject, body, html, textBody, htmlBody, null);
   }
 
   public static SendNotificationRequest email(
@@ -36,6 +41,10 @@ public record SendNotificationRequest(
         false,
         textBody,
         htmlBody);
+  }
+
+  public SendNotificationRequest withSenderPurpose(String purpose) {
+    return new SendNotificationRequest(channel, recipient, subject, body, html, textBody, htmlBody, purpose);
   }
 
   public boolean multipartAlternative() {
