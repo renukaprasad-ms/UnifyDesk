@@ -1,0 +1,56 @@
+# Local-only SMTP capture service. Mailpit receives all mail into a web UI,
+# does not send to real recipient MX servers in the default configuration.
+apiVersion: v1
+kind: Service
+metadata:
+  name: email-mailpit
+  namespace: email-platform
+  labels:
+    app: email-mailpit
+spec:
+  type: ClusterIP
+  selector:
+    app: email-mailpit
+  ports:
+    - name: smtp
+      port: 1025
+      targetPort: 1025
+    - name: http
+      port: 8025
+      targetPort: 8025
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-mailpit
+  namespace: email-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: email-mailpit
+  template:
+    metadata:
+      labels:
+        app: email-mailpit
+    spec:
+      containers:
+        - name: mailpit
+          image: axllent/mailpit:v1.27.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 1025
+              name: smtp
+            - containerPort: 8025
+              name: http
+          readinessProbe:
+            tcpSocket:
+              port: 1025
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 500m
+              memory: 160Mi
