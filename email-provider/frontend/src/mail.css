@@ -327,3 +327,38 @@
   .mail-draft-layout { grid-template-columns: 1fr; }
   .mail-draft-list { border-right: 0; border-bottom: 1px solid #e5eaf3; padding: 0 0 15px; }
 }
+
+.mail-outgoing {
+  border-top: 1px solid #e5eaf3;
+  padding-top: 18px;
+  margin-top: 22px;
+  display: grid;
+  gap: 11px;
+}
+.mail-outgoing-heading {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.mail-outgoing-heading strong { font-size: 14px; color: #284465; }
+.mail-outgoing-entry {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid #e5eaf3;
+  border-radius: 10px;
+  background: #fafcff;
+}
+.mail-outgoing-entry span {
+  font-size: 13px;
+  font-weight: 650;
+  color: #304862;
+  overflow-wrap: anywhere;
+}
+.mail-outgoing-entry small {
+  font-size: 11px;
+  color: #6e829b;
+  line-height: 1.65;
+}
