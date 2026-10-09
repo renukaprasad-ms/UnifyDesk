@@ -36,7 +36,7 @@
 - `GET /api/v1/admin/billing/analytics/financial`: finalized invoiced totals, succeeded collections, successful refunds, current open balances, invoiced platform-plan and managed-usage line breakdown. Distinguishes invoice issuance from cash collection; NOT accrual revenue recognition.
 - `GET /api/v1/admin/billing/analytics/channel-traffic`: operational message records from connected inbox email, legacy managed email recipients, managed SMS recipients and Meta WhatsApp runtime. Excludes independent `email-provider` mail service until integrated.
 - `GET /api/v1/admin/billing/analytics/usage-reconciliation`: rated managed usage vs invoice allocation, finalized unallocated events, missing invoice lines and price arithmetic anomalies; also compares managed email COMMIT handoffs and managed SMS COMMITTED reservations to financial usage keys and quantities.
-- Date-filtered admin UI, company tables, daily/UTC-weekly trends, financial CSV export. All endpoints enforce Super Admin.
+- Date-filtered admin UI, company tables, daily/UTC-weekly trends, financial CSV export. The Super Admin Billing UI now has separate Dashboard, Managed Rates, Company Billing and Reconciliation tabs, loading only the active view. All endpoints enforce Super Admin.
 - Company IDs serialized as **strings** to avoid JavaScript Snowflake precision loss.
 - Flyway `V105__billing_v2_reporting_indexes.sql`: global reporting time-window indexes.
 
@@ -65,7 +65,7 @@
 - MetaReach provider routing must be verified end-to-end against logical `MSG91_SMS` billing provider identity.
 - WhatsApp managed billing remains unconfigured; do not charge until a validated SKU/category rate and usage rule is approved.
 - Provider costs, profitability and tax/recognized-revenue accounting dashboards remain out of scope.
-- Full authenticated integration tests, expiry/overlap/concurrent global rate revision tests, date-boundary reporting tests, provider cost reconciliation and invoice/PAYG production smoke tests are still required.
+- Full authenticated integration tests, expiry/overlap/concurrent global rate revision tests, date-boundary reporting tests, provider cost reconciliation and invoice/PAYG production smoke tests are still required. Added controller unit tests deny non–Super Admin analytics/rate access before SQL queries.
 - Confirm the commercial decision: **INR 0.25 per SMS segment vs per logical SMS message** before enabling production billing and customer invoices.
 - Review global fallback effects for existing plans with plan-specific rate cards: these continue to win and are NOT automatically repriced at new global defaults.
 - This branch is **not merged**, **not deployed** and does **not** mutate live pricing until migration on a deployed environment.
