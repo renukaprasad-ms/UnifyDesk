@@ -45,9 +45,9 @@ public class MailboxMimeBuilder {
         || mail.cc()==null || mail.domain()==null || mail.intentId()<=0
         || !mail.domain().matches("[a-z0-9-]+(\\.[a-z0-9-]+)+")
         || !mail.from().endsWith("@"+mail.domain())
-        || mail.from().indexOf('\\r')>=0 || mail.from().indexOf('\\n')>=0
+        || mail.from().indexOf('\r')>=0 || mail.from().indexOf('\n')>=0
         || mail.subject().length()>998
-        || mail.subject().indexOf('\\r')>=0 || mail.subject().indexOf('\\n')>=0
+        || mail.subject().indexOf('\r')>=0 || mail.subject().indexOf('\n')>=0
         || mail.to().size()+mail.cc().size()>20
         || mail.body().getBytes(StandardCharsets.UTF_8).length>65536) {
       throw new IllegalArgumentException("Invalid mailbox MIME input");
