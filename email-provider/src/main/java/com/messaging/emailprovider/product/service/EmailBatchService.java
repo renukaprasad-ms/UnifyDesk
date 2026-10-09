@@ -1,7 +1,7 @@
 package com.messaging.emailprovider.product.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 import com.messaging.emailprovider.common.exception.BadRequestException;
 import com.messaging.emailprovider.common.exception.ConflictException;
 import com.messaging.emailprovider.common.exception.NotFoundException;
@@ -29,11 +29,11 @@ public class EmailBatchService {
   private final EmailBatchRepository batches;
   private final EmailBatchChunkRepository chunks;
   private final EmailMessageService emails;
-  private final ObjectMapper mapper;
+  private final JsonMapper mapper;
   private final ProductAdmissionQuota quota;
 
   public EmailBatchService(EmailBatchRepository batches, EmailBatchChunkRepository chunks,
-                           EmailMessageService emails, ObjectMapper mapper,
+                           EmailMessageService emails, JsonMapper mapper,
                            ProductAdmissionQuota quota) {
     this.batches = batches;
     this.chunks = chunks;
@@ -122,7 +122,7 @@ public class EmailBatchService {
   private String hashRequest(BulkEmailRequests.NewBatch request) {
     try {
       return ApiKeyCrypto.hash(new String(mapper.writeValueAsBytes(request), StandardCharsets.UTF_8));
-    } catch (JsonProcessingException e) {
+    } catch (JacksonException e) {
       throw new BadRequestException("Unable to validate batch request");
     }
   }
