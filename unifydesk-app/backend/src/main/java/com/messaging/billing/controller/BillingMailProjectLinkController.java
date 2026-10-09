@@ -90,6 +90,25 @@ public class BillingMailProjectLinkController {
         bridge.sync(id(projectId, "Mail project")), "Mail handoff usage synchronized"));
   }
 
+  public record MailReplayRequest(
+      @jakarta.validation.constraints.NotNull Instant from,
+      @jakarta.validation.constraints.NotBlank String afterId) {}
+
+  @PostMapping("/{projectId}/replay")
+  public ResponseEntity<ApiResponse<MailProjectBillingBridgeService.SyncResult>> replay(
+      @PathVariable String projectId, @Valid @RequestBody MailReplayRequest request) {
+    authorize();
+    long cursor;
+    try {
+      cursor = Long.parseLong(request.afterId());
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("Invalid Mail replay cursor");
+    }
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
+        bridge.replay(id(projectId, "Mail project"), request.from(), cursor),
+        "Mail handoff replay completed without financial charges"));
+  }
+
   @PostMapping("/{projectId}/pause")
   public ResponseEntity<ApiResponse<MailProjectBillingBridgeService.Link>> pause(
       @PathVariable String projectId) {
