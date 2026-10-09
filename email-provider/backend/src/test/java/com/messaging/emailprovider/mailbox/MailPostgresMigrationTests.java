@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
  */
 class MailPostgresMigrationTests {
   @Test
-  void newDatabaseAndUpgradePathsApplyV1ThroughV20() throws Exception {
+  void newDatabaseAndUpgradePathsApplyV1ThroughV21() throws Exception {
     String url = System.getenv("MAIL_QA_PG_URL");
     assumeTrue(url != null && url.startsWith("jdbc:postgresql:"),
         "Requires a disposable local PostgreSQL instance");
@@ -49,7 +49,7 @@ class MailPostgresMigrationTests {
           try (ResultSet result = statement.executeQuery(
               "SELECT count(*) FROM flyway_schema_history WHERE success=true")) {
             assertTrue(result.next());
-            assertEquals(20, result.getInt(1));
+            assertEquals(21, result.getInt(1));
           }
           try (ResultSet result = statement.executeQuery("""
               SELECT count(*) FROM information_schema.tables
