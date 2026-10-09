@@ -86,6 +86,15 @@ app:
   company:
     max-owned-workspaces: ${APP_COMPANY_MAX_OWNED_WORKSPACES:3}
   billing:
+    # New first-party Mail service uses its own project IDs and usage ledger.
+    # Explicit Super Admin linking is required; imported events are reporting-only.
+    mail-bridge:
+      enabled: ${APP_BILLING_MAIL_BRIDGE_ENABLED:false}
+      base-url: ${APP_BILLING_MAIL_BRIDGE_BASE_URL:}
+      internal-token: ${APP_BILLING_MAIL_BRIDGE_INTERNAL_TOKEN:}
+      batch-size: ${APP_BILLING_MAIL_BRIDGE_BATCH_SIZE:100}
+      sync-interval-ms: ${APP_BILLING_MAIL_BRIDGE_SYNC_INTERVAL_MS:300000}
+      sync-initial-delay-ms: ${APP_BILLING_MAIL_BRIDGE_INITIAL_DELAY_MS:60000}
     cashfree:
       enabled: ${APP_BILLING_CASHFREE_ENABLED:false}
       base-url: ${APP_BILLING_CASHFREE_BASE_URL:https://sandbox.cashfree.com}
