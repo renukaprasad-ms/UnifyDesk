@@ -24,9 +24,10 @@ Usage:
   ./k8s.sh apply-env
   ./k8s.sh validate
   ./k8s.sh port-forward [local_port]
+  ./k8s.sh mailpit [local_port]      # k3d-only SMTP sandbox web UI
 
 Services:
-  app | postgres | redis | kafka
+  app | postgres | redis | kafka | mailpit (k3d only)
 
 Examples:
   ./k8s.sh start
@@ -40,9 +41,11 @@ Examples:
   ./k8s.sh top 5
   ./k8s.sh top 1 once
   ./k8s.sh port-forward 18010
+  ./k8s.sh mailpit 18025
 
 Notes:
-  - Postfix runs on the EC2 host, not in Kubernetes.
+  - In WSL k3d, images are imported with k3d and mail is captured by Mailpit.
+  - Native K3s continues using the host Postfix (not bundled).
   - Set EMAIL_PROVIDER_KAFKA_MODE=local to run the bundled Kafka StatefulSet.
   - Set EMAIL_PROVIDER_KAFKA_MODE=external to use KAFKA_BOOTSTRAP_SERVERS only.
   - All Kubernetes commands target namespace email-platform (not the main UnifyDesk App).
@@ -191,8 +194,54 @@ apply_env() {
     --dry-run=client -o yaml | kubectl apply -f -
 }
 
+current_runtime() {
+  local context
+  context="$(kubectl config current-context 2>/dev/null || true)"
+  if [[ "${context}" == k3d-* ]]; then
+    echo k3d
+  else
+    echo k3s
+  fi
+}
+
+current_cluster_name() {
+  local context
+  context="$(kubectl config current-context)"
+  [[ "${context}" == k3d-* ]] || {
+    echo "Current kubectl context is not a k3d cluster: ${context}" >&2
+    return 1
+  }
+  echo "${context#k3d-}"
+}
+
+app_manifest() {
+  if [[ "$(current_runtime)" == "k3d" ]]; then
+    echo "${K8S_DIR}/app-k3d.yaml"
+  else
+    echo "${K8S_DIR}/app.yaml"
+  fi
+}
+
 build_image() {
+  require_command kubectl
   require_command docker
+  if ! docker info >/dev/null 2>&1; then
+    echo "Docker daemon unavailable. Start Docker Desktop with WSL integration." >&2
+    exit 1
+  fi
+
+  local runtime cluster
+  runtime="$(current_runtime)"
+  docker build -t "${APP_IMAGE}" "${ROOT_DIR}"
+
+  if [[ "${runtime}" == "k3d" ]]; then
+    require_command k3d
+    cluster="$(current_cluster_name)"
+    echo "Importing ${APP_IMAGE} into local k3d cluster ${cluster}"
+    k3d image import "${APP_IMAGE}" -c "${cluster}"
+    return
+  fi
+
   require_command k3s
   if [[ "${EUID}" -ne 0 ]]; then
     require_command sudo
@@ -202,7 +251,6 @@ build_image() {
     local archive
     archive="$(mktemp "${TMPDIR:-/tmp}/email-provider-image.XXXXXXXX.tar")"
     trap 'rm -f "${archive}"' EXIT
-    docker build -t "${APP_IMAGE}" "${ROOT_DIR}"
     docker save "${APP_IMAGE}" -o "${archive}"
     if [[ "${EUID}" -eq 0 ]]; then
       k3s ctr images import "${archive}"
@@ -229,6 +277,9 @@ apply_dependencies() {
   check_existing_postgres_mount
   kubectl apply -f "${K8S_DIR}/postgres.yaml"
   kubectl apply -f "${K8S_DIR}/redis.yaml"
+  if [[ "$(current_runtime)" == "k3d" ]]; then
+    kubectl apply -f "${K8S_DIR}/mailpit.yaml"
+  fi
 
   if [[ "${EMAIL_PROVIDER_KAFKA_MODE}" == "local" ]]; then
     kubectl apply -f "${K8S_DIR}/kafka.yaml"
@@ -243,6 +294,9 @@ apply_dependencies() {
 wait_for_dependencies() {
   kubectl -n "${NAMESPACE}" rollout status statefulset/email-postgres --timeout=180s
   kubectl -n "${NAMESPACE}" rollout status statefulset/email-redis --timeout=120s
+  if [[ "$(current_runtime)" == "k3d" ]]; then
+    kubectl -n "${NAMESPACE}" rollout status deployment/email-mailpit --timeout=120s
+  fi
 
   if [[ "${EMAIL_PROVIDER_KAFKA_MODE}" == "local" ]]; then
     kubectl -n "${NAMESPACE}" rollout status statefulset/email-kafka --timeout=240s
@@ -257,12 +311,17 @@ start() {
   # kubectl apply may keep a previous scale-to-zero replica setting.
   scale_if_exists statefulset email-postgres 1
   scale_if_exists statefulset email-redis 1
+  if [[ "$(current_runtime)" == "k3d" ]]; then
+    scale_if_exists deployment email-mailpit 1
+  fi
   if [[ "${EMAIL_PROVIDER_KAFKA_MODE}" == "local" ]]; then
     scale_if_exists statefulset email-kafka 1
   fi
   wait_for_dependencies
-  kubectl apply -f "${K8S_DIR}/app.yaml"
+  kubectl apply -f "$(app_manifest)"
   scale_if_exists deployment email-provider 1
+  # Reusing image:latest requires a new pod for the imported image to take effect.
+  kubectl -n "${NAMESPACE}" rollout restart deployment/email-provider
   kubectl -n "${NAMESPACE}" rollout status deployment/email-provider --timeout=240s
   status
 }
@@ -280,6 +339,9 @@ scale_if_exists() {
 stop() {
   require_command kubectl
   scale_if_exists deployment email-provider 0
+  if [[ "$(current_runtime)" == "k3d" ]]; then
+    scale_if_exists deployment email-mailpit 0
+  fi
   scale_if_exists statefulset email-kafka 0
   scale_if_exists statefulset email-redis 0
   scale_if_exists statefulset email-postgres 0
@@ -292,6 +354,7 @@ workload_for_service() {
     postgres) echo "statefulset/email-postgres" ;;
     redis) echo "statefulset/email-redis" ;;
     kafka) echo "statefulset/email-kafka" ;;
+    mailpit) echo "deployment/email-mailpit" ;;
     *)
       usage
       exit 1
@@ -301,7 +364,8 @@ workload_for_service() {
 
 manifest_for_service() {
   case "${1:-}" in
-    app) echo "${K8S_DIR}/app.yaml" ;;
+    app) app_manifest ;;
+    mailpit) echo "${K8S_DIR}/mailpit.yaml" ;;
     postgres) echo "${K8S_DIR}/postgres.yaml" ;;
     redis) echo "${K8S_DIR}/redis.yaml" ;;
     kafka) echo "${K8S_DIR}/kafka.yaml" ;;
@@ -316,6 +380,11 @@ restart_service() {
   local service="$1"
   local workload
   local manifest
+
+  if [[ "${service}" == "mailpit" && "$(current_runtime)" != "k3d" ]]; then
+    echo "Mailpit is only deployed in the local k3d development cluster." >&2
+    exit 1
+  fi
 
   if [[ "${service}" == "kafka" && "${EMAIL_PROVIDER_KAFKA_MODE}" != "local" ]]; then
     echo "Kafka is configured as external; no local Kafka workload to restart." >&2
@@ -348,12 +417,15 @@ restart() {
     apply_dependencies
     scale_if_exists statefulset email-postgres 1
     scale_if_exists statefulset email-redis 1
+    if [[ "$(current_runtime)" == "k3d" ]]; then
+      scale_if_exists deployment email-mailpit 1
+    fi
     if [[ "${EMAIL_PROVIDER_KAFKA_MODE}" == "local" ]]; then
       scale_if_exists statefulset email-kafka 1
     fi
     # Match UnifyDesk App: never restart the database unless requested explicitly.
     wait_for_dependencies
-    kubectl apply -f "${K8S_DIR}/app.yaml"
+    kubectl apply -f "$(app_manifest)"
     scale_if_exists deployment email-provider 1
     kubectl -n "${NAMESPACE}" rollout restart deployment/email-provider
     kubectl -n "${NAMESPACE}" rollout status deployment/email-provider --timeout=240s
@@ -372,7 +444,10 @@ delete_all() {
     exit 1
   fi
 
-  kubectl delete -f "${K8S_DIR}/app.yaml" --ignore-not-found
+  kubectl delete -f "$(app_manifest)" --ignore-not-found
+  if [[ "$(current_runtime)" == "k3d" ]]; then
+    kubectl delete -f "${K8S_DIR}/mailpit.yaml" --ignore-not-found
+  fi
   kubectl delete -f "${K8S_DIR}/kafka.yaml" --ignore-not-found
   kubectl delete -f "${K8S_DIR}/redis.yaml" --ignore-not-found
   kubectl delete -f "${K8S_DIR}/postgres.yaml" --ignore-not-found
@@ -428,6 +503,7 @@ selector_for_service() {
     postgres) echo "app=email-postgres" ;;
     redis) echo "app=email-redis" ;;
     kafka) echo "app=email-kafka" ;;
+    mailpit) echo "app=email-mailpit" ;;
     *)
       usage
       exit 1
@@ -480,8 +556,12 @@ render_top() {
   echo "Resource usage"
   kubectl -n "${NAMESPACE}" top pods 2>/dev/null || echo "metrics-server is not available"
   echo
-  echo "Host Postfix"
-  systemctl is-active postfix 2>/dev/null || echo "postfix is not active or systemd is unavailable"
+  if [[ "$(current_runtime)" == "k3d" ]]; then
+    echo "Local SMTP sandbox: Mailpit (not public email delivery)"
+  else
+    echo "Host Postfix"
+    systemctl is-active postfix 2>/dev/null || echo "postfix is not active or systemd is unavailable"
+  fi
 }
 
 top_view() {
@@ -529,6 +609,22 @@ port_forward() {
     svc/email-provider "${local_port}:8010"
 }
 
+mailpit_ui() {
+  require_command kubectl
+  if [[ "$(current_runtime)" != "k3d" ]]; then
+    echo "Mailpit sandbox UI only exists with k3d." >&2
+    exit 1
+  fi
+  local local_port="${1:-18025}"
+  if ! [[ "${local_port}" =~ ^[0-9]+$ ]] || (( local_port < 1024 || local_port > 65535 )); then
+    echo "local_port must be between 1024 and 65535" >&2
+    exit 1
+  fi
+  echo "Local SMTP sandbox: http://127.0.0.1:${local_port}"
+  kubectl -n "${NAMESPACE}" port-forward --address 127.0.0.1 \
+    svc/email-mailpit "${local_port}:8025"
+}
+
 command="${1:-}"
 case "${command}" in
   start) start ;;
@@ -544,5 +640,6 @@ case "${command}" in
   apply-env) apply_env ;;
   validate) validate_only ;;
   port-forward) shift; port_forward "$@" ;;
+  mailpit) shift; mailpit_ui "$@" ;;
   *) usage; exit 1 ;;
 esac
