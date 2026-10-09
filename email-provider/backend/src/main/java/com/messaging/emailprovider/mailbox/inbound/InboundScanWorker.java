@@ -127,7 +127,7 @@ public class InboundScanWorker {
             id,organization_id,mailbox_id,inbound_job_id,direction,folder,
             mime_object_key,mime_size_bytes,received_at,
             from_address,subject,message_id_header)
-          VALUES (?,?,?,?,'INBOUND',?,?,?,?,?,?)
+          VALUES (?,?,?,?,'INBOUND',?,?,?,?,?,?,?)
           ON CONFLICT (inbound_job_id) DO NOTHING
           """, IdGenerator.nextId(),job.organizationId(),job.mailboxId(),
           job.id(),folder,job.objectKey(),job.bytes(),job.receivedAt(),
