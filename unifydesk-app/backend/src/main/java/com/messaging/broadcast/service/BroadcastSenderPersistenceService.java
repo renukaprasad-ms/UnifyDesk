@@ -162,6 +162,7 @@ public class BroadcastSenderPersistenceService {
   private ProviderType channelProvider(BroadcastSenderProvider provider) {
     return switch (provider) {
       case AMAZON_SES -> ProviderType.AMAZON_SES;
+      case UNIFYDESK_EMAIL -> ProviderType.UNIFYDESK_EMAIL;
       case AZURE_EMAIL -> ProviderType.AZURE_EMAIL;
       case SENDGRID -> ProviderType.SENDGRID;
       case MSG91_EMAIL -> ProviderType.MSG91_EMAIL;

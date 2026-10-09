@@ -43,6 +43,40 @@ public class UnifyDeskEmailApiClient {
       Long sendingDomainId, String from, String replyTo, String subject,
       String text, String html, List<String> recipients, String consentReference) {}
 
+
+  public record DomainInfo(String id, String domain, String status) {}
+
+  public DomainInfo inspectDomain(String projectApiKey, Long domainId)
+      throws IOException, InterruptedException {
+    if (domainId == null || domainId <= 0
+        || projectApiKey == null || !projectApiKey.startsWith("ude_live_")) {
+      throw new IllegalArgumentException("Project key and domain ID are required");
+    }
+    HttpRequest request = HttpRequest.newBuilder(
+            baseUrl.resolve("/v1/domains/" + domainId))
+        .timeout(Duration.ofSeconds(15))
+        .header("Authorization", "Bearer " + projectApiKey)
+        .GET().build();
+    HttpResponse<String> response;
+    try {
+      response = http.send(request, HttpResponse.BodyHandlers.ofString());
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      throw interrupted;
+    }
+    if (response.statusCode() < 200 || response.statusCode() >= 300) {
+      throw new IOException("UnifyDesk Email domain verification HTTP " + response.statusCode());
+    }
+    JsonNode data = mapper.readTree(response.body()).path("data");
+    String name = data.path("domain").asText("");
+    String status = data.path("status").asText("");
+    if (!Long.toString(domainId).equals(data.path("id").asText())
+        || name.isBlank() || status.isBlank()) {
+      throw new IOException("UnifyDesk Email returned invalid domain details");
+    }
+    return new DomainInfo(data.path("id").asText(), name, status);
+  }
+
   public record BatchSubmission(String batchId, int totalRecipients, int chunksCount) {}
 
   public BatchSubmission submit(
