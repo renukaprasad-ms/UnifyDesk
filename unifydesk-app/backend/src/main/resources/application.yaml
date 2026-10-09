@@ -38,20 +38,6 @@ spring:
           max-idle: ${REDIS_POOL_MAX_IDLE:10}
           min-idle: ${REDIS_POOL_MIN_IDLE:2}
           max-wait: ${REDIS_POOL_MAX_WAIT:1s}
-  mail:
-    host: ${SMTP_HOST:localhost}
-    port: ${SMTP_PORT:587}
-    username: ${SMTP_USERNAME:}
-    password: ${SMTP_PASSWORD:}
-    properties:
-      mail:
-        smtp:
-          auth: ${SMTP_AUTH:true}
-          starttls:
-            enable: ${SMTP_STARTTLS_ENABLE:true}
-          connectiontimeout: ${SMTP_CONNECTION_TIMEOUT:5000}
-          timeout: ${SMTP_TIMEOUT:5000}
-          writetimeout: ${SMTP_WRITE_TIMEOUT:5000}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9001}}
     client-id: ${KAFKA_CLIENT_ID:messaging-api}
@@ -566,9 +552,8 @@ app:
       configuration-cache: ${REDIS_TTL_CONFIGURATION_CACHE:30m}
       broadcast-progress: ${REDIS_TTL_BROADCAST_PROGRESS:7d}
   notification:
-    async: ${APP_NOTIFICATION_ASYNC:true}
     email:
-      from: ${SMTP_FROM:${SMTP_USERNAME:}}
+      ses-region: ${APP_MAIL_SES_REGION:${APP_MANAGED_EMAIL_AWS_REGION:ap-southeast-2}}
       otp-from: ${APP_MAIL_OTP_FROM:no-reply@unifydesk.in}
       security-from: ${APP_MAIL_SECURITY_FROM:security@unifydesk.in}
       billing-from: ${APP_MAIL_BILLING_FROM:billing@unifydesk.in}
