@@ -121,3 +121,14 @@ grep -q 'k3d image import email-provider:latest -c unifydesk-local' "${EMAIL_K8S
 grep -q 'kubectl apply -f .*k8s/app-k3d.yaml' "${EMAIL_K8S_TEST_LOG}"
 unset EMAIL_PROVIDER_MOCK_CONTEXT
 echo 'PASS: local k3d context, image import, isolated app config, Mailpit UI and restarts'
+
+# The runtime image must have a numeric non-root UID/GID so Kubernetes'
+# runAsNonRoot check can validate the container rather than rejecting a USER name.
+grep -q '^USER 10001:10001$' "${ROOT_DIR}/Dockerfile"
+grep -q 'addgroup -S -g 10001 emailprovider' "${ROOT_DIR}/Dockerfile"
+for app_manifest in "${ROOT_DIR}/k8s/app.yaml" "${ROOT_DIR}/k8s/app-k3d.yaml"; do
+  grep -q 'runAsNonRoot: true' "${app_manifest}"
+  grep -q 'runAsUser: 10001' "${app_manifest}"
+  grep -q 'runAsGroup: 10001' "${app_manifest}"
+done
+echo 'PASS: numeric non-root container identity in native K3s and local k3d'
