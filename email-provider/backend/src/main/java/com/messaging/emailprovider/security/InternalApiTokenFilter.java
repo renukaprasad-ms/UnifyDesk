@@ -26,12 +26,9 @@ public class InternalApiTokenFilter extends OncePerRequestFilter {
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
     String path = request.getRequestURI();
-    // The HTML login shell is public; authenticated console APIs remain protected
-    // by ConsoleAuthFilter under /console/v1/. Limit this bypass to static GET/HEAD.
-    boolean publicConsolePage = path.equals("/console/index.html")
-        && ("GET".equals(request.getMethod()) || "HEAD".equals(request.getMethod()));
-    return publicConsolePage
-        || path.startsWith("/console/v1/")
+    // Static browser UI now lives in the separate Nginx frontend.
+    // Only console API endpoints are delegated to ConsoleAuthFilter.
+    return path.startsWith("/console/v1/")
         || path.startsWith("/v1/")
         || path.equals("/api/v1/health")
         || path.equals("/actuator/health")
