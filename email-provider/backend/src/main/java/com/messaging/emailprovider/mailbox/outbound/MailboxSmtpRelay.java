@@ -21,9 +21,7 @@ public class MailboxSmtpRelay {
     if (!"127.0.0.1".equals(host) && !"localhost".equals(host) && !"::1".equals(host)) {
       throw new IllegalStateException("Mailbox SMTP must use a local private relay");
     }
-    if(port<=0 || port>65535
-        || (port==bulkPort && (host.equals(bulkHost)
-            || ("localhost".equals(host) && "127.0.0.1".equals(bulkHost))))) {
+    if(port<=0 || port>65535 || port==bulkPort) {
       throw new IllegalStateException("Mailbox SMTP requires a separate local relay port");
     }
     if(ehlo==null || !ehlo.matches("[a-zA-Z0-9.-]{3,253}") || !ehlo.contains(".")
