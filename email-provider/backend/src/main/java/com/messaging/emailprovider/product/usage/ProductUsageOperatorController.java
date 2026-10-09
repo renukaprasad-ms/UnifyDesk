@@ -17,6 +17,19 @@ public class ProductUsageOperatorController {
 
   public record RateChange(@NotNull @Min(0) Long unitPriceMicroInr) {}
 
+  /**
+   * Protected by InternalApiTokenFilter. Explicit project-scoping is mandatory because
+   * independent Email product project IDs are not UnifyDesk company IDs.
+   */
+  @GetMapping("/usage-entries")
+  public ApiResponse<ProductUsageService.HandoffPage> usageEntries(
+      @PathVariable @Positive Long projectId,
+      @RequestParam(defaultValue = "0") @Min(0) long afterId,
+      @RequestParam(defaultValue = "100") @Min(1) int limit) {
+    return ApiResponse.success(200, usage.handoffs(projectId, afterId, limit),
+        "Immutable recipient handoffs");
+  }
+
   @PostMapping("/rate")
   public ApiResponse<Void> setRate(@PathVariable @Positive Long projectId,
       @Valid @RequestBody RateChange change) {
