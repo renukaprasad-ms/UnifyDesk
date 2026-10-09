@@ -97,12 +97,8 @@ public class MailboxProvisioningService {
     if (!"PENDING".equals(pending.status()) || pending.hash() == null) {
       throw new ConflictException("Mail domain cannot be verified");
     }
-    boolean verified = dns.findTxtRecords(txtName(pending.name())).stream()
-        .limit(64)
-        .map(txt -> txt.replace("\"", "").trim())
-        .filter(txt -> txt.startsWith(DNS_PREFIX) && txt.length() < 120)
-        .map(txt -> txt.substring(DNS_PREFIX.length()))
-        .anyMatch(token -> ApiKeyCrypto.matches(token, pending.hash()));
+    boolean verified = matchesChallenge(dns.findTxtRecords(txtName(pending.name())),
+        pending.hash());
     if (!verified) throw new ConflictException("DNS ownership TXT record not found");
     int updated = jdbc.update("""
         UPDATE email_mail_domains SET status='VERIFIED',verified_at=now(),updated_at=now()
@@ -114,6 +110,15 @@ public class MailboxProvisioningService {
     if (updated != 1) throw new ConflictException("Domain changed; retry verification");
     // Verification is ownership only: no MX, mailboxes or SMTP service enabled.
     return new Domain(Long.toString(domainId), pending.name(), "VERIFIED");
+  }
+
+  static boolean matchesChallenge(java.util.Set<String> records, String expectedHash) {
+    return records.stream()
+        .limit(64)
+        .map(txt -> txt.replace("\"", "").trim())
+        .filter(txt -> txt.startsWith(DNS_PREFIX) && txt.length() < 120)
+        .map(txt -> txt.substring(DNS_PREFIX.length()))
+        .anyMatch(token -> ApiKeyCrypto.matches(token, expectedHash));
   }
 
   private static String txtName(String domain) {
