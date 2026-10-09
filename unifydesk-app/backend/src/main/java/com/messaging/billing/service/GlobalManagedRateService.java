@@ -29,7 +29,7 @@ public class GlobalManagedRateService {
   private final JdbcTemplate jdbcTemplate;
 
   private static final String COLUMNS = """
-      select id, billing_sku, price, currency, effective_from, effective_to,
+      select id, billing_sku, price, currency, enabled, effective_from, effective_to,
              created_by_user_id, reason
         from billing_global_managed_rates
       """;
@@ -54,6 +54,7 @@ public class GlobalManagedRateService {
     List<GlobalManagedRateResponse> rates = jdbcTemplate.query(
         COLUMNS + """
             where billing_sku = ?
+              and enabled = true
               and effective_from <= ?
               and (effective_to is null or effective_to > ?)
             order by effective_from desc limit 2
@@ -123,13 +124,13 @@ public class GlobalManagedRateService {
     Long id = jdbcTemplate.queryForObject(
         """
         insert into billing_global_managed_rates
-          (billing_sku, price, currency, effective_from, created_by_user_id, reason)
-        values (?, ?, 'INR', ?, ?, ?) returning id
+          (billing_sku, price, currency, enabled, effective_from, created_by_user_id, reason)
+        values (?, ?, 'INR', true, ?, ?, ?) returning id
         """,
         Long.class, sku.name(), amount, Timestamp.from(from), actorUserId,
         request.reason() == null ? null : request.reason().trim());
     return new GlobalManagedRateResponse(
-        String.valueOf(id), sku, amount, "INR", from, null,
+        String.valueOf(id), sku, amount, "INR", true, from, null,
         actorUserId == null ? null : actorUserId.toString(),
         request.reason() == null ? null : request.reason().trim());
   }
@@ -141,7 +142,7 @@ public class GlobalManagedRateService {
     return new GlobalManagedRateResponse(
         Long.toString(rs.getLong("id")),
         BillingSku.valueOf(rs.getString("billing_sku")),
-        rs.getBigDecimal("price"), rs.getString("currency"),
+        rs.getBigDecimal("price"), rs.getString("currency"), rs.getBoolean("enabled"),
         rs.getTimestamp("effective_from").toInstant(),
         end == null ? null : end.toInstant(), actor, rs.getString("reason"));
   }
