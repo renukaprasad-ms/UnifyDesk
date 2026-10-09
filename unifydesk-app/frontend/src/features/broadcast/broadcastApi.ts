@@ -20,6 +20,7 @@ import type {
   ConnectMsg91EmailInput,
   ConnectMsg91Input,
   ConnectSendGridInput,
+  ConnectUnifyDeskEmailInput,
   ChannelReadiness,
   CreateAudienceBroadcastMessageInput,
   CreateBroadcastGroupInput,
@@ -61,6 +62,14 @@ export const broadcastApi = {
   async connectAmazonSes(companyId: string, input: ConnectAmazonSesInput) {
     const response = await apiClient.post<ApiResponse<BroadcastSender>>(
       `/api/v1/companies/${companyId}/broadcast/senders/amazon-ses`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async connectUnifyDeskEmail(companyId: string, input: ConnectUnifyDeskEmailInput) {
+    const response = await apiClient.post<ApiResponse<BroadcastSender>>(
+      `/api/v1/companies/${companyId}/broadcast/senders/unifydesk-email`,
       input,
     )
     return unwrap(response.data)
