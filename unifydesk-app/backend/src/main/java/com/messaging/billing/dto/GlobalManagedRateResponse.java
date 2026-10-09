@@ -10,6 +10,7 @@ public record GlobalManagedRateResponse(
     BillingSku billingSku,
     BigDecimal price,
     String currency,
+    boolean enabled,
     Instant effectiveFrom,
     Instant effectiveTo,
     String createdByUserId,
