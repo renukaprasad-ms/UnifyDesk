@@ -50,3 +50,19 @@ export type BillingChannelTrafficReport = { from: string; to: string; points: Ch
 export type CompanyUsageReconciliation = { companyId: string; events: number; ratedInr: number; allocatedInr: number; finalizedUnallocatedEvents: number; missingInvoiceLines: number; priceMathMismatches: number }
 export type SourceUsageReconciliation = { companyId: string; acceptedEmailHandoffs: number; committedSmsRecipients: number; missingEmailFinancialEvents: number; missingSmsFinancialEvents: number; mismatchedSmsSegments: number }
 export type BillingUsageReconciliationReport = { from: string; to: string; companies: CompanyUsageReconciliation[]; sourceChecks: SourceUsageReconciliation[] }
+
+export type MailBillingProjectLink = {
+  mailProjectId: string; companyId: string; mode: 'REPORT_ONLY'; state: 'ACTIVE' | 'PAUSED';
+  effectiveFrom: string; lastExternalUsageId: string; lastSyncedAt: string | null;
+  ownershipProof: string
+}
+export type MailBillingProjectLinkInput = {
+  companyId: string; mailProjectId: string; ownershipProof: string; ownershipVerified: boolean
+}
+export type MailBillingSyncResult = {
+  mailProjectId: string; companyId: string; imported: number;
+  nextAfterId: string; hasMore: boolean
+}
+export type MailBillingUsageTotals = {
+  companyId: string; mailProjectId: string; handoffs: number; productPriceMicroInr: number
+}
