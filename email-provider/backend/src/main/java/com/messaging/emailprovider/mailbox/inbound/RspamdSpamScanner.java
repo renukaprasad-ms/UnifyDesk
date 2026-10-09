@@ -52,7 +52,8 @@ public class RspamdSpamScanner {
         || score.doubleValue() >= threshold.doubleValue()) return Decision.SPAM;
     if ("no action".equals(action) && score.doubleValue() < threshold.doubleValue()) {
       return Decision.INBOX;
-  
+    }
+    throw new ServiceUnavailableException("Unhandled spam scanner action");
   }
 
   public Decision scan(InputStream mime, long bytes) {
