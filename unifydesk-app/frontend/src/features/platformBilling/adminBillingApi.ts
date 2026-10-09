@@ -1,9 +1,10 @@
 import apiClient from '../../lib/api/apiClient'
-import type { GlobalManagedRate, GlobalManagedRateInput, ManagedUsageReport, BillingFinancialReport } from './types'
+import type { GlobalManagedRate, GlobalManagedRateInput, ManagedUsageReport, BillingFinancialReport, BillingChannelTrafficReport } from './types'
 import type { ApiResponse } from '../../lib/api/types'
 import type { AssignCompanySubscriptionInput,BillingPlan,CompanyRateOverride,CompanySubscription,CreateBillingPlanInput,CreateCompanyRateOverrideInput,CreatePlanPriceInput,CreateRateCardInput,EntitlementDefinition,GrantSubscriptionInput,PlanAssignment,PlanAssignmentInput,PlanEntitlement,PlanPrice,RateCard,UpdateBillingPlanInput,UpdatePlanPriceInput,UpdateRateCardInput } from './types'
 const unwrap=<T>(response:ApiResponse<T>,fallback:string)=>{if(response.data===undefined||response.data===null)throw new Error(response.error_message??fallback);return response.data}
 export const adminBillingApi={
+ async channelTraffic(from:string,to:string){const r=await apiClient.get<ApiResponse<BillingChannelTrafficReport>>('/api/v1/admin/billing/analytics/channel-traffic',{params:{from,to}});return unwrap(r.data,'Unable to load channel traffic')},
  async financialAnalytics(from:string,to:string){const r=await apiClient.get<ApiResponse<BillingFinancialReport>>('/api/v1/admin/billing/analytics/financial',{params:{from,to}});return unwrap(r.data,'Unable to load financial analytics')},
  async globalManagedRates(){const r=await apiClient.get<ApiResponse<GlobalManagedRate[]>>('/api/v1/admin/billing/global-managed-rates');return unwrap(r.data,'Unable to load global managed rates')},
  async reviseGlobalManagedRate(input:GlobalManagedRateInput){const r=await apiClient.post<ApiResponse<GlobalManagedRate>>('/api/v1/admin/billing/global-managed-rates',input);return unwrap(r.data,'Unable to publish global managed rate')},
