@@ -232,11 +232,18 @@ build_image() {
 
   local runtime cluster
   runtime="$(current_runtime)"
-  docker build -t "${APP_IMAGE}" "${ROOT_DIR}"
-
   if [[ "${runtime}" == "k3d" ]]; then
     require_command k3d
     cluster="$(current_cluster_name)"
+    # Refuse to build when kubectl is pointed at a stopped/wrong k3d cluster.
+    if ! kubectl get nodes >/dev/null 2>&1; then
+      echo "Current k3d cluster ${cluster} is not reachable." >&2
+      exit 1
+    fi
+  fi
+  docker build -t "${APP_IMAGE}" "${ROOT_DIR}"
+
+  if [[ "${runtime}" == "k3d" ]]; then
     echo "Importing ${APP_IMAGE} into local k3d cluster ${cluster}"
     k3d image import "${APP_IMAGE}" -c "${cluster}"
     return
