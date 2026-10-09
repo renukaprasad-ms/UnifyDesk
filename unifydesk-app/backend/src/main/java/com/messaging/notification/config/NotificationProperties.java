@@ -16,6 +16,10 @@ public class NotificationProperties {
   @Setter
   public static class Email {
     private String from;
+    private String otpFrom = "no-reply@unifydesk.in";
+    private String securityFrom = "security@unifydesk.in";
+    private String billingFrom = "billing@unifydesk.in";
+    private String notificationFrom = "notification@unifydesk.in";
     private String brandName = "Messaging";
     private String logoUrl;
     private String websiteUrl = "https://app.unifydesk.in";
