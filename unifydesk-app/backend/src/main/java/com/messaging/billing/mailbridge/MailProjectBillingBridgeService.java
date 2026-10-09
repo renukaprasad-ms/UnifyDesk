@@ -32,6 +32,8 @@ public class MailProjectBillingBridgeService {
   public record SyncResult(String mailProjectId, String companyId, int imported,
                            String nextAfterId, boolean hasMore) {}
 
+  private record ReplayCheckpoint(Instant from, Instant to, long afterId) {}
+
   /** Mail-product-side estimated charges are observational, NOT UnifyDesk invoice money. */
   public record MailUsageTotals(String companyId, String mailProjectId, long handoffs,
                                 java.math.BigDecimal productPriceMicroInr) {}
@@ -179,6 +181,74 @@ public class MailProjectBillingBridgeService {
     return importPage(mailProjectId, initial, page, false);
   }
 
+  /**
+   * Replays one cursor page per scheduler run. The persisted replay window and cursor
+   * guarantee that high-volume windows finish across multiple runs rather than
+   * rereading only the first page forever. Source duplicates are validated and ignored.
+   */
+  public SyncResult automaticReplay(Long mailProjectId) {
+    requireEnabled();
+    Link link = requireLink(mailProjectId);
+    if (!"ACTIVE".equals(link.state())) {
+      throw new ConflictException("Mail project link is paused");
+    }
+    jdbc.update("""
+        insert into billing_mail_replay_checkpoints (mail_project_id)
+        values (?) on conflict do nothing
+        """, mailProjectId);
+    List<ReplayCheckpoint> existing = jdbc.query("""
+        select window_from, window_to, after_id
+          from billing_mail_replay_checkpoints where mail_project_id = ?
+        """, (rs, row) -> {
+          Timestamp from = rs.getTimestamp("window_from");
+          Timestamp to = rs.getTimestamp("window_to");
+          return new ReplayCheckpoint(from == null ? null : from.toInstant(),
+              to == null ? null : to.toInstant(), rs.getLong("after_id"));
+        }, mailProjectId);
+    if (existing.size() != 1) throw new ConflictException("Mail replay checkpoint is missing");
+    ReplayCheckpoint previous = existing.getFirst();
+
+    Instant from;
+    Instant to;
+    if (previous.from() == null) {
+      Instant now = Instant.now();
+      from = now.minusSeconds(24L * 3600);
+      if (from.isBefore(link.effectiveFrom())) from = link.effectiveFrom();
+      to = now.minusSeconds(60);
+      if (!from.isBefore(to)) {
+        return new SyncResult(link.mailProjectId(), link.companyId(), 0, "0", false);
+      }
+    } else {
+      from = previous.from();
+      to = previous.to();
+    }
+
+    MailProductUsageClient.Page page = mail.replay(
+        mailProjectId, previous.afterId(), batchSize, from, to);
+    SyncResult imported = importPage(mailProjectId, link, page, false);
+    // Only advance the checkpoint AFTER all imported handoffs are persisted.
+    // If we crash between commits, replaying is harmless and idempotent.
+    int updated = jdbc.update("""
+        update billing_mail_replay_checkpoints
+           set window_from = ?, window_to = ?, after_id = ?,
+               last_completed_at = case when ? then now() else last_completed_at end,
+               updated_at = now()
+         where mail_project_id = ?
+           and after_id = ?
+           and window_from is not distinct from ?
+           and window_to is not distinct from ?
+        """,
+        page.hasMore() ? Timestamp.from(from) : null,
+        page.hasMore() ? Timestamp.from(to) : null,
+        page.hasMore() ? page.nextAfterId() : 0L,
+        !page.hasMore(),
+        mailProjectId, previous.afterId(),
+        previous.from() == null ? null : Timestamp.from(previous.from()),
+        previous.to() == null ? null : Timestamp.from(previous.to()));
+    if (updated != 1) throw new ConflictException("Mail replay checkpoint moved concurrently");
+    return imported;
+  }
+
   private SyncResult importPage(Long mailProjectId, Link initial,
                                 MailProductUsageClient.Page page, boolean advanceCursor) {
     if (page.projectId() != mailProjectId) {
@@ -257,6 +327,7 @@ public class MailProjectBillingBridgeService {
     for (Long project : projects) {
       try {
         sync(project);
+        automaticReplay(project);
       } catch (RuntimeException exception) {
         // One Mail project must not prevent other companies from being synchronized.
         org.slf4j.LoggerFactory.getLogger(getClass())
