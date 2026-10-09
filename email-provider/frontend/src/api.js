@@ -91,6 +91,7 @@ export async function downloadMail(mailboxId, messageId) {
     link.click()
     link.remove()
   } finally {
-    URL.revokeObjectURL(objectUrl)
+    // Defer revocation until the browser has taken ownership of the download.
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 30000)
   }
 }
