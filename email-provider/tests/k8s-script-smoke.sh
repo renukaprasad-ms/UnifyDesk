@@ -47,6 +47,21 @@ cat > "${TEMP_DIR}/bin/sudo" <<'EOF'
 #!/usr/bin/env bash
 exec "$@"
 EOF
+# Reproduce strict decoders that reject missing base64 '=' padding.
+# The .env reader must keep the original value byte-for-byte.
+cat > "${TEMP_DIR}/bin/base64" <<'EOF'
+#!/usr/bin/env bash
+if [[ "${1:-}" == "--decode" ]]; then
+  input="$(cat)"
+  if (( ${#input} % 4 != 0 )); then
+    echo "base64 padding lost" >&2
+    exit 1
+  fi
+  printf '%s' "${input}" | /usr/bin/base64 --decode
+else
+  /usr/bin/base64 "$@"
+fi
+EOF
 chmod +x "${TEMP_DIR}/bin/"*
 
 bash -n "${ROOT_DIR}/k8s.sh"
