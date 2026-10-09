@@ -6,6 +6,7 @@ export type ProviderType =
   | 'IMAP_SMTP'
   | 'SMTP'
   | 'AMAZON_SES'
+  | 'UNIFYDESK_EMAIL'
   | 'AZURE_EMAIL'
   | 'SENDGRID'
   | 'META_WHATSAPP'

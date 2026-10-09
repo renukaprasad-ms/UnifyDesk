@@ -10,32 +10,32 @@ Postfix logs remote delivery results such as `status=sent`, `status=deferred` an
 tail -F /var/log/mail.log | \
   EMAIL_PROVIDER_FEEDBACK_TOKEN='<secret>' \
   EMAIL_PROVIDER_FEEDBACK_URL='http://127.0.0.1:8010/internal/v1/feedback/postfix' \
-  python3 /opt/reachlyo/postfix_feedback_agent.py
+  python3 /opt/unifydesk/postfix_feedback_agent.py
 ```
 
 For production, run this as a supervised systemd service instead of an interactive shell.
 
 ## 2. Inbound DSN pipe
 
-Use an envelope-from domain such as `bounce.reachlyo.com` and publish its MX record to the feedback mail node. Reachlyo uses VERP:
+Use an envelope-from domain such as `bounce.unifydesk.com` and publish its MX record to the feedback mail node. UnifyDesk uses VERP:
 
 ```text
-bounce+<messageId>.<recipientId>@bounce.reachlyo.com
+bounce+<messageId>.<recipientId>@bounce.unifydesk.com
 ```
 
 Route mail for that domain into `dsn_feedback_pipe.py`. Example transport concept:
 
 ```text
 # /etc/postfix/transport
-bounce.reachlyo.com reachlyo_dsn:
+bounce.unifydesk.com unifydesk_dsn:
 ```
 
 Example pipe service concept:
 
 ```text
 # /etc/postfix/master.cf
-reachlyo_dsn unix  -       n       n       -       -       pipe
-  flags=Rq user=reachlyo argv=/opt/reachlyo/dsn_feedback_pipe.py ${recipient}
+unifydesk_dsn unix  -       n       n       -       -       pipe
+  flags=Rq user=unifydesk argv=/opt/unifydesk/dsn_feedback_pipe.py ${recipient}
 ```
 
 Then run:

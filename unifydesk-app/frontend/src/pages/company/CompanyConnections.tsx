@@ -23,6 +23,7 @@ import BroadcastEmailProviderPickerModal, {
   type BroadcastEmailProviderChoice,
 } from '../../components/broadcast/BroadcastEmailProviderPickerModal'
 import SendGridConnectModal from '../../components/broadcast/SendGridConnectModal'
+import UnifyDeskEmailConnectModal from '../../components/broadcast/UnifyDeskEmailConnectModal'
 import BroadcastTestEmailModal from '../../components/broadcast/BroadcastTestEmailModal'
 import ManagedEmailModal from '../../components/managed-email/ManagedEmailModal'
 import ManagedEmailPanel from '../../components/managed-email/ManagedEmailPanel'
@@ -77,6 +78,7 @@ const providerLabel = (
   if (providerType === 'IMAP_SMTP') return 'IMAP + SMTP'
   if (providerType === 'SMTP') return 'SMTP'
   if (providerType === 'AMAZON_SES') return 'AMAZON SES'
+  if (providerType === 'UNIFYDESK_EMAIL') return 'UNIFYDESK EMAIL'
   if (providerType === 'SENDGRID') return 'SENDGRID'
   if (providerType === 'AZURE_EMAIL') return 'AZURE EMAIL'
   if (providerType === 'MSG91_EMAIL') return 'MSG91 EMAIL'
@@ -158,6 +160,7 @@ export default function CompanyConnections() {
   const [managedSmsRefreshToken, setManagedSmsRefreshToken] = useState(0)
   const [sesConnectOpen, setSesConnectOpen] = useState(false)
   const [sendGridConnectOpen, setSendGridConnectOpen] = useState(false)
+  const [unifyDeskEmailConnectOpen, setUnifyDeskEmailConnectOpen] = useState(false)
   const [azureEmailConnectOpen, setAzureEmailConnectOpen] = useState(false)
   const [msg91ConnectOpen, setMsg91ConnectOpen] = useState(false)
   const [msg91SmsSetupOpen, setMsg91SmsSetupOpen] = useState(false)
@@ -351,6 +354,13 @@ export default function CompanyConnections() {
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     } else if (connectProvider === 'amazon-ses' && can(PERMISSIONS.BROADCAST_MODIFY)) {
       setSesConnectOpen(true)
+      url.searchParams.set('section', 'email')
+      url.searchParams.delete('connect')
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+    } else if (connectProvider === 'unifydesk-email' &&
+      import.meta.env.VITE_UNIFYDESK_EMAIL_ENABLED === 'true' &&
+      can(PERMISSIONS.BROADCAST_MODIFY)) {
+      setUnifyDeskEmailConnectOpen(true)
       url.searchParams.set('section', 'email')
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
@@ -1411,6 +1421,8 @@ export default function CompanyConnections() {
             setBroadcastEmailPickerOpen(false)
             if (provider === 'AMAZON_SES') {
               setSesConnectOpen(true)
+            } else if (provider === 'UNIFYDESK_EMAIL') {
+              setUnifyDeskEmailConnectOpen(true)
             } else if (provider === 'SENDGRID') {
               setSendGridConnectOpen(true)
             } else if (provider === 'AZURE_EMAIL') {
@@ -1492,6 +1504,20 @@ export default function CompanyConnections() {
           }}
         />
       )}
+
+      {unifyDeskEmailConnectOpen && selectedCompany &&
+        import.meta.env.VITE_UNIFYDESK_EMAIL_ENABLED === 'true' && (
+          <UnifyDeskEmailConnectModal
+            companyId={selectedCompany.companyId}
+            onClose={() => setUnifyDeskEmailConnectOpen(false)}
+            onConnected={(sender) => {
+              setUnifyDeskEmailConnectOpen(false)
+              snackbar.success(`Connected UnifyDesk Email sender ${sender.fromAddress}`)
+              setActiveEmailSetup(null)
+              void loadConnections()
+            }}
+          />
+        )}
 
       {sendGridConnectOpen && selectedCompany && (
         <SendGridConnectModal

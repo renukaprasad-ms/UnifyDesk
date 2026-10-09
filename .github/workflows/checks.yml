@@ -95,16 +95,34 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-          cache-dependency-path: email-provider/pom.xml
-      - name: Email provider Spotless
+          cache-dependency-path: email-provider/backend/pom.xml
+      - name: Email provider deployment smoke
         working-directory: email-provider
+        run: ./tests/k8s-script-smoke.sh
+      - name: Email provider Spotless
+        working-directory: email-provider/backend
         run: chmod +x mvnw && ./mvnw -B spotless:check
       - name: Email provider clean test
-        working-directory: email-provider
+        working-directory: email-provider/backend
         run: ./mvnw -B clean test
       - name: Email provider package
-        working-directory: email-provider
+        working-directory: email-provider/backend
         run: ./mvnw -B package -DskipTests
+
+  email-console:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install console dependencies
+        working-directory: email-provider/frontend
+        run: npm install --no-audit --no-fund
+      - name: Build React console
+        working-directory: email-provider/frontend
+        run: npm run build
+
 
   website:
     runs-on: ubuntu-latest

@@ -28,7 +28,7 @@ import { PageSkeleton } from '../../components/ui/Skeleton'
 type Tab = 'overview' | 'pricing' | 'entitlements' | 'usage'
 
 const providersByChannel: Record<ChannelType, ProviderType[]> = {
-  EMAIL: ['AMAZON_SES', 'SENDGRID', 'AZURE_EMAIL', 'MSG91_EMAIL', 'GMAIL', 'MICROSOFT', 'IMAP_SMTP', 'SMTP'],
+  EMAIL: ['AMAZON_SES', 'SENDGRID', 'AZURE_EMAIL', 'MSG91_EMAIL', 'UNIFYDESK_EMAIL', 'GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP', 'SMTP'],
   WHATSAPP: ['META_WHATSAPP'],
   SMS: ['MSG91_SMS'],
 }
@@ -403,7 +403,7 @@ export default function PlatformPlanDetails() {
 
   return (
     <section className="p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
+      <div className="w-full">
         <button
           className="mb-5 inline-flex items-center gap-2 text-xs font-semibold text-slate-500"
           onClick={() => navigate('/platform/plans')}

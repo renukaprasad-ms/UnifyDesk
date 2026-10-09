@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: email-provider
+  namespace: email-platform
+  labels:
+    app: email-provider
+spec:
+  type: ClusterIP
+  selector:
+    app: email-provider
+  ports:
+    - name: http
+      port: 8010
+      targetPort: 8010
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-provider
+  namespace: email-platform
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: email-provider
+  template:
+    metadata:
+      labels:
+        app: email-provider
+    spec:
+      hostNetwork: false
+      dnsPolicy: ClusterFirst
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.37
+          command:
+            - /bin/sh
+            - -ec
+            - until nc -z email-postgres.email-platform.svc.cluster.local 5432; do sleep 2; done
+        - name: wait-for-redis
+          image: busybox:1.37
+          command:
+            - /bin/sh
+            - -ec
+            - until nc -z email-redis.email-platform.svc.cluster.local 6379; do sleep 2; done
+      containers:
+        - name: email-provider
+          image: email-provider:latest
+          imagePullPolicy: Never
+          envFrom:
+            - secretRef:
+                name: email-provider-env
+          # Dev-only sink: overrides SMTP_HOST/PORT from .env so nothing is sent to public MX.
+          env:
+            - name: EMAIL_PROVIDER_SMTP_HOST
+              value: email-mailpit.email-platform.svc.cluster.local
+            - name: EMAIL_PROVIDER_SMTP_PORT
+              value: "1025"
+          ports:
+            - name: http
+              containerPort: 8010
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8010
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8010
+            initialDelaySeconds: 45
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8010
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 36
+          resources:
+            requests:
+              cpu: 100m
+              memory: 224Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi

@@ -54,6 +54,16 @@ public class BroadcastSenderController {
                 "SendGrid sender connected"));
   }
 
+  @PostMapping("/unifydesk-email")
+  public ResponseEntity<ApiResponse<BroadcastSenderResponse>> connectUnifyDeskEmail(
+      @PathVariable Long companyId, @Valid @RequestBody ConnectUnifyDeskEmailRequest request) {
+    Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponse.success(
+            201, senderService.connectUnifyDeskEmail(companyId, userId, request),
+            "UnifyDesk Email sender connected"));
+  }
+
   @PostMapping("/azure-email")
   public ResponseEntity<ApiResponse<BroadcastSenderResponse>> connectAzureEmail(
       @PathVariable Long companyId, @Valid @RequestBody ConnectAzureEmailRequest request) {

@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import BroadcastEmailProviderPickerModal from '../broadcast/BroadcastEmailProviderPickerModal'
+import BroadcastEmailProviderPickerModal, {
+  type BroadcastEmailProviderChoice,
+} from '../broadcast/BroadcastEmailProviderPickerModal'
 import { SnackbarProvider } from '../feedback/SnackbarProviderComponent'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 
@@ -13,7 +15,7 @@ vi.mock('../../features/broadcast/broadcastApi', () => ({
 
 const renderPicker = (overrides?: {
   onManagedEmail?: () => void
-  onSelect?: (provider: 'AMAZON_SES' | 'SENDGRID' | 'AZURE_EMAIL' | 'MSG91_EMAIL') => void
+  onSelect?: (provider: BroadcastEmailProviderChoice) => void
 }) => {
   const onManagedEmail = vi.fn(overrides?.onManagedEmail)
   const onSelect = vi.fn(overrides?.onSelect)

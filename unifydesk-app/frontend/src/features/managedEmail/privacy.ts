@@ -16,6 +16,7 @@ export const broadcastSenderProviderLabel = (
   const provider = sender?.provider
   if (!provider) return 'Legacy mailbox'
   if (provider === 'AMAZON_SES') return 'Amazon SES'
+  if (provider === 'UNIFYDESK_EMAIL') return 'UnifyDesk Email'
   if (provider === 'AZURE_EMAIL') return 'Azure Email'
   if (provider === 'SENDGRID') return 'SendGrid'
   if (provider === 'MSG91_EMAIL') return 'MSG91 Email'
@@ -27,7 +28,7 @@ export const broadcastSenderConnectionDetails = (sender?: BroadcastSender | null
   if (!sender || isMessagingManagedSender(sender)) return []
 
   const details: string[] = []
-  if (sender.provider !== 'MSG91_SMS' && sender.provider !== 'MSG91_EMAIL' && sender.region) {
+  if (sender.provider !== 'MSG91_SMS' && sender.provider !== 'MSG91_EMAIL' && sender.provider !== 'UNIFYDESK_EMAIL' && sender.region) {
     details.push(sender.region)
   }
   if (sender.maxSendRate) {
