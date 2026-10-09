@@ -44,6 +44,26 @@ public class UnifyDeskEmailApiClient {
       String text, String html, List<String> recipients, String consentReference) {}
 
 
+  public record ProjectInfo(String projectId, boolean sendingEnabled) {}
+
+  public ProjectInfo inspectProject(String projectApiKey) throws IOException, InterruptedException {
+    if (projectApiKey == null || !projectApiKey.startsWith("ude_live_")) {
+      throw new IllegalArgumentException("Project key required");
+    }
+    HttpRequest request = HttpRequest.newBuilder(baseUrl.resolve("/v1/project"))
+        .timeout(Duration.ofSeconds(15))
+        .header("Authorization", "Bearer " + projectApiKey).GET().build();
+    HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+    if (response.statusCode() < 200 || response.statusCode() >= 300) {
+      throw new IOException("UnifyDesk Email project check HTTP " + response.statusCode());
+    }
+    JsonNode data = mapper.readTree(response.body()).path("data");
+    if (!data.hasNonNull("projectId") || !data.has("sendingEnabled")) {
+      throw new IOException("Invalid UnifyDesk Email project status response");
+    }
+    return new ProjectInfo(data.path("projectId").asText(), data.path("sendingEnabled").asBoolean());
+  }
+
   public record DomainInfo(String id, String domain, String status) {}
 
   public DomainInfo inspectDomain(String projectApiKey, Long domainId)

@@ -31,6 +31,10 @@ public class UnifyDeskEmailGateway {
       String apiKey, Long domainId, String fromAddress) {
     gate.requireEnabled();
     try {
+      var project = api.inspectProject(apiKey);
+      if (!project.sendingEnabled()) {
+        throw new BadRequestException("UnifyDesk Email project sending is not approved");
+      }
       var domain = api.inspectDomain(apiKey, domainId);
       String actual = domain.domain().trim().toLowerCase(Locale.ROOT);
       String sender = fromAddress.trim().toLowerCase(Locale.ROOT);
