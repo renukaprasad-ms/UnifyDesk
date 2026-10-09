@@ -306,7 +306,7 @@ export default function MailConsole({ session }) {
           </div>}
       </Panel>
       {composeEnabled && currentMailbox?.status === 'ACTIVE' &&
-        <MailDrafts mailboxId={mailboxId} mailboxAddress={currentMailbox.address}
+        <MailDrafts key={mailboxId} mailboxId={mailboxId} mailboxAddress={currentMailbox.address}
           replySeed={replySeed}/>}
     </>}
   </section>
