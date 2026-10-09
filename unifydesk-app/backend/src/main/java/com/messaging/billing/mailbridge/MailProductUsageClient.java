@@ -116,9 +116,34 @@ public class MailProductUsageClient {
     if (afterId < 0 || limit < 1 || limit > 500) {
       throw new IllegalArgumentException("Invalid Mail usage cursor or page size");
     }
-    JsonNode body = get(projectId,
-        "usage-entries?afterId=" + afterId + "&limit=" + limit);
-    if (Long.parseLong(body.path("projectId").asText("-1")) != projectId) {
+    return parsePage(projectId, afterId, limit, get(projectId,
+        "usage-entries?afterId=" + afterId + "&limit=" + limit));
+  }
+
+  /** Bounded, idempotent recovery for out-of-order transaction commits. */
+  public Page replay(Long projectId, long afterId, int limit, Instant from, Instant to) {
+    if (afterId < 0 || limit < 1 || limit > 500 || from == null || to == null
+        || !from.isBefore(to) || from.isBefore(to.minusSeconds(31L * 86400))
+        || to.isAfter(Instant.now().plusSeconds(60))) {
+      throw new IllegalArgumentException("Mail handoff replay requires a valid 31-day window");
+    }
+    String suffix = "usage-entries?afterId=" + afterId + "&limit=" + limit
+        + "&from=" + java.net.URLEncoder.encode(from.toString(),
+            java.nio.charset.StandardCharsets.UTF_8)
+        + "&to=" + java.net.URLEncoder.encode(to.toString(),
+            java.nio.charset.StandardCharsets.UTF_8);
+    return parsePage(projectId, afterId, limit, get(projectId, suffix));
+  }
+
+  private Page parsePage(Long projectId, long afterId, int limit, JsonNode body) {
+    long returnedProjectId;
+    try {
+      returnedProjectId = Long.parseLong(body.path("projectId").asText("-1"));
+    } catch (NumberFormatException exception) {
+      throw new ServiceUnavailableException("Mail usage API returned invalid project identity",
+          exception);
+    }
+    if (returnedProjectId != projectId) {
       throw new ServiceUnavailableException("Mail project ID mismatch in usage response");
     }
     JsonNode rows = body.path("entries");
@@ -143,6 +168,9 @@ public class MailProductUsageClient {
       } catch (RuntimeException exception) {
         throw new ServiceUnavailableException("Mail usage source contains invalid records", exception);
       }
+    }
+    if (entries.isEmpty() && body.path("hasMore").asBoolean(false)) {
+      throw new ServiceUnavailableException("Mail handoff source returned an empty continuing page");
     }
     try {
       long cursor = Long.parseLong(body.path("nextAfterId").asText("-1"));
