@@ -1,6 +1,7 @@
 package com.messaging.billing.controller;
 
 import com.messaging.admin.service.PlatformAdminAuthorizationService;
+import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.security.service.CurrentUserService;
 import java.math.BigDecimal;
@@ -45,10 +46,10 @@ public class BillingUsageAnalyticsController {
       @RequestParam Instant from, @RequestParam Instant to) {
     authorizationService.requireSuperAdmin(currentUserService.currentUserId());
     if (!from.isBefore(to) || to.isAfter(Instant.now().plusSeconds(60))) {
-      throw new IllegalArgumentException("Invalid analytics interval");
+      throw new BadRequestException("Invalid analytics interval");
     }
     if (from.isBefore(to.minusSeconds(366L * 86400))) {
-      throw new IllegalArgumentException("Analytics interval cannot exceed 366 days");
+      throw new BadRequestException("Analytics interval cannot exceed 366 days");
     }
     Timestamp start = Timestamp.from(from);
     Timestamp end = Timestamp.from(to);
