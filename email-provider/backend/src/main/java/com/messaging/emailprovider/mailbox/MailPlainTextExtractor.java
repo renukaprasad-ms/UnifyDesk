@@ -4,6 +4,7 @@ import com.messaging.emailprovider.common.exception.ServiceUnavailableException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.util.ArrayDeque;
 import java.util.Locale;
 import org.apache.james.mime4j.stream.EntityState;
 import org.apache.james.mime4j.stream.Field;
@@ -21,6 +22,7 @@ public class MailPlainTextExtractor {
   static final int MAX_CHARS = 65536;
   static final int MAX_PARTS = 128;
   static final int MAX_FIELDS = 512;
+  static final int MAX_NESTING = 12;
 
   public record PlainText(String text, boolean truncated, boolean available) {}
 
@@ -31,13 +33,18 @@ public class MailPlainTextExtractor {
     int parts = 0;
     int fields = 0;
     boolean attachment = false;
+    ArrayDeque<Boolean> ancestorAttachment = new ArrayDeque<>();
     try {
       parser.parse(raw);
       for (EntityState state = parser.getState();
            state != EntityState.T_END_OF_STREAM;
            state = parser.next()) {
         switch (state) {
-          case T_START_HEADER -> attachment = false;
+          case T_START_HEADER -> {
+            // An attached multipart cannot smuggle a text body through its
+            // nested parts simply by omitting the child's disposition field.
+            attachment = !ancestorAttachment.isEmpty() && ancestorAttachment.peek();
+          }
           case T_FIELD -> {
             if (++fields > MAX_FIELDS) {
               throw new ServiceUnavailableException("Mail exceeds safe header count");
@@ -55,10 +62,13 @@ public class MailPlainTextExtractor {
             }
           }
           case T_START_BODYPART -> {
-            if (++parts > MAX_PARTS) {
-              throw new ServiceUnavailableException("Mail contains too many parts");
+            if (ancestorAttachment.size() >= MAX_NESTING) {
+              throw new ServiceUnavailableException("Mail nesting exceeds safety limit");
             }
+            ancestorAttachment.push(attachment);
           }
+          case T_END_BODYPART ->
+              attachment = ancestorAttachment.isEmpty() ? false : ancestorAttachment.pop();
           case T_BODY -> {
             if (++parts > MAX_PARTS) {
               throw new ServiceUnavailableException("Mail contains too many parts");
