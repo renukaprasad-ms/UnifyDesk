@@ -49,6 +49,6 @@ public class JndiDnsResolver implements DnsResolver {
   }
 
   static String normalizeTxtValue(String value) {
-    return value.replace(""", "").replaceAll("\\s+", " ").trim();
+    return value.replace("\"", "").replaceAll("\\s+", " ").trim();
   }
 }
