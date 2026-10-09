@@ -58,6 +58,11 @@ server:
 
 app:
   mail:
+    feedback:
+      enabled: ${EMAIL_MAIL_FEEDBACK_ENABLED:false}
+      token: ${EMAIL_MAIL_FEEDBACK_TOKEN:}
+    ops:
+      enabled: ${EMAIL_MAIL_OPS_ENABLED:false}
     outbound:
       enabled: ${EMAIL_MAIL_OUTBOUND_ENABLED:false}
       interval-ms: ${EMAIL_MAIL_OUTBOUND_INTERVAL_MS:5000}
