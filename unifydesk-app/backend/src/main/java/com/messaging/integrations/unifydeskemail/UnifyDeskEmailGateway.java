@@ -82,6 +82,14 @@ public class UnifyDeskEmailGateway {
               List.of(command.recipient()),
               "ud-app-" + command.correlationId()));
       return new BroadcastEmailResult("ud-email-batch-" + batch.batchId(), null, Instant.now());
+    } catch (UnifyDeskEmailHttpException e) {
+      int status = e.statusCode();
+      if (status == 429 || status >= 500) {
+        throw BroadcastTransportException.retryable(
+            "UD_EMAIL_HTTP_" + status, "UnifyDesk Email temporarily rejected the send", e);
+      }
+      throw BroadcastTransportException.permanent(
+          "UD_EMAIL_HTTP_" + status, "UnifyDesk Email rejected the send", e);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw BroadcastTransportException.unknown(

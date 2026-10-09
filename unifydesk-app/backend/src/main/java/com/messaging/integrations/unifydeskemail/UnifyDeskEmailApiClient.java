@@ -15,8 +15,7 @@ import org.springframework.stereotype.Component;
 /**
  * Independent-product API client. Each UnifyDesk workspace must supply its own
  * encrypted-at-rest email project key. No shared database access and no key logging.
- * This is deliberately NOT registered as a broadcast provider until billing/consent
- * and connection lifecycle contracts are implemented.
+ * Used only by the gated Broadcast transport following normal tenant and consent checks.
  */
 @Component
 public class UnifyDeskEmailApiClient {
@@ -55,7 +54,7 @@ public class UnifyDeskEmailApiClient {
         .header("Authorization", "Bearer " + projectApiKey).GET().build();
     HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
-      throw new IOException("UnifyDesk Email project check HTTP " + response.statusCode());
+      throw new UnifyDeskEmailHttpException(response.statusCode());
     }
     JsonNode data = mapper.readTree(response.body()).path("data");
     if (!data.hasNonNull("projectId") || !data.has("sendingEnabled")) {
@@ -85,7 +84,7 @@ public class UnifyDeskEmailApiClient {
       throw interrupted;
     }
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
-      throw new IOException("UnifyDesk Email domain verification HTTP " + response.statusCode());
+      throw new UnifyDeskEmailHttpException(response.statusCode());
     }
     JsonNode data = mapper.readTree(response.body()).path("data");
     String name = data.path("domain").asText("");
@@ -123,7 +122,7 @@ public class UnifyDeskEmailApiClient {
       throw interrupted;
     }
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
-      throw new IOException("UnifyDesk Email rejected batch with HTTP " + response.statusCode());
+      throw new UnifyDeskEmailHttpException(response.statusCode());
     }
     JsonNode data = mapper.readTree(response.body()).path("data");
     if (data.path("batchId").isMissingNode() || data.path("batchId").asText().isBlank()) {
