@@ -46,3 +46,6 @@ export type BillingFinancialReport = { from: string; to: string; totals: Financi
 
 export type ChannelTrafficPoint = { companyId: string; day: string; channel: ChannelType; direction: CommunicationDirection; messages: number }
 export type BillingChannelTrafficReport = { from: string; to: string; points: ChannelTrafficPoint[] }
+
+export type CompanyUsageReconciliation = { companyId: string; events: number; ratedInr: number; allocatedInr: number; finalizedUnallocatedEvents: number; missingInvoiceLines: number; priceMathMismatches: number }
+export type BillingUsageReconciliationReport = { from: string; to: string; companies: CompanyUsageReconciliation[] }
