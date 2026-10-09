@@ -1,6 +1,5 @@
 package com.messaging.emailprovider.mailbox.inbound;
 
-import com.messaging.emailprovider.common.exception.ServiceUnavailableException;
 import com.messaging.emailprovider.common.id.IdGenerator;
 import java.io.InputStream;
 import java.time.Instant;
@@ -80,7 +79,7 @@ public class InboundScanWorker {
         verdict = malware.scan(data, job.bytes(), job.digest());
       }
       if (verdict == ClamdMalwareScanner.Verdict.INFECTED) {
-        finish(job, "QUARANTINED", null);
+        finish(job, "QUARANTINED", null, null);
         return;
       }
       RspamdSpamScanner.Decision disposition;
@@ -88,20 +87,24 @@ public class InboundScanWorker {
         disposition = spam.scan(data, job.bytes());
       }
       if (disposition == RspamdSpamScanner.Decision.QUARANTINE) {
-        finish(job, "QUARANTINED", null);
+        finish(job, "QUARANTINED", null, null);
       } else {
+        MailHeaderSummary.Summary summary;
+        try (InputStream data = spool.open(job.objectKey())) {
+          summary = MailHeaderSummary.read(data);
+        }
         finish(job, "READY",
-            disposition == RspamdSpamScanner.Decision.SPAM ? "SPAM" : "INBOX");
+            disposition == RspamdSpamScanner.Decision.SPAM ? "SPAM" : "INBOX", summary);
       }
     } catch (Exception unavailable) {
       fail(job);
     }
   }
 
-  private void finish(Job job, String status, String folder) {
+  private void finish(Job job, String status, String folder, MailHeaderSummary.Summary summary) {
     transactions.executeWithoutResult(ignored -> {
       // Recheck tenant/domain/mailbox state under the same transaction.
-      boolean active = jdbc.queryForObject("""
+      Boolean active = jdbc.queryForObject("""
           SELECT EXISTS (
             SELECT 1 FROM email_mailboxes m
             JOIN email_mail_domains d ON d.id=m.domain_id
@@ -122,11 +125,13 @@ public class InboundScanWorker {
       jdbc.update("""
           INSERT INTO email_mailbox_messages (
             id,organization_id,mailbox_id,inbound_job_id,direction,folder,
-            mime_object_key,mime_size_bytes,received_at)
-          VALUES (?,?,?,?,'INBOUND',?,?,?,?)
+            mime_object_key,mime_size_bytes,received_at,
+            from_address,subject,message_id_header)
+          VALUES (?,?,?,?,'INBOUND',?,?,?,?,?,?)
           ON CONFLICT (inbound_job_id) DO NOTHING
           """, IdGenerator.nextId(),job.organizationId(),job.mailboxId(),
-          job.id(),folder,job.objectKey(),job.bytes(),job.receivedAt());
+          job.id(),folder,job.objectKey(),job.bytes(),job.receivedAt(),
+          summary.from(),summary.subject(),summary.messageId());
     });
   }
 
