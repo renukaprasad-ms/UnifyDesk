@@ -20,6 +20,20 @@ public class EmailNotificationSender implements NotificationSender {
   private final JavaMailSender mailSender;
   private final NotificationProperties notificationProperties;
 
+  private String senderAddress(String purpose) {
+    var email = notificationProperties.getEmail();
+    if (purpose == null || purpose.isBlank()) {
+      return StringUtils.hasText(email.getNotificationFrom()) ? email.getNotificationFrom() : email.getFrom();
+    }
+    return switch (purpose.toUpperCase(java.util.Locale.ROOT)) {
+      case "OTP" -> email.getOtpFrom();
+      case "SECURITY" -> email.getSecurityFrom();
+      case "BILLING" -> email.getBillingFrom();
+      case "NOTIFICATION" -> email.getNotificationFrom();
+      default -> throw new ServiceUnavailableException("Unsupported email sender purpose");
+    };
+  }
+
   @Override
   public NotificationChannel channel() {
     return NotificationChannel.EMAIL;
@@ -27,7 +41,7 @@ public class EmailNotificationSender implements NotificationSender {
 
   @Override
   public void send(SendNotificationRequest request) {
-    String from = notificationProperties.getEmail().getFrom();
+    String from = senderAddress(request.senderPurpose());
     if (!StringUtils.hasText(from)) {
       throw new ServiceUnavailableException("Email sender is not configured");
     }
