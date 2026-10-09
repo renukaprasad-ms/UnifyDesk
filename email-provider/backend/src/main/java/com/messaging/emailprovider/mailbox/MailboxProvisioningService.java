@@ -32,6 +32,7 @@ public class MailboxProvisioningService {
   @Transactional
   public Domain registerDomain(long organizationId, String value) {
     String domain = normalizeDomain(value);
+    lockOrganization(organizationId);
     Long count = jdbc.queryForObject(
         "SELECT count(*) FROM email_mail_domains WHERE organization_id=?", Long.class, organizationId);
     if (count == null || count >= 20) {
@@ -63,6 +64,7 @@ public class MailboxProvisioningService {
   public Mailbox createMailbox(long organizationId, long domainId, String localPart,
       String displayName) {
     String local = normalizeLocalPart(localPart);
+    lockOrganization(organizationId);
     String display = displayName == null ? null : displayName.trim();
     if (display != null && display.length() > 160) {
       throw new BadRequestException("Display name is too long");
@@ -107,6 +109,14 @@ public class MailboxProvisioningService {
         """, (rs, row) -> new Mailbox(Long.toString(rs.getLong(1)),
         rs.getString(2), rs.getString(3), rs.getLong(4)),
         organizationId, domainId, MAX_LIST_RESULTS);
+  }
+
+  // Serialize per-organization provisioning so concurrent requests cannot bypass limits.
+  private void lockOrganization(long organizationId) {
+    List<Long> found = jdbc.query(
+        "SELECT id FROM email_product_organizations WHERE id=? AND status='ACTIVE' FOR UPDATE",
+        (rs, row) -> rs.getLong(1), organizationId);
+    if (found.isEmpty()) throw new NotFoundException("Organization not found");
   }
 
   static String normalizeDomain(String value) {
