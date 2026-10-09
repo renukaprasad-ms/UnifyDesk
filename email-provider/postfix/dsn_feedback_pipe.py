@@ -25,8 +25,8 @@ def main():
         data=body,
         headers={
             "Content-Type": "message/rfc822",
-            "X-Reachlyo-Feedback-Token": TOKEN,
-            "X-Reachlyo-Envelope-Recipient": envelope_recipient,
+            "X-UnifyDesk-Feedback-Token": TOKEN,
+            "X-UnifyDesk-Envelope-Recipient": envelope_recipient,
         },
         method="POST",
     )

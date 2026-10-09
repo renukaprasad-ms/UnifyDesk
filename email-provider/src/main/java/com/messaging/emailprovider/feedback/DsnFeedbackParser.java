@@ -34,7 +34,7 @@ public class DsnFeedbackParser {
 
     Matcher verp = VERP.matcher(envelopeRecipient.trim());
     if (!verp.matches()) {
-      throw new BadRequestException("Envelope recipient is not a Reachlyo VERP address");
+      throw new BadRequestException("Envelope recipient is not a UnifyDesk VERP address");
     }
 
     Long recipientId = Long.parseLong(verp.group(2));

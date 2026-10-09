@@ -58,6 +58,8 @@ server:
 
 app:
   security:
+    api:
+      internal-token: ${EMAIL_PROVIDER_INTERNAL_API_TOKEN:}
     credentials:
       master-key: ${EMAIL_PROVIDER_MASTER_KEY:}
   dkim:

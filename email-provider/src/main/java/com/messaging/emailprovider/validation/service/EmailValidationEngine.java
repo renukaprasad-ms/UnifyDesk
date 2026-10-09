@@ -134,7 +134,7 @@ public class EmailValidationEngine {
   private Boolean detectCatchAll(
       NormalizedEmail email, DomainValidationSnapshot domain) {
     String randomRecipient =
-        "__reachlyo_probe_" + UUID.randomUUID().toString().replace("-", "") + "@" + email.domain();
+        "__unifydesk_probe_" + UUID.randomUUID().toString().replace("-", "") + "@" + email.domain();
     try (DomainProbeLimiter.Lease lease = limiter.tryAcquire(domain.domain())) {
       if (!lease.acquired()) {
         return null;
