@@ -1,3 +1,9 @@
+-- Use composite tenant keys even though globally unique IDs exist, so a
+-- future service bug cannot attach a draft to another tenant's mail.
+ALTER TABLE email_mailbox_messages
+  ADD CONSTRAINT uq_mailbox_message_tenant_ref
+  UNIQUE (organization_id,mailbox_id,id);
+
 -- R6: mailbox-specific draft state and held outgoing submission intent.
 -- Does not reuse marketing projects, public API keys or SES credentials.
 -- Nothing in this table is eligible for SMTP until an audited transport is added.
@@ -22,8 +28,9 @@ CREATE TABLE email_mail_drafts (
     REFERENCES email_mailboxes (organization_id,id),
   CONSTRAINT fk_mail_draft_user FOREIGN KEY (organization_id,author_user_id)
     REFERENCES email_console_users (organization_id,id),
-  CONSTRAINT fk_mail_draft_reply FOREIGN KEY (reply_to_message_id)
-    REFERENCES email_mailbox_messages(id),
+  CONSTRAINT fk_mail_draft_reply
+    FOREIGN KEY (organization_id,mailbox_id,reply_to_message_id)
+    REFERENCES email_mailbox_messages (organization_id,mailbox_id,id),
   CONSTRAINT chk_mail_draft_status CHECK (status IN ('DRAFT','PENDING_TRANSPORT')),
   CONSTRAINT chk_mail_draft_revision CHECK (revision > 0),
   CONSTRAINT chk_mail_draft_body_bytes CHECK (octet_length(body_text) <= 65536),
@@ -32,6 +39,9 @@ CREATE TABLE email_mail_drafts (
     octet_length(recipients_cc) <= 6400 AND
     octet_length(recipients_bcc) <= 6400)
 );
+ALTER TABLE email_mail_drafts
+  ADD CONSTRAINT uq_mail_draft_tenant_ref
+  UNIQUE (organization_id,mailbox_id,id);
 CREATE INDEX idx_mail_drafts_author
   ON email_mail_drafts (organization_id,mailbox_id,author_user_id,id DESC);
 CREATE UNIQUE INDEX uq_mail_draft_submission
@@ -43,7 +53,10 @@ CREATE TABLE email_mail_outbound_intents (
   id BIGINT PRIMARY KEY,
   organization_id BIGINT NOT NULL,
   mailbox_id BIGINT NOT NULL,
-  draft_id BIGINT NOT NULL UNIQUE REFERENCES email_mail_drafts(id),
+  draft_id BIGINT NOT NULL UNIQUE,
+  CONSTRAINT fk_mail_outbound_draft_tenant
+    FOREIGN KEY (organization_id,mailbox_id,draft_id)
+    REFERENCES email_mail_drafts (organization_id,mailbox_id,id),
   state VARCHAR(24) NOT NULL DEFAULT 'HELD',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT fk_mail_outbound_mailbox FOREIGN KEY (organization_id,mailbox_id)
