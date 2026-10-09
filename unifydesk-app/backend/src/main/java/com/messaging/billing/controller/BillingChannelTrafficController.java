@@ -20,7 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
  * Operational message activity—not financial charge units. Counts rows from distinct
  * channel message identity stores instead of provider webhook events to avoid retry inflation.
  * Coverage: connected inbox email, legacy managed email/SMS broadcast and Meta WhatsApp.
- * The separate UnifyDesk Mail service is not yet integrated into this report.
+ * Includes explicitly linked and ingested standalone Mail product handoffs; unlinked
+ * Mail projects are excluded. A source may appear in multiple stores until deduplicated.
  */
 @RestController
 @RequestMapping("/api/v1/admin/billing/analytics")
@@ -64,6 +65,10 @@ public class BillingChannelTrafficController {
             from managed_sms_recipient_delivery d
            where d.accepted_at >= ? and d.accepted_at < ?
           union all
+          select m.company_id, 'EMAIL', 'OUTBOUND', m.occurred_at
+            from billing_mail_usage_imports m
+           where m.occurred_at >= ? and m.occurred_at < ?
+          union all
           select w.company_id, 'WHATSAPP', w.direction, w.created_at
             from meta_whatsapp_message_runtime w
            where w.detailed_status in ('ACCEPTED', 'SENT', 'DELIVERED', 'READ')
@@ -80,7 +85,7 @@ public class BillingChannelTrafficController {
             Long.toString(rs.getLong("company_id")), rs.getString("day"),
             rs.getString("channel"), rs.getString("direction"),
             rs.getLong("message_count")),
-        start, end, start, end, start, end, start, end);
+        start, end, start, end, start, end, start, end, start, end);
     return ResponseEntity.ok(ApiResponse.success(
         HttpStatus.OK.value(), new TrafficReport(from, to, rows), "Channel traffic fetched"));
   }
