@@ -17,7 +17,7 @@ public class UnsubscribeTokenService {
 
   public UnsubscribeTokenService(
       @Value("${app.product.unsubscribe.signing-key:}") String key,
-      @Value("${app.product.unsubscribe.public-base-url:https://email.unifydesk.in}") String base) {
+      @Value("${app.product.unsubscribe.public-base-url:https://api.email.unifydesk.in}") String base) {
     this.secret = key == null ? new byte[0] : key.getBytes(StandardCharsets.UTF_8);
     URI uri = URI.create(base);
     if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null
