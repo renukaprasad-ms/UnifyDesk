@@ -3,6 +3,22 @@
 Status: SOURCE ONLY, NOT INSTALLED, NOT DEPLOYED. No DNS, firewall, k3s or
 Postfix runtime was changed. Production SES/Managed Email is unaffected.
 
+## Offline pipe behavior regression
+
+Before touching any live mail service, run:
+
+  bash email-provider/tests/inbound-r10-pipe-qa.sh
+
+This test uses a temporary copy of the shipped pipe script and a fake curl
+client. It requires only Bash and coreutils, does not read production secrets,
+and does not send any SMTP or HTTP traffic. It proves that only an HTTP 202
+causes successful delivery; 200, 302, 503, network failures and invalid
+recipient/queue ID all fail closed, while retries preserve delivery keys.
+
+This test was executed and passed in an isolated development container.
+**It is NOT evidence that the real Postfix instance, PostgreSQL or malware
+scanner are configured, running or passing integration QA.**
+
 ## Data flow
 
 External SMTP (later) -> dedicated inbound Postfix -> PostgreSQL recipient
