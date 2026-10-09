@@ -26,7 +26,7 @@ public class JavaMailProductEmailGateway implements ProductEmailGateway {
 
   @Override
   public EmailSendResult send(String recipient, RenderedEmail email) {
-    String from = notificationProperties.getEmail().getFrom();
+    String from = notificationProperties.getEmail().getNotificationFrom();
     if (!StringUtils.hasText(from)) {
       return EmailSendResult.permanentFailure("PLATFORM_SENDER_NOT_CONFIGURED");
     }
