@@ -31,7 +31,7 @@ public class BillingUsageAnalyticsController {
   public record ChannelTotals(long emailMessages, long smsSegments, long whatsappMessages,
                               BigDecimal managedChargesInr) {}
 
-  public record CompanyUsage(long companyId, long emailMessages, long smsSegments,
+  public record CompanyUsage(String companyId, long emailMessages, long smsSegments,
                              long whatsappMessages, BigDecimal managedChargesInr) {}
 
   public record DailyUsage(String day, long emailMessages, long smsSegments,
@@ -75,7 +75,7 @@ public class BillingUsageAnalyticsController {
     List<CompanyUsage> companies = jdbcTemplate.query(
         "select u.company_id, " + columns + predicate +
             "group by u.company_id order by charges desc, u.company_id",
-        (rs, n) -> new CompanyUsage(rs.getLong("company_id"), rs.getLong("email_count"),
+        (rs, n) -> new CompanyUsage(Long.toString(rs.getLong("company_id")), rs.getLong("email_count"),
             rs.getLong("sms_count"), rs.getLong("whatsapp_count"),
             rs.getBigDecimal("charges")), start, end);
     // UTC day boundaries are deliberate. Frontend must label the timezone.
