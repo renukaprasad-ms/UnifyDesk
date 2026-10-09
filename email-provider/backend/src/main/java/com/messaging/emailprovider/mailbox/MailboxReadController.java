@@ -1,6 +1,8 @@
 package com.messaging.emailprovider.mailbox;
 
 import com.messaging.emailprovider.common.response.ApiResponse;
+import com.messaging.emailprovider.common.exception.BadRequestException;
+import jakarta.validation.constraints.NotBlank;
 import com.messaging.emailprovider.product.console.ConsoleAuthFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -29,14 +31,26 @@ public class MailboxReadController {
     this.mailbox = mailbox;
   }
 
-  public record Activate(@Positive long userId) {}
+  /** Snowflake IDs are strings on the wire to avoid JavaScript precision loss. */
+  public record Activate(@NotBlank String userId) {}
 
   @PostMapping("/{mailboxId}/activate")
   public ApiResponse<MailboxReadService.MailboxView> activate(
       HttpServletRequest req,@PathVariable @Positive long mailboxId,
       @Valid @RequestBody Activate body) {
     return ApiResponse.success(200,mailbox.activate(ConsoleAuthFilter.require(req),
-        mailboxId,body.userId()),"Mailbox activated with explicit owner grant");
+        mailboxId,parseId(body.userId())),"Mailbox activated with explicit owner grant");
+  }
+
+  static long parseId(String value) {
+    try {
+      if (value == null || !value.matches("[1-9][0-9]{0,18}")) {
+        throw new NumberFormatException();
+      }
+      return Long.parseLong(value);
+    } catch (NumberFormatException invalid) {
+      throw new BadRequestException("Invalid user ID");
+    }
   }
 
   @GetMapping("/{mailboxId}/messages")
