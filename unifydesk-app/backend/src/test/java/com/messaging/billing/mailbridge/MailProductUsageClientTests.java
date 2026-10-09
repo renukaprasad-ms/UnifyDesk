@@ -99,6 +99,30 @@ class MailProductUsageClientTests {
   }
 
   @Test
+  void boundedReplayRetainsProjectIdentityAndExactSourceUsageCursor() {
+    when(response.body()).thenReturn("""
+        {"status":true,"data":{"projectId":"123","entries":[
+          {"usageId":"55","recipientId":"101","messageId":"202",
+           "occurredAt":"2026-10-09T12:00:00Z","productPriceMicroInr":12000}],
+          "nextAfterId":"55","hasMore":false}}
+        """);
+    var from = java.time.Instant.parse("2026-10-09T00:00:00Z");
+    var to = java.time.Instant.parse("2026-10-10T00:00:00Z");
+    var page = client.replay(123L, 50L, 100, from, to);
+    assertEquals(55L, page.nextAfterId());
+    assertEquals(1, page.entries().size());
+    try {
+      verify(http).send(argThat(request ->
+          request.uri().getPath().endsWith("/123/billing/usage-entries")
+              && request.uri().getQuery().contains("afterId=50")
+              && request.uri().getQuery().contains("from=2026-10-09")),
+          any(HttpResponse.BodyHandler.class));
+    } catch (Exception exception) {
+      fail(exception);
+    }
+  }
+
+  @Test
   void fetchesCurrentHeadWithoutAssumingProjectEqualsCompanyId() {
     when(response.body()).thenReturn("{\"status\":true,\"data\":\"9007199254740993\"}");
     assertEquals(9007199254740993L, client.head(123L));
