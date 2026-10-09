@@ -82,14 +82,14 @@ public class MimeMessageBuilder {
     if (message.isMarketing()) {
       if (unsubscribe == null) throw new IllegalStateException("Unsubscribe signer unavailable");
       unsubscribeUrl = unsubscribe.url(message.getId(), target.getId());
-      headers.append("List-Unsubscribe: <").append(unsubscribeUrl).append(">\\r\\n");
-      headers.append("List-Unsubscribe-Post: List-Unsubscribe=One-Click\\r\\n");
+      headers.append("List-Unsubscribe: <").append(unsubscribeUrl).append(">\r\n");
+      headers.append("List-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n");
     }
     String textBody = message.getTextBody() == null ? null : message.getTextBody()
-        + (unsubscribeUrl == null ? "" : "\\n\\nUnsubscribe: " + unsubscribeUrl);
+        + (unsubscribeUrl == null ? "" : "\n\nUnsubscribe: " + unsubscribeUrl);
     String htmlBody = message.getHtmlBody() == null ? null : message.getHtmlBody()
         + (unsubscribeUrl == null ? "" :
-            "<p><a href=\\\"" + unsubscribeUrl + "\\">Unsubscribe</a></p>");
+            "<p><a href=\"" + unsubscribeUrl + "\">Unsubscribe</a></p>");
     String body;
     if (textBody != null && htmlBody != null) {
       String boundary =
