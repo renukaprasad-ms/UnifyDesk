@@ -13,11 +13,16 @@ CREATE TABLE email_mail_domains (
   CONSTRAINT chk_email_mail_domain_status CHECK (status IN ('PENDING','VERIFIED','SUSPENDED'))
 );
 CREATE INDEX idx_email_mail_domains_org ON email_mail_domains(organization_id);
+ALTER TABLE email_mail_domains ADD CONSTRAINT uq_email_mail_domain_org_id
+  UNIQUE (organization_id, id);
 
 CREATE TABLE email_mailboxes (
   id BIGINT PRIMARY KEY,
   organization_id BIGINT NOT NULL REFERENCES email_product_organizations(id),
   domain_id BIGINT NOT NULL REFERENCES email_mail_domains(id),
+  CONSTRAINT fk_email_mailbox_domain_org
+    FOREIGN KEY (organization_id,domain_id)
+    REFERENCES email_mail_domains(organization_id,id),
   local_part VARCHAR(64) NOT NULL,
   display_name VARCHAR(160),
   status VARCHAR(24) NOT NULL DEFAULT 'DISABLED',
@@ -30,6 +35,8 @@ CREATE TABLE email_mailboxes (
   CONSTRAINT chk_email_mailbox_quota CHECK (storage_quota_bytes >= 0 AND storage_used_bytes >= 0)
 );
 CREATE INDEX idx_email_mailboxes_org ON email_mailboxes(organization_id);
+ALTER TABLE email_mailboxes ADD CONSTRAINT uq_email_mailbox_org_id
+  UNIQUE (organization_id, id);
 
 -- Object store retains RFC 5322 original MIME; no raw MIME blobs in PostgreSQL.
 -- message_id_header is not globally unique: duplicates and legitimate re-deliveries exist.
@@ -37,6 +44,9 @@ CREATE TABLE email_mailbox_messages (
   id BIGINT PRIMARY KEY,
   organization_id BIGINT NOT NULL REFERENCES email_product_organizations(id),
   mailbox_id BIGINT NOT NULL REFERENCES email_mailboxes(id),
+  CONSTRAINT fk_email_mail_message_mailbox_org
+    FOREIGN KEY (organization_id,mailbox_id)
+    REFERENCES email_mailboxes(organization_id,id),
   direction VARCHAR(16) NOT NULL,
   folder VARCHAR(24) NOT NULL,
   message_id_header VARCHAR(998),
