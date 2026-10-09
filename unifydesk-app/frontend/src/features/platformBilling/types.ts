@@ -34,3 +34,7 @@ export type ManagedUsageTotals = { emailMessages: number; smsSegments: number; w
 export type ManagedCompanyUsage = ManagedUsageTotals & { companyId: string }
 export type ManagedDailyUsage = ManagedUsageTotals & { day: string }
 export type ManagedUsageReport = { from: string; to: string; totals: ManagedUsageTotals; companies: ManagedCompanyUsage[]; daily: ManagedDailyUsage[] }
+
+export type ManagedBillingSku = 'MANAGED_EMAIL_OUTBOUND' | 'MANAGED_SMS_SEGMENT'
+export type GlobalManagedRate = { rateId: string; billingSku: ManagedBillingSku; price: number; currency: 'INR'; effectiveFrom: string; effectiveTo: string | null; createdByUserId: string | null; reason: string | null }
+export type GlobalManagedRateInput = { billingSku: ManagedBillingSku; price: number; effectiveFrom?: string | null; reason?: string }
