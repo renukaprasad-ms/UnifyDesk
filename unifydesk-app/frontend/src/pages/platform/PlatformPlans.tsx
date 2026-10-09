@@ -132,7 +132,7 @@ export default function PlatformPlans() {
 
   return (
     <section className="p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
+      <div className="w-full">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow">BILLING CATALOG</p>
@@ -158,7 +158,7 @@ export default function PlatformPlans() {
           </div>
         )}
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="panel p-4">
             <p className="text-xs font-semibold text-slate-500">Total plans</p>
             <p className="mt-2 text-2xl font-bold text-slate-950">{summary.total}</p>
@@ -170,6 +170,10 @@ export default function PlatformPlans() {
           <div className="panel p-4">
             <p className="text-xs font-semibold text-slate-500">Draft versions</p>
             <p className="mt-2 text-2xl font-bold text-slate-950">{summary.drafts}</p>
+          </div>
+          <div className="panel p-4">
+            <p className="text-xs font-semibold text-slate-500">Private plans</p>
+            <p className="mt-2 text-2xl font-bold text-slate-950">{summary.private}</p>
           </div>
         </div>
 
