@@ -201,7 +201,7 @@ public class MailProjectBillingBridgeService {
       int imported = 0;
       for (MailProductUsageClient.Handoff entry : page.entries()) {
         if (entry.occurredAt().isBefore(link.effectiveFrom())) continue;
-        imported += jdbc.update("""
+        int inserted = jdbc.update("""
             insert into billing_mail_usage_imports
               (mail_project_id, remote_usage_id, company_id,
                remote_recipient_id, remote_message_id, occurred_at,
@@ -211,6 +211,25 @@ public class MailProjectBillingBridgeService {
             """, mailProjectId, entry.id(), Long.valueOf(link.companyId()),
             entry.recipientId(), entry.messageId(), Timestamp.from(entry.occurredAt()),
             entry.productPriceMicroInr());
+        if (inserted == 0) {
+          // Never silently accept a replay that rewrites an immutable source record
+          // or reuses one recipient ID under a different remote usage event.
+          List<Boolean> identical = jdbc.query("""
+              select company_id = ? and remote_recipient_id = ?
+                     and remote_message_id = ? and occurred_at = ?
+                     and product_price_micro_inr = ? as matches
+                from billing_mail_usage_imports
+               where mail_project_id = ? and remote_usage_id = ?
+              """, (rs, idx) -> rs.getBoolean("matches"),
+              Long.valueOf(link.companyId()), entry.recipientId(), entry.messageId(),
+              Timestamp.from(entry.occurredAt()), entry.productPriceMicroInr(),
+              mailProjectId, entry.id());
+          if (identical.size() != 1 || !identical.getFirst()) {
+            throw new ConflictException(
+                "Mail product replay differs from previously imported immutable handoff");
+          }
+        }
+        imported += inserted;
       }
       if (advanceCursor) {
         jdbc.update("""
