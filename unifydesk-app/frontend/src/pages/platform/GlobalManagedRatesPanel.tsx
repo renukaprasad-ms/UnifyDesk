@@ -131,7 +131,7 @@ export default function GlobalManagedRatesPanel() {
     </form>}
     {pending && <div role="dialog" aria-modal="true" aria-label="Confirm global managed price" className="mt-4 rounded-xl border p-4">
       <h3 className="font-semibold">Confirm global rate revision</h3>
-      <p className="mt-2 text-sm">Publish <strong>{priceText(pending.price)}</strong> per {pending.billingSku === 'MANAGED_SMS_SEGMENT' ? 'SMS segment' : 'email'} starting <strong>{when(pending.effectiveFrom)}</strong>?</p>
+      <p className="mt-2 text-sm">Publish <strong>{priceText(pending.price)}</strong> per {pending.billingSku === 'MANAGED_SMS_SEGMENT' ? 'SMS segment' : 'email'} starting <strong>{pending.effectiveFrom ? when(pending.effectiveFrom) : 'immediately'}</strong>?</p>
       <p className="mt-1 text-xs text-slate-500">Past billing snapshots are not changed. Overrides and plan rates retain priority.</p>
       <div className="mt-4 flex gap-2">
         <button type="button" className="primary-button" disabled={saving} onClick={() => void confirm()}>{saving ? 'Saving...' : 'Yes, publish'}</button>
