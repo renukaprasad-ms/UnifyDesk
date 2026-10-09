@@ -37,6 +37,7 @@ import BillingUsageOverview from './BillingUsageOverview'
 import GlobalManagedRatesPanel from './GlobalManagedRatesPanel'
 import BillingFinancialOverview from './BillingFinancialOverview'
 import BillingChannelTrafficOverview from './BillingChannelTrafficOverview'
+import BillingUsageReconciliationOverview from './BillingUsageReconciliationOverview'
 
 const providersByChannel: Record<ChannelType, ProviderType[]> = {
   EMAIL: ['AMAZON_SES', 'SENDGRID', 'AZURE_EMAIL', 'MSG91_EMAIL', 'UNIFYDESK_EMAIL', 'GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP', 'SMTP'],
@@ -279,6 +280,7 @@ export default function PlatformBilling() {
         <BillingChannelTrafficOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
         <BillingFinancialOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
         <GlobalManagedRatesPanel />
+        <BillingUsageReconciliationOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
         <BillingUsageOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />
 
         <div className="mt-6 grid gap-5 xl:grid-cols-3">
