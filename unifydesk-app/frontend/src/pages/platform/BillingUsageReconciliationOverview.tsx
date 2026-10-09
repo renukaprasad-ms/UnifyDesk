@@ -27,9 +27,14 @@ export default function BillingUsageReconciliationOverview({ companyNames }: Pro
       }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [days, reload])
-  const anomalies = useMemo(() => report?.companies.reduce((n, company) =>
-    n + company.finalizedUnallocatedEvents + company.missingInvoiceLines + company.priceMathMismatches, 0) ?? 0,
-  [report])
+  const anomalies = useMemo(() => {
+    if (!report) return 0
+    const invoiceIssues = report.companies.reduce((n, company) =>
+      n + company.finalizedUnallocatedEvents + company.missingInvoiceLines + company.priceMathMismatches, 0)
+    const sourceIssues = (report.sourceChecks ?? []).reduce((n, source) =>
+      n + source.missingEmailFinancialEvents + source.missingSmsFinancialEvents + source.mismatchedSmsSegments, 0)
+    return invoiceIssues + sourceIssues
+  }, [report])
   const totalRated = useMemo(() => report?.companies.reduce((n, company) => n + company.ratedInr, 0) ?? 0, [report])
   return <section className="panel mt-6 p-5" aria-label="Usage to invoice reconciliation">
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -54,7 +59,37 @@ export default function BillingUsageReconciliationOverview({ companyNames }: Pro
         </p>
       </div>
       <details className="mt-4" open={anomalies > 0}>
-        <summary className="cursor-pointer text-sm font-semibold">Per-company reconciliation</summary>
+        <summary className="cursor-pointer text-sm font-semibold">Provider handoffs versus billable usage</summary>
+        <p className="mt-2 text-xs text-slate-500">
+          Accepted provider handoffs must have a matching canonical billing event. Missing events or
+          mismatched SMS segment quantities require investigation before invoicing.
+        </p>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[820px] text-left text-sm">
+            <thead><tr className="border-b text-xs text-slate-500">
+              <th className="py-3 pr-3">Company</th>
+              <th className="px-2 text-right">Email handoffs</th>
+              <th className="px-2 text-right">SMS recipients</th>
+              <th className="px-2 text-right">Missing email events</th>
+              <th className="px-2 text-right">Missing SMS events</th>
+              <th className="px-2 text-right">Segment mismatches</th>
+            </tr></thead>
+            <tbody>{(report.sourceChecks ?? []).map((row) =>
+              <tr key={row.companyId} className="border-b">
+                <td className="py-3 pr-3">{companyNames[row.companyId] || `Company ${row.companyId}`}</td>
+                <td className="px-2 text-right tabular-nums">{int(row.acceptedEmailHandoffs)}</td>
+                <td className="px-2 text-right tabular-nums">{int(row.committedSmsRecipients)}</td>
+                <td className="px-2 text-right tabular-nums">{int(row.missingEmailFinancialEvents)}</td>
+                <td className="px-2 text-right tabular-nums">{int(row.missingSmsFinancialEvents)}</td>
+                <td className="px-2 text-right tabular-nums">{int(row.mismatchedSmsSegments)}</td>
+              </tr>)}</tbody>
+          </table>
+          {!(report.sourceChecks ?? []).length &&
+            <p className="mt-3 text-sm text-slate-500">No committed provider handoffs in this period.</p>}
+        </div>
+      </details>
+      <details className="mt-4" open={anomalies > 0}>
+        <summary className="cursor-pointer text-sm font-semibold">Usage-to-invoice reconciliation</summary>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[780px] text-left text-sm">
             <thead><tr className="border-b text-xs text-slate-500">
