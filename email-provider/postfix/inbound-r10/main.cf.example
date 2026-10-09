@@ -18,6 +18,9 @@ virtual_mailbox_domains = pgsql:/etc/postfix/pgsql-udmail-domains.cf
 virtual_mailbox_maps = pgsql:/etc/postfix/pgsql-udmail-recipients.cf
 virtual_alias_maps =
 virtual_transport = udmail-inbound:
+# Long queue IDs reduce the risk of ID reuse after old jobs have been retained.
+# Keep a stable myhostname and monotonic node clock.
+enable_long_queue_ids = yes
 udmail-inbound_destination_recipient_limit = 1
 # Limit accepted message size AND pipe size; the backend independently caps
 # MIME bytes at 10MiB and stores to a durable PVC before HTTP 202.
