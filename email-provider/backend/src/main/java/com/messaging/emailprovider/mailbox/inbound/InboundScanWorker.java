@@ -39,6 +39,14 @@ public class InboundScanWorker {
 
   @Scheduled(fixedDelayString = "${app.mail.scanner.interval-ms:5000}")
   public void poll() {
+    // A worker may die on its last lease; quarantine rather than retry forever.
+    jdbc.update("""
+        UPDATE email_mail_inbound_jobs
+        SET status='QUARANTINED',claim_token=NULL,claimed_at=NULL,
+            scan_error='SCAN_LEASE_EXHAUSTED',updated_at=now()
+        WHERE status='SCANNING' AND scan_attempts >= 6
+          AND claimed_at < now() - INTERVAL '120 seconds'
+        """);
     // Bounded batch limits CPU and contention on a single low-cost mail node.
     for (int i = 0; i < 4; i++) {
       Job claimed = claim();
