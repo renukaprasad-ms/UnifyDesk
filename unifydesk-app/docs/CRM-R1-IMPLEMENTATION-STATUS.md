@@ -49,3 +49,19 @@ This file is a work-in-progress implementation ledger, not a release approval.
 - User-deletion purge requires auditing because tasks currently reference assignee users with a restrictive FK; do not ship before evaluating user lifecycle.
 - Validate concurrent company duplicate normalization (database uniqueness), task status version conflict, tenant-crosslink rejection, invalid dates, merged contacts and sensitive log handling in real PostgreSQL.
 - Expand account contact-linking UX and task relation selection after endpoint QA.
+
+
+## Increment 3 — Contact 360 (source implemented)
+
+- Added a bounded Contact 360 backend projection at `GET /api/v1/companies/{companyId}/crm/contacts/{contactId}/overview`. It returns canonical lead stage/version, up to 20 linked customer companies and up to 20 related tasks with explicit more-results indicators.
+- Added `DELETE /crm/accounts/{accountId}/contacts/{contactId}` for workspace-scoped company unlinking.
+- Added `ContactCrmPanel` on the existing Contact Detail page, using a component key on contact ID to isolate contact-switch requests and the existing workspace epoch guard for company switching.
+- Contact Detail now supports lead enrollment/stage updates, link/unlink customer companies, and create contact-bound follow-up tasks; the existing Contact Activity feed and channel consent panels remain the source of truth.
+- No migration required for this increment; it uses the earlier V108 and V109 CRM schemas.
+
+### Verification / follow-up
+
+- Source changes committed to `feature/crm-navigation-r1`; Java/TypeScript compilation, Postgres migration tests and end-to-end QA still **not executed**.
+- Customer-company selection currently loads a bounded first page of 50. Add searchable cursored picker before production usage with many accounts.
+- Contact overview intentionally caps accounts and tasks; full record history should use dedicated cursor endpoints.
+- Dedicated CRM permissions, cross-contact-merge tests, deletion of users referenced as task assignees, and all R1 QA gates remain outstanding.
