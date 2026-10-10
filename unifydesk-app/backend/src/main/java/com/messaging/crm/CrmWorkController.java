@@ -48,6 +48,23 @@ public class CrmWorkController {
     return ResponseEntity.ok(ApiResponse.success(200, "Contact unlinked"));
   }
 
+  @GetMapping("/contacts/{contactId}/overview")
+  public ResponseEntity<ApiResponse<CrmWorkService.Contact360>> contact360(
+      @PathVariable long companyId, @PathVariable long contactId) {
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
+    return ResponseEntity.ok(ApiResponse.success(
+        200, service.contact360(companyId, contactId), "CRM contact overview fetched"));
+  }
+
+  @DeleteMapping("/accounts/{accountId}/contacts/{contactId}")
+  public ResponseEntity<ApiResponse<Void>> unlinkContact(
+      @PathVariable long companyId, @PathVariable long accountId,
+      @PathVariable long contactId) {
+    require(companyId, CompanyPermissionKeys.CONTACT_MODIFY);
+    service.unlinkContact(companyId, accountId, contactId);
+    return ResponseEntity.ok(ApiResponse.success(200, "Contact unlinked"));
+  }
+
   @GetMapping("/accounts")
   public ResponseEntity<ApiResponse<CrmWorkService.Page<CrmWorkService.Account>>> accounts(
       @PathVariable long companyId, @RequestParam(required = false) Long before,
