@@ -86,6 +86,13 @@ export const PERMISSIONS = {
   CONTACT_CONSENT_READ: 'contact.consent.read',
   CONTACT_CONSENT_MODIFY: 'contact.consent.modify',
 
+  CRM_LEAD_READ: 'crm.lead.read',
+  CRM_LEAD_MODIFY: 'crm.lead.modify',
+  CRM_ACCOUNT_READ: 'crm.account.read',
+  CRM_ACCOUNT_MODIFY: 'crm.account.modify',
+  CRM_TASK_READ: 'crm.task.read',
+  CRM_TASK_MODIFY: 'crm.task.modify',
+
   SETTINGS_READ: 'settings.read',
   SETTINGS_MODIFY: 'settings.modify',
 } as const

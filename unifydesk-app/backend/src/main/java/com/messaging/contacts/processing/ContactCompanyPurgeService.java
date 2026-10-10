@@ -92,6 +92,23 @@ public class ContactCompanyPurgeService {
         companyId,
         batchSize)) return false;
 
+    // CRM-owned records must be drained before deleting contacts and company membership.
+    if (!drain(
+        "delete from crm_tasks where ctid in (select ctid from crm_tasks where company_id = ? limit ?)",
+        companyId, batchSize)) return false;
+    if (!drain(
+        "delete from crm_account_contacts where ctid in (select ctid from crm_account_contacts where company_id = ? limit ?)",
+        companyId, batchSize)) return false;
+    if (!drain(
+        "delete from crm_accounts where ctid in (select ctid from crm_accounts where company_id = ? limit ?)",
+        companyId, batchSize)) return false;
+    if (!drain(
+        "delete from crm_lead_stage_events where ctid in (select ctid from crm_lead_stage_events where company_id = ? limit ?)",
+        companyId, batchSize)) return false;
+    if (!drain(
+        "delete from crm_leads where ctid in (select ctid from crm_leads where company_id = ? limit ?)",
+        companyId, batchSize)) return false;
+
     if (!clearMergedReferences(companyId, batchSize)) return false;
 
     if (!drain(
