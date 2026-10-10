@@ -17,6 +17,27 @@ import org.springframework.transaction.annotation.Transactional;
 public class CrmTaskMembershipLifecycle {
   private final JdbcTemplate jdbc;
 
+  @Transactional
+  public void onUserPurging(long userId) {
+    // Company purge owns deleted workspaces. Active/suspended workspaces must never retain
+    // an unfinished task for a user who no longer has an accessible account.
+    var companies = jdbc.query(
+        """
+        select distinct t.company_id from crm_tasks t
+        join companies c on c.id = t.company_id
+        where t.assignee_user_id = ? and t.status in ('OPEN', 'IN_PROGRESS')
+          and c.status in ('ACTIVE', 'SUSPENDED')
+        order by t.company_id
+        """, (rs, row) -> rs.getLong("company_id"), userId);
+    for (Long companyId : companies) {
+      onMemberDeactivated(companyId, userId);
+    }
+    // A former customer-company owner is not an active assignment after account purging.
+    jdbc.update(
+        "update crm_accounts set owner_user_id = null, version = version + 1, updated_at = now() where owner_user_id = ?",
+        userId);
+  }
+
   @Transactional(propagation = Propagation.MANDATORY)
   public void onMemberDeactivated(long companyId, long departingUserId) {
     Long remaining =
