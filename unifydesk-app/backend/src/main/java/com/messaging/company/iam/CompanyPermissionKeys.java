@@ -62,6 +62,13 @@ public final class CompanyPermissionKeys {
   public static final String CONTACT_CONSENT_READ = "contact.consent.read";
   public static final String CONTACT_CONSENT_MODIFY = "contact.consent.modify";
 
+  public static final String CRM_LEAD_READ = "crm.lead.read";
+  public static final String CRM_LEAD_MODIFY = "crm.lead.modify";
+  public static final String CRM_ACCOUNT_READ = "crm.account.read";
+  public static final String CRM_ACCOUNT_MODIFY = "crm.account.modify";
+  public static final String CRM_TASK_READ = "crm.task.read";
+  public static final String CRM_TASK_MODIFY = "crm.task.modify";
+
   public static final String TEMPLATE_READ = "template.read";
   public static final String TEMPLATE_CREATE = "template.create";
   public static final String TEMPLATE_MODIFY = "template.modify";
@@ -133,6 +140,12 @@ public final class CompanyPermissionKeys {
           CONTACT_EXPORT,
           CONTACT_CONSENT_READ,
           CONTACT_CONSENT_MODIFY,
+          CRM_LEAD_READ,
+          CRM_LEAD_MODIFY,
+          CRM_ACCOUNT_READ,
+          CRM_ACCOUNT_MODIFY,
+          CRM_TASK_READ,
+          CRM_TASK_MODIFY,
           TEMPLATE_READ,
           TEMPLATE_CREATE,
           TEMPLATE_MODIFY,
@@ -159,6 +172,9 @@ public final class CompanyPermissionKeys {
           BROADCAST_READ,
           CONTACT_READ,
           CONTACT_CONSENT_READ,
+          CRM_LEAD_READ,
+          CRM_ACCOUNT_READ,
+          CRM_TASK_READ,
           TEMPLATE_READ,
           ADS_READ,
           MEDIA_READ,
