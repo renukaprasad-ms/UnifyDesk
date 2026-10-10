@@ -24,6 +24,11 @@ public class CrmWorkController {
   public record CreateAccount(@NotBlank String name, String website, String notes, Long ownerUserId) {}
   public record CreateTask(@NotBlank String title, String details, String priority,
                            Instant dueAt, Long assigneeUserId, Long contactId, Long accountId) {}
+  public record UpdateAccount(@NotBlank String name, String website, String notes,
+                              Long ownerUserId, @NotNull Long version) {}
+  public record UpdateTask(@NotBlank String title, String details, @NotBlank String priority,
+                           Instant dueAt, @NotNull Long assigneeUserId, Long contactId,
+                           Long accountId, @NotNull Long version) {}
   public record SetStatus(@NotBlank String status, @NotNull Long version) {}
 
   private long require(long companyId, String permission) {
@@ -69,6 +74,17 @@ public class CrmWorkController {
         "Account created"));
   }
 
+  @PatchMapping("/accounts/{accountId}")
+  public ResponseEntity<ApiResponse<CrmWorkService.Account>> updateAccount(
+      @PathVariable long companyId, @PathVariable long accountId,
+      @Valid @RequestBody UpdateAccount request) {
+    require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_MODIFY);
+    return ResponseEntity.ok(ApiResponse.success(200,
+        service.updateAccount(companyId, accountId, request.version(),
+            request.name(), request.website(), request.notes(), request.ownerUserId()),
+        "Account updated"));
+  }
+
   @PostMapping("/accounts/{accountId}/contacts/{contactId}")
   public ResponseEntity<ApiResponse<Void>> linkContact(
       @PathVariable long companyId, @PathVariable long accountId, @PathVariable long contactId) {
@@ -107,6 +123,20 @@ public class CrmWorkController {
             request.priority() == null ? "NORMAL" : request.priority(),
             request.dueAt(), assignee, request.contactId(), request.accountId(), actor),
         "Task created"));
+  }
+
+  @PatchMapping("/tasks/{taskId}")
+  public ResponseEntity<ApiResponse<CrmWorkService.Task>> updateTask(
+      @PathVariable long companyId, @PathVariable long taskId,
+      @Valid @RequestBody UpdateTask request) {
+    require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    if (request.contactId() != null) require(companyId, CompanyPermissionKeys.CONTACT_READ);
+    if (request.accountId() != null) require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
+    return ResponseEntity.ok(ApiResponse.success(200,
+        service.updateTask(companyId, taskId, request.version(), request.title(),
+            request.details(), request.priority(), request.dueAt(), request.assigneeUserId(),
+            request.contactId(), request.accountId()),
+        "Task updated"));
   }
 
   @PatchMapping("/tasks/{taskId}/status")
