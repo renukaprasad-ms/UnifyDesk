@@ -281,7 +281,8 @@ public class CrmWorkService {
                assignee_user_id = ?, contact_id = ?, account_id = ?,
                version = version + 1, updated_at = now()
          where company_id = ? and id = ? and version = ?
-        """, safeTitle, trimmed(details, 4000), priority, dueAt,
+        """, safeTitle, trimmed(details, 4000), priority,
+        dueAt == null ? null : Timestamp.from(dueAt),
         assignee, contactId, accountId, companyId, taskId, version);
     if (updated == 0) throw new ApiException(HttpStatus.CONFLICT, "CRM_TASK_VERSION_CONFLICT");
     return getTask(companyId, taskId);
