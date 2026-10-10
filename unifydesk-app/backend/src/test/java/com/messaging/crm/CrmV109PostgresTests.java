@@ -164,6 +164,42 @@ class CrmV109PostgresTests {
         .isZero();
   }
 
+  @Test
+  void optionalLeadAndTaskPagingFiltersAcceptNullOnPostgres() {
+    String schema = schema();
+    flyway(schema, "109").migrate();
+    JdbcTemplate jdbc = new JdbcTemplate(scoped(schema));
+    seed(jdbc);
+
+    var leads = new LeadService(jdbc, null);
+    var work = new CrmWorkService(jdbc, null);
+    assertThat(leads.list(101, null, null, 50).items()).isEmpty();
+    assertThat(work.accounts(101, null, 50).items()).isEmpty();
+    assertThat(work.tasks(101, null, 50, null, null).items()).isEmpty();
+  }
+
+  @Test
+  void editingCustomerAccountChecksVersionAndDoesNotCrossTenants() {
+    String schema = schema();
+    flyway(schema, "109").migrate();
+    JdbcTemplate jdbc = new JdbcTemplate(scoped(schema));
+    seed(jdbc);
+    jdbc.update("""
+        insert into crm_accounts(id,company_id,name,normalized_name)
+        values (301,101,'Example','example')
+        """);
+
+    var work = new CrmWorkService(jdbc, null);
+    var updated = work.updateAccount(101, 301, 0, "Renamed", null, "New notes", null);
+    assertThat(updated.name()).isEqualTo("Renamed");
+    assertThat(updated.version()).isEqualTo(1);
+    assertThatThrownBy(() -> work.updateAccount(101, 301, 0, "Stale", null, null, null))
+        .isInstanceOf(com.messaging.common.exception.ApiException.class);
+    assertThatThrownBy(() -> work.updateAccount(102, 301, 1, "Wrong tenant", null, null, null))
+        .isInstanceOf(com.messaging.common.exception.ApiException.class);
+    assertThat(work.getAccount(101, 301).name()).isEqualTo("Renamed");
+  }
+
   private void seed(JdbcTemplate jdbc) {
     jdbc.update("""
         insert into users(id,email,name,is_verified,username,password,two_factor_enabled)
