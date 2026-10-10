@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router'
 import { crmWorkApi, type CrmAccount } from '../../features/contacts/crmWorkApi'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -74,7 +75,7 @@ export default function CrmCompaniesPage() {
       ) : (
         <div className="overflow-hidden rounded-xl border bg-white">
           {items.map((item) => <div key={item.id} className="border-b border-slate-100 px-4 py-3">
-            <p className="font-semibold text-slate-900">{item.name}</p>
+            <Link to={'/crm/companies/' + item.id} className="font-semibold text-indigo-600 hover:underline">{item.name}</Link>
             {item.website && <p className="text-xs text-slate-500">{item.website}</p>}
           </div>)}
         </div>
