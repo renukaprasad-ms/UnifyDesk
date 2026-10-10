@@ -81,7 +81,7 @@ This file is a work-in-progress implementation ledger, not a release approval.
 
 ## Increment 3 — Contact 360 integration
 
-- Contact Detail now renders `CrmContact360Panel`, keyed by company/contact, without replacing existing Contact, consent, suppression, or activity features.
+- Contact Detail renders the consolidated `ContactCrmPanel`, keyed by company/contact, without replacing existing Contact, consent, suppression, or activity features.
 - New company-authorized, bounded `GET /api/v1/companies/{companyId}/crm/contacts/{contactId}/overview` projects CRM lead stage, linked customer-account records and follow-up tasks. Company ID and active Contact are checked before reads; lists return up to 20 entities each with overflow flags.
 - Contact 360 allows turning an existing Contact into a Lead, changing stage with a version, linking/unlinking customer Companies, creating a follow-up for the Contact and changing task status with a version.
 - `DELETE /crm/accounts/{accountId}/contacts/{contactId}` unlinks a customer business from a Contact without touching the Contact or its marketing consent.
@@ -92,3 +92,5 @@ This file is a work-in-progress implementation ledger, not a release approval.
 - No executable frontend or backend build, migration, E2E, or permission integration QA has been run.
 - Dedicated CRM permissions, user-deletion lifecycle, company/contact associations on full CRM pages, deeper timeline integration, refresh after contact mutation, rate/entitlement checks, and user-facing pagination beyond the latest 20 Contact 360 entries remain future work.
 - Must validate optimistic concurrency, workspace switch during in-flight mutations, account association on merged/deleted Contacts, PostgreSQL FK behavior, and cross-tenant access before releasing.
+
+**Integration note (Oct 10):** Parallel changes on this same branch had already added `ContactCrmPanel`. The duplicate `CrmContact360Panel` was removed and the existing consolidated panel retained. Review the branch history for all contributors before QA.
