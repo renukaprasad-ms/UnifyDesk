@@ -34,6 +34,13 @@ export const crmLeadsApi = {
     const response = await apiClient.post<ApiResponse<Lead>>(url(companyId), { contactId })
     return unwrap(response.data)
   },
+  async moveStage(companyId: string, contactId: string, version: number, stage: LeadStage) {
+    const response = await apiClient.patch<ApiResponse<Lead>>(
+      url(companyId) + '/' + encodeURIComponent(contactId) + '/stage',
+      { stage, version },
+    )
+    return unwrap(response.data)
+  },
   async move(companyId: string, lead: Lead, stage: LeadStage) {
     const response = await apiClient.patch<ApiResponse<Lead>>(
       url(companyId) + '/' + encodeURIComponent(lead.contactId) + '/stage',
