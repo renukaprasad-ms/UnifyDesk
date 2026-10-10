@@ -61,7 +61,21 @@ public class CrmWorkService {
   }
 
   private void activeMember(long companyId, long userId) {
-    if (!members.existsByCompanyIdAndUserIdAndStatus(companyId, userId, CompanyMemberStatus.ACTIVE)) {
+    if (!members.existsByCompanyIdAndUserIdAndStatus(
+        companyId, userId, CompanyMemberStatus.ACTIVE)) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ASSIGNEE_NOT_ACTIVE");
+    }
+    // Lock membership and user rows until task commit. This prevents assignments to
+    // deactivated/deleting users and coordinates with concurrent offboarding.
+    var locked = jdbc.query(
+        """
+        select m.user_id from company_members m
+        join users u on u.id = m.user_id and u.status = 'ACTIVE'
+        join companies c on c.id = m.company_id and c.status = 'ACTIVE'
+        where m.company_id = ? and m.user_id = ? and m.status = 'ACTIVE'
+        for share of m, u
+        """, (rs, row) -> rs.getLong("user_id"), companyId, userId);
+    if (locked.isEmpty()) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ASSIGNEE_NOT_ACTIVE");
     }
   }
@@ -279,11 +293,16 @@ public class CrmWorkService {
         update crm_tasks
            set title = ?, details = ?, priority = ?, due_at = ?,
                assignee_user_id = ?, contact_id = ?, account_id = ?,
+               reminder_generation = reminder_generation
+                 + case when assignee_user_id <> ?
+                   or due_at is distinct from cast(? as timestamptz)
+                   then 1 else 0 end,
                version = version + 1, updated_at = now()
          where company_id = ? and id = ? and version = ?
         """, safeTitle, trimmed(details, 4000), priority,
         dueAt == null ? null : Timestamp.from(dueAt),
-        assignee, contactId, accountId, companyId, taskId, version);
+        assignee, contactId, accountId, assignee,
+        dueAt == null ? null : Timestamp.from(dueAt), companyId, taskId, version);
     if (updated == 0) throw new ApiException(HttpStatus.CONFLICT, "CRM_TASK_VERSION_CONFLICT");
     return getTask(companyId, taskId);
   }
@@ -304,9 +323,12 @@ public class CrmWorkService {
     }
     int updated = jdbc.update("""
         update crm_tasks set status = ?, completed_at = case when ? = 'DONE' then now() else null end,
+          reminder_generation = reminder_generation + case
+            when status in ('DONE', 'CANCELLED') and ? in ('OPEN', 'IN_PROGRESS')
+            then 1 else 0 end,
           updated_at = now(), version = version + 1
         where company_id = ? and id = ? and version = ?
-        """, status, status, companyId, taskId, version);
+        """, status, status, status, companyId, taskId, version);
     if (updated == 0) throw new ApiException(HttpStatus.CONFLICT, "CRM_TASK_VERSION_CONFLICT");
     return getTask(companyId, taskId);
   }
