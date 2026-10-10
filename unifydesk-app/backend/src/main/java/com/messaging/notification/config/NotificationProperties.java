@@ -9,14 +9,17 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.notification")
 public class NotificationProperties {
 
-  private boolean async = true;
   private Email email = new Email();
 
   @Getter
   @Setter
   public static class Email {
-    private String from;
-    private String brandName = "Messaging";
+    private String sesRegion = "ap-southeast-2";
+    private String otpFrom = "no-reply@unifydesk.in";
+    private String securityFrom = "security@unifydesk.in";
+    private String billingFrom = "billing@unifydesk.in";
+    private String notificationFrom = "notification@unifydesk.in";
+    private String brandName = "UnifyDesk";
     private String logoUrl;
     private String websiteUrl = "https://app.unifydesk.in";
     private String supportEmail;
