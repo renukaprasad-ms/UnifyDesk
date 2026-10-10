@@ -7,14 +7,14 @@ const currentItems = [
   { label: 'Overview', to: '/crm/overview', icon: <FiGrid /> },
   { label: 'Leads', to: '/crm/leads', icon: <FiUserPlus /> },
   { label: 'Contacts', to: '/contacts', icon: <FiUsers /> },
+  { label: 'Companies', to: '/crm/companies', icon: <FiBriefcase /> },
+  { label: 'Tasks', to: '/crm/tasks', icon: <FiCheckSquare /> },
   { label: 'Lists', to: '/contacts/lists', icon: <FiBriefcase /> },
   { label: 'Segments', to: '/contacts/segments', icon: <FiTarget /> },
 ]
 
 const plannedItems = [
-  { label: 'Companies', icon: <FiBriefcase /> },
   { label: 'Deals', icon: <FiBarChart2 /> },
-  { label: 'Tasks', icon: <FiCheckSquare /> },
   { label: 'Activities', icon: <FiClock /> },
   { label: 'Reports', icon: <FiBarChart2 /> },
 ]
