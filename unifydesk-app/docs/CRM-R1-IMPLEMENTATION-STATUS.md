@@ -65,3 +65,15 @@ This file is a work-in-progress implementation ledger, not a release approval.
 - Customer-company selection currently loads a bounded first page of 50. Add searchable cursored picker before production usage with many accounts.
 - Contact overview intentionally caps accounts and tasks; full record history should use dedicated cursor endpoints.
 - Dedicated CRM permissions, cross-contact-merge tests, deletion of users referenced as task assignees, and all R1 QA gates remain outstanding.
+
+
+## Increment 3 — Contact 360 panel
+
+- Added bounded `GET /api/v1/companies/{companyId}/crm/contacts/{contactId}/overview`, sharing existing workspace authorization and checking the canonical contact is ACTIVE. Response includes lead stage/version, up to 20 linked customer companies, and up to 20 follow-up tasks with overflow indicators.
+- Added `DELETE /api/v1/companies/{companyId}/crm/accounts/{accountId}/contacts/{contactId}`; POST linking existed. Mutations require Contact Modify permission and company-scoped IDs.
+- Added `ContactCrmPanel` on existing `/contacts/:contactId` screens. Users can enroll a lead, change stage, associate/unlink a customer company and create a contact-linked follow-up task.
+- Existing Contacts communication activity, channel preferences and suppressions remain in their original panels. No cross-service Inbox/Broadcast message copying.
+- Contact 360 widget remounts on workspace/company/Contact change; async updates verify workspace epoch and component lifetime.
+- Future: searchable customer-company selector instead of first-page selection, task status editing from contact panel, end-to-end Contact timeline aggregation, independent tests for tenant-switch races, and permission dedicated CRM grants.
+
+**QA is not yet complete:** No verified JVM compiler/Spotless, frontend typecheck/build, PostgreSQL Flyway or runtime tests for this CRM branch.
