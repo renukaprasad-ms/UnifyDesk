@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { companyApi } from '../../features/company/companyApi'
 import { crmWorkApi, type CrmAccount, type AccountContact } from '../../features/contacts/crmWorkApi'
@@ -31,14 +31,16 @@ export default function CrmCompanyDetailPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [refreshToken, setRefreshToken] = useState(0)
+  const requestId = useRef(0)
 
   const load = useCallback(async () => {
     if (!companyId || !accountId) return
     const scope = capture()
+    const request = ++requestId.current
     setLoading(true)
     try {
       const profile = await crmWorkApi.getAccount(companyId, accountId)
-      if (!isCurrent(scope)) return
+      if (!isCurrent(scope) || request !== requestId.current) return
       setAccount(profile)
       setName(profile.name)
       setWebsite(profile.website ?? '')
@@ -46,13 +48,13 @@ export default function CrmCompanyDetailPage() {
       setOwner(profile.ownerUserId ?? '')
       if (can(PERMISSIONS.CONTACT_READ)) {
         const related = await crmWorkApi.accountContactSummaries(companyId, accountId)
-        if (isCurrent(scope)) setContacts(related)
+        if (isCurrent(scope) && request === requestId.current) setContacts(related)
       }
       setError('')
     } catch (err) {
-      if (isCurrent(scope)) setError(apiErrorMessage(err, 'Unable to load company profile'))
+      if (isCurrent(scope) && request === requestId.current) setError(apiErrorMessage(err, 'Unable to load company profile'))
     } finally {
-      if (isCurrent(scope)) setLoading(false)
+      if (isCurrent(scope) && request === requestId.current) setLoading(false)
     }
   }, [companyId, accountId, capture, isCurrent, can])
 
