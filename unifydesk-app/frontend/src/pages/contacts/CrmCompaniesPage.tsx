@@ -61,7 +61,7 @@ export default function CrmCompaniesPage() {
       <header><p className="eyebrow">CRM</p><h1 className="mt-2 text-3xl font-bold">Companies</h1>
       <p className="mt-2 text-sm text-slate-500">Customer organizations, separate from your UnifyDesk workspace.</p></header>
       {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-      {can(PERMISSIONS.CONTACT_MODIFY) && (
+      {can(PERMISSIONS.CRM_ACCOUNT_MODIFY) && (
         <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void add() }}>
           <label htmlFor="crm-company-name" className="sr-only">Customer company name</label>
           <input id="crm-company-name" className="form-input min-w-64 flex-1" placeholder="Customer company name"
