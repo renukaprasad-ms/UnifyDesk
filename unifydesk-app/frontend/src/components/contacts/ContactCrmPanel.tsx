@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { crmWorkApi, type Contact360, type CrmAccount } from '../../features/contacts/crmWorkApi'
-import { crmLeadsApi } from '../../features/contacts/crmLeadsApi'
+import { crmLeadsApi, type LeadStage } from '../../features/contacts/crmLeadsApi'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
@@ -90,7 +90,16 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
     {details && !loading && <div className="mt-5 grid gap-5 lg:grid-cols-3">
       <div className="rounded-xl border border-slate-200 p-4">
         <h3 className="font-semibold">Lead stage</h3>
-        <p className="mt-2 text-sm">{details.lead ? details.lead.stage.replaceAll('_', ' ') : 'Not a lead'}</p>
+        {details.lead ? (can(PERMISSIONS.CONTACT_MODIFY) ? (
+          <select className="form-input mt-2 w-full" aria-label="Lead stage" disabled={busy}
+            value={details.lead.stage} onChange={(event) => void act(() =>
+              crmLeadsApi.moveStage(companyId!, contactId, details.lead!.version, event.target.value as LeadStage))}>
+            {(['NEW', 'CONTACTED', 'QUALIFIED', 'UNQUALIFIED', 'CONVERTED'] as LeadStage[]).map(
+              (stage) => <option key={stage} value={stage}>{stage.replaceAll('_', ' ')}</option>,
+            )}
+          </select>
+        ) : <p className="mt-2 text-sm">{details.lead.stage.replaceAll('_', ' ')}</p>)
+          : <p className="mt-2 text-sm">Not a lead</p>}
         {!details.lead && can(PERMISSIONS.CONTACT_MODIFY) && (
           <button type="button" className="secondary-button mt-3" disabled={busy}
             onClick={() => void act(() => crmLeadsApi.enroll(companyId!, contactId))}>Mark as lead</button>
