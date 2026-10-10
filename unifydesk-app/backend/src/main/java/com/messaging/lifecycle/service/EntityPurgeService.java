@@ -1,5 +1,6 @@
 package com.messaging.lifecycle.service;
 
+import com.messaging.crm.CrmTaskMembershipLifecycle;
 import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyRepository;
 import com.messaging.contacts.processing.ContactCompanyPurgeService;
@@ -27,6 +28,7 @@ public class EntityPurgeService {
   private final NotificationDeliveryCleanupService notificationDeliveryCleanupService;
   private final NotificationCoreCleanupService notificationCoreCleanupService;
   private final ContactCompanyPurgeService contactCompanyPurgeService;
+  private final CrmTaskMembershipLifecycle crmTaskMembershipLifecycle;
 
   /**
    * Processes bounded purge work. Returns true only when the root entity reached its final PURGED
@@ -319,6 +321,9 @@ public class EntityPurgeService {
         "delete from company_member_permission_overrides where ctid in "
             + "(select ctid from company_member_permission_overrides where user_id = ? limit ?)",
         userId)) return false;
+
+    // Rehome unfinished CRM tasks before removing the member records used to locate the owner.
+    crmTaskMembershipLifecycle.onUserPurging(userId);
 
     if (!drainByUser(
         "delete from company_members where ctid in "
