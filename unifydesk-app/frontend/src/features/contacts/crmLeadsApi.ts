@@ -12,6 +12,13 @@ export type Lead = {
   createdAt: string
   updatedAt: string
 }
+export type LeadHistoryEvent = {
+  id: string
+  previousStage: LeadStage | null
+  newStage: LeadStage
+  actorUserId: string | null
+  occurredAt: string
+}
 export type LeadPage = { items: Lead[]; nextCursor: string | null; hasMore: boolean }
 export type LeadSummary = { total: number; newLeads: number; qualified: number; converted: number }
 const url = (companyId: string) => `/api/v1/companies/${companyId}/crm/leads`
@@ -24,6 +31,12 @@ export const crmLeadsApi = {
     const response = await apiClient.get<ApiResponse<LeadPage>>(url(companyId), {
       params: { stage, before: before || undefined, size: 50 },
     })
+    return unwrap(response.data)
+  },
+  async history(companyId: string, contactId: string) {
+    const response = await apiClient.get<ApiResponse<LeadHistoryEvent[]>>(
+      url(companyId) + '/' + encodeURIComponent(contactId) + '/history',
+    )
     return unwrap(response.data)
   },
   async summary(companyId: string) {
