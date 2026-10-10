@@ -88,6 +88,19 @@ export const crmWorkApi = {
     return unwrap(result.data)
   },
 
+  async updateAccount(companyId: string, account: CrmAccount, changes: {
+    name: string
+    website: string | null
+    notes: string | null
+    ownerUserId: string | null
+  }) {
+    const response = await apiClient.patch<ApiResponse<CrmAccount>>(
+      root(companyId) + '/accounts/' + encodeURIComponent(account.id),
+      { ...changes, version: account.version },
+    )
+    return unwrap(response.data)
+  },
+
   async tasks(companyId: string, before?: string | null) {
     const result = await apiClient.get<ApiResponse<Page<CrmTask>>>(root(companyId) + '/tasks', {
       params: { before: before || undefined },
@@ -101,6 +114,22 @@ export const crmWorkApi = {
       dueAt: dueAt || null,
     })
     return unwrap(result.data)
+  },
+
+  async updateTask(companyId: string, task: CrmTask, changes: {
+    title: string
+    details: string | null
+    priority: CrmTask['priority']
+    dueAt: string | null
+    assigneeUserId: string
+    contactId: string | null
+    accountId: string | null
+  }) {
+    const response = await apiClient.patch<ApiResponse<CrmTask>>(
+      root(companyId) + '/tasks/' + encodeURIComponent(task.id),
+      { ...changes, version: task.version },
+    )
+    return unwrap(response.data)
   },
 
   async taskStatus(companyId: string, task: CrmTask, status: CrmTask['status']) {
