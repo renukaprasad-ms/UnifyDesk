@@ -3,6 +3,7 @@ package com.messaging.company.service;
 import com.messaging.billing.service.BillingCatalogService;
 import com.messaging.billing.service.DefaultPlanAssignmentService;
 import com.messaging.billing.service.EntitlementService;
+import com.messaging.crm.CrmTaskMembershipLifecycle;
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.common.exception.BadRequestException;
@@ -75,6 +76,7 @@ public class CompanyService {
   private final DeletionPurgeService deletionPurgeService;
   private final DeletionLifecycleProperties deletionProperties;
   private final NotificationEventRecorder notificationEventRecorder;
+  private final CrmTaskMembershipLifecycle crmTaskMembershipLifecycle;
 
   @Value("${app.company.max-owned-workspaces:3}")
   private int maxOwnedWorkspaces;
@@ -280,6 +282,9 @@ public class CompanyService {
     }
     member.setStatus(status);
     memberRepository.saveAndFlush(member);
+    if (status == CompanyMemberStatus.SUSPENDED) {
+      crmTaskMembershipLifecycle.onMemberDeactivated(companyId, targetUserId);
+    }
     accessRealtimeService.notifyAfterCommit(
         targetUserId, companyId, "MEMBERSHIP_STATUS_CHANGED", status);
     return toCompanyUserResponse(member);
@@ -399,6 +404,8 @@ public class CompanyService {
       member.setStatus(CompanyMemberStatus.LEFT);
       memberRepository.saveAndFlush(member);
     }
+    crmTaskMembershipLifecycle.onMemberDeactivated(
+        member.getCompany().getId(), member.getUser().getId());
     Instant now = Instant.now();
     var assignments =
         roleAssignmentRepository.findActive(
