@@ -21,7 +21,13 @@ const plannedItems = [
 
 export default function CrmSidebar({ onNavigate }: { onNavigate: () => void }) {
   const { can } = useIam()
-  const links = can(PERMISSIONS.CONTACT_READ) ? currentItems : []
+  const links = currentItems.filter((item) => {
+    if (item.to === '/crm/leads') return can(PERMISSIONS.CRM_LEAD_READ)
+    if (item.to === '/crm/companies') return can(PERMISSIONS.CRM_ACCOUNT_READ)
+    if (item.to === '/crm/tasks') return can(PERMISSIONS.CRM_TASK_READ)
+    if (item.to === '/crm/overview') return true
+    return can(PERMISSIONS.CONTACT_READ)
+  })
   return (
     <div className="flex min-h-full flex-col">
       <div className="px-3 pb-4 pt-2"><p className="sidebar-label">CRM</p></div>
