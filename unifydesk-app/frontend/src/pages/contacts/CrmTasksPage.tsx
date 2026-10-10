@@ -71,7 +71,7 @@ export default function CrmTasksPage() {
     <header><p className="eyebrow">CRM</p><h1 className="mt-2 text-3xl font-bold">Tasks</h1>
       <p className="mt-2 text-sm text-slate-500">Follow-ups and internal work for your customer relationships.</p></header>
     {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-    {can(PERMISSIONS.CONTACT_MODIFY) && <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void create() }}>
+    {can(PERMISSIONS.CRM_TASK_MODIFY) && <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void create() }}>
       <label htmlFor="crm-task-title" className="sr-only">Task title</label>
       <input id="crm-task-title" className="form-input min-w-52 flex-1" placeholder="New follow-up" value={title} maxLength={240} onChange={(event) => setTitle(event.target.value)} />
       <label htmlFor="crm-task-due" className="sr-only">Due date</label>
@@ -85,7 +85,7 @@ export default function CrmTasksPage() {
       <div><p className="font-semibold text-slate-900">{task.title}</p><p className="text-xs text-slate-500">
         {task.dueAt ? 'Due ' + new Date(task.dueAt).toLocaleDateString() : 'No due date'} · {task.priority}
       </p></div>
-      {can(PERMISSIONS.CONTACT_MODIFY) ? <select className="form-input" aria-label={'Status for ' + task.title}
+      {can(PERMISSIONS.CRM_TASK_MODIFY) ? <select className="form-input" aria-label={'Status for ' + task.title}
         value={task.status} disabled={busy} onChange={(event) => void update(task, event.target.value as CrmTask['status'])}>
         {statuses.map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}
       </select> : <span className="text-sm">{task.status.replaceAll('_', ' ')}</span>}
