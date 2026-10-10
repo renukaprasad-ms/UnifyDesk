@@ -26,9 +26,6 @@ public class CrmWorkService {
                      String priority, Instant dueAt, String assigneeUserId,
                      String contactId, String accountId, long version) {}
   public record Page<T>(List<T> items, String nextCursor, boolean hasMore) {}
-  public record LeadState(String stage, long version) {}
-  public record Contact360(LeadState lead, List<Account> accounts, List<Task> tasks, boolean moreAccounts, boolean moreTasks) {}
-
   /** A lightweight CRM projection; message activity remains owned by Contacts/Inbox/Broadcast. */
   public record LeadState(String stage, long version) {}
   public record Contact360(LeadState lead, List<Account> accounts, List<Task> tasks,
@@ -116,36 +113,6 @@ public class CrmWorkService {
         delete from crm_account_contacts
         where company_id = ? and account_id = ? and contact_id = ?
         """, companyId, accountId, contactId);
-  }
-
-  @Transactional(readOnly = true)
-  public Contact360 contact360(long companyId, long contactId) {
-    requireContact(companyId, contactId);
-    List<LeadState> leads = jdbc.query(
-        "select stage, version from crm_leads where company_id = ? and contact_id = ?",
-        (rs, row) -> new LeadState(rs.getString("stage"), rs.getLong("version")),
-        companyId, contactId);
-    List<Account> accounts = jdbc.query("""
-        select a.* from crm_accounts a
-        join crm_account_contacts l on l.company_id = a.company_id and l.account_id = a.id
-        where l.company_id = ? and l.contact_id = ? order by a.id desc limit 21
-        """, CrmWorkService::account, companyId, contactId);
-    List<Task> tasks = jdbc.query("""
-        select * from crm_tasks where company_id = ? and contact_id = ?
-        order by id desc limit 21
-        """, CrmWorkService::task, companyId, contactId);
-    return new Contact360(
-        leads.isEmpty() ? null : leads.getFirst(),
-        accounts.size() > 20 ? List.copyOf(accounts.subList(0, 20)) : accounts,
-        tasks.size() > 20 ? List.copyOf(tasks.subList(0, 20)) : tasks,
-        accounts.size() > 20, tasks.size() > 20);
-  }
-
-  @Transactional
-  public void unlinkContact(long companyId, long accountId, long contactId) {
-    requireAccount(companyId, accountId);
-    jdbc.update("delete from crm_account_contacts where company_id = ? and account_id = ? and contact_id = ?",
-        companyId, accountId, contactId);
   }
 
   @Transactional(readOnly = true)
