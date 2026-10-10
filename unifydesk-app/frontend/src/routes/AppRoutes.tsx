@@ -160,13 +160,13 @@ const AppRoutes = () => (
               <Route path="crm" element={<Navigate to="/crm/overview" replace />} />
               <Route path="crm/overview" element={<WorkspaceEpochBoundary><CrmOverview /></WorkspaceEpochBoundary>} />
             </Route>
-            <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_LEAD_READ]} />}>
+            <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_LEAD_READ, PERMISSIONS.CONTACT_READ]} />}>
               <Route path="crm/leads" element={<WorkspaceEpochBoundary><CrmLeadsPage /></WorkspaceEpochBoundary>} />
             </Route>
             <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_ACCOUNT_READ]} />}>
               <Route path="crm/companies" element={<WorkspaceEpochBoundary><CrmCompaniesPage /></WorkspaceEpochBoundary>} />
             </Route>
-            <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_TASK_READ]} />}>
+            <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_TASK_READ, PERMISSIONS.CONTACT_READ]} />}>
               <Route path="crm/tasks" element={<WorkspaceEpochBoundary><CrmTasksPage /></WorkspaceEpochBoundary>} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.CONTACT_READ]} />}>
