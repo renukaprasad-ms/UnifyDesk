@@ -77,3 +77,18 @@ This file is a work-in-progress implementation ledger, not a release approval.
 - Future: searchable customer-company selector instead of first-page selection, task status editing from contact panel, end-to-end Contact timeline aggregation, independent tests for tenant-switch races, and permission dedicated CRM grants.
 
 **QA is not yet complete:** No verified JVM compiler/Spotless, frontend typecheck/build, PostgreSQL Flyway or runtime tests for this CRM branch.
+
+
+## Increment 3 — Contact 360 integration
+
+- Contact Detail now renders `CrmContact360Panel`, keyed by company/contact, without replacing existing Contact, consent, suppression, or activity features.
+- New company-authorized, bounded `GET /api/v1/companies/{companyId}/crm/contacts/{contactId}/overview` projects CRM lead stage, linked customer-account records and follow-up tasks. Company ID and active Contact are checked before reads; lists return up to 20 entities each with overflow flags.
+- Contact 360 allows turning an existing Contact into a Lead, changing stage with a version, linking/unlinking customer Companies, creating a follow-up for the Contact and changing task status with a version.
+- `DELETE /crm/accounts/{accountId}/contacts/{contactId}` unlinks a customer business from a Contact without touching the Contact or its marketing consent.
+- Existing Contacts activity remains the owner of Inbox/Broadcast activity rather than copying email or broadcast events into new CRM storage. The existing Contact Detail timeline continues to show these events separately.
+
+### Release blockers still applicable
+
+- No executable frontend or backend build, migration, E2E, or permission integration QA has been run.
+- Dedicated CRM permissions, user-deletion lifecycle, company/contact associations on full CRM pages, deeper timeline integration, refresh after contact mutation, rate/entitlement checks, and user-facing pagination beyond the latest 20 Contact 360 entries remain future work.
+- Must validate optimistic concurrency, workspace switch during in-flight mutations, account association on merged/deleted Contacts, PostgreSQL FK behavior, and cross-tenant access before releasing.
