@@ -2,6 +2,8 @@ package com.messaging.crm;
 
 import com.messaging.common.exception.ApiException;
 import com.messaging.common.id.IdGenerator;
+import com.messaging.company.enums.CompanyMemberStatus;
+import com.messaging.company.repository.CompanyMemberRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CrmWorkService {
   private final JdbcTemplate jdbc;
+  private final CompanyMemberRepository members;
 
   public record Account(String id, String name, String website, String notes,
                         String ownerUserId, long version, Instant createdAt) {}
@@ -58,6 +61,10 @@ public class CrmWorkService {
   }
 
   private void activeMember(long companyId, long userId) {
+    if (!members.existsByCompanyIdAndUserIdAndStatus(
+        companyId, userId, CompanyMemberStatus.ACTIVE)) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ASSIGNEE_NOT_ACTIVE");
+    }
     // Lock membership and user rows until task commit. This prevents assignments to
     // deactivated/deleting users and coordinates with concurrent offboarding.
     var locked = jdbc.query(
