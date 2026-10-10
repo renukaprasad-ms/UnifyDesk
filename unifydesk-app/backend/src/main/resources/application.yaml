@@ -69,6 +69,11 @@ spring:
         heartbeat.interval.ms: ${KAFKA_HEARTBEAT_INTERVAL_MS:15000}
 
 app:
+  crm:
+    task-reminders:
+      enabled: ${APP_CRM_TASK_REMINDERS_ENABLED:false}
+      poll-interval-ms: ${APP_CRM_TASK_REMINDERS_POLL_INTERVAL_MS:60000}
+      initial-delay-ms: ${APP_CRM_TASK_REMINDERS_INITIAL_DELAY_MS:30000}
   company:
     max-owned-workspaces: ${APP_COMPANY_MAX_OWNED_WORKSPACES:3}
   billing:
