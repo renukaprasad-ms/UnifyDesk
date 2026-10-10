@@ -36,6 +36,9 @@ public class CrmWorkController {
   public ResponseEntity<ApiResponse<CrmWorkService.Contact360>> contact360(
       @PathVariable long companyId, @PathVariable long contactId) {
     require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
+    require(companyId, CompanyPermissionKeys.CRM_LEAD_READ);
+    require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(ApiResponse.success(
         200, service.contact360(companyId, contactId), "Contact CRM overview fetched"));
   }
