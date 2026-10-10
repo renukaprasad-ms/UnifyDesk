@@ -90,7 +90,7 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
     {details && !loading && <div className="mt-5 grid gap-5 lg:grid-cols-3">
       <div className="rounded-xl border border-slate-200 p-4">
         <h3 className="font-semibold">Lead stage</h3>
-        {details.lead ? (can(PERMISSIONS.CONTACT_MODIFY) ? (
+        {details.lead ? (can(PERMISSIONS.CRM_LEAD_MODIFY) ? (
           <select className="form-input mt-2 w-full" aria-label="Lead stage" disabled={busy}
             value={details.lead.stage} onChange={(event) => void act(() =>
               crmLeadsApi.moveStage(companyId!, contactId, details.lead!.version, event.target.value as LeadStage))}>
@@ -100,7 +100,7 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
           </select>
         ) : <p className="mt-2 text-sm">{details.lead.stage.replaceAll('_', ' ')}</p>)
           : <p className="mt-2 text-sm">Not a lead</p>}
-        {!details.lead && can(PERMISSIONS.CONTACT_MODIFY) && (
+        {!details.lead && can(PERMISSIONS.CRM_LEAD_MODIFY) && (
           <button type="button" className="secondary-button mt-3" disabled={busy}
             onClick={() => void act(() => crmLeadsApi.enroll(companyId!, contactId))}>Mark as lead</button>
         )}
@@ -111,12 +111,12 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
         <div className="mt-2 space-y-2">{details.accounts.map((account) => <div
           key={account.id} className="flex items-center justify-between gap-2 text-sm">
           <span>{account.name}</span>
-          {can(PERMISSIONS.CONTACT_MODIFY) && <button type="button" className="text-rose-600"
+          {can(PERMISSIONS.CRM_LEAD_MODIFY) && <button type="button" className="text-rose-600"
             disabled={busy} onClick={() => void act(() => crmWorkApi.unlinkContact(companyId!, account.id, contactId))}>Unlink</button>}
         </div>)}</div>
         {details.accounts.length === 0 && <p className="mt-2 text-sm text-slate-500">No companies linked.</p>}
         {details.moreAccounts && <p className="mt-2 text-xs text-slate-500">Showing the newest 20 links.</p>}
-        {can(PERMISSIONS.CONTACT_MODIFY) && <div className="mt-3 flex flex-wrap gap-2">
+        {can(PERMISSIONS.CRM_LEAD_MODIFY) && <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" className="secondary-button" onClick={() => void loadAccounts()} disabled={busy}>Choose company</button>
           {options.length > 0 && <><select aria-label="Company to link" className="form-input min-w-0 flex-1"
             value={accountId} onChange={(event) => setAccountId(event.target.value)}>
@@ -133,7 +133,7 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
             <span className="ml-2 text-xs text-slate-500">{task.status.replaceAll('_', ' ')}</span></li>)}</ul>
         {details.tasks.length === 0 && <p className="mt-2 text-sm text-slate-500">No linked tasks.</p>}
         {details.moreTasks && <p className="mt-2 text-xs text-slate-500">Showing the latest 20 tasks.</p>}
-        {can(PERMISSIONS.CONTACT_MODIFY) && <form className="mt-3 flex gap-2" onSubmit={(event) => {
+        {can(PERMISSIONS.CRM_LEAD_MODIFY) && <form className="mt-3 flex gap-2" onSubmit={(event) => {
           event.preventDefault()
           const title = taskTitle.trim()
           if (!title) return
