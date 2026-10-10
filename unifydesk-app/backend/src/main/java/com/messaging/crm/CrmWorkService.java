@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -132,11 +133,15 @@ public class CrmWorkService {
     if (safeName == null) throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ACCOUNT_NAME_REQUIRED");
     if (owner != null) activeMember(companyId, owner);
     long key = IdGenerator.nextId();
-    jdbc.update("""
-        insert into crm_accounts(id,company_id,name,normalized_name,website,notes,owner_user_id)
-        values (?, ?, ?, ?, ?, ?, ?)
-        """, key, companyId, safeName, safeName.toLowerCase(java.util.Locale.ROOT),
-        trimmed(website, 320), trimmed(notes, 4000), owner);
+    try {
+      jdbc.update("""
+          insert into crm_accounts(id,company_id,name,normalized_name,website,notes,owner_user_id)
+          values (?, ?, ?, ?, ?, ?, ?)
+          """, key, companyId, safeName, safeName.toLowerCase(java.util.Locale.ROOT),
+          trimmed(website, 320), trimmed(notes, 4000), owner);
+    } catch (DuplicateKeyException exception) {
+      throw new ApiException(HttpStatus.CONFLICT, "CRM_ACCOUNT_ALREADY_EXISTS");
+    }
     return jdbc.queryForObject(
         "select * from crm_accounts where company_id = ? and id = ?",
         CrmWorkService::account, companyId, key);
