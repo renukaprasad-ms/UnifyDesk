@@ -31,3 +31,21 @@ This file is a work-in-progress implementation ledger, not a release approval.
 7. Independently review concurrency, pagination, invalid inputs, access control and workspace-epoch stale-response handling.
 
 **Important:** The changes are committed as code, but an executable build/test run has not yet been verified. Do not merge into `dev` or deploy as release-ready without QA.
+
+
+## Increment 2 — CRM Companies and Tasks (source implemented)
+
+- Flyway `V109__crm_accounts_tasks_r1.sql`: customer-account records and linked canonical Contacts using composite (company_id, id) foreign keys; tasks with assignees, priorities, UTC instants, statuses, optimistic versions and bounded query indexes.
+- `CrmWorkService` / `CrmWorkController`: list/create Companies, link contact to customer Company, list company contacts, list/create Tasks, update Task status.
+- `CrmCompaniesPage` and `CrmTasksPage` plus typed `crmWorkApi` and CRM secondary navigation routes.
+- Company purge drains CRM tables before the existing Contacts purge to avoid leaking tenant data and to respect foreign keys.
+- No extra service, infrastructure, marketing consent modification or `dev` change.
+
+### Remaining quality gates / limitations
+
+- **Not yet build verified**: Java compiler/formatter, frontend typecheck, Postgres migration and QA have not run; committed source is not deployment approval.
+- Interim authorization uses existing `contact.read` / `contact.modify` permissions; replace with seeded granular `crm.account.*`, `crm.task.*`, `crm.lead.*` keys and ensure role defaults.
+- No full account editor, contact-linking UI, task assignee selector, due-time picker, notifications scheduler or Customer 360 panels yet.
+- User-deletion purge requires auditing because tasks currently reference assignee users with a restrictive FK; do not ship before evaluating user lifecycle.
+- Validate concurrent company duplicate normalization (database uniqueness), task status version conflict, tenant-crosslink rejection, invalid dates, merged contacts and sensitive log handling in real PostgreSQL.
+- Expand account contact-linking UX and task relation selection after endpoint QA.
