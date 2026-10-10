@@ -32,6 +32,7 @@ export type Contact360 = {
   moreTasks: boolean
 }
 
+export type AccountContact = { contactId: string; displayName: string | null }
 export type Page<T> = { items: T[]; nextCursor: string | null; hasMore: boolean }
 
 const root = (companyId: string) => '/api/v1/companies/' + encodeURIComponent(companyId) + '/crm'
@@ -78,6 +79,20 @@ export const crmWorkApi = {
     const result = await apiClient.get<ApiResponse<Page<CrmAccount>>>(root(companyId) + '/accounts', {
       params: { before: before || undefined },
     })
+    return unwrap(result.data)
+  },
+
+  async getAccount(companyId: string, accountId: string) {
+    const result = await apiClient.get<ApiResponse<CrmAccount>>(
+      root(companyId) + '/accounts/' + encodeURIComponent(accountId),
+    )
+    return unwrap(result.data)
+  },
+
+  async accountContactSummaries(companyId: string, accountId: string) {
+    const result = await apiClient.get<ApiResponse<AccountContact[]>>(
+      root(companyId) + '/accounts/' + encodeURIComponent(accountId) + '/contact-summaries',
+    )
     return unwrap(result.data)
   },
 
