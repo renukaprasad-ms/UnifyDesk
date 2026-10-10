@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { crmLeadsApi, type Lead, type LeadStage } from '../../features/contacts/crmLeadsApi'
 import { contactsApi } from '../../features/contacts/contactsApi'
@@ -27,23 +27,25 @@ export default function CrmLeadsPage() {
   const [searching, setSearching] = useState(false)
   const [creating, setCreating] = useState(false)
   const [busy, setBusy] = useState(false)
+  const requestNumber = useRef(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const refresh = useCallback(async () => {
     if (!companyId) return
     const scope = capture()
+    const request = ++requestNumber.current
     setLoading(true)
     try {
       const page = await crmLeadsApi.list(companyId, filter || undefined)
-      if (!isCurrent(scope)) return
+      if (!isCurrent(scope) || request !== requestNumber.current) return
       setLeads(page.items)
       setNextCursor(page.nextCursor)
       setError('')
     } catch (err) {
-      if (isCurrent(scope)) setError(apiErrorMessage(err, 'Unable to load leads'))
+      if (isCurrent(scope) && request === requestNumber.current) setError(apiErrorMessage(err, 'Unable to load leads'))
     } finally {
-      if (isCurrent(scope)) setLoading(false)
+      if (isCurrent(scope) && request === requestNumber.current) setLoading(false)
     }
   }, [companyId, filter, capture, isCurrent])
 
