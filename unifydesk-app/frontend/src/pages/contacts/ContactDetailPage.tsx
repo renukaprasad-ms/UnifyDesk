@@ -3,7 +3,6 @@ import { Link, Navigate, useParams } from 'react-router'
 import ContactAttributesPanel from '../../components/contacts/ContactAttributesPanel'
 import ContactFormDialog from '../../components/contacts/ContactFormDialog'
 import ContactsNav from '../../components/contacts/ContactsNav'
-import CrmContact360Panel from '../../components/contacts/CrmContact360Panel'
 import ContactCrmPanel from '../../components/contacts/ContactCrmPanel'
 import IdentityManager from '../../components/contacts/IdentityManager'
 import ManualSuppressionForm from '../../components/contacts/ManualSuppressionForm'
@@ -280,7 +279,6 @@ export default function ContactDetailPage() {
         )}
 
         <div className="mt-6 grid gap-5 lg:grid-cols-2">
-          <CrmContact360Panel key={companyId + ':' + contactId} companyId={companyId} contactId={contactId} />
           <ContactCrmPanel key={contactId} contactId={contactId} />
           <section className="panel p-5">
             <h2 className="text-lg font-bold text-slate-950">Profile</h2>
