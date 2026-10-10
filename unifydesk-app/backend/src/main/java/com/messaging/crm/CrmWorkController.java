@@ -47,6 +47,7 @@ public class CrmWorkController {
   public ResponseEntity<ApiResponse<Void>> unlinkContact(
       @PathVariable long companyId, @PathVariable long accountId, @PathVariable long contactId) {
     require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_MODIFY);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     service.unlinkContact(companyId, accountId, contactId);
     return ResponseEntity.ok(ApiResponse.success(200, "Contact unlinked"));
   }
@@ -72,6 +73,7 @@ public class CrmWorkController {
   public ResponseEntity<ApiResponse<Void>> linkContact(
       @PathVariable long companyId, @PathVariable long accountId, @PathVariable long contactId) {
     long actor = require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_MODIFY);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     service.linkContact(companyId, accountId, contactId, actor);
     return ResponseEntity.ok(ApiResponse.success(200, "Contact linked"));
   }
@@ -80,6 +82,7 @@ public class CrmWorkController {
   public ResponseEntity<ApiResponse<java.util.List<String>>> accountContacts(
       @PathVariable long companyId, @PathVariable long accountId) {
     require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(ApiResponse.success(200, service.accountContactIds(companyId, accountId), "Account contacts fetched"));
   }
 
@@ -88,6 +91,7 @@ public class CrmWorkController {
       @PathVariable long companyId, @RequestParam(required = false) Long before,
       @RequestParam(defaultValue = "50") int size, @RequestParam(required = false) Long assigneeUserId) {
     require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(ApiResponse.success(200, service.tasks(companyId, before, size, assigneeUserId), "Tasks fetched"));
   }
 
@@ -95,6 +99,8 @@ public class CrmWorkController {
   public ResponseEntity<ApiResponse<CrmWorkService.Task>> createTask(
       @PathVariable long companyId, @Valid @RequestBody CreateTask request) {
     long actor = require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    if (request.contactId() != null) require(companyId, CompanyPermissionKeys.CONTACT_READ);
+    if (request.accountId() != null) require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
     long assignee = request.assigneeUserId() == null ? actor : request.assigneeUserId();
     return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(201,
         service.createTask(companyId, request.title(), request.details(),
