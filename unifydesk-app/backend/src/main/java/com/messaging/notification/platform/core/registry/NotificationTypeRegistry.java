@@ -186,7 +186,7 @@ public class NotificationTypeRegistry {
             "CRM task reminders",
             "CRM",
             "NORMAL",
-            Set.of("taskId", "taskTitle"),
+            Set.of("taskId", "taskTitle", "generation"),
             false,
             false,
             List.of(EmailMode.OFF),
