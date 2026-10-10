@@ -65,6 +65,22 @@ public class CrmWorkController {
     return ResponseEntity.ok(ApiResponse.success(200, service.accounts(companyId, before, size), "Accounts fetched"));
   }
 
+  @GetMapping("/accounts/{accountId}")
+  public ResponseEntity<ApiResponse<CrmWorkService.Account>> getAccount(
+      @PathVariable long companyId, @PathVariable long accountId) {
+    require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
+    return ResponseEntity.ok(ApiResponse.success(200, service.getAccount(companyId, accountId), "Account fetched"));
+  }
+
+  @GetMapping("/accounts/{accountId}/contact-summaries")
+  public ResponseEntity<ApiResponse<java.util.List<CrmWorkService.AccountContact>>> accountContactSummaries(
+      @PathVariable long companyId, @PathVariable long accountId) {
+    require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
+    return ResponseEntity.ok(ApiResponse.success(200,
+        service.accountContactSummaries(companyId, accountId), "Account contacts fetched"));
+  }
+
   @PostMapping("/accounts")
   public ResponseEntity<ApiResponse<CrmWorkService.Account>> createAccount(
       @PathVariable long companyId, @Valid @RequestBody CreateAccount request) {
