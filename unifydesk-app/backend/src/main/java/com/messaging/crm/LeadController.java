@@ -30,12 +30,14 @@ public class LeadController {
       @RequestParam(required = false) Long before,
       @RequestParam(defaultValue = "50") int size) {
     require(companyId, CompanyPermissionKeys.CRM_LEAD_READ);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(ApiResponse.success(200, service.list(companyId, stage, before, size), "Leads fetched"));
   }
 
   @GetMapping("/summary")
   public ResponseEntity<ApiResponse<LeadService.LeadSummary>> summary(@PathVariable long companyId) {
     require(companyId, CompanyPermissionKeys.CRM_LEAD_READ);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(ApiResponse.success(200, service.summary(companyId), "Lead summary"));
   }
 
@@ -43,6 +45,7 @@ public class LeadController {
   public ResponseEntity<ApiResponse<LeadService.Lead>> get(
       @PathVariable long companyId, @PathVariable long contactId) {
     require(companyId, CompanyPermissionKeys.CRM_LEAD_READ);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(ApiResponse.success(200, service.get(companyId, contactId), "Lead fetched"));
   }
 
@@ -50,6 +53,7 @@ public class LeadController {
   public ResponseEntity<ApiResponse<java.util.List<LeadService.StageEvent>>> history(
       @PathVariable long companyId, @PathVariable long contactId) {
     require(companyId, CompanyPermissionKeys.CRM_LEAD_READ);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(ApiResponse.success(200, service.history(companyId, contactId), "Lead history"));
   }
 
@@ -57,6 +61,7 @@ public class LeadController {
   public ResponseEntity<ApiResponse<LeadService.Lead>> enroll(
       @PathVariable long companyId, @Valid @RequestBody EnrollRequest request) {
     long actor = require(companyId, CompanyPermissionKeys.CRM_LEAD_MODIFY);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     long contactId = parseId(request.contactId());
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResponse.success(201, service.enroll(companyId, contactId, actor), "Lead created"));
@@ -67,6 +72,7 @@ public class LeadController {
       @PathVariable long companyId, @PathVariable long contactId,
       @Valid @RequestBody MoveRequest request) {
     long actor = require(companyId, CompanyPermissionKeys.CRM_LEAD_MODIFY);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(
         ApiResponse.success(200, service.move(companyId, contactId, request.stage(), request.version(), actor), "Lead updated"));
   }
