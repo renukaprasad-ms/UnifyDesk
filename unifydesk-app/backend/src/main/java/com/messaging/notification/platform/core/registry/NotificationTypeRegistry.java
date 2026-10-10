@@ -83,6 +83,11 @@ public class NotificationTypeRegistry {
 
   public Rendered render(Definition definition, Map<String, String> variables) {
     return switch (definition.notificationType()) {
+      case "CRM_TASK_DUE" ->
+          new Rendered(
+              "CRM follow-up due",
+              "Follow-up: " + variables.get("taskTitle"),
+              "/crm/tasks");
       case "COMPANY_CREATED" ->
           new Rendered(
               "Welcome to UnifyDesk",
@@ -172,6 +177,20 @@ public class NotificationTypeRegistry {
             "NORMAL",
             List.of(EmailMode.OFF, EmailMode.IMMEDIATE),
             EmailMode.IMMEDIATE,
+            false));
+    add(
+        values,
+        new Definition(
+            "crm.task.due",
+            "CRM_TASK_DUE",
+            "CRM task reminders",
+            "CRM",
+            "NORMAL",
+            Set.of("taskId", "taskTitle"),
+            false,
+            false,
+            List.of(EmailMode.OFF),
+            EmailMode.OFF,
             false));
     add(
         values,
