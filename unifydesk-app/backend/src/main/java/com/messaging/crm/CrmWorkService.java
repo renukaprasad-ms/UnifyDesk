@@ -2,8 +2,6 @@ package com.messaging.crm;
 
 import com.messaging.common.exception.ApiException;
 import com.messaging.common.id.IdGenerator;
-import com.messaging.company.enums.CompanyMemberStatus;
-import com.messaging.company.repository.CompanyMemberRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -20,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CrmWorkService {
   private final JdbcTemplate jdbc;
-  private final CompanyMemberRepository members;
 
   public record Account(String id, String name, String website, String notes,
                         String ownerUserId, long version, Instant createdAt) {}
@@ -61,16 +58,15 @@ public class CrmWorkService {
   }
 
   private void activeMember(long companyId, long userId) {
-    if (!members.existsByCompanyIdAndUserIdAndStatus(companyId, userId, CompanyMemberStatus.ACTIVE)) {
-      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ASSIGNEE_NOT_ACTIVE");
-    }
-    // Lock the membership row until the task transaction commits. Suspension and removal
-    // update that row, preventing an assignment from racing with offboarding.
+    // Lock membership and user rows until task commit. This prevents assignments to
+    // deactivated/deleting users and coordinates with concurrent offboarding.
     var locked = jdbc.query(
         """
-        select user_id from company_members
-        where company_id = ? and user_id = ? and status = 'ACTIVE'
-        for share
+        select m.user_id from company_members m
+        join users u on u.id = m.user_id and u.status = 'ACTIVE'
+        join companies c on c.id = m.company_id and c.status = 'ACTIVE'
+        where m.company_id = ? and m.user_id = ? and m.status = 'ACTIVE'
+        for share of m, u
         """, (rs, row) -> rs.getLong("user_id"), companyId, userId);
     if (locked.isEmpty()) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ASSIGNEE_NOT_ACTIVE");
