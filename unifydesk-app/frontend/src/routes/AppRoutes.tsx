@@ -37,6 +37,7 @@ import CompanyPlan from '../pages/company/CompanyPlan'
 import CompanyRoles from '../pages/company/CompanyRoles'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import ContactDetailPage from '../pages/contacts/ContactDetailPage'
+import CrmOverview from '../pages/contacts/CrmOverview'
 import ContactsPage from '../pages/contacts/ContactsPage'
 import ContactSettingsPage from '../pages/contacts/ContactSettingsPage'
 import ImportDetailPage from '../pages/contacts/ImportDetailPage'
@@ -153,6 +154,8 @@ const AppRoutes = () => (
             </Route>
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.CONTACT_READ]} />}>
+              <Route path="crm" element={<Navigate to="/crm/overview" replace />} />
+              <Route path="crm/overview" element={<WorkspaceEpochBoundary><CrmOverview /></WorkspaceEpochBoundary>} />
               <Route path="contacts" element={<WorkspaceEpochBoundary><ContactsPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/lists" element={<WorkspaceEpochBoundary><ListsPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/lists/:listId" element={<WorkspaceEpochBoundary><ListDetailPage /></WorkspaceEpochBoundary>} />
