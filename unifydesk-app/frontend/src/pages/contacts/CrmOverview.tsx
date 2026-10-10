@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { FiArrowRight, FiUsers, FiTarget, FiUpload, FiBriefcase, FiCheckSquare, FiUserPlus } from 'react-icons/fi'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -9,7 +10,7 @@ export default function CrmOverview() {
     label: string
     description: string
     to: string
-    icon: React.ReactNode
+    icon: ReactNode
     permission: (typeof PERMISSIONS)[keyof typeof PERMISSIONS]
   }> = [
     { label: 'Leads', description: 'Qualify and track customer relationships.', to: '/crm/leads', icon: <FiUserPlus />, permission: PERMISSIONS.CRM_LEAD_READ },
