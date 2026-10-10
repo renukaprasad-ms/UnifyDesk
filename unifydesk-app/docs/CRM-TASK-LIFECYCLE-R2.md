@@ -35,3 +35,12 @@ Added `CrmTaskLifecycleR2PostgresTests` for reassignment, failure when owner una
 - Email/SMS/WhatsApp task reminders are not added (avoids new provider costs).
 - Notification preferences may be expanded later; R2 currently uses existing in-app notification behavior.
 - Deals and visual sales pipelines remain separate CRM R2+ product work.
+
+
+## Pre-merge review addendum — 2026-10-10
+
+- Reviewed 36 targeted source-level assertions: reminder outbox transaction, PostgreSQL `SKIP LOCKED` scan, dedupe keys, notification type and render contract, current-assignee/generation eligibility, workspace/user active status, member leave/suspend and user purge hooks, schema/configuration and committed tests. **36/36 passed**; these are not executable integration tests.
+- Confirmed the required environment variables are explicitly bound in `application.yaml` under `app.crm.task-reminders`; `APP_CRM_TASK_REMINDERS_ENABLED` defaults to **false** even after deploying the merged code.
+- Tightened task assignment to lock **both the active workspace membership and an active user account**. Assignments to users in deletion/purging status are rejected.
+- QA remains pending for Java 25 compile, Maven/Spotless, PostgreSQL V110, actual notification fanout and multi-replica concurrency. Do not enable reminders in production until those checks complete.
+
