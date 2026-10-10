@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { companyApi } from '../../features/company/companyApi'
 import { crmWorkApi, type CrmTask } from '../../features/contacts/crmWorkApi'
@@ -42,6 +42,7 @@ export default function CrmTasksPage() {
   const [editDate, setEditDate] = useState('')
   const [editPriority, setEditPriority] = useState<CrmTask['priority']>('NORMAL')
   const [editAssignee, setEditAssignee] = useState('')
+  const requestNumber = useRef(0)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -53,16 +54,17 @@ export default function CrmTasksPage() {
   const refresh = useCallback(async () => {
     if (!companyId) return
     const token = capture()
+    const request = ++requestNumber.current
     setLoading(true)
     try {
       const page = await crmWorkApi.tasks(companyId, undefined, {
         status: statusFilter || undefined,
         assigneeUserId: assigneeFilter || undefined,
       })
-      if (isCurrent(token)) { setTasks(page.items); setNext(page.nextCursor); setError('') }
+      if (isCurrent(token) && request === requestNumber.current) { setTasks(page.items); setNext(page.nextCursor); setError('') }
     } catch (err) {
-      if (isCurrent(token)) setError(apiErrorMessage(err, 'Unable to load tasks'))
-    } finally { if (isCurrent(token)) setLoading(false) }
+      if (isCurrent(token) && request === requestNumber.current) setError(apiErrorMessage(err, 'Unable to load tasks'))
+    } finally { if (isCurrent(token) && request === requestNumber.current) setLoading(false) }
   }, [companyId, statusFilter, assigneeFilter, capture, isCurrent])
 
   useEffect(() => { setTasks([]); setNext(null); void refresh() }, [refresh, epoch])
