@@ -125,7 +125,7 @@ export default function CrmLeadsPage() {
           <h1 className="mt-2 text-3xl font-bold text-slate-950">Leads</h1>
           <p className="mt-1 text-sm text-slate-500">Qualify existing contacts without duplicating their identities or consent.</p>
         </div>
-        {can(PERMISSIONS.CONTACT_MODIFY) && (
+        {can(PERMISSIONS.CRM_LEAD_MODIFY) && (
           <button type="button" className="primary-button" onClick={() => void openCreate()} disabled={busy}>+ Create lead</button>
         )}
       </header>
@@ -165,7 +165,7 @@ export default function CrmLeadsPage() {
                   <td className="p-4"><Link className="font-semibold text-indigo-600 hover:underline" to={'/contacts/' + lead.contactId}>{lead.displayName || 'Unnamed contact'}</Link></td>
                   <td className="p-4">{lead.organization || '—'}</td>
                   <td className="p-4">
-                    {can(PERMISSIONS.CONTACT_MODIFY) ? (
+                    {can(PERMISSIONS.CRM_LEAD_MODIFY) ? (
                       <select aria-label={'Stage for ' + (lead.displayName || lead.contactId)} className="form-input" disabled={busy} value={lead.stage} onChange={(e) => void move(lead, e.target.value as LeadStage)}>
                         {stages.map((stage) => <option key={stage} value={stage}>{label(stage)}</option>)}
                       </select>
