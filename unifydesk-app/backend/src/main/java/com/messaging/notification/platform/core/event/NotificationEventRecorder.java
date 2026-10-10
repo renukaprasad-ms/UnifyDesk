@@ -185,7 +185,8 @@ public class NotificationEventRecorder {
         "CRM_TASK",
         Long.toString(taskId),
         null,
-        Map.of("taskId", Long.toString(taskId), "taskTitle", safeTitle),
+        Map.of("taskId", Long.toString(taskId), "taskTitle", safeTitle,
+            "generation", Long.toString(generation)),
         Instant.now());
   }
 
