@@ -94,3 +94,12 @@ This file is a work-in-progress implementation ledger, not a release approval.
 - Must validate optimistic concurrency, workspace switch during in-flight mutations, account association on merged/deleted Contacts, PostgreSQL FK behavior, and cross-tenant access before releasing.
 
 **Integration note (Oct 10):** Parallel changes on this same branch had already added `ContactCrmPanel`. The duplicate `CrmContact360Panel` was removed and the existing consolidated panel retained. Review the branch history for all contributors before QA.
+
+## Increment 4 — static security hardening (2026-10-10)
+
+- Removed duplicate Contact 360 record, service methods and overlapping controller endpoints caused by parallel branch edits (Java source blocker).
+- Added granular `crm.lead.read/modify`, `crm.account.read/modify` and `crm.task.read/modify` permission keys to the system catalog/role defaults, controllers, client routes and CRM pages. Owner retains catalog-based access, Manager gets read/write, Member gets read-only. Existing Contact consent permissions remain separate.
+- Contact 360 currently requires **all three CRM read permissions plus contact.read** to avoid leaking unrelated CRM resources in a combined response; users lacking any required read grant do not see the combined panel.
+- Read-only source inspection confirmed CRM tasks hold assignee IDs referencing soft-purged `users` rows; user purge anonymizes the user record rather than physically deleting it. A future business rule is needed to reassign/cancel tasks assigned to purged users.
+- Source review confirmed workspace purge drains CRM tasks, links, accounts, lead stage events and leads before Contacts are removed. This still requires actual migrated PostgreSQL FK testing.
+- **Build/test state: NOT VERIFIED.** No access to a checked-out private repo build environment or running PostgreSQL from this connector session. Controller duplication was resolved by source inspection, not by a successful Java compilation. Fresh/upgrade migration tests, Java/Node compilation, IAM integration checks and multi-tenant QA remain release blockers.
