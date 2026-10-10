@@ -426,7 +426,9 @@ public class NotificationMaterializer {
           )
           """,
           Boolean.class, event.companyId(), taskId, userId, generation);
-      if (!Boolean.TRUE.equals(currentTask)) {
+      if (!Boolean.TRUE.equals(currentTask)
+          || !permissionService.hasPermission(userId, event.companyId(), "contact.read")) {
+        // CRM task pages also require contact.read; do not emit unusable notifications.
         return false;
       }
     }
