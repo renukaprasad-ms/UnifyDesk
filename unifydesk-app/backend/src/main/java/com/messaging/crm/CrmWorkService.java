@@ -6,6 +6,7 @@ import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.repository.CompanyMemberRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -254,7 +255,8 @@ public class CrmWorkService {
         insert into crm_tasks(id,company_id,title,details,priority,due_at,
                               assignee_user_id,contact_id,account_id,created_by_user_id)
         values(?,?,?,?,?,?,?,?,?,?)
-        """, key, companyId, safeTitle, trimmed(details, 4000), priority, dueAt,
+        """, key, companyId, safeTitle, trimmed(details, 4000), priority,
+        dueAt == null ? null : Timestamp.from(dueAt),
         assignee, contactId, accountId, actor);
     return getTask(companyId, key);
   }
