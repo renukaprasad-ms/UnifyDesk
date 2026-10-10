@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { crmWorkApi, type Contact360, type CrmAccount } from '../../features/contacts/crmWorkApi'
 import { crmLeadsApi, type LeadHistoryEvent, type LeadStage } from '../../features/contacts/crmLeadsApi'
@@ -24,21 +24,22 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [generation, setGeneration] = useState(0)
+  const requestId = useRef(0)
 
   const reload = useCallback(async () => {
     if (!companyId || !contactId || !canRead360) { setLoading(false); return }
     const scope = capture()
-    const requestGeneration = generation
+    const requestGeneration = ++requestId.current
     setLoading(true)
     try {
       const overview = await crmWorkApi.contact360(companyId, contactId)
-      if (!isCurrent(scope) || requestGeneration !== generation) return
+      if (!isCurrent(scope) || requestGeneration !== requestId.current) return
       setDetails(overview)
       setError('')
     } catch (err) {
-      if (isCurrent(scope)) setError(apiErrorMessage(err, 'Unable to load CRM information'))
+      if (isCurrent(scope) && requestGeneration === requestId.current) setError(apiErrorMessage(err, 'Unable to load CRM information'))
     } finally {
-      if (isCurrent(scope)) setLoading(false)
+      if (isCurrent(scope) && requestGeneration === requestId.current) setLoading(false)
     }
   }, [companyId, contactId, capture, isCurrent, generation, canRead360])
 
