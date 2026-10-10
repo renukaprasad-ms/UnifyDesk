@@ -13,7 +13,8 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const epoch = useAppSelector(selectWorkspaceEpoch)
   const { capture, isCurrent } = useWorkspaceEpochScope(companyId, epoch)
-  const { can } = useIam()
+  const { can, canAll } = useIam()
+  const canRead360 = canAll([PERMISSIONS.CRM_LEAD_READ, PERMISSIONS.CRM_ACCOUNT_READ, PERMISSIONS.CRM_TASK_READ, PERMISSIONS.CONTACT_READ])
   const [details, setDetails] = useState<Contact360 | null>(null)
   const [options, setOptions] = useState<CrmAccount[]>([])
   const [accountId, setAccountId] = useState('')
@@ -24,7 +25,7 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
   const [generation, setGeneration] = useState(0)
 
   const reload = useCallback(async () => {
-    if (!companyId || !contactId) return
+    if (!companyId || !contactId || !canRead360) { setLoading(false); return }
     const scope = capture()
     const requestGeneration = generation
     setLoading(true)
@@ -38,7 +39,7 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
     } finally {
       if (isCurrent(scope)) setLoading(false)
     }
-  }, [companyId, contactId, capture, isCurrent, generation])
+  }, [companyId, contactId, capture, isCurrent, generation, canRead360])
 
   useEffect(() => {
     setDetails(null)
@@ -77,6 +78,8 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
       if (isCurrent(scope)) setError(apiErrorMessage(err, 'Unable to load companies'))
     }
   }
+
+  if (!canRead360) return null
 
   return <section className="panel p-5 lg:col-span-2" aria-label="CRM relationship summary">
     <div className="flex flex-wrap items-center justify-between gap-2">
