@@ -27,6 +27,7 @@ public class CrmWorkService {
                      String priority, Instant dueAt, String assigneeUserId,
                      String contactId, String accountId, long version) {}
   public record Page<T>(List<T> items, String nextCursor, boolean hasMore) {}
+  public record AccountContact(String contactId, String displayName) {}
   /** A lightweight CRM projection; message activity remains owned by Contacts/Inbox/Broadcast. */
   public record LeadState(String stage, long version) {}
   public record Contact360(LeadState lead, List<Account> accounts, List<Task> tasks,
@@ -145,6 +146,28 @@ public class CrmWorkService {
     return jdbc.queryForObject(
         "select * from crm_accounts where company_id = ? and id = ?",
         CrmWorkService::account, companyId, key);
+  }
+
+  @Transactional(readOnly = true)
+  public Account getAccount(long companyId, long accountId) {
+    List<Account> found = jdbc.query(
+        "select * from crm_accounts where company_id = ? and id = ?",
+        CrmWorkService::account, companyId, accountId);
+    if (found.isEmpty()) throw new ApiException(HttpStatus.NOT_FOUND, "CRM_ACCOUNT_NOT_FOUND");
+    return found.getFirst();
+  }
+
+  @Transactional(readOnly = true)
+  public List<AccountContact> accountContactSummaries(long companyId, long accountId) {
+    requireAccount(companyId, accountId);
+    return jdbc.query("""
+        select c.id, c.display_name from crm_account_contacts l
+        join contacts c on c.company_id = l.company_id and c.id = l.contact_id
+        where l.company_id = ? and l.account_id = ? and c.status = 'ACTIVE'
+        order by c.id desc limit 100
+        """,
+        (rs, row) -> new AccountContact(id(rs, "id"), rs.getString("display_name")),
+        companyId, accountId);
   }
 
   @Transactional
