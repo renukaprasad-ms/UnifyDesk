@@ -35,7 +35,7 @@ public class CrmWorkController {
   @GetMapping("/contacts/{contactId}/overview")
   public ResponseEntity<ApiResponse<CrmWorkService.Contact360>> contact360(
       @PathVariable long companyId, @PathVariable long contactId) {
-    require(companyId, CompanyPermissionKeys.CONTACT_READ);
+    require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
     return ResponseEntity.ok(ApiResponse.success(
         200, service.contact360(companyId, contactId), "Contact CRM overview fetched"));
   }
@@ -43,7 +43,7 @@ public class CrmWorkController {
   @DeleteMapping("/accounts/{accountId}/contacts/{contactId}")
   public ResponseEntity<ApiResponse<Void>> unlinkContact(
       @PathVariable long companyId, @PathVariable long accountId, @PathVariable long contactId) {
-    require(companyId, CompanyPermissionKeys.CONTACT_MODIFY);
+    require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_MODIFY);
     service.unlinkContact(companyId, accountId, contactId);
     return ResponseEntity.ok(ApiResponse.success(200, "Contact unlinked"));
   }
@@ -52,14 +52,14 @@ public class CrmWorkController {
   public ResponseEntity<ApiResponse<CrmWorkService.Page<CrmWorkService.Account>>> accounts(
       @PathVariable long companyId, @RequestParam(required = false) Long before,
       @RequestParam(defaultValue = "50") int size) {
-    require(companyId, CompanyPermissionKeys.CONTACT_READ);
+    require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
     return ResponseEntity.ok(ApiResponse.success(200, service.accounts(companyId, before, size), "Accounts fetched"));
   }
 
   @PostMapping("/accounts")
   public ResponseEntity<ApiResponse<CrmWorkService.Account>> createAccount(
       @PathVariable long companyId, @Valid @RequestBody CreateAccount request) {
-    require(companyId, CompanyPermissionKeys.CONTACT_MODIFY);
+    require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_MODIFY);
     return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(201,
         service.createAccount(companyId, request.name(), request.website(), request.notes(), request.ownerUserId()),
         "Account created"));
@@ -68,7 +68,7 @@ public class CrmWorkController {
   @PostMapping("/accounts/{accountId}/contacts/{contactId}")
   public ResponseEntity<ApiResponse<Void>> linkContact(
       @PathVariable long companyId, @PathVariable long accountId, @PathVariable long contactId) {
-    long actor = require(companyId, CompanyPermissionKeys.CONTACT_MODIFY);
+    long actor = require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_MODIFY);
     service.linkContact(companyId, accountId, contactId, actor);
     return ResponseEntity.ok(ApiResponse.success(200, "Contact linked"));
   }
@@ -76,7 +76,7 @@ public class CrmWorkController {
   @GetMapping("/accounts/{accountId}/contacts")
   public ResponseEntity<ApiResponse<java.util.List<String>>> accountContacts(
       @PathVariable long companyId, @PathVariable long accountId) {
-    require(companyId, CompanyPermissionKeys.CONTACT_READ);
+    require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
     return ResponseEntity.ok(ApiResponse.success(200, service.accountContactIds(companyId, accountId), "Account contacts fetched"));
   }
 
@@ -84,14 +84,14 @@ public class CrmWorkController {
   public ResponseEntity<ApiResponse<CrmWorkService.Page<CrmWorkService.Task>>> tasks(
       @PathVariable long companyId, @RequestParam(required = false) Long before,
       @RequestParam(defaultValue = "50") int size, @RequestParam(required = false) Long assigneeUserId) {
-    require(companyId, CompanyPermissionKeys.CONTACT_READ);
+    require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
     return ResponseEntity.ok(ApiResponse.success(200, service.tasks(companyId, before, size, assigneeUserId), "Tasks fetched"));
   }
 
   @PostMapping("/tasks")
   public ResponseEntity<ApiResponse<CrmWorkService.Task>> createTask(
       @PathVariable long companyId, @Valid @RequestBody CreateTask request) {
-    long actor = require(companyId, CompanyPermissionKeys.CONTACT_MODIFY);
+    long actor = require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
     long assignee = request.assigneeUserId() == null ? actor : request.assigneeUserId();
     return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(201,
         service.createTask(companyId, request.title(), request.details(),
@@ -103,7 +103,7 @@ public class CrmWorkController {
   @PatchMapping("/tasks/{taskId}/status")
   public ResponseEntity<ApiResponse<CrmWorkService.Task>> changeTaskStatus(
       @PathVariable long companyId, @PathVariable long taskId, @Valid @RequestBody SetStatus request) {
-    require(companyId, CompanyPermissionKeys.CONTACT_MODIFY);
+    require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
     return ResponseEntity.ok(ApiResponse.success(200,
         service.changeTaskStatus(companyId, taskId, request.version(), request.status()), "Task updated"));
   }
