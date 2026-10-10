@@ -116,17 +116,28 @@ export const crmWorkApi = {
     return unwrap(response.data)
   },
 
-  async tasks(companyId: string, before?: string | null) {
+  async tasks(
+    companyId: string,
+    before?: string | null,
+    filters?: { status?: CrmTask['status']; assigneeUserId?: string },
+  ) {
     const result = await apiClient.get<ApiResponse<Page<CrmTask>>>(root(companyId) + '/tasks', {
-      params: { before: before || undefined },
+      params: { before: before || undefined, ...filters },
     })
     return unwrap(result.data)
   },
 
-  async addTask(companyId: string, title: string, dueAt?: string) {
+  async addTask(companyId: string, title: string, dueAt?: string, options?: {
+    priority?: CrmTask['priority']
+    details?: string
+    assigneeUserId?: string
+    contactId?: string
+    accountId?: string
+  }) {
     const result = await apiClient.post<ApiResponse<CrmTask>>(root(companyId) + '/tasks', {
       title,
       dueAt: dueAt || null,
+      ...options,
     })
     return unwrap(result.data)
   },
