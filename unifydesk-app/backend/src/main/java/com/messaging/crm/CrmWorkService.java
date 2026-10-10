@@ -216,13 +216,23 @@ public class CrmWorkService {
   }
 
   @Transactional(readOnly = true)
-  public Page<Task> tasks(long companyId, Long before, int requestedSize, Long assignee) {
+  public Page<Task> tasks(long companyId, Long before, int requestedSize,
+                          Long assignee, String status) {
     int size = Math.max(1, Math.min(100, requestedSize));
+    if (status != null && !List.of("OPEN", "IN_PROGRESS", "DONE", "CANCELLED").contains(status)) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_STATUS_INVALID");
+    }
+    if (before != null && before <= 0) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_INVALID_CURSOR");
+    }
     List<Task> results = jdbc.query("""
         select * from crm_tasks
-        where company_id = ? and (? is null or id < ?) and (? is null or assignee_user_id = ?)
+        where company_id = ? and (? is null or id < ?)
+          and (? is null or assignee_user_id = ?)
+          and (? is null or status = ?)
         order by id desc limit ?
-        """, CrmWorkService::task, companyId, before, before, assignee, assignee, size + 1);
+        """, CrmWorkService::task, companyId, before, before, assignee, assignee,
+        status, status, size + 1);
     boolean more = results.size() > size;
     List<Task> page = more ? results.subList(0, size) : results;
     return new Page<>(page, more ? page.getLast().id() : null, more);
