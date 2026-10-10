@@ -122,7 +122,7 @@ public class CrmWorkService {
   public Page<Account> accounts(long companyId, Long before, int requestedSize) {
     int size = Math.max(1, Math.min(100, requestedSize));
     List<Account> results = jdbc.query(
-        "select * from crm_accounts where company_id = ? and (? is null or id < ?) order by id desc limit ?",
+        "select * from crm_accounts where company_id = ? and (cast(? as bigint) is null or id < ?) order by id desc limit ?",
         CrmWorkService::account, companyId, before, before, size + 1);
     boolean more = results.size() > size;
     List<Account> page = more ? results.subList(0, size) : results;
@@ -228,9 +228,9 @@ public class CrmWorkService {
     }
     List<Task> results = jdbc.query("""
         select * from crm_tasks
-        where company_id = ? and (? is null or id < ?)
-          and (? is null or assignee_user_id = ?)
-          and (? is null or status = ?)
+        where company_id = ? and (cast(? as bigint) is null or id < ?)
+          and (cast(? as bigint) is null or assignee_user_id = ?)
+          and (cast(? as varchar) is null or status = ?)
         order by id desc limit ?
         """, CrmWorkService::task, companyId, before, before, assignee, assignee,
         status, status, size + 1);
