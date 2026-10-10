@@ -5,13 +5,13 @@ import { useIam } from '../../features/iam/useIam'
 
 const currentItems = [
   { label: 'Overview', to: '/crm/overview', icon: <FiGrid /> },
+  { label: 'Leads', to: '/crm/leads', icon: <FiUserPlus /> },
   { label: 'Contacts', to: '/contacts', icon: <FiUsers /> },
   { label: 'Lists', to: '/contacts/lists', icon: <FiBriefcase /> },
   { label: 'Segments', to: '/contacts/segments', icon: <FiTarget /> },
 ]
 
 const plannedItems = [
-  { label: 'Leads', icon: <FiUserPlus /> },
   { label: 'Companies', icon: <FiBriefcase /> },
   { label: 'Deals', icon: <FiBarChart2 /> },
   { label: 'Tasks', icon: <FiCheckSquare /> },
