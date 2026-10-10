@@ -6,8 +6,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import com.messaging.common.exception.ApiException;
+import com.messaging.company.enums.CompanyMemberStatus;
+import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.notification.platform.core.event.NotificationEventRecorder;
 import java.util.UUID;
 import org.flywaydb.core.Flyway;
@@ -97,6 +100,52 @@ class CrmTaskLifecycleR2PostgresTests {
     assertThat(jdbc.queryForObject(
         "select reminded_generation from crm_tasks where id=401", Long.class))
         .isZero();
+  }
+
+  @Test
+  void editingDueTimeAndReopeningTaskRearmsReminderExactlyWhenNeeded() {
+    JdbcTemplate jdbc = setup();
+    jdbc.update("""
+        insert into crm_tasks(id,company_id,title,assignee_user_id,due_at)
+        values (401,101,'Follow up',1,now() + interval '5 minutes')
+        """);
+    CompanyMemberRepository members = mock(CompanyMemberRepository.class);
+    when(members.existsByCompanyIdAndUserIdAndStatus(
+        101L, 1L, CompanyMemberStatus.ACTIVE)).thenReturn(true);
+    CrmWorkService work = new CrmWorkService(jdbc, members);
+    var task = work.getTask(101, 401);
+    var rescheduled = work.updateTask(
+        101, 401, task.version(), "Follow up", null, "NORMAL",
+        task.dueAt().plusSeconds(3600), 1L, null, null);
+    assertThat(jdbc.queryForObject(
+        "select reminder_generation from crm_tasks where id=401", Long.class))
+        .isEqualTo(1L);
+
+    var unchanged = work.updateTask(
+        101, 401, rescheduled.version(), "Follow up revised", null, "NORMAL",
+        rescheduled.dueAt(), 1L, null, null);
+    assertThat(jdbc.queryForObject(
+        "select reminder_generation from crm_tasks where id=401", Long.class))
+        .isEqualTo(1L);
+
+    var done = work.changeTaskStatus(101, 401, unchanged.version(), "DONE");
+    work.changeTaskStatus(101, 401, done.version(), "OPEN");
+    assertThat(jdbc.queryForObject(
+        "select reminder_generation from crm_tasks where id=401", Long.class))
+        .isEqualTo(2L);
+  }
+
+  @Test
+  void userPurgeReassignsActiveCompanyTasksBeforeRemovingMembership() {
+    JdbcTemplate jdbc = setup();
+    jdbc.update("""
+        insert into crm_tasks(id,company_id,title,assignee_user_id)
+        values (401,101,'Follow up',2)
+        """);
+    new CrmTaskMembershipLifecycle(jdbc).onUserPurging(2);
+    assertThat(jdbc.queryForObject(
+        "select assignee_user_id from crm_tasks where id=401", Long.class))
+        .isEqualTo(1L);
   }
 
   private JdbcTemplate setup() {
