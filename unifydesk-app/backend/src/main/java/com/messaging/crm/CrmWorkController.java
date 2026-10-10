@@ -121,10 +121,11 @@ public class CrmWorkController {
   @GetMapping("/tasks")
   public ResponseEntity<ApiResponse<CrmWorkService.Page<CrmWorkService.Task>>> tasks(
       @PathVariable long companyId, @RequestParam(required = false) Long before,
-      @RequestParam(defaultValue = "50") int size, @RequestParam(required = false) Long assigneeUserId) {
+      @RequestParam(defaultValue = "50") int size, @RequestParam(required = false) Long assigneeUserId,
+      @RequestParam(required = false) String status) {
     require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
     require(companyId, CompanyPermissionKeys.CONTACT_READ);
-    return ResponseEntity.ok(ApiResponse.success(200, service.tasks(companyId, before, size, assigneeUserId), "Tasks fetched"));
+    return ResponseEntity.ok(ApiResponse.success(200, service.tasks(companyId, before, size, assigneeUserId, status), "Tasks fetched"));
   }
 
   @PostMapping("/tasks")
