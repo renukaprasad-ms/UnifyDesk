@@ -64,6 +64,17 @@ public class CrmWorkService {
     if (!members.existsByCompanyIdAndUserIdAndStatus(companyId, userId, CompanyMemberStatus.ACTIVE)) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ASSIGNEE_NOT_ACTIVE");
     }
+    // Lock the membership row until the task transaction commits. Suspension and removal
+    // update that row, preventing an assignment from racing with offboarding.
+    var locked = jdbc.query(
+        """
+        select user_id from company_members
+        where company_id = ? and user_id = ? and status = 'ACTIVE'
+        for share
+        """, (rs, row) -> rs.getLong("user_id"), companyId, userId);
+    if (locked.isEmpty()) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ASSIGNEE_NOT_ACTIVE");
+    }
   }
 
   private void requireContact(long companyId, Long contactId) {
@@ -279,11 +290,16 @@ public class CrmWorkService {
         update crm_tasks
            set title = ?, details = ?, priority = ?, due_at = ?,
                assignee_user_id = ?, contact_id = ?, account_id = ?,
+               reminder_generation = reminder_generation
+                 + case when assignee_user_id <> ?
+                   or due_at is distinct from cast(? as timestamptz)
+                   then 1 else 0 end,
                version = version + 1, updated_at = now()
          where company_id = ? and id = ? and version = ?
         """, safeTitle, trimmed(details, 4000), priority,
         dueAt == null ? null : Timestamp.from(dueAt),
-        assignee, contactId, accountId, companyId, taskId, version);
+        assignee, contactId, accountId, assignee,
+        dueAt == null ? null : Timestamp.from(dueAt), companyId, taskId, version);
     if (updated == 0) throw new ApiException(HttpStatus.CONFLICT, "CRM_TASK_VERSION_CONFLICT");
     return getTask(companyId, taskId);
   }
@@ -304,9 +320,12 @@ public class CrmWorkService {
     }
     int updated = jdbc.update("""
         update crm_tasks set status = ?, completed_at = case when ? = 'DONE' then now() else null end,
+          reminder_generation = reminder_generation + case
+            when status in ('DONE', 'CANCELLED') and ? in ('OPEN', 'IN_PROGRESS')
+            then 1 else 0 end,
           updated_at = now(), version = version + 1
         where company_id = ? and id = ? and version = ?
-        """, status, status, companyId, taskId, version);
+        """, status, status, status, companyId, taskId, version);
     if (updated == 0) throw new ApiException(HttpStatus.CONFLICT, "CRM_TASK_VERSION_CONFLICT");
     return getTask(companyId, taskId);
   }
