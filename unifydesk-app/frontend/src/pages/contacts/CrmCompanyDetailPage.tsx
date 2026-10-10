@@ -124,7 +124,7 @@ export default function CrmCompanyDetailPage() {
           event.preventDefault()
           void run(() => crmWorkApi.updateAccount(companyId, account, {
             name: name.trim(), website: website.trim() || null, notes: notes.trim() || null,
-            ownerUserId: owner || null,
+            ownerUserId: can(PERMISSIONS.USER_READ) ? (owner || null) : account.ownerUserId,
           }))
         }}>
         <label className="text-sm font-semibold">Company name
