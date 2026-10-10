@@ -148,6 +148,33 @@ public class CrmWorkService {
   }
 
   @Transactional
+  public Account updateAccount(long companyId, long accountId, long version,
+                               String name, String website, String notes, Long owner) {
+    String safeName = trimmed(name, 240);
+    if (safeName == null || version < 0) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ACCOUNT_INVALID_UPDATE");
+    }
+    if (owner != null) activeMember(companyId, owner);
+    int updated;
+    try {
+      updated = jdbc.update("""
+          update crm_accounts
+             set name = ?, normalized_name = ?, website = ?, notes = ?,
+                 owner_user_id = ?, version = version + 1, updated_at = now()
+           where company_id = ? and id = ? and version = ?
+          """, safeName, safeName.toLowerCase(java.util.Locale.ROOT),
+          trimmed(website, 320), trimmed(notes, 4000), owner,
+          companyId, accountId, version);
+    } catch (DuplicateKeyException exception) {
+      throw new ApiException(HttpStatus.CONFLICT, "CRM_ACCOUNT_ALREADY_EXISTS");
+    }
+    if (updated == 0) throw new ApiException(HttpStatus.CONFLICT, "CRM_ACCOUNT_VERSION_CONFLICT");
+    return jdbc.queryForObject(
+        "select * from crm_accounts where company_id = ? and id = ?",
+        CrmWorkService::account, companyId, accountId);
+  }
+
+  @Transactional
   public void linkContact(long companyId, long accountId, long contactId, long actor) {
     requireAccount(companyId, accountId);
     requireContact(companyId, contactId);
@@ -197,6 +224,32 @@ public class CrmWorkService {
         """, key, companyId, safeTitle, trimmed(details, 4000), priority, dueAt,
         assignee, contactId, accountId, actor);
     return getTask(companyId, key);
+  }
+
+  @Transactional
+  public Task updateTask(long companyId, long taskId, long version, String title,
+                         String details, String priority, Instant dueAt, long assignee,
+                         Long contactId, Long accountId) {
+    String safeTitle = trimmed(title, 240);
+    if (safeTitle == null || version < 0) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_INVALID_UPDATE");
+    }
+    if (priority == null || !List.of("LOW", "NORMAL", "HIGH").contains(priority)) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_PRIORITY_INVALID");
+    }
+    activeMember(companyId, assignee);
+    requireContact(companyId, contactId);
+    requireAccount(companyId, accountId);
+    int updated = jdbc.update("""
+        update crm_tasks
+           set title = ?, details = ?, priority = ?, due_at = ?,
+               assignee_user_id = ?, contact_id = ?, account_id = ?,
+               version = version + 1, updated_at = now()
+         where company_id = ? and id = ? and version = ?
+        """, safeTitle, trimmed(details, 4000), priority, dueAt,
+        assignee, contactId, accountId, companyId, taskId, version);
+    if (updated == 0) throw new ApiException(HttpStatus.CONFLICT, "CRM_TASK_VERSION_CONFLICT");
+    return getTask(companyId, taskId);
   }
 
   @Transactional(readOnly = true)
