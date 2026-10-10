@@ -88,7 +88,7 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
     {error && <p role="alert" className="mt-3 text-sm text-rose-700">{error}</p>}
     {loading && <p role="status" className="mt-4 text-sm text-slate-500">Loading CRM relationships…</p>}
     {details && !loading && <div className="mt-5 grid gap-5 lg:grid-cols-3">
-      <div className="rounded-xl border border-slate-200 p-4">
+      {can(PERMISSIONS.CRM_LEAD_READ) && <div className="rounded-xl border border-slate-200 p-4">
         <h3 className="font-semibold">Lead stage</h3>
         {details.lead ? (can(PERMISSIONS.CRM_LEAD_MODIFY) ? (
           <select className="form-input mt-2 w-full" aria-label="Lead stage" disabled={busy}
@@ -105,18 +105,18 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
             onClick={() => void act(() => crmLeadsApi.enroll(companyId!, contactId))}>Mark as lead</button>
         )}
         <Link className="mt-3 block text-sm font-semibold text-indigo-600" to="/crm/leads">View leads</Link>
-      </div>
-      <div className="rounded-xl border border-slate-200 p-4">
+      </div>}
+      {can(PERMISSIONS.CRM_ACCOUNT_READ) && <div className="rounded-xl border border-slate-200 p-4">
         <h3 className="font-semibold">Customer companies</h3>
         <div className="mt-2 space-y-2">{details.accounts.map((account) => <div
           key={account.id} className="flex items-center justify-between gap-2 text-sm">
           <span>{account.name}</span>
-          {can(PERMISSIONS.CRM_LEAD_MODIFY) && <button type="button" className="text-rose-600"
+          {can(PERMISSIONS.CRM_ACCOUNT_MODIFY) && <button type="button" className="text-rose-600"
             disabled={busy} onClick={() => void act(() => crmWorkApi.unlinkContact(companyId!, account.id, contactId))}>Unlink</button>}
         </div>)}</div>
         {details.accounts.length === 0 && <p className="mt-2 text-sm text-slate-500">No companies linked.</p>}
         {details.moreAccounts && <p className="mt-2 text-xs text-slate-500">Showing the newest 20 links.</p>}
-        {can(PERMISSIONS.CRM_LEAD_MODIFY) && <div className="mt-3 flex flex-wrap gap-2">
+        {can(PERMISSIONS.CRM_ACCOUNT_MODIFY) && <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" className="secondary-button" onClick={() => void loadAccounts()} disabled={busy}>Choose company</button>
           {options.length > 0 && <><select aria-label="Company to link" className="form-input min-w-0 flex-1"
             value={accountId} onChange={(event) => setAccountId(event.target.value)}>
@@ -125,15 +125,15 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
           </select><button type="button" className="primary-button" disabled={!accountId || busy}
             onClick={() => void act(async () => { await crmWorkApi.linkContact(companyId!, accountId, contactId); setAccountId(''); setOptions([]) })}>Link</button></>}
         </div>}
-      </div>
-      <div className="rounded-xl border border-slate-200 p-4">
+      </div>}
+      {can(PERMISSIONS.CRM_TASK_READ) && <div className="rounded-xl border border-slate-200 p-4">
         <h3 className="font-semibold">Follow-up tasks</h3>
         <ul className="mt-2 space-y-2">{details.tasks.map((task) =>
           <li key={task.id} className="text-sm"><span className="font-medium">{task.title}</span>
             <span className="ml-2 text-xs text-slate-500">{task.status.replaceAll('_', ' ')}</span></li>)}</ul>
         {details.tasks.length === 0 && <p className="mt-2 text-sm text-slate-500">No linked tasks.</p>}
         {details.moreTasks && <p className="mt-2 text-xs text-slate-500">Showing the latest 20 tasks.</p>}
-        {can(PERMISSIONS.CRM_LEAD_MODIFY) && <form className="mt-3 flex gap-2" onSubmit={(event) => {
+        {can(PERMISSIONS.CRM_TASK_MODIFY) && <form className="mt-3 flex gap-2" onSubmit={(event) => {
           event.preventDefault()
           const title = taskTitle.trim()
           if (!title) return
@@ -145,7 +145,7 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
           <button className="primary-button" type="submit" disabled={busy || !taskTitle.trim()}>Add</button>
         </form>}
         <Link className="mt-3 block text-sm font-semibold text-indigo-600" to="/crm/tasks">View tasks</Link>
-      </div>
+      </div>}
     </div>}
   </section>
 }
