@@ -15,10 +15,10 @@ class CrmReminderNotificationRegistryTests {
     var definition = registry.requireSource("crm.task.due", 1);
     assertThat(definition.notificationType()).isEqualTo("CRM_TASK_DUE");
     assertThat(definition.defaultEmailMode()).isEqualTo(EmailMode.OFF);
-    assertThat(definition.allowedVariables()).containsExactlyInAnyOrder("taskId", "taskTitle");
+    assertThat(definition.allowedVariables()).containsExactlyInAnyOrder("taskId", "taskTitle", "generation");
 
     Map<String, String> variables =
-        Map.of("taskId", "401", "taskTitle", "Contact the prospect");
+        Map.of("taskId", "401", "taskTitle", "Contact the prospect", "generation", "0");
     registry.validateVariables(definition, variables);
     var rendered = registry.render(definition, variables);
     assertThat(rendered.title()).contains("follow-up");
