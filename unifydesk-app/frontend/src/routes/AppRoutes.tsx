@@ -40,6 +40,7 @@ import ContactDetailPage from '../pages/contacts/ContactDetailPage'
 import CrmOverview from '../pages/contacts/CrmOverview'
 import CrmLeadsPage from '../pages/contacts/CrmLeadsPage'
 import CrmCompaniesPage from '../pages/contacts/CrmCompaniesPage'
+import CrmCompanyDetailPage from '../pages/contacts/CrmCompanyDetailPage'
 import CrmTasksPage from '../pages/contacts/CrmTasksPage'
 import ContactsPage from '../pages/contacts/ContactsPage'
 import ContactSettingsPage from '../pages/contacts/ContactSettingsPage'
@@ -165,6 +166,7 @@ const AppRoutes = () => (
             </Route>
             <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_ACCOUNT_READ]} />}>
               <Route path="crm/companies" element={<WorkspaceEpochBoundary><CrmCompaniesPage /></WorkspaceEpochBoundary>} />
+              <Route path="crm/companies/:accountId" element={<WorkspaceEpochBoundary><CrmCompanyDetailPage /></WorkspaceEpochBoundary>} />
             </Route>
             <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_TASK_READ, PERMISSIONS.CONTACT_READ]} />}>
               <Route path="crm/tasks" element={<WorkspaceEpochBoundary><CrmTasksPage /></WorkspaceEpochBoundary>} />

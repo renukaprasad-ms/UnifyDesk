@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { crmLeadsApi, type Lead, type LeadStage } from '../../features/contacts/crmLeadsApi'
 import { contactsApi } from '../../features/contacts/contactsApi'
@@ -23,47 +23,79 @@ export default function CrmLeadsPage() {
   const [filter, setFilter] = useState<LeadStage | ''>('')
   const [candidates, setCandidates] = useState<ContactSummary[]>([])
   const [contactId, setContactId] = useState('')
+  const [contactQuery, setContactQuery] = useState('')
+  const [searching, setSearching] = useState(false)
   const [creating, setCreating] = useState(false)
   const [busy, setBusy] = useState(false)
+  const requestNumber = useRef(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const refresh = useCallback(async () => {
     if (!companyId) return
     const scope = capture()
+    const request = ++requestNumber.current
     setLoading(true)
     try {
       const page = await crmLeadsApi.list(companyId, filter || undefined)
-      if (!isCurrent(scope)) return
+      if (!isCurrent(scope) || request !== requestNumber.current) return
       setLeads(page.items)
       setNextCursor(page.nextCursor)
       setError('')
     } catch (err) {
-      if (isCurrent(scope)) setError(apiErrorMessage(err, 'Unable to load leads'))
+      if (isCurrent(scope) && request === requestNumber.current) setError(apiErrorMessage(err, 'Unable to load leads'))
     } finally {
-      if (isCurrent(scope)) setLoading(false)
+      if (isCurrent(scope) && request === requestNumber.current) setLoading(false)
     }
   }, [companyId, filter, capture, isCurrent])
 
   useEffect(() => {
     setLeads([])
     setCandidates([])
+    setContactQuery('')
+    setContactId('')
     setNextCursor(null)
     setCreating(false)
     void refresh()
   }, [refresh, epoch])
 
-  const openCreate = async () => {
-    if (!companyId) return
+  // The canonical Contacts endpoint owns search and identity normalization. Debounced
+  // searches are scoped to this workspace and do not retrieve the full contacts database.
+  useEffect(() => {
+    if (!creating || !companyId) return
+    let cancelled = false
     const scope = capture()
-    setCreating(true)
-    setError('')
-    try {
-      const page = await contactsApi.list(companyId, { status: 'ACTIVE', size: 100 })
-      if (isCurrent(scope)) setCandidates(page.items)
-    } catch (err) {
-      if (isCurrent(scope)) setError(apiErrorMessage(err, 'Unable to load contacts'))
+    const handle = setTimeout(() => {
+      setSearching(true)
+      void contactsApi.list(companyId, {
+        q: contactQuery.trim() || undefined,
+        status: 'ACTIVE',
+        size: 30,
+      }).then((page) => {
+        if (!cancelled && isCurrent(scope)) {
+          setCandidates(page.items)
+          setError('')
+        }
+      }).catch((err) => {
+        if (!cancelled && isCurrent(scope)) {
+          setError(apiErrorMessage(err, 'Unable to search contacts'))
+        }
+      }).finally(() => {
+        if (!cancelled && isCurrent(scope)) setSearching(false)
+      })
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(handle)
     }
+  }, [companyId, contactQuery, creating, epoch, capture, isCurrent])
+
+  const openCreate = () => {
+    setCreating(true)
+    setContactId('')
+    setContactQuery('')
+    setCandidates([])
+    setError('')
   }
 
   const create = async () => {
@@ -126,22 +158,38 @@ export default function CrmLeadsPage() {
           <p className="mt-1 text-sm text-slate-500">Qualify existing contacts without duplicating their identities or consent.</p>
         </div>
         {can(PERMISSIONS.CRM_LEAD_MODIFY) && (
-          <button type="button" className="primary-button" onClick={() => void openCreate()} disabled={busy}>+ Create lead</button>
+          <button type="button" className="primary-button" onClick={openCreate} disabled={busy}>+ Create lead</button>
         )}
       </header>
       {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
       {creating && (
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <label htmlFor="crm-lead-contact" className="block text-sm font-semibold">Choose an existing contact</label>
-          <select id="crm-lead-contact" className="form-input mt-2 w-full" value={contactId} onChange={(e) => setContactId(e.target.value)}>
+          <label htmlFor="crm-lead-search" className="block text-sm font-semibold">Find a contact</label>
+          <input id="crm-lead-search" className="form-input mt-2 w-full"
+            placeholder="Search by name, email or phone"
+            value={contactQuery}
+            onChange={(event) => {
+              setContactQuery(event.target.value)
+              setContactId('')
+              setCandidates([])
+            }} />
+          <label htmlFor="crm-lead-contact" className="mt-3 block text-sm font-semibold">Choose a contact</label>
+          <select id="crm-lead-contact" className="form-input mt-2 w-full"
+            value={contactId} disabled={searching}
+            onChange={(event) => setContactId(event.target.value)}>
             <option value="">Select contact</option>
-            {candidates.filter((contact) => !leads.some((lead) => lead.contactId === contact.id)).map((contact) => (
-              <option key={contact.id} value={contact.id}>{contact.displayName} {contact.primaryEmail ?? ''}</option>
-            ))}
+            {candidates.filter((contact) => !leads.some((lead) => lead.contactId === contact.id))
+              .map((contact) => (
+                <option key={contact.id} value={contact.id}>
+                  {contact.displayName || 'Unnamed contact'} {contact.primaryEmail ?? ''}
+                </option>
+              ))}
           </select>
-          <p className="mt-2 text-xs text-slate-500">Showing up to 100 contacts. Create or find additional contacts in Contacts.</p>
+          <p role="status" className="mt-2 text-xs text-slate-500">
+            {searching ? 'Searching contacts…' : 'Showing up to 30 matching contacts. Refine the search for more results.'}
+          </p>
           <div className="mt-3 flex gap-2">
-            <button className="primary-button" disabled={!contactId || busy} onClick={() => void create()}>Create lead</button>
+            <button className="primary-button" disabled={!contactId || busy || searching} onClick={() => void create()}>Create lead</button>
             <button className="secondary-button" disabled={busy} onClick={() => setCreating(false)}>Cancel</button>
           </div>
         </div>
