@@ -22,9 +22,9 @@ const plannedItems = [
 export default function CrmSidebar({ onNavigate }: { onNavigate: () => void }) {
   const { can } = useIam()
   const links = currentItems.filter((item) => {
-    if (item.to === '/crm/leads') return can(PERMISSIONS.CRM_LEAD_READ)
+    if (item.to === '/crm/leads') return can(PERMISSIONS.CRM_LEAD_READ) && can(PERMISSIONS.CONTACT_READ)
     if (item.to === '/crm/companies') return can(PERMISSIONS.CRM_ACCOUNT_READ)
-    if (item.to === '/crm/tasks') return can(PERMISSIONS.CRM_TASK_READ)
+    if (item.to === '/crm/tasks') return can(PERMISSIONS.CRM_TASK_READ) && can(PERMISSIONS.CONTACT_READ)
     if (item.to === '/crm/overview') return true
     return can(PERMISSIONS.CONTACT_READ)
   })
