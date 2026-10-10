@@ -103,3 +103,15 @@ This file is a work-in-progress implementation ledger, not a release approval.
 - Read-only source inspection confirmed CRM tasks hold assignee IDs referencing soft-purged `users` rows; user purge anonymizes the user record rather than physically deleting it. A future business rule is needed to reassign/cancel tasks assigned to purged users.
 - Source review confirmed workspace purge drains CRM tasks, links, accounts, lead stage events and leads before Contacts are removed. This still requires actual migrated PostgreSQL FK testing.
 - **Build/test state: NOT VERIFIED.** No access to a checked-out private repo build environment or running PostgreSQL from this connector session. Controller duplication was resolved by source inspection, not by a successful Java compilation. Fresh/upgrade migration tests, Java/Node compilation, IAM integration checks and multi-tenant QA remain release blockers.
+
+## Independent merge-readiness review — 2026-10-10
+
+- Repaired triple-defined `Contact360` DTO and repeated API functions in `crmWorkApi.ts`.
+- Static assertions passed 31/31 for duplicate declarations, routes, granular permission names, schema composite references, and optimistic update predicates. These are **source assertions only**, not compiler, database, or integration tests.
+- Tightened authorization: CRM Leads and contact-bearing Tasks require `contact.read`; associating/disassociating customer Accounts with people requires `contact.read`; task association with a customer Account requires `crm.account.read`.
+- **Merge blocker:** CRM has no `ContactMergeExtension` to reconcile source lead, linked Companies and Tasks during Contact merge. Without one, sales relationships can become stranded on the merged source Contact.
+- **Merge blocker:** Cannot run Java 25 Maven project, repository frontend dependency-validated build, or PostgreSQL migrations from the available isolated environment. GitHub Actions reported failures, and logs were unavailable.
+- **Merge blocker:** CRM V108/V109 upgrade migrations and fresh-database install require execution; do not infer success from SQL inspection.
+- **Merge blocker:** contact lifecycle, tenant epoch race, and user/task assignee retirement require executable regression coverage.
+
+PR #377 must remain draft; no merge to dev until the above issues are addressed and validated.
