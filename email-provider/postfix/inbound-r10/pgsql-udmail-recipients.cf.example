@@ -1,0 +1,7 @@
+# Postfix pgsql_table(5). One recipient = exact local/domain match, no catch-all.
+hosts = 127.0.0.1
+user = udmail_postfix_ro
+password = REPLACE_WITH_RANDOM_READONLY_PASSWORD
+dbname = email_provider
+# Postfix %u/%d are SQL-quoted email localpart/domain. Restrict at RCPT.
+query = SELECT '1' FROM email_mailboxes m JOIN email_mail_domains d ON d.id=m.domain_id AND d.organization_id=m.organization_id JOIN email_product_organizations o ON o.id=m.organization_id WHERE m.local_part=lower('%u') AND d.domain_name=lower('%d') AND m.status='ACTIVE' AND d.status='VERIFIED' AND d.inbound_enabled=TRUE AND o.status='ACTIVE' LIMIT 1

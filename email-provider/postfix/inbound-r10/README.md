@@ -1,0 +1,239 @@
+# R10 — Local Postfix inbound SMTP to private UnifyDesk Mail
+
+Status: SOURCE ONLY, NOT INSTALLED, NOT DEPLOYED. No DNS, firewall, k3s or
+Postfix runtime was changed. Production SES/Managed Email is unaffected.
+
+## Offline pipe behavior regression
+
+Before touching any live mail service, run:
+
+  bash email-provider/tests/inbound-r10-pipe-qa.sh
+
+This test uses a temporary copy of the shipped pipe script and a fake curl
+client. It requires only Bash and coreutils, does not read production secrets,
+and does not send any SMTP or HTTP traffic. It proves that only an HTTP 202
+causes successful delivery; 200, 302, 503, network failures and invalid
+recipient/queue ID all fail closed, while retries preserve delivery keys.
+
+This test was executed and passed in an isolated development container.
+**It is NOT evidence that the real Postfix instance, PostgreSQL or malware
+scanner are configured, running or passing integration QA.**
+
+## Data flow
+
+External SMTP (later) -> dedicated inbound Postfix -> PostgreSQL recipient
+validation at RCPT -> Postfix durable queue -> 1-recipient private pipe ->
+authenticated internal HTTP 202 -> durable MIME PVC + PENDING_SCAN row ->
+local malware/spam scanning -> mailbox INBOX or SPAM.
+
+No 202 = EX_TEMPFAIL 75, so Postfix retains its queued message and retries.
+Re-deliveries from one Postfix queue ID and envelope recipient share a stable
+delivery key and cannot be double-counted in the same mailbox.
+
+## Default-deny domain and recipient checks
+
+V22 adds email_mail_domains.inbound_enabled BOOLEAN NOT NULL DEFAULT FALSE.
+DNS ownership proof alone NEVER opens incoming SMTP. Postfix's pgsql virtual
+domain/recipient tables and InboundIntakeService both require:
+- ACTIVE organization
+- VERIFIED domain with inbound_enabled=true
+- ACTIVE exact mailbox, with matching org/domain
+
+Postfix rejects unknown addresses at RCPT, before collecting mail DATA.
+The application checks the same gates again immediately before MIME writing
+and inside its quota-reservation transaction.
+
+## Install and verify only on an isolated staging mail node
+
+1. Run Flyway V1 through V22 on an isolated PostgreSQL database (preserve the
+   existing V14 usage migration). Run Maven tests, Java 25, Node 24 locally;
+   GitHub Actions runners have not been executing steps.
+2. Install a SEPARATE inbound Postfix instance with postfix-pgsql, curl and
+   coreutils. Configure its main.cf from main.cf.example, its master.cf from
+   master.cf.snippet and its two PGSQL maps from the .cf.example templates.
+   Keep inet_interfaces = loopback-only while testing. Do NOT overwrite
+   the existing sending/bounce Postfix instance.
+3. Create an independent PostgreSQL READ-ONLY role with only SELECT on
+   email_mail_domains, email_mailboxes and email_product_organizations
+   (SQL example included). Keep DB credentials in 0640 Postfix config.
+   Use loopback DB access or a private TLS connection. No public DB port.
+4. Create a no-login udmail-inbound service account. Install the pipe script
+   as /usr/local/libexec/udmail-inbound-pipe.sh (root-owned, 0755).
+   Install a private inbound-curl.conf readable only by this service user
+   (0400), containing only the Authorization bearer secret, 32+ characters.
+   Keep real secrets out of the repository and Cloudflare Pages.
+5. Assign a STABLE, unique short node ID to this Postfix instance in
+   /etc/unifydesk-mail/inbound-node-id (example: mx1). Do not rotate it
+   while mail remains queued. Each Postfix retry must reuse the same ID.
+6. Configure a LOOPBACK-ONLY bridge at 127.0.0.1:8010 to the internal
+   email-provider Spring service in k3s, with ingress ACL. The internal
+   HTTP endpoint must NEVER appear on public Cloudflare Tunnel/Pages.
+7. Provide a persistent encrypted/backed-up mail PVC, scanner services
+   ClamAV and Rspamd, and working backend storage/quota/scan feature gates.
+   Verify ClamAV RAM requirements on your low-cost Ubuntu server.
+8. On your TEST domain, finish DNS TXT verification and mailbox activation.
+   After security approval, enable inbound_enabled for that exact tenant
+   using an operator-reviewed SQL UPDATE constrained by domain ID,
+   organization ID and VERIFIED status. This PR exposes NO public toggle.
+
+Example local checks (on the dedicated Postfix node):
+
+  postconf -m | grep -w pgsql
+  postmap -q test.example.net pgsql:/etc/postfix/pgsql-udmail-domains.cf
+  postmap -q owner@test.example.net pgsql:/etc/postfix/pgsql-udmail-recipients.cf
+  postmap -q unknown@test.example.net pgsql:/etc/postfix/pgsql-udmail-recipients.cf
+  postfix check
+
+Run bash email-provider/tests/inbound-r10-smoke.sh from the repository root
+on the isolated Postfix node; this performs syntax/pgsql checks and does
+NOT send email unless R10_SEND_LOCAL_FIXTURE=YES is set explicitly.
+
+The first two pgsql lookups return a value for a prepared test domain/mailbox;
+the unknown recipient returns no value. With inbound_enabled=false, neither
+domain nor recipient lookup should return a value.
+
+Use swaks/sendmail locally to check successful RCPT, rejected unknown
+recipient, rejected unrelated-domain relay, real 202 durable intake,
+one PENDING_SCAN row, exactly-once quota use, successful scanning and
+Inbox/Spam access for a granted user. Force a backend timeout, scanner
+outage, DB outage and full PVC; ensure Postfix RETAINS queued mail.
+
+## Boundaries and safety
+
+- Set enable_long_queue_ids=yes and preserve a unique, stable node ID;
+  Postfix short queue IDs can be reused after older deliveries.
+- Postfix pipe expands queue_id + recipient; the one-recipient delivery limit
+  prevents sending one MIME to multiple mailboxes using one queue header.
+- Stable keys include unique node ID, queue ID, and recipient SHA256 prefix.
+- Only HTTP 202 confirms durable handoff. Redirects and HTTP 200 fail CLOSED.
+- Postfix accepts at most 10,000,000 bytes (headroom for generated headers),
+  while the backend imposes an independent 10 MiB cap. The Java spool
+  reads in 8 KiB chunks; there is no new managed service or daemon to pay for.
+- Public MX requires genuine inbound TCP 25, stable public IP, TLS/STARTTLS,
+  SPF/DKIM/DMARC policy, queue alerts, firewall and rate/abuse protection.
+  Cloudflare HTTP Tunnel is NOT an SMTP/MX endpoint.
+- Test mailbox suspension after SMTP RCPT and before pipe delivery, Postfix
+  queue retries/idempotency, malformed and oversized messages, MIME scan
+  failures, SMTP relay denial, and database migration upgrade.
+- Postfix pipe script and templates are only reviewable source in this PR;
+  no actual end-to-end tests can be claimed until executed on the mail node.
+- Full hosted mailbox GA still needs attachments, retention, IAM parity,
+  recovery and operational monitoring.
+
+
+## K3s persistent storage — optional, not automatically applied
+
+The existing email-provider Deployment uses hostNetwork=true, with NO
+persistent mail-object volume. For isolated staging only:
+
+  kubectl -n email-platform apply -f email-provider/k8s/mail-inbound-r10-pvc.yaml
+  kubectl -n email-platform get pvc email-mail-objects
+  kubectl -n email-platform patch deployment email-provider --type strategic --patch-file email-provider/k8s/mail-inbound-r10-deployment-patch.yaml
+
+Then set EMAIL_MAIL_INBOUND_SPOOL_PATH=/var/lib/unifydesk-mail/objects in
+the private server environment (NOT Vite). Test the mounted PVC under
+application UID 10001, actual fsync/restart durability, capacity and
+off-node encrypted backups. A k3s local-path PVC IS NOT automatically
+encrypted or backed up. R10 never applies this manifest itself.
+
+Since hostNetwork=true binds application port 8010 on the node, restrict
+it with host firewall rules to the trusted mail host/loopback and k3s
+service network; an HTTP bearer token is necessary but NOT a substitute
+for a private network. Public Cloudflare routing must never expose
+/internal/v1/mail/inbound.
+
+## Port 25 collision and staging listener
+
+The previous outbound Postfix sample may already listen on 127.0.0.1:25.
+A separate inbound Postfix INSTANCE cannot bind that same IP/port.
+In local staging use a dedicated Postfix configuration/instance with an
+SMTP listener on 127.0.0.1:2526 (disable its default port-25 smtp service)
+and leave outgoing Postfix untouched. Confirm with:
+
+  sudo ss -ltnp | grep -E ':25 |:2526 |:8010 '
+  sudo postconf -c /etc/postfix-inbound -n
+  sudo postfix -c /etc/postfix-inbound check
+
+The actual -c path must be the reviewed isolated instance directory,
+with its own spool and master.cf. Test swaks with port 2526 instead of
+port 25 when exercising this setup. No public MX/port 25 until the
+dedicated instance, local auth bridge, scanner, bounce behavior and
+anti-relay restrictions are verified.
+
+
+## R10 local verification without GitHub Actions
+
+These scripts **do not install anything** or change MX/DNS settings. Run them
+from the checked-out R10 branch on the Ubuntu test node.
+
+1. Inspect the existing k3s/Postfix/PVC prerequisites (read-only):
+
+   bash email-provider/tests/inbound-r10-readiness.sh
+
+   This may report blocked items until the separately reviewed staging
+   Postfix, persistent volume and private backend are actually installed.
+
+2. Test only the shell/Postfix transport response contract (fully offline):
+
+   bash email-provider/tests/inbound-r10-pipe-qa.sh
+
+   This uses mock curl and temporary files, so it sends no message.
+
+3. After V22 migration, a test domain with inbound_enabled=true, ACTIVE
+   mailbox, private token, writable encrypted persistent PVC and actual
+   ClamAV/Rspamd services are ready, run the private API test:
+
+   export R10_API_SMOKE_ENABLE=YES
+   export R10_TEST_RECIPIENT='owner@your-approved-test-domain.example'
+   export R10_INTERNAL_CURL_CONFIG=/etc/unifydesk-mail/inbound-curl.conf
+   bash email-provider/tests/inbound-r10-api-smoke.sh
+
+   The script posts the **same synthetic MIME twice** to loopback port 8010,
+   requires HTTP 202 each time, then compares the job ID and duplicate flag.
+   Neither external SMTP nor public MX is used. This DOES insert a staging
+   test email and consume staging quota/storage; do not use a customer domain.
+
+4. For an additional read-only PostgreSQL assertion (exactly one inbound
+   job), set R10_QA_PG_DSN to a staging DB connection with SELECT permission
+   on email_mail_inbound_jobs. Store the password in ~/.pgpass or PGPASSFILE,
+   not in the shell command or URL. Re-run the script.
+
+5. To ALSO prove scan-to-Inbox/Spam and mailbox grant checks, create a
+   local-only console curl config with a test-user bearer session token,
+   mode 0600, and set:
+
+   export R10_TEST_MAILBOX_ID='123456789012345678'
+   export R10_CONSOLE_CURL_CONFIG=/private/path/console-curl.conf
+   bash email-provider/tests/inbound-r10-api-smoke.sh
+
+   Example config file content (create privately; DO NOT COMMIT it):
+
+   header = "Authorization: Bearer REPLACE_WITH_TEST_CONSOLE_SESSION_TOKEN"
+
+   The script waits at most 90 seconds for ClamAV/Rspamd promotion,
+   searches Inbox and Spam through the console API, then fetches its
+   MIME-safe plain-text preview. It does NOT assume every message is Inbox;
+   Rspamd may place the test message in Spam. It fails closed on missing
+   ACL, scanner outages, bad session or absent message.
+
+6. Only after all prior checks, run the opt-in Postfix local SMTP test with
+   staging listener 2526, not port 25:
+
+   export R10_TEST_DOMAIN='your-approved-test-domain.example'
+   export R10_TEST_ACCEPT_RCPT='owner@your-approved-test-domain.example'
+   export R10_SEND_LOCAL_FIXTURE=YES
+   export R10_SMTP_PORT=2526
+   bash email-provider/tests/inbound-r10-smoke.sh
+
+   Verify the corresponding backend job and Inbox/Spam message separately.
+   The Postfix smoke only confirms SMTP response and routing, NOT durable
+   ingestion or scanner promotion by itself.
+
+### Fast rollback of test admission
+
+To close NEW inbound admission for the exact approved test domain, an
+authorized database operator can set inbound_enabled=false for that domain.
+The R10 scanner now rechecks this gate before Inbox/Spam promotion as well:
+previously staged messages remain quarantined instead of becoming visible.
+Existing Postfix queue entries may retry and require a separate operator
+queue policy. Do not automatically delete accepted or quarantined MIME.

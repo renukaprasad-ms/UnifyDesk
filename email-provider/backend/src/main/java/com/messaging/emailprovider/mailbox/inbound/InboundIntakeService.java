@@ -117,7 +117,8 @@ public class InboundIntakeService {
           ON d.id=m.domain_id AND d.organization_id=m.organization_id
         JOIN email_product_organizations o ON o.id=m.organization_id
         WHERE m.local_part=? AND d.domain_name=?
-          AND m.status='ACTIVE' AND d.status='VERIFIED' AND o.status='ACTIVE'
+          AND m.status='ACTIVE' AND d.status='VERIFIED'
+          AND d.inbound_enabled=TRUE AND o.status='ACTIVE'
         """ + (forUpdate ? " FOR UPDATE OF m" : "");
     return jdbc.query(sql, (rs, row) -> new Target(
         rs.getLong(1),rs.getLong(2),rs.getLong(3),rs.getLong(4)),
