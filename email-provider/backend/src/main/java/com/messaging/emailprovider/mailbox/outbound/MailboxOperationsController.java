@@ -13,9 +13,19 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/internal/v1/mail/outbound")
 public class MailboxOperationsController {
   private final MailboxOperationsService operations;
+  private final MailOrphanInventoryService inventory;
 
-  public MailboxOperationsController(MailboxOperationsService operations) {
+  public MailboxOperationsController(MailboxOperationsService operations,
+      MailOrphanInventoryService inventory) {
     this.operations=operations;
+    this.inventory=inventory;
+  }
+
+  @GetMapping("/orphans")
+  public ResponseEntity<ApiResponse<MailOrphanInventoryService.Inventory>> orphans() {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(ApiResponse.success(200,inventory.inventory(),
+            "Advisory inventory only; no files were deleted"));
   }
 
   @GetMapping("/reconciliation")

@@ -29,6 +29,7 @@ public class MailboxOutboundWorker {
   private final DkimSigner signer;
   private final MailboxSmtpRelay relay;
   private final MailSentArchiveStore archive;
+  private final MailBounceAddress bounce;
   private final MailboxSendingRateLimiter limiter;
 
   record Claim(long recipientId,long intentId,long organizationId,
@@ -43,7 +44,7 @@ public class MailboxOutboundWorker {
   public MailboxOutboundWorker(JdbcTemplate jdbc,TransactionTemplate transactions,
       MailboxMimeBuilder mime,DkimKeyService dkimKeys,DkimSigner signer,
       MailboxSmtpRelay relay,MailboxSendingRateLimiter limiter,
-      MailSentArchiveStore archive) {
+      MailSentArchiveStore archive,MailBounceAddress bounce) {
     this.jdbc=jdbc;
     this.transactions=transactions;
     this.mime=mime;
@@ -52,6 +53,7 @@ public class MailboxOutboundWorker {
     this.relay=relay;
     this.limiter=limiter;
     this.archive=archive;
+    this.bounce=bounce;
   }
 
   @Scheduled(fixedDelayString="${app.mail.outbound.interval-ms:5000}")
@@ -155,6 +157,15 @@ public class MailboxOutboundWorker {
       return;
     }
     Context context=matches.get(0);
+    Boolean suppressed=jdbc.queryForObject("""
+        SELECT EXISTS(SELECT 1 FROM email_mail_outbound_suppressions
+          WHERE organization_id=? AND recipient_address=?)
+        """,Boolean.class,job.organizationId(),job.recipient());
+    if(Boolean.TRUE.equals(suppressed)) {
+      complete(job,"FAILED",null,"RECIPIENT_SUPPRESSED_BY_BOUNCE_OR_COMPLAINT");
+      return;
+    }
+
     // Prepare/sign before SMTP I/O: preflight failures may safely be retried.
     byte[] signed;
     try {
@@ -186,7 +197,8 @@ public class MailboxOutboundWorker {
     // outcome persistence in a catch that changes HANDED_OFF/UNKNOWN into DEFERRED.
     SmtpDeliveryResult result;
     try {
-      result=relay.submit(context.sender(),job.recipient(),signed);
+      result=relay.submit(bounce.envelopeFrom(job.intentId(),job.recipientId()),
+          job.recipient(),signed);
     } catch(Exception uncertain) {
       result=new SmtpDeliveryResult(SmtpDeliveryOutcome.UNKNOWN,null,
           "SMTP_HANDOFF_RESULT_UNCERTAIN");
