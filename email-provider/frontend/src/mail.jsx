@@ -99,7 +99,7 @@ export default function MailConsole({ session }) {
     let active = true
     setPlainPreview(null)
     setPlainError('')
-    if (!selectedMessage || !mailboxId) {
+    if (!selectedMessage || !mailboxId || folder === 'SENT') {
       setPlainLoading(false)
       return () => { active = false }
     }
@@ -109,7 +109,7 @@ export default function MailConsole({ session }) {
       .catch(failure => { if (active) setPlainError(failure.message) })
       .finally(() => { if (active) setPlainLoading(false) })
     return () => { active = false }
-  }, [mailboxId, selectedMessage?.id])
+  }, [mailboxId, selectedMessage?.id, folder])
 
   const run = async (operation, successMessage) => {
     setBusy(true)
@@ -271,7 +271,7 @@ export default function MailConsole({ session }) {
           <Empty icon={Inbox} title="No active mailbox selected" body="Verify your domain and activate a mailbox to view its Inbox."/> :
           <div className="mail-reader">
             <div className="mail-folders" aria-label="Mail folders">
-              {['INBOX','SPAM'].map(name => <button key={name} type="button" className={folder === name ? 'selected' : ''} onClick={() => changeFolder(name)}>{name === 'INBOX' ? 'Inbox' : 'Spam'}</button>)}
+              {['INBOX','SENT','SPAM'].map(name => <button key={name} type="button" className={folder === name ? 'selected' : ''} onClick={() => changeFolder(name)}>{name === 'INBOX' ? 'Inbox' : name === 'SENT' ? 'Sent' : 'Spam'}</button>)}
             </div>
             <div className="mail-message-list">
               {messageLoading ? <div className="mail-reader-empty">Loading messages…</div> :
@@ -288,7 +288,9 @@ export default function MailConsole({ session }) {
                 <h3>{selectedMessage.subject || '(No subject)'}</h3>
                 <p><strong>From:</strong> {selectedMessage.from || 'Unknown sender'}</p>
                 <p><strong>Received:</strong> {selectedMessage.receivedAt ? new Date(selectedMessage.receivedAt).toLocaleString() : '—'}</p>
-                {plainLoading ? <div className="mail-preview-placeholder">Loading safe text preview…</div> :
+                {folder === 'SENT'
+                  ? <div className="mail-preview-placeholder">This message was accepted by the outgoing SMTP relay. This does not prove delivery to the recipient. Download the signed original to inspect the archived message.</div>
+                  : plainLoading ? <div className="mail-preview-placeholder">Loading safe text preview…</div> :
                   plainError ? <Notice tone="error">{plainError}</Notice> :
                   plainPreview?.textAvailable ? <>
                     <div className="mail-text-title">Plain-text message {plainPreview.truncated ? '· Preview truncated' : ''}</div>

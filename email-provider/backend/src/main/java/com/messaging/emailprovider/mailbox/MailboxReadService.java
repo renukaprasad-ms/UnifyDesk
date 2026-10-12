@@ -43,7 +43,7 @@ public class MailboxReadService {
   public record Message(String id, String folder, String from, String subject,
       long sizeBytes, String receivedAt) {}
   public record RawMail(InputStream body, long sizeBytes) {}
-  private record ObjectRecord(String key, long size) {}
+  private record ObjectRecord(String key, long size, String digest) {}
   private record PreviewObject(String key, long size, String sha256) {}
   public record MessagePreview(String messageId, String plainText,
       boolean truncated, boolean textAvailable) {}
@@ -88,12 +88,14 @@ public class MailboxReadService {
       String folder, Long beforeId, int limit) {
     requireGrant(user,mailboxId);
     String normalized = folder == null ? "INBOX" : folder;
-    if (!("INBOX".equals(normalized) || "SPAM".equals(normalized))
+    if (!("INBOX".equals(normalized) || "SPAM".equals(normalized)
+        || "SENT".equals(normalized))
         || limit < 1 || limit > 100 || (beforeId != null && beforeId <= 0)) {
       throw new BadRequestException("Invalid folder, page size or cursor");
     }
     return jdbc.query("""
-        SELECT id,folder,from_address,subject,mime_size_bytes,received_at
+        SELECT id,folder,from_address,subject,mime_size_bytes,
+          COALESCE(received_at,sent_at)
         FROM email_mailbox_messages
         WHERE organization_id=? AND mailbox_id=? AND folder=? AND deleted_at IS NULL
           AND id < ?
@@ -110,13 +112,26 @@ public class MailboxReadService {
   public RawMail raw(ConsoleAuthService.Principal user,long mailboxId,long messageId) {
     requireGrant(user,mailboxId);
     List<ObjectRecord> messages=jdbc.query("""
-        SELECT mime_object_key,mime_size_bytes FROM email_mailbox_messages
-        WHERE id=? AND mailbox_id=? AND organization_id=?
-          AND direction='INBOUND' AND deleted_at IS NULL AND folder IN ('INBOX','SPAM')
-        """,(rs,row)->new ObjectRecord(rs.getString(1),rs.getLong(2)),
+        SELECT COALESCE(j.mime_object_key,a.mime_object_key),
+               COALESCE(j.mime_size_bytes,a.mime_size_bytes),
+               COALESCE(j.sha256,a.sha256)
+        FROM email_mailbox_messages msg
+        LEFT JOIN email_mail_inbound_jobs j ON j.id=msg.inbound_job_id
+          AND j.organization_id=msg.organization_id AND j.mailbox_id=msg.mailbox_id
+          AND j.status='READY'
+        LEFT JOIN email_mail_outbound_archives a ON a.intent_id=msg.outbound_intent_id
+          AND a.organization_id=msg.organization_id AND a.mailbox_id=msg.mailbox_id
+        WHERE msg.id=? AND msg.mailbox_id=? AND msg.organization_id=?
+          AND msg.deleted_at IS NULL
+          AND ((msg.direction='INBOUND' AND msg.folder IN ('INBOX','SPAM')
+                AND j.id IS NOT NULL)
+             OR (msg.direction='OUTBOUND' AND msg.folder='SENT'
+                AND a.intent_id IS NOT NULL))
+        """,(rs,row)->new ObjectRecord(rs.getString(1),rs.getLong(2),rs.getString(3)),
         messageId,mailboxId,user.organizationId());
     if(messages.isEmpty()) throw new NotFoundException("Mail message not found");
     ObjectRecord message=messages.get(0);
+    verifyObjectIntegrity(new PreviewObject(message.key(),message.size(),message.digest()));
     return new RawMail(spool.open(message.key()),message.size());
   }
 

@@ -1,0 +1,6 @@
+# /etc/unifydesk-mail/feedback-curl.conf — SAMPLE ONLY, DO NOT DEPLOY WITH PLACEHOLDERS.
+# File mode 0400, owned by the dedicated Postfix pipe user. No secrets on argv.
+url = "http://127.0.0.1:8010/internal/v1/mail/outbound/dsn"
+header = "Authorization: Bearer REPLACE_WITH_PRIVATE_INTERNAL_SERVICE_TOKEN"
+header = "X-UnifyDesk-Mail-Feedback-Token: REPLACE_WITH_DEDICATED_MAIL_FEEDBACK_SECRET"
+# No proxy or redirects may be configured here.
