@@ -3,6 +3,7 @@ import { ArrowRight, Check, MessageSquare } from "lucide-react";
 import { Footer, Header } from "./components";
 import { ChannelLinks, ContentFaq } from "./channel-sections";
 import { guideFor } from "./seo-content";
+import { guides, guidePath } from "./guide-content";
 
 export default function SeoLanding({ path }: { path: string }) {
   const guide = guideFor(path);
@@ -30,6 +31,7 @@ export default function SeoLanding({ path }: { path: string }) {
     <section className="splitRouteSection seoProvider"><div className="routeCopy"><p className="kicker">PROVIDERS & READINESS</p><h2>{guide.providerTitle}</h2><p>{guide.providerBody}</p><Link className="textLink" href="/integrations">Explore integrations <ArrowRight size={16} aria-hidden="true" /></Link></div><div className="seoPreparation"><h3>Prepare before connecting</h3><ul>{guide.preparation.map(item => <li key={item}><Check size={18} aria-hidden="true" /><span>{item}</span></li>)}</ul><Link href="/solutions" className="textLink">Find your team's workflow <ArrowRight size={16} aria-hidden="true" /></Link></div></section>
     <section className="routeSection soft"><p className="kicker">EXAMPLE USE CASES</p><h2 className="sectionTitle">Put the workflow in context.</h2><div className="routeCardGrid seoTwoColumns">{guide.useCases.map(item => <article className="routeCard" key={item.title}><h3>{item.title}</h3><p>{item.body}</p></article>)}</div></section>
     <ContentFaq title={`Questions about ${guide.label}.`} items={guide.faqs} />
+    <section className="routeSection"><p className="kicker">PRACTICAL GUIDES</p><h2 className="sectionTitle">Learn more before planning a campaign.</h2><div className="routeCardGrid seoTwoColumns">{guides.filter(item => item.primaryPath === path).map(item => <article className="routeCard" key={item.slug}><h3><Link href={guidePath(item.slug)}>{item.title}</Link></h3><p>{item.description}</p><Link className="textLink" href={guidePath(item.slug)}>Read the guide <ArrowRight size={16} aria-hidden="true" /></Link></article>)}</div></section>
     <ChannelLinks paths={guide.related} title="Continue exploring connected customer work." />
     <section className="centerRouteCta"><p className="kicker">SEE THE WORKSPACE</p><h2>Explore how the work comes together.</h2><p>The product tour shows the developing experience with illustrative data. Public sign-up and final pricing are coming soon.</p><Link className="button" href="/product#product-tour">Take the product tour <ArrowRight size={17} aria-hidden="true" /></Link></section>
   </main><Footer /></>;

@@ -139,3 +139,9 @@ jobs:
       - name: Website build
         working-directory: unifydesk-website
         run: npm run build
+      - name: Website TypeScript check
+        working-directory: unifydesk-website
+        run: npm run typecheck
+      - name: Website static SEO audit
+        working-directory: unifydesk-website
+        run: npm run check:seo

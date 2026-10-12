@@ -8,6 +8,7 @@ import { useRef, useState } from "react";
 const links = [
   ["Product", "/product"],
   ["Solutions", "/solutions"],
+  ["Guides", "/guides"],
   ["Integrations", "/integrations"],
   ["Pricing", "/pricing"],
   ["Security", "/security"],
@@ -125,6 +126,7 @@ export function Footer() {
           <b>Explore</b>
           <Link href="/product">Product</Link>
           <Link href="/solutions">Solutions</Link>
+          <Link href="/guides">Guides</Link>
           <Link href="/integrations">Integrations</Link>
           <Link href="/pricing">Pricing</Link>
         </div>
