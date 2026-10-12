@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: "Messaging & Email Marketing Guides for Businesses",
   description: "Practical UnifyDesk guides to WhatsApp broadcasts, email campaign sending, and DLT-ready bulk SMS in India. Learn the steps and provider prerequisites.",
   alternates: { canonical: "/guides" },
+  openGraph: { title: "Messaging & Email Marketing Guides for Businesses | UnifyDesk", description: "Practical guides for WhatsApp broadcasts, email marketing and bulk SMS in India.", url: "/guides", type: "website" },
 };
 
 const url = "https://unifydesk.in/guides";
