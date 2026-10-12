@@ -402,6 +402,36 @@ public class NotificationMaterializer {
     if (!Boolean.TRUE.equals(member)) {
       return false;
     }
+    if ("crm.task.due".equals(event.eventType())) {
+      // A reminder may wait in the outbox while a task is completed, moved or reassigned.
+      // Suppress stale generations rather than delivering them to the old assignee.
+      Map<String, String> payload = variables(event.variablesJson());
+      long taskId;
+      long generation;
+      try {
+        taskId = Long.parseLong(payload.get("taskId"));
+        generation = Long.parseLong(payload.get("generation"));
+      } catch (NumberFormatException | NullPointerException exception) {
+        return false;
+      }
+      Boolean currentTask = jdbcTemplate.queryForObject(
+          """
+          select exists(
+            select 1 from crm_tasks t
+            join companies c on c.id = t.company_id and c.status = 'ACTIVE'
+            where t.company_id = ? and t.id = ? and t.assignee_user_id = ?
+              and t.reminder_generation = ?
+              and t.status in ('OPEN', 'IN_PROGRESS')
+              and t.due_at is not null
+          )
+          """,
+          Boolean.class, event.companyId(), taskId, userId, generation);
+      if (!Boolean.TRUE.equals(currentTask)
+          || !permissionService.hasPermission(userId, event.companyId(), "contact.read")) {
+        // CRM task pages also require contact.read; do not emit unusable notifications.
+        return false;
+      }
+    }
     return event.requiredPermissionKey() == null
         || permissionService.hasPermission(userId, event.companyId(), event.requiredPermissionKey());
   }

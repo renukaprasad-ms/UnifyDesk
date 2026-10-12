@@ -40,6 +40,10 @@ public class MailboxOutgoingQueryService {
           AND d.mailbox_id=intent.mailbox_id
         JOIN email_mailboxes m ON m.id=intent.mailbox_id
           AND m.organization_id=intent.organization_id AND m.status='ACTIVE'
+        JOIN email_mail_domains domain ON domain.id=m.domain_id
+          AND domain.organization_id=m.organization_id AND domain.status='VERIFIED'
+        JOIN email_product_organizations org ON org.id=m.organization_id
+          AND org.status='ACTIVE'
         JOIN email_mailbox_access access ON access.mailbox_id=m.id
           AND access.organization_id=m.organization_id
           AND access.user_id=?
@@ -69,6 +73,10 @@ public class MailboxOutgoingQueryService {
             AND a.organization_id=i.organization_id AND a.user_id=?
           JOIN email_mailboxes m ON m.id=i.mailbox_id
             AND m.organization_id=i.organization_id AND m.status='ACTIVE'
+          JOIN email_mail_domains domain ON domain.id=m.domain_id
+            AND domain.organization_id=m.organization_id AND domain.status='VERIFIED'
+          JOIN email_product_organizations org ON org.id=m.organization_id
+            AND org.status='ACTIVE'
           WHERE i.id=? AND i.organization_id=? AND i.mailbox_id=?
             AND d.author_user_id=?)
         """,Boolean.class,principal.userId(),intentId,

@@ -38,20 +38,6 @@ spring:
           max-idle: ${REDIS_POOL_MAX_IDLE:10}
           min-idle: ${REDIS_POOL_MIN_IDLE:2}
           max-wait: ${REDIS_POOL_MAX_WAIT:1s}
-  mail:
-    host: ${SMTP_HOST:localhost}
-    port: ${SMTP_PORT:587}
-    username: ${SMTP_USERNAME:}
-    password: ${SMTP_PASSWORD:}
-    properties:
-      mail:
-        smtp:
-          auth: ${SMTP_AUTH:true}
-          starttls:
-            enable: ${SMTP_STARTTLS_ENABLE:true}
-          connectiontimeout: ${SMTP_CONNECTION_TIMEOUT:5000}
-          timeout: ${SMTP_TIMEOUT:5000}
-          writetimeout: ${SMTP_WRITE_TIMEOUT:5000}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9001}}
     client-id: ${KAFKA_CLIENT_ID:messaging-api}
@@ -83,9 +69,23 @@ spring:
         heartbeat.interval.ms: ${KAFKA_HEARTBEAT_INTERVAL_MS:15000}
 
 app:
+  crm:
+    task-reminders:
+      enabled: ${APP_CRM_TASK_REMINDERS_ENABLED:false}
+      poll-interval-ms: ${APP_CRM_TASK_REMINDERS_POLL_INTERVAL_MS:60000}
+      initial-delay-ms: ${APP_CRM_TASK_REMINDERS_INITIAL_DELAY_MS:30000}
   company:
     max-owned-workspaces: ${APP_COMPANY_MAX_OWNED_WORKSPACES:3}
   billing:
+    # New first-party Mail service uses its own project IDs and usage ledger.
+    # Explicit Super Admin linking is required; imported events are reporting-only.
+    mail-bridge:
+      enabled: ${APP_BILLING_MAIL_BRIDGE_ENABLED:false}
+      base-url: ${APP_BILLING_MAIL_BRIDGE_BASE_URL:}
+      internal-token: ${APP_BILLING_MAIL_BRIDGE_INTERNAL_TOKEN:}
+      batch-size: ${APP_BILLING_MAIL_BRIDGE_BATCH_SIZE:100}
+      sync-interval-ms: ${APP_BILLING_MAIL_BRIDGE_SYNC_INTERVAL_MS:300000}
+      sync-initial-delay-ms: ${APP_BILLING_MAIL_BRIDGE_INITIAL_DELAY_MS:60000}
     cashfree:
       enabled: ${APP_BILLING_CASHFREE_ENABLED:false}
       base-url: ${APP_BILLING_CASHFREE_BASE_URL:https://sandbox.cashfree.com}
@@ -557,9 +557,12 @@ app:
       configuration-cache: ${REDIS_TTL_CONFIGURATION_CACHE:30m}
       broadcast-progress: ${REDIS_TTL_BROADCAST_PROGRESS:7d}
   notification:
-    async: ${APP_NOTIFICATION_ASYNC:true}
     email:
-      from: ${SMTP_FROM:${SMTP_USERNAME:}}
+      ses-region: ${APP_MAIL_SES_REGION:${APP_MANAGED_EMAIL_AWS_REGION:ap-southeast-2}}
+      otp-from: ${APP_MAIL_OTP_FROM:no-reply@unifydesk.in}
+      security-from: ${APP_MAIL_SECURITY_FROM:security@unifydesk.in}
+      billing-from: ${APP_MAIL_BILLING_FROM:billing@unifydesk.in}
+      notification-from: ${APP_MAIL_NOTIFICATION_FROM:notification@unifydesk.in}
   invitation:
     frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
     expiry: ${APP_INVITATION_EXPIRY:72h}

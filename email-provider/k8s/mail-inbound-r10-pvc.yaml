@@ -1,0 +1,13 @@
+# OPTIONAL K3s staging PVC, not auto-applied. Disk encryption/off-node
+# backups are required before accepting customer mail.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: email-mail-objects
+  namespace: email-platform
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi

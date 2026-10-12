@@ -119,7 +119,8 @@ public class InboundScanWorker {
               AND d.organization_id=m.organization_id
             JOIN email_product_organizations o ON o.id=m.organization_id
             WHERE m.id=? AND m.organization_id=? AND m.status='ACTIVE'
-              AND d.status='VERIFIED' AND o.status='ACTIVE')
+              AND d.status='VERIFIED' AND d.inbound_enabled=TRUE
+              AND o.status='ACTIVE')
           """, Boolean.class, job.mailboxId(), job.organizationId());
       String destination = Boolean.TRUE.equals(active) ? status : "QUARANTINED";
       int updated = jdbc.update("""

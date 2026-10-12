@@ -8,7 +8,7 @@ import com.messaging.emailprovider.product.repo.EmailProjectRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.UUID;
+import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +49,82 @@ public class ProductUsageService {
 
   public record Usage(String projectId, LocalDate from, LocalDate to,
       long handedOff, long chargedMicroInr, String currency) {}
+
+  /**
+   * Signed-id cursor paging for internal reconciliation. This returns immutable Postfix
+   * handoff records, not final delivery signals, and not central UnifyDesk invoice lines.
+   * String IDs retain precision when transferred to JavaScript dashboards.
+   */
+  public record HandoffEntry(
+      String usageId, String recipientId, String messageId, Instant occurredAt,
+      long productPriceMicroInr) {}
+
+  public record HandoffPage(
+      String projectId, List<HandoffEntry> entries, String nextAfterId, boolean hasMore) {}
+
+  @Transactional(readOnly = true)
+  public String latestUsageId(Long projectId) {
+    if (projectId == null || projectId <= 0 || !projects.existsById(projectId)) {
+      throw new NotFoundException("Email project not found");
+    }
+    Long latest = jdbc.queryForObject(
+        "select coalesce(max(id),0) from email_product_usage_entries where project_id = ?",
+        Long.class, projectId);
+    return Long.toString(latest == null ? 0L : latest);
+  }
+
+  @Transactional(readOnly = true)
+  public HandoffPage handoffs(Long projectId, long afterId, int limit) {
+    return handoffs(projectId, afterId, limit, null, null);
+  }
+
+  @Transactional(readOnly = true)
+  public HandoffPage handoffs(Long projectId, long afterId, int limit,
+                              Instant from, Instant to) {
+    if (projectId == null || projectId <= 0 || !projects.existsById(projectId)) {
+      throw new NotFoundException("Email project not found");
+    }
+    if (afterId < 0 || limit < 1 || limit > 500) {
+      throw new BadRequestException("Invalid usage cursor or page size");
+    }
+    if ((from == null) != (to == null)
+        || (from != null && (!from.isBefore(to)
+            || from.isBefore(to.minusSeconds(31L * 86400))
+            || to.isAfter(Instant.now().plusSeconds(60))))) {
+      throw new BadRequestException("Bounded handoff replay requires a valid 31-day UTC window");
+    }
+    org.springframework.jdbc.core.RowMapper<HandoffEntry> mapper = (rs, row) ->
+        new HandoffEntry(Long.toString(rs.getLong("id")),
+            Long.toString(rs.getLong("recipient_id")),
+            Long.toString(rs.getLong("message_id")),
+            rs.getTimestamp("occurred_at").toInstant(),
+            rs.getLong("unit_price_micro_inr"));
+    List<HandoffEntry> page;
+    if (from == null) {
+      page = jdbc.query("""
+          select id, recipient_id, message_id, occurred_at, unit_price_micro_inr
+            from email_product_usage_entries
+           where project_id = ? and id > ?
+           order by id asc
+           limit ?
+          """, mapper, projectId, afterId, limit + 1);
+    } else {
+      page = jdbc.query("""
+          select id, recipient_id, message_id, occurred_at, unit_price_micro_inr
+            from email_product_usage_entries
+           where project_id = ? and id > ?
+             and occurred_at >= ? and occurred_at < ?
+           order by id asc
+           limit ?
+          """, mapper, projectId, afterId,
+          java.sql.Timestamp.from(from), java.sql.Timestamp.from(to), limit + 1);
+    }
+    boolean more = page.size() > limit;
+    List<HandoffEntry> entries = more ? page.subList(0, limit) : page;
+    String cursor = entries.isEmpty()
+        ? Long.toString(afterId) : entries.getLast().usageId();
+    return new HandoffPage(projectId.toString(), List.copyOf(entries), cursor, more);
+  }
 
   @Transactional(readOnly = true)
   public Usage report(Long projectId, LocalDate from, LocalDate to) {

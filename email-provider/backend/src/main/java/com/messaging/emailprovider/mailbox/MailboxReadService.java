@@ -206,8 +206,11 @@ public class MailboxReadService {
           SELECT 1 FROM email_mailbox_access a
           JOIN email_mailboxes m ON m.id=a.mailbox_id
             AND m.organization_id=a.organization_id
+          JOIN email_mail_domains d ON d.id=m.domain_id
+            AND d.organization_id=m.organization_id
+          JOIN email_product_organizations o ON o.id=m.organization_id
           WHERE a.organization_id=? AND a.mailbox_id=? AND a.user_id=?
-            AND m.status='ACTIVE')
+            AND m.status='ACTIVE' AND d.status='VERIFIED' AND o.status='ACTIVE')
         """,Boolean.class,user.organizationId(),mailboxId,user.userId());
     if (!Boolean.TRUE.equals(allowed)) {
       // Do not disclose that a different user's mailbox exists.

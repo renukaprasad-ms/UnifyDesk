@@ -299,7 +299,7 @@ export default function MailConsole({ session }) {
                   <div className="mail-preview-placeholder"><ShieldCheck size={21}/><span>This message has no supported plain-text body. For safety, HTML and attachments are never rendered inline. You can download the original message for a trusted mail client.</span></div>}
                 <div className="mail-actions">
                   <Button variant="outline" icon={Download} disabled={busy} onClick={() => saveRaw(selectedMessage)}>Download original (.eml)</Button>
-                  {composeEnabled && <Button variant="outline" disabled={busy}
+                  {composeEnabled && folder === 'INBOX' && <Button variant="outline" disabled={busy}
                     onClick={() => setReplySeed({id: selectedMessage.id, from: selectedMessage.from,
                       subject: selectedMessage.subject, nonce: Date.now()})}>Prepare reply draft</Button>}
                 </div>

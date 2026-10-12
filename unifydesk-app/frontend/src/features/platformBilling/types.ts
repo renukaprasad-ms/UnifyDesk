@@ -7,7 +7,7 @@ export type PaymentPolicy = 'CASHFREE' | 'COMPED' | 'OFFLINE_CONTRACT'
 export type EntitlementValueType = 'INTEGER' | 'BOOLEAN' | 'DECIMAL' | 'TEXT'
 export type EntitlementCategory = 'WORKSPACE' | 'CHANNEL' | 'BROADCAST' | 'TEMPLATE' | 'STORAGE' | 'FEATURE'
 export type ChannelType = 'EMAIL' | 'WHATSAPP' | 'SMS'
-export type ProviderType = 'GMAIL' | 'MICROSOFT' | 'IMAP_SMTP' | 'SMTP' | 'AMAZON_SES' | 'SENDGRID' | 'AZURE_EMAIL' | 'MSG91_EMAIL' | 'META_WHATSAPP' | 'MSG91_SMS'
+export type ProviderType = 'GMAIL' | 'MICROSOFT' | 'ZOHO_MAIL' | 'IMAP_SMTP' | 'SMTP' | 'AMAZON_SES' | 'UNIFYDESK_EMAIL' | 'SENDGRID' | 'AZURE_EMAIL' | 'MSG91_EMAIL' | 'META_WHATSAPP' | 'MSG91_SMS'
 export type BillingCategory = 'SMS_PROMOTIONAL' | 'SMS_TRANSACTIONAL' | 'SMS_OTP' | 'WHATSAPP_MARKETING' | 'WHATSAPP_UTILITY' | 'WHATSAPP_AUTHENTICATION' | 'WHATSAPP_SERVICE' | 'EMAIL_OUTBOUND' | 'EMAIL_INBOUND'
 export type CommunicationDirection = 'INBOUND' | 'OUTBOUND'
 export type UsageUnit = 'MESSAGE' | 'SEGMENT' | 'CONVERSATION' | 'CLICK' | 'IMPRESSION'
@@ -29,3 +29,41 @@ export type AssignCompanySubscriptionInput = { planId:string; planPriceId?:strin
 export type PlanAssignment = { assignmentId:string; planId:string; companyId:string; assignedAt:string; assignedByUserId:string; effectiveFrom?:string|null; effectiveTo?:string|null; revokedAt?:string|null; revokedByUserId?:string|null; reason?:string|null }
 export type PlanAssignmentInput = { effectiveFrom?:string|null; effectiveTo?:string|null; reason?:string }
 export type GrantSubscriptionInput = { planId:string; planPriceId?:string|null; status?:SubscriptionStatus; startedAt?:string|null; endsAt?:string|null; trialEndsAt?:string|null; currentPeriodEnd?:string|null; paymentPolicy:Extract<PaymentPolicy,'COMPED'|'OFFLINE_CONTRACT'>; reason:string; externalContractReference?:string }
+
+export type ManagedUsageTotals = { emailMessages: number; smsSegments: number; whatsappMessages: number; managedChargesInr: number }
+export type ManagedCompanyUsage = ManagedUsageTotals & { companyId: string }
+export type ManagedDailyUsage = ManagedUsageTotals & { day: string }
+export type ManagedUsageReport = { from: string; to: string; totals: ManagedUsageTotals; companies: ManagedCompanyUsage[]; daily: ManagedDailyUsage[] }
+
+export type ManagedBillingSku = 'MANAGED_EMAIL_OUTBOUND' | 'MANAGED_SMS_SEGMENT'
+export type GlobalManagedRate = { rateId: string; billingSku: ManagedBillingSku; price: number; currency: 'INR'; enabled: boolean; effectiveFrom: string; effectiveTo: string | null; createdByUserId: string | null; reason: string | null }
+export type GlobalManagedRateInput = { billingSku: ManagedBillingSku; price: number; effectiveFrom?: string | null; reason?: string }
+
+export type FinancialAmounts = { invoicedInr: number; collectedInr: number; refundedInr: number; openBalanceInr: number; invoicedPlanLinesInr: number; invoicedManagedLinesInr: number }
+export type CompanyFinancial = FinancialAmounts & { companyId: string }
+export type DailyFinancial = Pick<FinancialAmounts, 'invoicedInr' | 'collectedInr' | 'refundedInr'> & { day: string }
+export type BillingFinancialReport = { from: string; to: string; totals: FinancialAmounts; companies: CompanyFinancial[]; daily: DailyFinancial[] }
+
+export type ChannelTrafficSource = 'CONNECTED_INBOX' | 'MANAGED_EMAIL' | 'MANAGED_SMS' | 'UNIFYDESK_MAIL' | 'META_WHATSAPP'
+export type ChannelTrafficPoint = { companyId: string; day: string; channel: ChannelType; direction: CommunicationDirection; source: ChannelTrafficSource; messages: number }
+export type BillingChannelTrafficReport = { from: string; to: string; points: ChannelTrafficPoint[] }
+
+export type CompanyUsageReconciliation = { companyId: string; events: number; ratedInr: number; allocatedInr: number; finalizedUnallocatedEvents: number; missingInvoiceLines: number; priceMathMismatches: number }
+export type SourceUsageReconciliation = { companyId: string; acceptedEmailHandoffs: number; committedSmsRecipients: number; missingEmailFinancialEvents: number; missingSmsFinancialEvents: number; mismatchedSmsSegments: number }
+export type BillingUsageReconciliationReport = { from: string; to: string; companies: CompanyUsageReconciliation[]; sourceChecks: SourceUsageReconciliation[] }
+
+export type MailBillingProjectLink = {
+  mailProjectId: string; companyId: string; mode: 'REPORT_ONLY'; state: 'ACTIVE' | 'PAUSED';
+  effectiveFrom: string; lastExternalUsageId: string; lastSyncedAt: string | null;
+  ownershipProof: string
+}
+export type MailBillingProjectLinkInput = {
+  companyId: string; mailProjectId: string; ownershipProof: string; ownershipVerified: boolean
+}
+export type MailBillingSyncResult = {
+  mailProjectId: string; companyId: string; imported: number;
+  nextAfterId: string; hasMore: boolean
+}
+export type MailBillingUsageTotals = {
+  companyId: string; mailProjectId: string; handoffs: number; productPriceMicroInr: number
+}

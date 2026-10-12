@@ -17,12 +17,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 
 /** Streams bounded raw MIME to a persistent local volume; never to an emptyDir. */
 @Component
-@ConditionalOnProperty(prefix = "app.mail.inbound", name = "enabled", havingValue = "true")
+@ConditionalOnExpression("${app.mail.inbound.enabled:false} || ${app.mail.outbound.enabled:false}")
 public class MailSpoolStore {
   private static final int BUFFER_BYTES = 8192;
   private final Path root;

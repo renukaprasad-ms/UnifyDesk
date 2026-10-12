@@ -2,49 +2,63 @@ package com.messaging.notification.sender;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.notification.config.NotificationProperties;
 import com.messaging.notification.dto.SendNotificationRequest;
-import jakarta.mail.Session;
-import jakarta.mail.internet.MimeMessage;
-import java.util.Properties;
+import com.messaging.notification.platform.delivery.email.PlatformSesEmailClient;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mail.javamail.JavaMailSender;
 
 @ExtendWith(MockitoExtension.class)
 class EmailNotificationSenderTests {
 
-  @Mock private JavaMailSender mailSender;
+  @Mock private PlatformSesEmailClient sesClient;
 
   @Test
-  void sendUsesConfiguredSmtpSender() {
-    NotificationProperties properties = new NotificationProperties();
-    properties.getEmail().setFrom("noreply@example.com");
-    MimeMessage mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
-    when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+  void otpUsesNoReplySesIdentity() {
+    var sender = new EmailNotificationSender(sesClient, new NotificationProperties());
+    sender.send(SendNotificationRequest.email("user@example.com", "Verify", "123456", false)
+        .withSenderPurpose("OTP"));
 
-    EmailNotificationSender sender = new EmailNotificationSender(mailSender, properties);
-
-    sender.send(SendNotificationRequest.email("user@example.com", "Welcome", "Hello", false));
-
-    verify(mailSender).send(mimeMessage);
+    verify(sesClient).send("no-reply@unifydesk.in", "user@example.com", "Verify", "123456", null);
   }
 
   @Test
-  void sendFailsWhenFromAddressIsMissing() {
-    EmailNotificationSender sender =
-        new EmailNotificationSender(mailSender, new NotificationProperties());
+  void passwordResetUsesSecuritySesIdentity() {
+    var sender = new EmailNotificationSender(sesClient, new NotificationProperties());
+    sender.send(SendNotificationRequest.email("user@example.com", "Reset password", "123456", false)
+        .withSenderPurpose("SECURITY"));
 
-    assertThatThrownBy(
-            () ->
-                sender.send(
-                    SendNotificationRequest.email("user@example.com", "Welcome", "Hello", false)))
-        .isInstanceOf(ServiceUnavailableException.class)
-        .hasMessage("Email sender is not configured");
+    verify(sesClient).send("security@unifydesk.in", "user@example.com", "Reset password", "123456", null);
+  }
+
+  @Test
+  void billingUsesBillingSesIdentity() {
+    var sender = new EmailNotificationSender(sesClient, new NotificationProperties());
+    sender.send(SendNotificationRequest.billingEmail("user@example.com", "Invoice", "Paid", false));
+
+    verify(sesClient).send("billing@unifydesk.in", "user@example.com", "Invoice", "Paid", null);
+  }
+
+  @Test
+  void generalNotificationUsesNotificationSesIdentity() {
+    var sender = new EmailNotificationSender(sesClient, new NotificationProperties());
+    sender.send(SendNotificationRequest.email("user@example.com", "Welcome", "Hello", false));
+
+    verify(sesClient).send("notification@unifydesk.in", "user@example.com", "Welcome", "Hello", null);
+  }
+
+  @Test
+  void missingConfiguredFromFailsClosed() {
+    NotificationProperties props = new NotificationProperties();
+    props.getEmail().setSecurityFrom("");
+    var sender = new EmailNotificationSender(sesClient, props);
+
+    assertThatThrownBy(() -> sender.send(
+        SendNotificationRequest.securityEmail("user@example.com", "Alert", "Review", false)))
+        .isInstanceOf(ServiceUnavailableException.class);
   }
 }

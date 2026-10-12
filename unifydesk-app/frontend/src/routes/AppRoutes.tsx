@@ -37,6 +37,11 @@ import CompanyPlan from '../pages/company/CompanyPlan'
 import CompanyRoles from '../pages/company/CompanyRoles'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import ContactDetailPage from '../pages/contacts/ContactDetailPage'
+import CrmOverview from '../pages/contacts/CrmOverview'
+import CrmLeadsPage from '../pages/contacts/CrmLeadsPage'
+import CrmCompaniesPage from '../pages/contacts/CrmCompaniesPage'
+import CrmCompanyDetailPage from '../pages/contacts/CrmCompanyDetailPage'
+import CrmTasksPage from '../pages/contacts/CrmTasksPage'
 import ContactsPage from '../pages/contacts/ContactsPage'
 import ContactSettingsPage from '../pages/contacts/ContactSettingsPage'
 import ImportDetailPage from '../pages/contacts/ImportDetailPage'
@@ -152,6 +157,20 @@ const AppRoutes = () => (
               <Route path="ad-center/settings" element={<AdSettings />} />
             </Route>
 
+            <Route element={<PermissionRoute anyOf={[PERMISSIONS.CRM_LEAD_READ, PERMISSIONS.CRM_ACCOUNT_READ, PERMISSIONS.CRM_TASK_READ, PERMISSIONS.CONTACT_READ]} />}>
+              <Route path="crm" element={<Navigate to="/crm/overview" replace />} />
+              <Route path="crm/overview" element={<WorkspaceEpochBoundary><CrmOverview /></WorkspaceEpochBoundary>} />
+            </Route>
+            <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_LEAD_READ, PERMISSIONS.CONTACT_READ]} />}>
+              <Route path="crm/leads" element={<WorkspaceEpochBoundary><CrmLeadsPage /></WorkspaceEpochBoundary>} />
+            </Route>
+            <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_ACCOUNT_READ]} />}>
+              <Route path="crm/companies" element={<WorkspaceEpochBoundary><CrmCompaniesPage /></WorkspaceEpochBoundary>} />
+              <Route path="crm/companies/:accountId" element={<WorkspaceEpochBoundary><CrmCompanyDetailPage /></WorkspaceEpochBoundary>} />
+            </Route>
+            <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_TASK_READ, PERMISSIONS.CONTACT_READ]} />}>
+              <Route path="crm/tasks" element={<WorkspaceEpochBoundary><CrmTasksPage /></WorkspaceEpochBoundary>} />
+            </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.CONTACT_READ]} />}>
               <Route path="contacts" element={<WorkspaceEpochBoundary><ContactsPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/lists" element={<WorkspaceEpochBoundary><ListsPage /></WorkspaceEpochBoundary>} />
