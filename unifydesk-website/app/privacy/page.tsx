@@ -11,7 +11,7 @@ const sections = [
     "title": "Provider identity and requests",
     "text": [
       "UnifyDesk is being established as an Indian sole proprietorship. Before publication, insert the exact legal proprietor identity and verifiable legal correspondence address from approved business records.",
-      "Verified public privacy/grievance address: [CONFIRM PRIVACY CONTACT EMAIL]. Verified postal address: [CONFIRM BUSINESS NOTICE ADDRESS]. These are unresolved release blockers, not contact channels."
+      "Privacy and grievance requests: support@unifydesk.in (business-supplied address; inbox receipt and handling must be verified before publication). Verified postal address: [CONFIRM BUSINESS NOTICE ADDRESS]. The legal address remains an unresolved release blocker."
     ]
   },
   {
@@ -67,7 +67,7 @@ const sections = [
     "title": "Rights, complaints and changes",
     "text": [
       "Requests should be authenticated and may need to be directed to the business customer controlling the recipient information. Publish an actual working email or public request form before approval; do not require a public data subject to create an account solely to ask for deletion.",
-      "A final notice must explain the rights and grievance procedures required by applicable Indian law according to its current phased commencement schedule, and give a real effective date."
+      "A final notice must explain rights and grievance procedures under applicable Indian law according to its current phased commencement schedule. Requests may be sent to support@unifydesk.in, subject to mailbox and workflow verification. The final notice needs a real effective date."
     ]
   }
 ];

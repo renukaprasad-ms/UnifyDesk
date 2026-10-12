@@ -11,7 +11,7 @@ const sections = [
     "title": "How to start a request",
     "text": [
       "Authenticated users can request account deletion through available account controls. Authorized workspace administrators can request company deletion. For data uploaded by a business customer, contact that business first when appropriate.",
-      "The public deletion-request contact or form is not yet confirmed: [CONFIRM PUBLIC REQUEST CHANNEL]. Add one before Meta review and ensure a non-customer data subject can reach it."
+      "Data-deletion requests can be sent to support@unifydesk.in. Verify inbox delivery and the authenticated deletion workflow before submitting this URL to Meta; a recipient must not need a UnifyDesk account merely to ask for deletion."
     ]
   },
   {

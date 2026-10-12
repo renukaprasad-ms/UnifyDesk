@@ -10,7 +10,7 @@ const sections = [
   {
     "title": "Business identity and acceptance",
     "text": [
-      "The service is currently operated as an Indian sole proprietorship. Confirm the legal proprietor, enterprise address, notice email and effective date before publishing.",
+      "The service is currently operated as an Indian sole proprietorship. Confirm the legal proprietor, enterprise address and effective date before publishing. Proposed service and grievance contact: support@unifydesk.in. Billing and payment disputes: reply@unifydesk.in. Both email routes require end-to-end verification before publication.",
       "Customers must have authority to open and manage business workspaces and are responsible for their authorized users."
     ]
   },

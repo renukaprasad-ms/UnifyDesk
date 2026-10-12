@@ -23,7 +23,7 @@ const sections = [
     "title": "Disputes and refunds",
     "text": [
       "Confirm handling of duplicate collections, gateway errors, delivery unknown states, refunds on unused periods, tax reversals, and customer support escalation.",
-      "Verified billing contact: [CONFIRM BILLING EMAIL]. The reviewed backend integrates Cashfree but defaults to disabled; actual activation requires verification."
+      "Billing and payment disputes: reply@unifydesk.in (business-supplied address; verify inbox delivery and dispute handling before publication). The reviewed backend integrates Cashfree but defaults to disabled; actual activation requires verification."
     ]
   }
 ];

@@ -16,7 +16,7 @@ Date: 2026-10-12. Baseline: `dev` commit `860bf192912bc972eb9df33c47a5c2cba6b3b2
 | Analytics | `unifydesk-website/app/layout.tsx` | GA4 loaded afterInteractive with no consent gate visible in layout | Live cookies/consent, settings and destinations |
 
 ## Release blockers
-- P0: confirm public legal name, Udyam trade name, public address, receiving privacy/grievance/abuse/billing emails.
+- P0: confirm public legal name, Udyam trade name and public address. Owner-provided routing is support@unifydesk.in (support/privacy/deletion/grievance/abuse) and reply@unifydesk.in (billing/business); inbox ownership, delivery and response processes remain untested.
 - P0: retention and deletion matrix across database tables, object store, backups, provider-side data, invoices, suppression hashes, logs and exports. Test actual purge and retries.
 - P0: verify Google actual OAuth scopes and compliance with Google API Services User Data Policy and Limited Use; assess restricted-scope security verification.
 - P0: Meta public deletion mechanism and configured data deletion URL/callback.

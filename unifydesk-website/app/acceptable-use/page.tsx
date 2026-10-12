@@ -28,7 +28,7 @@ const sections = [
   {
     "title": "Enforcement and complaints",
     "text": [
-      "The final contract must explain investigation, sending restriction, suspension and appeals. Verified abuse contact: [CONFIRM ABUSE EMAIL]."
+      "The final contract must explain investigation, sending restriction, suspension and appeals. Proposed abuse reporting contact: support@unifydesk.in. Confirm inbox delivery, triage and escalation before publication."
     ]
   }
 ];
