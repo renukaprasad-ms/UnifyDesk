@@ -17,9 +17,11 @@ export default function Contact() {
           <p className="kicker">CONTACT</p>
           <h1>Let's talk about UnifyDesk.</h1>
           <p>
-            We're preparing for early access. Public contact channels will be
-            published before launch. In the meantime, explore these pages for
-            product, integration and company information.
+            We're preparing for early access. For product support, privacy,
+            grievances and data-deletion requests, email{" "}
+            <a href="mailto:support@unifydesk.in">support@unifydesk.in</a>.
+            For billing or business replies, email{" "}
+            <a href="mailto:reply@unifydesk.in">reply@unifydesk.in</a>.
           </p>
         </section>
         <section className="contactGrid">
@@ -27,8 +29,8 @@ export default function Contact() {
             <Mail />
             <h2>Product & early access</h2>
             <p>
-              Questions about the workspace, product capabilities or getting
-              started.
+              Questions about the workspace, product capabilities, privacy or getting
+              started. Contact{" "}<a href="mailto:support@unifydesk.in">support@unifydesk.in</a>.
             </p>
             <Link className="textLink" href="/product#product-tour">
               Explore the product tour
@@ -48,7 +50,7 @@ export default function Contact() {
           <article>
             <Handshake />
             <h2>Business</h2>
-            <p>Learn why we are building UnifyDesk and who it is for.</p>
+            <p>Learn why we are building UnifyDesk and who it is for. For billing or business replies, contact{" "}<a href="mailto:reply@unifydesk.in">reply@unifydesk.in</a>.</p>
             <Link className="textLink" href="/about">
               Get to know UnifyDesk
             </Link>
