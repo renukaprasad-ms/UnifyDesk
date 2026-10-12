@@ -2,7 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const origin = "https://unifydesk.in";
-const routes = ["/", "/product", "/solutions", "/integrations", "/pricing", "/security", "/about", "/contact", "/privacy", "/terms", "/whatsapp-shared-inbox", "/whatsapp-broadcast", "/sms-marketing", "/email-campaigns", "/omnichannel-inbox"];
+const guideRoutes = ["/guides", "/guides/whatsapp-broadcast-india", "/guides/email-broadcast-vs-email-marketing", "/guides/bulk-sms-dlt-india"];
+const routes = ["/", "/product", "/solutions", "/integrations", "/pricing", "/security", "/about", "/contact", "/privacy", "/terms", "/whatsapp-shared-inbox", "/whatsapp-broadcast", "/sms-marketing", "/email-campaigns", "/omnichannel-inbox", ...guideRoutes];
 const preservedTitles = {
   "/": "UnifyDesk | Customer Communication & Marketing Platform",
   "/product": "Customer Communication Platform | UnifyDesk",
@@ -54,7 +55,9 @@ for (const [route, html] of documents) {
     if (!schemas.some(schema => schema["@type"] === "WebPage" && schema.url === `${origin}${route}`)) fail(route, "missing route-specific WebPage");
     if (!schemas.some(schema => schema["@type"] === "BreadcrumbList")) fail(route, "missing breadcrumb schema");
     if (metas.find(meta => meta.property === "og:url")?.content !== `${origin}${route}`) fail(route, "incorrect social URL");
-    if (!copy.includes("In development") || !copy.includes("Public access coming soon")) fail(route, "missing launch status");
+    if (!copy.includes("in development") && !copy.includes("In development")) fail(route, "missing launch status");
+    if (!copy.includes("Public access coming soon") && !copy.includes("public access is coming soon")) fail(route, "missing public availability");
+    if (route.startsWith("/guides/") && !schemas.some(schema => schema["@type"] === "Article")) fail(route, "missing Article schema");
   }
   for (const image of imgs) {
     if (!("alt" in image)) fail(route, `image missing alt attribute: ${image.src}`);
