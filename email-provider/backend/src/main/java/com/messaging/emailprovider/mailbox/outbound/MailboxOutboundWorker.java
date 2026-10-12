@@ -28,6 +28,8 @@ public class MailboxOutboundWorker {
   private final DkimKeyService dkimKeys;
   private final DkimSigner signer;
   private final MailboxSmtpRelay relay;
+  private final MailSentArchiveStore archive;
+  private final MailBounceAddress bounce;
   private final MailboxSendingRateLimiter limiter;
 
   record Claim(long recipientId,long intentId,long organizationId,
@@ -41,7 +43,8 @@ public class MailboxOutboundWorker {
 
   public MailboxOutboundWorker(JdbcTemplate jdbc,TransactionTemplate transactions,
       MailboxMimeBuilder mime,DkimKeyService dkimKeys,DkimSigner signer,
-      MailboxSmtpRelay relay,MailboxSendingRateLimiter limiter) {
+      MailboxSmtpRelay relay,MailboxSendingRateLimiter limiter,
+      MailSentArchiveStore archive,MailBounceAddress bounce) {
     this.jdbc=jdbc;
     this.transactions=transactions;
     this.mime=mime;
@@ -49,6 +52,8 @@ public class MailboxOutboundWorker {
     this.signer=signer;
     this.relay=relay;
     this.limiter=limiter;
+    this.archive=archive;
+    this.bounce=bounce;
   }
 
   @Scheduled(fixedDelayString="${app.mail.outbound.interval-ms:5000}")
@@ -152,6 +157,15 @@ public class MailboxOutboundWorker {
       return;
     }
     Context context=matches.get(0);
+    Boolean suppressed=jdbc.queryForObject("""
+        SELECT EXISTS(SELECT 1 FROM email_mail_outbound_suppressions
+          WHERE organization_id=? AND recipient_address=?)
+        """,Boolean.class,job.organizationId(),job.recipient());
+    if(Boolean.TRUE.equals(suppressed)) {
+      complete(job,"FAILED",null,"RECIPIENT_SUPPRESSED_BY_BOUNCE_OR_COMPLAINT");
+      return;
+    }
+
     // Prepare/sign before SMTP I/O: preflight failures may safely be retried.
     byte[] signed;
     try {
@@ -170,6 +184,9 @@ public class MailboxOutboundWorker {
           context.acceptedAt(),context.replyMessageId()));
       signed=signer.sign(unsigned,context.domain(),key.getSelector(),
           dkimKeys.loadPrivateKey(context.sendingDomainId()));
+      // Immutable and fsync'd before the first SMTP DATA handoff.
+      signed=archive.prepare(job.organizationId(),job.mailboxId(),
+          job.intentId(),signed);
     } catch(Exception preflightFailed) {
       // If recording this fails, the lease expires into UNKNOWN; no send occurred.
       complete(job,"DEFERRED",null,"MAILBOX_OUTBOUND_PREFLIGHT_FAILED");
@@ -180,7 +197,8 @@ public class MailboxOutboundWorker {
     // outcome persistence in a catch that changes HANDED_OFF/UNKNOWN into DEFERRED.
     SmtpDeliveryResult result;
     try {
-      result=relay.submit(context.sender(),job.recipient(),signed);
+      result=relay.submit(bounce.envelopeFrom(job.intentId(),job.recipientId()),
+          job.recipient(),signed);
     } catch(Exception uncertain) {
       result=new SmtpDeliveryResult(SmtpDeliveryOutcome.UNKNOWN,null,
           "SMTP_HANDOFF_RESULT_UNCERTAIN");
@@ -222,8 +240,50 @@ public class MailboxOutboundWorker {
           """,state,state,backoff,smtpCode,error,state,
           claim.recipientId(),claim.intentId(),claim.organizationId(),
           claim.mailboxId(),claim.lease());
-      if(done==1) refreshIntent(claim.intentId());
+      if(done==1) {
+        if ("HANDED_OFF".equals(state)) archiveSent(claim);
+        refreshIntent(claim.intentId());
+      }
     });
+  }
+
+  /** Materialize one Sent-folder pointer only after known Postfix acceptance. */
+  private void archiveSent(Claim claim) {
+    int archived = jdbc.update("""
+        INSERT INTO email_mailbox_messages
+          (id,organization_id,mailbox_id,direction,folder,
+           mime_object_key,mime_size_bytes,message_id_header,
+           from_address,subject,sent_at,outbound_intent_id)
+        SELECT ?,i.organization_id,i.mailbox_id,'OUTBOUND','SENT',
+          a.mime_object_key,a.mime_size_bytes,
+          '<' || i.id::text || '@' || d.domain_name || '>',
+          m.local_part || '@' || d.domain_name,
+          dr.subject,now(),i.id
+        FROM email_mail_outbound_intents i
+        JOIN email_mail_outbound_archives a ON a.intent_id=i.id
+          AND a.organization_id=i.organization_id AND a.mailbox_id=i.mailbox_id
+        JOIN email_mail_drafts dr ON dr.id=i.draft_id
+          AND dr.organization_id=i.organization_id AND dr.mailbox_id=i.mailbox_id
+        JOIN email_mailboxes m ON m.id=i.mailbox_id
+          AND m.organization_id=i.organization_id
+        JOIN email_mail_domains d ON d.id=m.domain_id
+          AND d.organization_id=m.organization_id
+        WHERE i.id=? AND i.organization_id=? AND i.mailbox_id=?
+        ON CONFLICT (outbound_intent_id) DO NOTHING
+        """, com.messaging.emailprovider.common.id.IdGenerator.nextId(),
+        claim.intentId(),claim.organizationId(),claim.mailboxId());
+    // A zero-row write is okay only when the intent already has its Sent row.
+    // The enclosing transaction rolls back a 250 handoff receipt on missing MIME;
+    // then the stale attempt becomes UNKNOWN and is NOT retried automatically.
+    if (archived == 0) {
+      Boolean exists = jdbc.queryForObject("""
+          SELECT EXISTS(SELECT 1 FROM email_mailbox_messages
+            WHERE outbound_intent_id=? AND organization_id=? AND mailbox_id=?)
+          """, Boolean.class,claim.intentId(),claim.organizationId(),claim.mailboxId());
+      if (!Boolean.TRUE.equals(exists)) {
+        throw new IllegalStateException("SMTP-accepted MIME archive is missing");
+      }
+    }
   }
 
   private void refreshIntent(long intentId) {

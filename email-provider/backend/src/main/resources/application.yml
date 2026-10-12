@@ -58,6 +58,14 @@ server:
 
 app:
   mail:
+    bounce:
+      domain: ${EMAIL_MAIL_BOUNCE_DOMAIN:}
+      hmac-secret: ${EMAIL_MAIL_BOUNCE_HMAC_SECRET:}
+    feedback:
+      enabled: ${EMAIL_MAIL_FEEDBACK_ENABLED:false}
+      token: ${EMAIL_MAIL_FEEDBACK_TOKEN:}
+    ops:
+      enabled: ${EMAIL_MAIL_OPS_ENABLED:false}
     outbound:
       enabled: ${EMAIL_MAIL_OUTBOUND_ENABLED:false}
       interval-ms: ${EMAIL_MAIL_OUTBOUND_INTERVAL_MS:5000}
