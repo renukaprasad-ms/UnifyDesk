@@ -23,11 +23,12 @@ export function clearSession() {
   sessionStorage.removeItem(SESSION_KEY)
 }
 
-export async function request(path, method = 'GET', body) {
+export async function request(path, method = 'GET', body, idempotencyKey) {
   const session = readSession()
   const headers = { Accept: 'application/json' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (session) headers.Authorization = 'Bearer ' + session.sessionToken
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey
   let response
   try {
     response = await fetch('/console/v1' + path, {

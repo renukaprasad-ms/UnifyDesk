@@ -3,6 +3,7 @@ import { CheckCircle2, ClipboardCopy, Download, Inbox, MailPlus, RefreshCw, Shie
 import { request, downloadMail } from './api'
 import { Badge, Button, Empty, Field, Notice, Panel } from './components'
 import './mail.css'
+import MailDrafts from './MailDrafts'
 
 /**
  * Operator-controlled mail UI. Every request uses an authenticated console
@@ -10,6 +11,7 @@ import './mail.css'
  */
 export default function MailConsole({ session }) {
   const canManage = ['OWNER', 'ADMIN'].includes(session.role)
+  const composeEnabled = import.meta.env.VITE_MAIL_COMPOSE_UI_ENABLED === 'true'
   const [domains, setDomains] = useState([])
   const [domainId, setDomainId] = useState('')
   const [mailboxes, setMailboxes] = useState([])
@@ -31,6 +33,7 @@ export default function MailConsole({ session }) {
   const [plainPreview, setPlainPreview] = useState(null)
   const [plainLoading, setPlainLoading] = useState(false)
   const [plainError, setPlainError] = useState('')
+  const [replySeed, setReplySeed] = useState(null)
   const [revision, setRevision] = useState(0)
 
   const currentDomain = domains.find(domain => domain.id === domainId)
@@ -63,6 +66,7 @@ export default function MailConsole({ session }) {
     setCursor(null)
     setPages([])
     setSelectedMessage(null)
+    setReplySeed(null)
     if (!domainId) return () => { active = false }
     request('/mail/domains/' + domainId + '/mailboxes')
       .then(list => {
@@ -95,7 +99,7 @@ export default function MailConsole({ session }) {
     let active = true
     setPlainPreview(null)
     setPlainError('')
-    if (!selectedMessage || !mailboxId) {
+    if (!selectedMessage || !mailboxId || folder === 'SENT') {
       setPlainLoading(false)
       return () => { active = false }
     }
@@ -105,7 +109,7 @@ export default function MailConsole({ session }) {
       .catch(failure => { if (active) setPlainError(failure.message) })
       .finally(() => { if (active) setPlainLoading(false) })
     return () => { active = false }
-  }, [mailboxId, selectedMessage?.id])
+  }, [mailboxId, selectedMessage?.id, folder])
 
   const run = async (operation, successMessage) => {
     setBusy(true)
@@ -267,7 +271,7 @@ export default function MailConsole({ session }) {
           <Empty icon={Inbox} title="No active mailbox selected" body="Verify your domain and activate a mailbox to view its Inbox."/> :
           <div className="mail-reader">
             <div className="mail-folders" aria-label="Mail folders">
-              {['INBOX','SPAM'].map(name => <button key={name} type="button" className={folder === name ? 'selected' : ''} onClick={() => changeFolder(name)}>{name === 'INBOX' ? 'Inbox' : 'Spam'}</button>)}
+              {['INBOX','SENT','SPAM'].map(name => <button key={name} type="button" className={folder === name ? 'selected' : ''} onClick={() => changeFolder(name)}>{name === 'INBOX' ? 'Inbox' : name === 'SENT' ? 'Sent' : 'Spam'}</button>)}
             </div>
             <div className="mail-message-list">
               {messageLoading ? <div className="mail-reader-empty">Loading messages…</div> :
@@ -284,18 +288,28 @@ export default function MailConsole({ session }) {
                 <h3>{selectedMessage.subject || '(No subject)'}</h3>
                 <p><strong>From:</strong> {selectedMessage.from || 'Unknown sender'}</p>
                 <p><strong>Received:</strong> {selectedMessage.receivedAt ? new Date(selectedMessage.receivedAt).toLocaleString() : '—'}</p>
-                {plainLoading ? <div className="mail-preview-placeholder">Loading safe text preview…</div> :
+                {folder === 'SENT'
+                  ? <div className="mail-preview-placeholder">This message was accepted by the outgoing SMTP relay. This does not prove delivery to the recipient. Download the signed original to inspect the archived message.</div>
+                  : plainLoading ? <div className="mail-preview-placeholder">Loading safe text preview…</div> :
                   plainError ? <Notice tone="error">{plainError}</Notice> :
                   plainPreview?.textAvailable ? <>
                     <div className="mail-text-title">Plain-text message {plainPreview.truncated ? '· Preview truncated' : ''}</div>
                     <pre className="mail-text-body" dir="auto">{plainPreview.plainText}</pre>
                   </> :
                   <div className="mail-preview-placeholder"><ShieldCheck size={21}/><span>This message has no supported plain-text body. For safety, HTML and attachments are never rendered inline. You can download the original message for a trusted mail client.</span></div>}
-                <Button variant="outline" icon={Download} disabled={busy} onClick={() => saveRaw(selectedMessage)}>Download original (.eml)</Button>
+                <div className="mail-actions">
+                  <Button variant="outline" icon={Download} disabled={busy} onClick={() => saveRaw(selectedMessage)}>Download original (.eml)</Button>
+                  {composeEnabled && <Button variant="outline" disabled={busy}
+                    onClick={() => setReplySeed({id: selectedMessage.id, from: selectedMessage.from,
+                      subject: selectedMessage.subject, nonce: Date.now()})}>Prepare reply draft</Button>}
+                </div>
               </> : <div className="mail-reader-empty">Select an email to view its details.</div>}
             </div>
           </div>}
       </Panel>
+      {composeEnabled && currentMailbox?.status === 'ACTIVE' &&
+        <MailDrafts key={mailboxId} mailboxId={mailboxId} mailboxAddress={currentMailbox.address}
+          replySeed={replySeed}/>}
     </>}
   </section>
 }
