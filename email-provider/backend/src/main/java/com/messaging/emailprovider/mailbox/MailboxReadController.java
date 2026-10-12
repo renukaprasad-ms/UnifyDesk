@@ -64,6 +64,17 @@ public class MailboxReadController {
         "Mail messages");
   }
 
+  @GetMapping("/{mailboxId}/messages/{messageId}/preview")
+  public ResponseEntity<ApiResponse<MailboxReadService.MessagePreview>> preview(
+      HttpServletRequest req, @PathVariable @Positive long mailboxId,
+      @PathVariable @Positive long messageId) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .header("X-Content-Type-Options", "nosniff")
+        .body(ApiResponse.success(200,
+            mailbox.preview(ConsoleAuthFilter.require(req), mailboxId, messageId),
+            "Safe plain-text message preview"));
+  }
+
   @GetMapping("/{mailboxId}/messages/{messageId}/raw")
   public ResponseEntity<StreamingResponseBody> raw(
       HttpServletRequest req,@PathVariable @Positive long mailboxId,
