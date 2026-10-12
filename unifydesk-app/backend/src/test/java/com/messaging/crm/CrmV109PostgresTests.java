@@ -92,6 +92,114 @@ class CrmV109PostgresTests {
         .isEqualTo("IN_PROGRESS");
   }
 
+  @Test
+  void contactMergePreservesLeadHistoryDeduplicatesAccountsAndMovesTasks() {
+    String schema = schema();
+    flyway(schema, "109").migrate();
+    JdbcTemplate jdbc = new JdbcTemplate(scoped(schema));
+    seed(jdbc);
+    jdbc.update("""
+        insert into contacts(id,company_id,display_name,status,created_by_user_id,created_at,updated_at,version)
+        values (202,101,'Source','ACTIVE',1,now(),now(),0)
+        """);
+    jdbc.update("""
+        insert into crm_leads(company_id,contact_id,stage,created_by_user_id)
+        values (101,201,'CONTACTED',1),(101,202,'QUALIFIED',1)
+        """);
+    jdbc.update("""
+        insert into crm_lead_stage_events(id,company_id,contact_id,new_stage,actor_user_id)
+        values (501,101,202,'QUALIFIED',1)
+        """);
+    jdbc.update("""
+        insert into crm_accounts(id,company_id,name,normalized_name)
+        values (301,101,'Account','account')
+        """);
+    jdbc.update("""
+        insert into crm_account_contacts(company_id,account_id,contact_id)
+        values (101,301,201),(101,301,202)
+        """);
+    jdbc.update("""
+        insert into crm_tasks(id,company_id,title,assignee_user_id,contact_id)
+        values (401,101,'Call customer',1,202)
+        """);
+
+    new CrmContactMergeExtension(jdbc).reconcile(101, 202, 201, 1);
+
+    assertThat(jdbc.queryForObject(
+        "select stage from crm_leads where company_id=101 and contact_id=201", String.class))
+        .isEqualTo("CONTACTED");
+    assertThat(jdbc.queryForObject(
+        "select count(*) from crm_leads where company_id=101 and contact_id=202", Long.class))
+        .isZero();
+    assertThat(jdbc.queryForObject(
+        "select contact_id from crm_lead_stage_events where id=501", Long.class)).isEqualTo(201L);
+    assertThat(jdbc.queryForObject(
+        "select count(*) from crm_account_contacts where company_id=101 and account_id=301", Long.class))
+        .isEqualTo(1L);
+    assertThat(jdbc.queryForObject(
+        "select contact_id from crm_tasks where company_id=101 and id=401", Long.class))
+        .isEqualTo(201L);
+  }
+
+  @Test
+  void contactMergeTransfersLeadWhenTargetHasNoLead() {
+    String schema = schema();
+    flyway(schema, "109").migrate();
+    JdbcTemplate jdbc = new JdbcTemplate(scoped(schema));
+    seed(jdbc);
+    jdbc.update("""
+        insert into contacts(id,company_id,display_name,status,created_by_user_id,created_at,updated_at,version)
+        values (202,101,'Source','ACTIVE',1,now(),now(),0)
+        """);
+    jdbc.update("""
+        insert into crm_leads(company_id,contact_id,stage,created_by_user_id)
+        values (101,202,'QUALIFIED',1)
+        """);
+    new CrmContactMergeExtension(jdbc).reconcile(101, 202, 201, 1);
+    assertThat(jdbc.queryForObject(
+        "select stage from crm_leads where company_id=101 and contact_id=201", String.class))
+        .isEqualTo("QUALIFIED");
+    assertThat(jdbc.queryForObject(
+        "select count(*) from crm_leads where company_id=101 and contact_id=202", Long.class))
+        .isZero();
+  }
+
+  @Test
+  void optionalLeadAndTaskPagingFiltersAcceptNullOnPostgres() {
+    String schema = schema();
+    flyway(schema, "109").migrate();
+    JdbcTemplate jdbc = new JdbcTemplate(scoped(schema));
+    seed(jdbc);
+
+    var leads = new LeadService(jdbc, null);
+    var work = new CrmWorkService(jdbc, null);
+    assertThat(leads.list(101, null, null, 50).items()).isEmpty();
+    assertThat(work.accounts(101, null, 50).items()).isEmpty();
+    assertThat(work.tasks(101, null, 50, null, null).items()).isEmpty();
+  }
+
+  @Test
+  void editingCustomerAccountChecksVersionAndDoesNotCrossTenants() {
+    String schema = schema();
+    flyway(schema, "109").migrate();
+    JdbcTemplate jdbc = new JdbcTemplate(scoped(schema));
+    seed(jdbc);
+    jdbc.update("""
+        insert into crm_accounts(id,company_id,name,normalized_name)
+        values (301,101,'Example','example')
+        """);
+
+    var work = new CrmWorkService(jdbc, null);
+    var updated = work.updateAccount(101, 301, 0, "Renamed", null, "New notes", null);
+    assertThat(updated.name()).isEqualTo("Renamed");
+    assertThat(updated.version()).isEqualTo(1);
+    assertThatThrownBy(() -> work.updateAccount(101, 301, 0, "Stale", null, null, null))
+        .isInstanceOf(com.messaging.common.exception.ApiException.class);
+    assertThatThrownBy(() -> work.updateAccount(102, 301, 1, "Wrong tenant", null, null, null))
+        .isInstanceOf(com.messaging.common.exception.ApiException.class);
+    assertThat(work.getAccount(101, 301).name()).isEqualTo("Renamed");
+  }
+
   private void seed(JdbcTemplate jdbc) {
     jdbc.update("""
         insert into users(id,email,name,is_verified,username,password,two_factor_enabled)

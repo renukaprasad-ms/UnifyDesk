@@ -19,14 +19,14 @@ import org.junit.jupiter.api.Test;
  */
 class MailPostgresMigrationTests {
   @Test
-  void newDatabaseAndUpgradePathsApplyV1ThroughV21() throws Exception {
+  void newDatabaseAndUpgradePathsApplyV1ThroughV22() throws Exception {
     String url = System.getenv("MAIL_QA_PG_URL");
     assumeTrue(url != null && url.startsWith("jdbc:postgresql:"),
         "Requires a disposable local PostgreSQL instance");
     String user = System.getenv().getOrDefault("MAIL_QA_PG_USER", "postgres");
     String password = System.getenv().getOrDefault("MAIL_QA_PG_PASSWORD", "postgres");
     String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-    for (String starting : new String[] {"0", "13", "16", "19"}) {
+    for (String starting : new String[] {"0", "13", "16", "19", "21"}) {
       String schema = "mail_qa_" + suffix + "_" + starting;
       try (Connection connection = DriverManager.getConnection(url, user, password);
           Statement statement = connection.createStatement()) {
@@ -49,7 +49,18 @@ class MailPostgresMigrationTests {
           try (ResultSet result = statement.executeQuery(
               "SELECT count(*) FROM flyway_schema_history WHERE success=true")) {
             assertTrue(result.next());
-            assertEquals(21, result.getInt(1));
+            assertEquals(22, result.getInt(1));
+          }
+          try (ResultSet result = statement.executeQuery("""
+              SELECT is_nullable,column_default
+              FROM information_schema.columns
+              WHERE table_schema=current_schema()
+                AND table_name='email_mail_domains'
+                AND column_name='inbound_enabled'
+              """)) {
+            assertTrue(result.next());
+            assertEquals("NO", result.getString(1));
+            assertTrue(result.getString(2).contains("false"));
           }
           try (ResultSet result = statement.executeQuery("""
               SELECT count(*) FROM information_schema.tables

@@ -6,10 +6,12 @@ import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.repository.CompanyMemberRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +28,7 @@ public class CrmWorkService {
                      String priority, Instant dueAt, String assigneeUserId,
                      String contactId, String accountId, long version) {}
   public record Page<T>(List<T> items, String nextCursor, boolean hasMore) {}
+  public record AccountContact(String contactId, String displayName) {}
   /** A lightweight CRM projection; message activity remains owned by Contacts/Inbox/Broadcast. */
   public record LeadState(String stage, long version) {}
   public record Contact360(LeadState lead, List<Account> accounts, List<Task> tasks,
@@ -58,7 +61,21 @@ public class CrmWorkService {
   }
 
   private void activeMember(long companyId, long userId) {
-    if (!members.existsByCompanyIdAndUserIdAndStatus(companyId, userId, CompanyMemberStatus.ACTIVE)) {
+    if (!members.existsByCompanyIdAndUserIdAndStatus(
+        companyId, userId, CompanyMemberStatus.ACTIVE)) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ASSIGNEE_NOT_ACTIVE");
+    }
+    // Lock membership and user rows until task commit. This prevents assignments to
+    // deactivated/deleting users and coordinates with concurrent offboarding.
+    var locked = jdbc.query(
+        """
+        select m.user_id from company_members m
+        join users u on u.id = m.user_id and u.status = 'ACTIVE'
+        join companies c on c.id = m.company_id and c.status = 'ACTIVE'
+        where m.company_id = ? and m.user_id = ? and m.status = 'ACTIVE'
+        for share of m, u
+        """, (rs, row) -> rs.getLong("user_id"), companyId, userId);
+    if (locked.isEmpty()) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ASSIGNEE_NOT_ACTIVE");
     }
   }
@@ -119,7 +136,7 @@ public class CrmWorkService {
   public Page<Account> accounts(long companyId, Long before, int requestedSize) {
     int size = Math.max(1, Math.min(100, requestedSize));
     List<Account> results = jdbc.query(
-        "select * from crm_accounts where company_id = ? and (? is null or id < ?) order by id desc limit ?",
+        "select * from crm_accounts where company_id = ? and (cast(? as bigint) is null or id < ?) order by id desc limit ?",
         CrmWorkService::account, companyId, before, before, size + 1);
     boolean more = results.size() > size;
     List<Account> page = more ? results.subList(0, size) : results;
@@ -132,14 +149,67 @@ public class CrmWorkService {
     if (safeName == null) throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ACCOUNT_NAME_REQUIRED");
     if (owner != null) activeMember(companyId, owner);
     long key = IdGenerator.nextId();
-    jdbc.update("""
-        insert into crm_accounts(id,company_id,name,normalized_name,website,notes,owner_user_id)
-        values (?, ?, ?, ?, ?, ?, ?)
-        """, key, companyId, safeName, safeName.toLowerCase(java.util.Locale.ROOT),
-        trimmed(website, 320), trimmed(notes, 4000), owner);
+    try {
+      jdbc.update("""
+          insert into crm_accounts(id,company_id,name,normalized_name,website,notes,owner_user_id)
+          values (?, ?, ?, ?, ?, ?, ?)
+          """, key, companyId, safeName, safeName.toLowerCase(java.util.Locale.ROOT),
+          trimmed(website, 320), trimmed(notes, 4000), owner);
+    } catch (DuplicateKeyException exception) {
+      throw new ApiException(HttpStatus.CONFLICT, "CRM_ACCOUNT_ALREADY_EXISTS");
+    }
     return jdbc.queryForObject(
         "select * from crm_accounts where company_id = ? and id = ?",
         CrmWorkService::account, companyId, key);
+  }
+
+  @Transactional(readOnly = true)
+  public Account getAccount(long companyId, long accountId) {
+    List<Account> found = jdbc.query(
+        "select * from crm_accounts where company_id = ? and id = ?",
+        CrmWorkService::account, companyId, accountId);
+    if (found.isEmpty()) throw new ApiException(HttpStatus.NOT_FOUND, "CRM_ACCOUNT_NOT_FOUND");
+    return found.getFirst();
+  }
+
+  @Transactional(readOnly = true)
+  public List<AccountContact> accountContactSummaries(long companyId, long accountId) {
+    requireAccount(companyId, accountId);
+    return jdbc.query("""
+        select c.id, c.display_name from crm_account_contacts l
+        join contacts c on c.company_id = l.company_id and c.id = l.contact_id
+        where l.company_id = ? and l.account_id = ? and c.status = 'ACTIVE'
+        order by c.id desc limit 100
+        """,
+        (rs, row) -> new AccountContact(id(rs, "id"), rs.getString("display_name")),
+        companyId, accountId);
+  }
+
+  @Transactional
+  public Account updateAccount(long companyId, long accountId, long version,
+                               String name, String website, String notes, Long owner) {
+    String safeName = trimmed(name, 240);
+    if (safeName == null || version < 0) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ACCOUNT_INVALID_UPDATE");
+    }
+    if (owner != null) activeMember(companyId, owner);
+    int updated;
+    try {
+      updated = jdbc.update("""
+          update crm_accounts
+             set name = ?, normalized_name = ?, website = ?, notes = ?,
+                 owner_user_id = ?, version = version + 1, updated_at = now()
+           where company_id = ? and id = ? and version = ?
+          """, safeName, safeName.toLowerCase(java.util.Locale.ROOT),
+          trimmed(website, 320), trimmed(notes, 4000), owner,
+          companyId, accountId, version);
+    } catch (DuplicateKeyException exception) {
+      throw new ApiException(HttpStatus.CONFLICT, "CRM_ACCOUNT_ALREADY_EXISTS");
+    }
+    if (updated == 0) throw new ApiException(HttpStatus.CONFLICT, "CRM_ACCOUNT_VERSION_CONFLICT");
+    return jdbc.queryForObject(
+        "select * from crm_accounts where company_id = ? and id = ?",
+        CrmWorkService::account, companyId, accountId);
   }
 
   @Transactional
@@ -161,13 +231,23 @@ public class CrmWorkService {
   }
 
   @Transactional(readOnly = true)
-  public Page<Task> tasks(long companyId, Long before, int requestedSize, Long assignee) {
+  public Page<Task> tasks(long companyId, Long before, int requestedSize,
+                          Long assignee, String status) {
     int size = Math.max(1, Math.min(100, requestedSize));
+    if (status != null && !List.of("OPEN", "IN_PROGRESS", "DONE", "CANCELLED").contains(status)) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_STATUS_INVALID");
+    }
+    if (before != null && before <= 0) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_INVALID_CURSOR");
+    }
     List<Task> results = jdbc.query("""
         select * from crm_tasks
-        where company_id = ? and (? is null or id < ?) and (? is null or assignee_user_id = ?)
+        where company_id = ? and (cast(? as bigint) is null or id < ?)
+          and (cast(? as bigint) is null or assignee_user_id = ?)
+          and (cast(? as varchar) is null or status = ?)
         order by id desc limit ?
-        """, CrmWorkService::task, companyId, before, before, assignee, assignee, size + 1);
+        """, CrmWorkService::task, companyId, before, before, assignee, assignee,
+        status, status, size + 1);
     boolean more = results.size() > size;
     List<Task> page = more ? results.subList(0, size) : results;
     return new Page<>(page, more ? page.getLast().id() : null, more);
@@ -189,9 +269,42 @@ public class CrmWorkService {
         insert into crm_tasks(id,company_id,title,details,priority,due_at,
                               assignee_user_id,contact_id,account_id,created_by_user_id)
         values(?,?,?,?,?,?,?,?,?,?)
-        """, key, companyId, safeTitle, trimmed(details, 4000), priority, dueAt,
+        """, key, companyId, safeTitle, trimmed(details, 4000), priority,
+        dueAt == null ? null : Timestamp.from(dueAt),
         assignee, contactId, accountId, actor);
     return getTask(companyId, key);
+  }
+
+  @Transactional
+  public Task updateTask(long companyId, long taskId, long version, String title,
+                         String details, String priority, Instant dueAt, long assignee,
+                         Long contactId, Long accountId) {
+    String safeTitle = trimmed(title, 240);
+    if (safeTitle == null || version < 0) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_INVALID_UPDATE");
+    }
+    if (priority == null || !List.of("LOW", "NORMAL", "HIGH").contains(priority)) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_PRIORITY_INVALID");
+    }
+    activeMember(companyId, assignee);
+    requireContact(companyId, contactId);
+    requireAccount(companyId, accountId);
+    int updated = jdbc.update("""
+        update crm_tasks
+           set title = ?, details = ?, priority = ?, due_at = ?,
+               assignee_user_id = ?, contact_id = ?, account_id = ?,
+               reminder_generation = reminder_generation
+                 + case when assignee_user_id <> ?
+                   or due_at is distinct from cast(? as timestamptz)
+                   then 1 else 0 end,
+               version = version + 1, updated_at = now()
+         where company_id = ? and id = ? and version = ?
+        """, safeTitle, trimmed(details, 4000), priority,
+        dueAt == null ? null : Timestamp.from(dueAt),
+        assignee, contactId, accountId, assignee,
+        dueAt == null ? null : Timestamp.from(dueAt), companyId, taskId, version);
+    if (updated == 0) throw new ApiException(HttpStatus.CONFLICT, "CRM_TASK_VERSION_CONFLICT");
+    return getTask(companyId, taskId);
   }
 
   @Transactional(readOnly = true)
@@ -210,9 +323,12 @@ public class CrmWorkService {
     }
     int updated = jdbc.update("""
         update crm_tasks set status = ?, completed_at = case when ? = 'DONE' then now() else null end,
+          reminder_generation = reminder_generation + case
+            when status in ('DONE', 'CANCELLED') and ? in ('OPEN', 'IN_PROGRESS')
+            then 1 else 0 end,
           updated_at = now(), version = version + 1
         where company_id = ? and id = ? and version = ?
-        """, status, status, companyId, taskId, version);
+        """, status, status, status, companyId, taskId, version);
     if (updated == 0) throw new ApiException(HttpStatus.CONFLICT, "CRM_TASK_VERSION_CONFLICT");
     return getTask(companyId, taskId);
   }

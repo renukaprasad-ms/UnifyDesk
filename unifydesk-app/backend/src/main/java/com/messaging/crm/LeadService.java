@@ -92,8 +92,8 @@ public class LeadService {
         join contacts c on c.company_id = l.company_id and c.id = l.contact_id
         where l.company_id = ?
           and c.status = 'ACTIVE'
-          and (? is null or l.stage = ?)
-          and (? is null or l.contact_id < ?)
+          and (cast(? as varchar) is null or l.stage = ?)
+          and (cast(? as bigint) is null or l.contact_id < ?)
         order by l.contact_id desc
         limit ?
         """,

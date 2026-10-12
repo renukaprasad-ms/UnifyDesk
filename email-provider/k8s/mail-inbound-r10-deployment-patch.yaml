@@ -1,0 +1,23 @@
+# Optional strategic merge patch. Do not apply to a running deployment until
+# the PVC is Bound and scanners, quotas, security and backups are verified.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-provider
+  namespace: email-platform
+spec:
+  template:
+    spec:
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: email-provider
+          volumeMounts:
+            - name: mail-mime
+              mountPath: /var/lib/unifydesk-mail/objects
+              readOnly: false
+      volumes:
+        - name: mail-mime
+          persistentVolumeClaim:
+            claimName: email-mail-objects
