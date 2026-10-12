@@ -36,6 +36,7 @@ public class BroadcastSenderService {
   private final AmazonSesGateway sesGateway;
   private final AmazonSesClientManager sesClientManager;
   private final SendGridGateway sendGridGateway;
+  private final com.messaging.integrations.unifydeskemail.UnifyDeskEmailGateway unifyDeskEmailGateway;
   private final AzureEmailGateway azureEmailGateway;
   private final Msg91Gateway msg91Gateway;
   private final Msg91EmailGateway msg91EmailGateway;
@@ -124,6 +125,53 @@ public class BroadcastSenderService {
     sender.setReplyToAddress(replyTo);
     sender.setVerifiedIdentity(snapshot.verifiedIdentity());
     return persistAndCompleteSetup(connection, sender, state.reconnecting());
+  }
+
+  public BroadcastSenderResponse connectUnifyDeskEmail(
+      Long companyId, Long userId, ConnectUnifyDeskEmailRequest request) {
+    String fromAddress = normalizeEmail(request.fromAddress(), "From address");
+    String replyTo = request.replyToAddress() == null || request.replyToAddress().isBlank()
+        ? null : normalizeEmail(request.replyToAddress(), "Reply-To address");
+
+    // Never persist a credential until the independent Email product confirms the domain.
+    var identity = unifyDeskEmailGateway.inspect(
+        request.apiKey(), request.sendingDomainId(), fromAddress);
+
+    ReconnectState state = prepareSender(
+        companyId, userId, BroadcastSenderProvider.UNIFYDESK_EMAIL, fromAddress,
+        "This UnifyDesk Email sender is already connected");
+    BroadcastSenderConnection connection = state.connection();
+    BroadcastSender sender = state.sender();
+
+    connection.setAuthMode(BroadcastSenderAuthMode.API_KEY);
+    connection.setName(request.name().trim());
+    connection.setRegion("UNIFYDESK_EMAIL");
+    connection.setRoleArn(null);
+    connection.setExternalId(request.sendingDomainId().toString());
+    connection.setProviderConfigJson(null);
+    try {
+      String credentials = objectMapper.writeValueAsString(
+          new com.messaging.integrations.unifydeskemail.UnifyDeskEmailStoredCredentials(
+              request.apiKey().trim(), request.sendingDomainId()));
+      connection.setEncryptedCredentials(credentialCipher.encrypt(credentials));
+    } catch (Exception e) {
+      throw new IllegalStateException("Unable to encrypt UnifyDesk Email API key", e);
+    }
+    applyUnifyDeskEmailSnapshot(connection);
+    sender.setFromAddress(fromAddress);
+    sender.setDisplayName(trimToNull(request.displayName()));
+    sender.setReplyToAddress(replyTo);
+    sender.setVerifiedIdentity(identity.domain());
+    return persistAndCompleteSetup(connection, sender, state.reconnecting());
+  }
+
+  private void applyUnifyDeskEmailSnapshot(BroadcastSenderConnection connection) {
+    connection.setProductionAccessEnabled(true);
+    connection.setSendingEnabled(true);
+    connection.setMax24HourSend(1000.0);
+    connection.setMaxSendRate(2.0);
+    connection.setSentLast24Hours(null);
+    connection.setLastValidatedAt(Instant.now());
   }
 
   public BroadcastSenderResponse connectAzureEmail(
@@ -265,6 +313,12 @@ public class BroadcastSenderService {
         AmazonSesAccountSnapshot snapshot = sesGateway.inspect(connection, sender.getFromAddress());
         applySnapshot(connection, snapshot);
         sender.setVerifiedIdentity(snapshot.verifiedIdentity());
+      }
+      case UNIFYDESK_EMAIL -> {
+        unifyDeskEmailGateway.inspect(connection, sender.getFromAddress());
+        applyUnifyDeskEmailSnapshot(connection);
+        sender.setVerifiedIdentity(sender.getFromAddress().substring(
+            sender.getFromAddress().lastIndexOf('@') + 1));
       }
       case SENDGRID -> {
         SendGridAccountSnapshot snapshot =

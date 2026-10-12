@@ -2,12 +2,18 @@ package com.messaging.broadcast.dto;
 
 import com.messaging.broadcast.entity.BroadcastMessage;
 import com.messaging.broadcast.entity.BroadcastRun;
+import com.messaging.broadcast.enums.BroadcastAudienceSourceType;
 import com.messaging.broadcast.enums.BroadcastMessageStatus;
+import com.messaging.channel.enums.ChannelType;
 import java.time.Instant;
 
 public record BroadcastMessageSummaryResponse(
     String id,
     String groupId,
+    BroadcastAudienceSourceType audienceSourceType,
+    String audienceSourceId,
+    String audienceSnapshotId,
+    ChannelType channelType,
     String senderId,
     String sourceTemplateId,
     Long sourceTemplateVersion,
@@ -26,6 +32,12 @@ public record BroadcastMessageSummaryResponse(
     return new BroadcastMessageSummaryResponse(
         message.getId().toString(),
         stringId(message.getGroupId()),
+        message.getAudienceSourceType(),
+        stringId(message.getAudienceSourceId()),
+        run == null
+            ? stringId(message.getFrozenAudienceSnapshotId())
+            : stringId(run.getAudienceSnapshotId()),
+        message.getChannelType(),
         stringId(message.getSenderId()),
         stringId(message.getSourceTemplateId()),
         message.getSourceTemplateVersion(),

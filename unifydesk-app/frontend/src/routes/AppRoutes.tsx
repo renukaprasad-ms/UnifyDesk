@@ -37,7 +37,13 @@ import CompanyPlan from '../pages/company/CompanyPlan'
 import CompanyRoles from '../pages/company/CompanyRoles'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import ContactDetailPage from '../pages/contacts/ContactDetailPage'
+import CrmOverview from '../pages/contacts/CrmOverview'
+import CrmLeadsPage from '../pages/contacts/CrmLeadsPage'
+import CrmCompaniesPage from '../pages/contacts/CrmCompaniesPage'
+import CrmCompanyDetailPage from '../pages/contacts/CrmCompanyDetailPage'
+import CrmTasksPage from '../pages/contacts/CrmTasksPage'
 import ContactsPage from '../pages/contacts/ContactsPage'
+import ContactSettingsPage from '../pages/contacts/ContactSettingsPage'
 import ImportDetailPage from '../pages/contacts/ImportDetailPage'
 import ImportsPage from '../pages/contacts/ImportsPage'
 import ListDetailPage from '../pages/contacts/ListDetailPage'
@@ -56,6 +62,8 @@ import PlatformCompanies from '../pages/platform/PlatformCompanies'
 import PlatformDashboard from '../pages/platform/PlatformDashboard'
 import PlatformPlanDetails from '../pages/platform/PlatformPlanDetails'
 import PlatformPlans from '../pages/platform/PlatformPlans'
+import PlatformManagedProviders from '../pages/platform/PlatformManagedProviders'
+import PlatformManagedSmsReviews from '../pages/platform/PlatformManagedSmsReviews'
 import PlatformUsers from '../pages/platform/PlatformUsers'
 import PlatformWebhookCallbacks from '../pages/platform/PlatformWebhookCallbacks'
 import TemplateLibrary from '../pages/templates/TemplateLibrary'
@@ -106,7 +114,7 @@ const AppRoutes = () => (
 
         <Route element={<WorkspaceRoute />}>
           <Route element={<MainLayout />}>
-            <Route path="/workspace" element={<Home />} />
+            <Route path="/workspace" element={<WorkspaceEpochBoundary><Home /></WorkspaceEpochBoundary>} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route
               path="/billing/payment-return"
@@ -149,12 +157,27 @@ const AppRoutes = () => (
               <Route path="ad-center/settings" element={<AdSettings />} />
             </Route>
 
+            <Route element={<PermissionRoute anyOf={[PERMISSIONS.CRM_LEAD_READ, PERMISSIONS.CRM_ACCOUNT_READ, PERMISSIONS.CRM_TASK_READ, PERMISSIONS.CONTACT_READ]} />}>
+              <Route path="crm" element={<Navigate to="/crm/overview" replace />} />
+              <Route path="crm/overview" element={<WorkspaceEpochBoundary><CrmOverview /></WorkspaceEpochBoundary>} />
+            </Route>
+            <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_LEAD_READ, PERMISSIONS.CONTACT_READ]} />}>
+              <Route path="crm/leads" element={<WorkspaceEpochBoundary><CrmLeadsPage /></WorkspaceEpochBoundary>} />
+            </Route>
+            <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_ACCOUNT_READ]} />}>
+              <Route path="crm/companies" element={<WorkspaceEpochBoundary><CrmCompaniesPage /></WorkspaceEpochBoundary>} />
+              <Route path="crm/companies/:accountId" element={<WorkspaceEpochBoundary><CrmCompanyDetailPage /></WorkspaceEpochBoundary>} />
+            </Route>
+            <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_TASK_READ, PERMISSIONS.CONTACT_READ]} />}>
+              <Route path="crm/tasks" element={<WorkspaceEpochBoundary><CrmTasksPage /></WorkspaceEpochBoundary>} />
+            </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.CONTACT_READ]} />}>
               <Route path="contacts" element={<WorkspaceEpochBoundary><ContactsPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/lists" element={<WorkspaceEpochBoundary><ListsPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/lists/:listId" element={<WorkspaceEpochBoundary><ListDetailPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/segments" element={<WorkspaceEpochBoundary><SegmentsPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/segments/:segmentId" element={<WorkspaceEpochBoundary><SegmentEditorPage /></WorkspaceEpochBoundary>} />
+              <Route path="contacts/settings" element={<WorkspaceEpochBoundary><ContactSettingsPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/:contactId" element={<WorkspaceEpochBoundary><ContactDetailPage /></WorkspaceEpochBoundary>} />
             </Route>
             <Route element={<PermissionRoute allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_MODIFY]} />}>
@@ -181,11 +204,18 @@ const AppRoutes = () => (
                     PERMISSIONS.EMAIL_CONNECT,
                     PERMISSIONS.SMS_READ,
                     PERMISSIONS.SMS_CONNECT,
+                    PERMISSIONS.BROADCAST_READ,
+                    PERMISSIONS.BROADCAST_MODIFY,
+                    PERMISSIONS.ADS_READ,
+                    PERMISSIONS.ADS_CONNECT,
                   ]}
                 />
               }
             >
-              <Route path="company/connections" element={<CompanyConnections />} />
+              <Route
+                path="company/connections"
+                element={<WorkspaceEpochBoundary><CompanyConnections /></WorkspaceEpochBoundary>}
+              />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.USER_READ]} />}>
               <Route path="company/users" element={<CompanyUsers />} />
@@ -211,6 +241,8 @@ const AppRoutes = () => (
           <Route path="/platform/plans" element={<PlatformPlans />} />
           <Route path="/platform/plans/:planId" element={<PlatformPlanDetails />} />
           <Route path="/platform/billing" element={<PlatformBilling />} />
+          <Route path="/platform/managed-providers" element={<PlatformManagedProviders />} />
+          <Route path="/platform/managed-sms-reviews" element={<PlatformManagedSmsReviews />} />
           <Route path="/platform/admins" element={<PlatformAdmins />} />
           <Route path="/platform/channel-analytics/webhook-callbacks" element={<PlatformWebhookCallbacks />} />
           <Route path="/platform/audit" element={<PlaceholderPage />} />

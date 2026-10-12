@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from 'react-router'
 import ContactAttributesPanel from '../../components/contacts/ContactAttributesPanel'
 import ContactFormDialog from '../../components/contacts/ContactFormDialog'
 import ContactsNav from '../../components/contacts/ContactsNav'
+import ContactCrmPanel from '../../components/contacts/ContactCrmPanel'
 import IdentityManager from '../../components/contacts/IdentityManager'
 import ManualSuppressionForm from '../../components/contacts/ManualSuppressionForm'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -22,6 +23,7 @@ import type {
   CustomFieldValue,
   Suppression,
   TagSummary,
+  ListSummary,
 } from '../../features/contacts/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -35,6 +37,8 @@ import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpo
 import type { WorkspaceEpochToken } from '../../features/workspace/workspaceEpoch'
 
 const channels: CommunicationPreference['channel'][] = ['EMAIL', 'SMS', 'WHATSAPP']
+const preferenceLabel = (state: CommunicationPreference['state'] | undefined) =>
+  state === 'OPTED_IN' ? 'Subscribed' : state === 'OPTED_OUT' ? 'Opted out' : 'Permission unknown'
 
 const asDraft = (contact: ContactDetail): ContactFormDraft => ({
   displayName: contact.displayName,
@@ -64,6 +68,8 @@ export default function ContactDetailPage() {
   const [activityLoadingMore, setActivityLoadingMore] = useState(false)
   const [tagOptions, setTagOptions] = useState<TagSummary[]>([])
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([])
+  const [listOptions, setListOptions] = useState<ListSummary[]>([])
+  const [listToAdd, setListToAdd] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -80,10 +86,11 @@ export default function ContactDetailPage() {
     setLoading(true)
     setError('')
     try {
-      const [detail, tags, fields, activityPage] = await Promise.all([
+      const [detail, tags, fields, lists, activityPage] = await Promise.all([
         contactsApi.get(companyId, contactId),
         contactsApi.tags(companyId),
         contactsApi.customFields(companyId),
+        contactsApi.lists(companyId),
         contactsApi
           .activity(companyId, contactId)
           .catch(() => ({ items: [], nextCursor: null, hasMore: false })),
@@ -93,6 +100,7 @@ export default function ContactDetailPage() {
       setContact(detail)
       setTagOptions(tags)
       setCustomFields(fields.filter((field) => field.status === 'ACTIVE'))
+      setListOptions(lists.filter((item) => item.status !== 'ARCHIVED'))
       setActivity(activityPage.items)
       setActivityCursor(activityPage.nextCursor)
       setActivityHasMore(activityPage.hasMore)
@@ -204,7 +212,7 @@ export default function ContactDetailPage() {
   if (loading) {
     return (
       <section className="px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl">
+        <div className="w-full">
           <ContactsNav />
           <div className="mt-4"><CardSkeleton rows={7} /></div>
         </div>
@@ -215,7 +223,7 @@ export default function ContactDetailPage() {
   if (error && !contact) {
     return (
       <section className="px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl">
+        <div className="w-full">
           <ContactsNav />
           <div className="panel p-8 text-center">
             <h1 className="text-xl font-bold text-slate-950">Contact unavailable</h1>
@@ -238,7 +246,7 @@ export default function ContactDetailPage() {
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
+      <div className="w-full">
         <ContactsNav />
 
         <header className="flex flex-wrap items-end justify-between gap-4">
@@ -251,7 +259,7 @@ export default function ContactDetailPage() {
           </div>
           {can(PERMISSIONS.CONTACT_MODIFY) && (
             <button className="primary-button" onClick={() => setEditing(true)}>
-              Edit profile
+              Edit contact
             </button>
           )}
         </header>
@@ -271,6 +279,7 @@ export default function ContactDetailPage() {
         )}
 
         <div className="mt-6 grid gap-5 lg:grid-cols-2">
+          <ContactCrmPanel key={contactId} contactId={contactId} />
           <section className="panel p-5">
             <h2 className="text-lg font-bold text-slate-950">Profile</h2>
             <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
@@ -301,6 +310,29 @@ export default function ContactDetailPage() {
 
           <section className="panel p-5">
             <h2 className="text-lg font-bold text-slate-950">Lists</h2>
+            {can(PERMISSIONS.CONTACT_MODIFY) && (
+              <div className="mt-4 flex gap-2">
+                <select className="form-input" value={listToAdd} onChange={(event) => setListToAdd(event.target.value)}>
+                  <option value="">Add to a list…</option>
+                  {listOptions
+                    .filter((option) => !(contact.lists ?? []).some((assigned) => assigned.id === option.id))
+                    .map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+                </select>
+                <button
+                  className="primary-button"
+                  disabled={busy || !listToAdd}
+                  onClick={() => {
+                    if (!listToAdd) return
+                    void mutate(
+                      () => contactsApi.addListMembers(companyId, listToAdd, [contactId]).then(() => undefined),
+                      'Contact added to list.',
+                    ).then((changed) => changed && setListToAdd(''))
+                  }}
+                >
+                  Add
+                </button>
+              </div>
+            )}
             <div className="mt-4 space-y-2">
               {contact.lists?.length ? (
                 contact.lists
@@ -393,8 +425,7 @@ export default function ContactDetailPage() {
             <section className="panel p-5 lg:col-span-2">
               <h2 className="text-lg font-bold text-slate-950">Marketing preferences</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Contact existence does not imply marketing consent. Each channel is managed
-                separately.
+                Choose whether this contact can receive marketing on each channel. Permission is managed separately for email, SMS and WhatsApp.
               </p>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 {channels.map((channel) => {
@@ -404,7 +435,7 @@ export default function ContactDetailPage() {
                       <div className="flex items-center justify-between gap-3">
                         <strong>{channel === 'WHATSAPP' ? 'WhatsApp' : channel}</strong>
                         <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold">
-                          {preference?.state ?? 'UNKNOWN'}
+                          {preferenceLabel(preference?.state)}
                         </span>
                       </div>
                       <p className="mt-2 text-xs text-slate-500">
@@ -433,9 +464,9 @@ export default function ContactDetailPage() {
 
           {can(PERMISSIONS.CONTACT_CONSENT_READ) && (
             <section className="panel p-5 lg:col-span-2">
-              <h2 className="text-lg font-bold text-slate-950">Suppressions</h2>
+              <h2 className="text-lg font-bold text-slate-950">Delivery restrictions</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Suppression is a delivery prohibition and remains separate from consent.
+                Delivery restrictions block sending even when a marketing permission exists.
               </p>
 
               {can(PERMISSIONS.CONTACT_CONSENT_MODIFY) && (
@@ -455,7 +486,7 @@ export default function ContactDetailPage() {
 
               <div className="mt-4 space-y-2">
                 {suppressions.length === 0 ? (
-                  <p className="text-sm text-slate-500">No active suppressions.</p>
+                  <p className="text-sm text-slate-500">No active delivery restrictions.</p>
                 ) : (
                   suppressions.map((item) => (
                     <div
@@ -475,7 +506,7 @@ export default function ContactDetailPage() {
                           disabled={busy}
                           onClick={() => setSuppressionToLift(item)}
                         >
-                          Lift suppression
+                          Remove restriction
                         </button>
                       )}
                     </div>
@@ -564,7 +595,7 @@ export default function ContactDetailPage() {
                     disabled={busy}
                     onClick={() => setPendingPreferenceState(state)}
                   >
-                    {state.replaceAll('_', ' ')}
+                    {preferenceLabel(state)}
                   </button>
                 ))}
               </div>
@@ -580,7 +611,7 @@ export default function ContactDetailPage() {
           title="Record this marketing preference?"
           description={
             pendingPreferenceState && editingPreference
-              ? `Record ${pendingPreferenceState.replaceAll('_', ' ')} for ${editingPreference} marketing? This creates an auditable preference event.`
+              ? `Record ${preferenceLabel(pendingPreferenceState)} for ${editingPreference} marketing? This creates an auditable preference event.`
               : ''
           }
           confirmLabel="Yes, record preference"

@@ -22,6 +22,28 @@ type Props = {
   onChange: (value: SegmentGroup) => void
 }
 
+const OPERATOR_LABELS: Record<string, string> = {
+  EQ: 'is',
+  NE: 'is not',
+  IN: 'is any of',
+  NOT_IN: 'is none of',
+  CONTAINS: 'contains',
+  NOT_CONTAINS: 'does not contain',
+  STARTS_WITH: 'starts with',
+  ENDS_WITH: 'ends with',
+  GT: 'is greater than',
+  GTE: 'is at least',
+  LT: 'is less than',
+  LTE: 'is at most',
+  BEFORE: 'is before',
+  AFTER: 'is after',
+  PRESENT: 'is known',
+  ABSENT: 'is unknown',
+}
+
+const operatorLabel = (operator: string) =>
+  OPERATOR_LABELS[operator] ?? operator.replaceAll('_', ' ').toLowerCase()
+
 const defaultPredicate = (field: SegmentFieldOption): SegmentPredicate => ({
   type: 'predicate',
   field: field.descriptor,
@@ -77,7 +99,7 @@ export default function SegmentBuilder({ value, fields, onChange }: Props) {
           >
             {field.operators.map((operator) => (
               <option key={operator} value={operator}>
-                {operator.replaceAll('_', ' ')}
+                {operatorLabel(operator)}
               </option>
             ))}
           </select>
@@ -121,7 +143,7 @@ export default function SegmentBuilder({ value, fields, onChange }: Props) {
             )
           ) : (
             <span className="self-center text-xs font-medium text-slate-500">
-              No value required
+              No value needed
             </span>
           )}
           <button
@@ -142,7 +164,7 @@ export default function SegmentBuilder({ value, fields, onChange }: Props) {
         className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4"
       >
         <legend className="px-1 text-xs font-bold text-slate-500">
-          {path.length === 0 ? 'Match contacts where' : 'Nested group'}
+          {path.length === 0 ? 'Include contacts where' : 'Rule group'}
         </legend>
         <div className="flex flex-wrap items-center gap-2">
           <select
@@ -158,8 +180,8 @@ export default function SegmentBuilder({ value, fields, onChange }: Props) {
               )
             }
           >
-            <option value="AND">All conditions (AND)</option>
-            <option value="OR">Any condition (OR)</option>
+            <option value="AND">Match all conditions</option>
+            <option value="OR">Match any condition</option>
           </select>
           {path.length > 0 && (
             <button

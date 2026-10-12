@@ -1,12 +1,16 @@
 import axios from 'axios'
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
-import { createIdempotencyKey } from './contactModel'
+import {
+  createIdempotencyKey,
+  type ContactMarketingPreferences,
+} from './contactModel'
 import type {
   AsyncJob,
   BulkOperation,
   CommunicationPreference,
   ContactActivity,
+  ContactDashboardSummary,
   ContactDetail,
   ContactExport,
   ContactIdentity,
@@ -46,6 +50,13 @@ export const contactsApi = {
     const response = await apiClient.get<ApiResponse<CursorPage<ContactSummary>>>(base(companyId), {
       params: { ...query, cursor: cursor || undefined },
     })
+    return unwrap(response.data)
+  },
+
+  async dashboardSummary(companyId: string) {
+    const response = await apiClient.get<ApiResponse<ContactDashboardSummary>>(
+      base(companyId) + '/dashboard-summary',
+    )
     return unwrap(response.data)
   },
 
@@ -114,6 +125,18 @@ export const contactsApi = {
     return unwrap(response.data)
   },
 
+  async updateTag(companyId: string, tagId: string, payload: { name: string; color?: string | null }) {
+    const response = await apiClient.patch<ApiResponse<TagSummary>>(
+      base(companyId) + '/tags/' + tagId,
+      payload,
+    )
+    return unwrap(response.data)
+  },
+
+  async archiveTag(companyId: string, tagId: string) {
+    await apiClient.delete(base(companyId) + '/tags/' + tagId)
+  },
+
   async addTag(companyId: string, contactId: string, tagId: string) {
     await apiClient.post(base(companyId) + '/' + contactId + '/tags/' + tagId)
   },
@@ -127,6 +150,39 @@ export const contactsApi = {
       base(companyId) + '/custom-fields',
     )
     return unwrap(response.data)
+  },
+
+  async createCustomField(
+    companyId: string,
+    payload: {
+      fieldKey: string
+      label: string
+      type: CustomFieldDefinition['type']
+      options?: string[] | null
+      position?: number
+    },
+  ) {
+    const response = await apiClient.post<ApiResponse<CustomFieldDefinition>>(
+      base(companyId) + '/custom-fields',
+      payload,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateCustomField(
+    companyId: string,
+    fieldId: string,
+    payload: { label: string; options?: string[] | null; position?: number },
+  ) {
+    const response = await apiClient.patch<ApiResponse<CustomFieldDefinition>>(
+      base(companyId) + '/custom-fields/' + fieldId,
+      payload,
+    )
+    return unwrap(response.data)
+  },
+
+  async archiveCustomField(companyId: string, fieldId: string) {
+    await apiClient.delete(base(companyId) + '/custom-fields/' + fieldId)
   },
 
   async lists(companyId: string) {
@@ -260,6 +316,23 @@ export const contactsApi = {
       base(companyId) + '/' + contactId + '/preferences',
     )
     return unwrap(response.data)
+  },
+
+  async applyMarketingPreferences(
+    companyId: string,
+    contactId: string,
+    preferences: ContactMarketingPreferences,
+    reason: string,
+  ) {
+    await Promise.all(
+      (Object.entries(preferences) as Array<
+        [CommunicationPreference['channel'], CommunicationPreference['state']]
+      >)
+        .filter(([, state]) => state !== 'UNKNOWN')
+        .map(([channel, state]) =>
+          contactsApi.updatePreference(companyId, contactId, channel, state, reason),
+        ),
+    )
   },
 
   async updatePreference(

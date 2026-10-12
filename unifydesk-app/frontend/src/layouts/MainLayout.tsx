@@ -5,9 +5,11 @@ import AdminSidebar from '../components/navigation/AdminSidebar'
 import ChannelContextSidebar from '../components/navigation/ChannelContextSidebar'
 import GlobalSyncProgress from '../components/inbox/GlobalSyncProgress'
 import AdCenterSidebar from '../components/navigation/AdCenterSidebar'
+import CrmSidebar from '../components/navigation/CrmSidebar'
 import AppSidebar from '../components/navigation/AppSidebar'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import { authApi } from '../features/auth/authApi'
+import { iamApi } from '../features/iam/iamApi'
 import { platformApi } from '../features/platform/platformApi'
 import NotificationProvider from '../features/notifications/NotificationProvider'
 import { revokeCurrentBrowserSubscriptionBestEffort } from '../features/notifications/notificationBrowser'
@@ -15,6 +17,13 @@ import type { PlatformAccess } from '../features/platform/types'
 import { realtimeClient } from '../features/realtime/realtimeClient'
 import { sessionCleared } from '../store/auth/authSlice'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
+import {
+  iamLoadFailed,
+  iamLoadStarted,
+  iamLoadSucceeded,
+  selectIamState,
+} from '../store/iam/iamSlice'
+import { selectSelectedCompanyId } from '../store/workspace/workspaceSlice'
 
 export default function MainLayout({ platform = false }: { platform?: boolean }) {
   const dispatch = useAppDispatch()
@@ -27,15 +36,18 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   const [platformAccess, setPlatformAccess] = useState<PlatformAccess | null>(null)
   const [railHovered, setRailHovered] = useState(false)
   const [navigationCloseSignal, setNavigationCloseSignal] = useState(0)
+  const selectedCompanyId = useAppSelector(selectSelectedCompanyId)
+  const iam = useAppSelector(selectIamState)
   const inboxMode = location.pathname.startsWith('/inbox/')
   const broadcastMode = location.pathname.startsWith('/broadcast/')
   const adCenterMode = location.pathname.startsWith('/ad-center')
+  const crmMode = location.pathname.startsWith('/crm/') || location.pathname === '/contacts' || location.pathname.startsWith('/contacts/')
   const selectedBroadcastGroupId = new URLSearchParams(location.search).get('groupId')
   const selectedBroadcastGroup = useAppSelector((state) =>
     state.broadcast.groups.find((group) => group.id === selectedBroadcastGroupId),
   )
   const channelContextMode = inboxMode || broadcastMode
-  const workspaceContextMode = channelContextMode || adCenterMode
+  const workspaceContextMode = channelContextMode || adCenterMode || crmMode
   const selectedEmailFolder =
     new URLSearchParams(location.search).get('folder') === 'SENT' ? 'Sent' : 'Inbox'
   const channelContextLabel = inboxMode
@@ -49,6 +61,44 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
     realtimeClient.connect()
     return () => realtimeClient.disconnect()
   }, [])
+
+  useEffect(() => {
+    if (platform || !selectedCompanyId) return
+    if (
+      iam.companyId === selectedCompanyId &&
+      (iam.status === 'loading' || iam.status === 'ready' || iam.status === 'error')
+    ) {
+      return
+    }
+
+    let active = true
+    dispatch(iamLoadStarted(selectedCompanyId))
+    iamApi
+      .myPermissions(selectedCompanyId)
+      .then((response) => {
+        if (!active) return
+        dispatch(
+          iamLoadSucceeded({
+            companyId: selectedCompanyId,
+            owner: response.owner,
+            permissions: response.permissions,
+          }),
+        )
+      })
+      .catch(() => {
+        if (!active) return
+        dispatch(
+          iamLoadFailed({
+            companyId: selectedCompanyId,
+            error: 'Unable to load workspace permissions',
+          }),
+        )
+      })
+
+    return () => {
+      active = false
+    }
+  }, [dispatch, iam.companyId, iam.status, platform, selectedCompanyId])
 
   useEffect(() => {
     let active = true
@@ -191,6 +241,8 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
           >
             {adCenterMode ? (
               <AdCenterSidebar onNavigate={closeContext} />
+            ) : crmMode ? (
+              <CrmSidebar onNavigate={closeContext} />
             ) : (
               <ChannelContextSidebar
                 mode={inboxMode ? 'inbox' : 'broadcast'}
@@ -223,7 +275,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
             }}
             contextAvailable={!platform && workspaceContextMode}
             contextOpen={contextOpen}
-            contextLabel={adCenterMode ? 'Ad Center' : channelContextLabel}
+            contextLabel={crmMode ? 'CRM' : adCenterMode ? 'Ad Center' : channelContextLabel}
             onToggleContext={() => {
               setMenuOpen(false)
               setRailHovered(false)

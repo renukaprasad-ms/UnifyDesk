@@ -229,13 +229,13 @@ export default function AppSidebar({
         </NavLink>
         {hasWorkspacePermission(PERMISSIONS.CONTACT_READ) && (
           <NavLink
-            to="/contacts"
+            to="/crm/overview"
             className={linkClass}
             onClick={onNavigate}
-            title={compact ? 'Contacts' : undefined}
+            title={compact ? 'CRM' : undefined}
           >
             <FiUsers className="sidebar-icon" aria-hidden="true" />
-            <span className="sidebar-copy">Contacts</span>
+            <span className="sidebar-copy">CRM</span>
           </NavLink>
         )}
         {renderSection('broadcast', 'Broadcast', <FiRadio aria-hidden="true" />, broadcastLinks)}

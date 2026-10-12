@@ -17,3 +17,6 @@ A local Postfix `250` response means **HANDED_OFF**, not DELIVERED. Postfix then
 - Queue/log/DSN ingestion added before relying on final delivery analytics.
 
 Copy `main.cf.example` into the target mail node only after reviewing it for that host.
+
+The email-provider quarantines ambiguous SMTP submissions as `UNKNOWN` and never
+blindly retries them. Inspect the Postfix queue and feedback before reconciliation.

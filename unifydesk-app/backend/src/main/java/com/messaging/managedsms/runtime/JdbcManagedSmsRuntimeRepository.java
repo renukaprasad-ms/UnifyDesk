@@ -57,7 +57,13 @@ public class JdbcManagedSmsRuntimeRepository implements ManagedSmsRuntimeReposit
                else coalesce(t.provider_client_ref, t.provider_account_ref, '')
              end as provider_account_key,
              pb.provider_template_ref,
-             pb.provider_flow_ref,
+             case when coalesce(
+                           (select provider_code from platform_managed_provider_company_routes cr
+                            where cr.company_id=s.company_id and cr.channel='SMS'),
+                           (select provider_code from platform_managed_provider_routes
+                            where channel='SMS')) = 'METAREACH_SMS'
+                  then pb.provider_template_ref else pb.provider_flow_ref
+             end as provider_flow_ref,
              pb.status as provider_binding_status,
              pb.last_sync_at as provider_binding_last_sync_at,
              c.status as connection_status,
@@ -184,7 +190,10 @@ public class JdbcManagedSmsRuntimeRepository implements ManagedSmsRuntimeReposit
                      else coalesce(rb.provider_client_ref_snapshot, '')
                    end as provider_account_key,
                    rb.provider_template_ref_snapshot,
-                   rb.provider_flow_ref_snapshot,
+                   case when rb.delivery_provider = 'METAREACH_SMS'
+                     then rb.provider_template_ref_snapshot
+                     else rb.provider_flow_ref_snapshot
+                   end as provider_flow_ref_snapshot,
                    rb.ruleset_version_snapshot,
                    pb.status as provider_binding_status,
                    pb.last_sync_at as provider_binding_last_sync_at,
@@ -235,10 +244,16 @@ public class JdbcManagedSmsRuntimeRepository implements ManagedSmsRuntimeReposit
                    c.recipient_id,
                    c.attempt_no,
                    c.provider_request_id,
-                   coalesce(nullif(rb.provider_client_ref_snapshot, ''), '') as provider_account_key
+                   case
+                     when rb.delivery_provider='METAREACH_SMS' then 'metareach:master'
+                     when t.provider_mode='SHARED_MASTER' then 'master'
+                     else coalesce(nullif(rb.provider_client_ref_snapshot, ''), '')
+                   end as provider_account_key
               from managed_sms_correlations c
               join managed_sms_run_bindings rb
                 on rb.run_id = c.run_id and rb.company_id = c.company_id
+              join managed_sms_tenants t
+                on t.id=rb.tenant_id and t.company_id=rb.company_id
               join broadcast_recipients r
                 on r.id = c.recipient_id
                and r.company_id = c.company_id

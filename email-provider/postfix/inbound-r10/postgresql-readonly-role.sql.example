@@ -1,0 +1,9 @@
+-- Execute by a PostgreSQL admin in the dedicated email_provider DB only.
+-- Replace the temporary placeholder password before using. Do NOT run
+-- against the existing UnifyDesk main app database.
+CREATE ROLE udmail_postfix_ro WITH LOGIN PASSWORD 'REPLACE_WITH_RANDOM_READONLY_PASSWORD';
+GRANT CONNECT ON DATABASE email_provider TO udmail_postfix_ro;
+GRANT USAGE ON SCHEMA public TO udmail_postfix_ro;
+GRANT SELECT ON TABLE public.email_mail_domains,
+  public.email_mailboxes, public.email_product_organizations TO udmail_postfix_ro;
+-- No INSERT/UPDATE/DELETE and no access to mail bodies, API tokens or keys.

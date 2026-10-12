@@ -27,6 +27,8 @@
     --theme-border-soft: #e9edf5;
     --theme-text: #0e172b;
     --theme-muted: #63738c;
+    --theme-scrollbar-thumb: #b7c2d4;
+    --theme-scrollbar-thumb-hover: #8b9db6;
   }
   :root[data-color-scheme='dark'] {
     --theme-bg: #0f172a;
@@ -36,6 +38,32 @@
     --theme-border-soft: #1f2a3d;
     --theme-text: #e5edf8;
     --theme-muted: #94a3b8;
+    --theme-scrollbar-thumb: #40536e;
+    --theme-scrollbar-thumb-hover: #60738e;
+  }
+  /* Keep page, sidebar and nested panel scrollbars consistent with the active theme. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--theme-scrollbar-thumb) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background-color: var(--theme-scrollbar-thumb);
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--theme-scrollbar-thumb-hover);
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
   body {
     margin: 0;
@@ -370,6 +398,30 @@
   .channel-context-sidebar .workspace-menu-item {
     min-height: 52px;
   }
+  /*
+   * Keep Inbox account/folder controls compact so conversations take more
+   * of the available viewport, without changing Broadcast navigation.
+   */
+  .channel-context-sidebar .context-email-layout .admin-sidebar-header {
+    min-height: 48px;
+    padding-bottom: 10px;
+  }
+  .channel-context-sidebar .context-email-layout .email-folder-switcher {
+    margin-top: 10px;
+    padding: 3px;
+  }
+  .channel-context-sidebar .context-email-layout .email-folder-tab {
+    min-height: 32px;
+    padding: 6px 8px;
+  }
+  .context-email-layout .context-conversation-scroll {
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--theme-scrollbar-thumb) transparent;
+  }
+  .context-email-layout .context-conversation-scroll::-webkit-scrollbar-button {
+    display: none;
+  }
   .channel-workspace-page {
     min-height: calc(100dvh - 72px);
     background: var(--theme-bg);
@@ -445,6 +497,10 @@
   .email-provider-logo-outlook {
     background: color-mix(in srgb, #0078d4 16%, var(--theme-surface));
     color: #0078d4;
+  }
+  .email-provider-logo-zoho {
+    background: color-mix(in srgb, #e42527 13%, var(--theme-surface));
+    color: #e42527;
   }
   .email-provider-logo-imap {
     background: color-mix(in srgb, var(--theme-primary) 16%, var(--theme-surface));

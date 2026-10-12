@@ -1,7 +1,7 @@
-# Reference Postfix configuration for a dedicated Reachlyo mail node.
+# Reference Postfix configuration for a dedicated UnifyDesk mail node.
 # Review hostnames, IPs, TLS certificates, limits and provider policy before production use.
 
-myhostname = mail1.reachlyo.com
+myhostname = mail1.unifydesk.in
 myorigin = $myhostname
 mydestination = localhost
 inet_interfaces = loopback-only

@@ -10,10 +10,64 @@ import type {
   PlatformPlan,
   PlatformPlanInput,
   PlatformWebhookCallback,
+  ManagedProviderRoute,
+  ManagedSmsReviewItem,
   WebhookCallbackStatus,
 } from './types'
 
 export const platformApi = {
+  async managedSmsReviewQueue() {
+    const r=await apiClient.get<ApiResponse<{items:ManagedSmsReviewItem[]}>>(
+      '/api/v1/platform/managed-sms/review-queue')
+    return r.data.data?.items ?? []
+  },
+  async decideManagedSmsReview(item:ManagedSmsReviewItem, input: {
+    decision:'APPROVE'|'REJECT';version:number;reason:string;
+    providerAccountRef:string|null;providerClientRef:string|null;
+    providerTemplateRef:string|null;providerFlowRef:string|null;
+    providerMappingRef:string|null;ctaPolicy?:unknown;
+  }) {
+    const resource=item.resourceType==='DLT_PROFILE'?'dlt-profiles':
+      item.resourceType==='HEADER'?'headers':'templates'
+    const r=await apiClient.post<ApiResponse<unknown>>(
+      `/api/v1/platform/managed-sms/${resource}/${item.id}/decision`,input)
+    return r.data.data
+  },
+  async managedSmsCompanyProvider(companyId: string) {
+    const r=await apiClient.get<ApiResponse<string | null>>(
+      `/api/v1/platform/managed-providers/sms/companies/${companyId}`)
+    return r.data.data ?? null
+  },
+  async changeManagedSmsCompanyProvider(companyId: string, input: {
+    provider: string | null; reason: string
+  }) {
+    const r=await apiClient.put<ApiResponse<string>>(
+      `/api/v1/platform/managed-providers/sms/companies/${companyId}`,input)
+    return r.data.data
+  },
+  async metaReachCompanyApproval(companyId: string) {
+    const r=await apiClient.get<ApiResponse<{
+      companyId: string; peId: string; evidenceReference: string; active: boolean; approvedAt: string
+    } | null>>(`/api/v1/platform/managed-providers/sms/companies/${companyId}/approval`)
+    return r.data.data ?? null
+  },
+  async changeMetaReachCompanyApproval(companyId: string, input: {
+    active: boolean; peId: string; evidenceReference: string; reason: string
+  }) {
+    const r=await apiClient.put<ApiResponse<unknown>>(
+      `/api/v1/platform/managed-providers/sms/companies/${companyId}/approval`,input)
+    return r.data.data
+  },
+  async managedProviders() {
+    const r = await apiClient.get<ApiResponse<ManagedProviderRoute[]>>('/api/v1/platform/managed-providers')
+    if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to load managed providers')
+    return r.data.data
+  },
+  async changeManagedProvider(channel: string, input: { provider: string; expectedRevision: number; reason: string }) {
+    const r = await apiClient.put<ApiResponse<ManagedProviderRoute>>(`/api/v1/platform/managed-providers/${channel}`, input)
+    if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to change managed provider')
+    return r.data.data
+  },
   async me() {
     const response = await apiClient.get<ApiResponse<PlatformAccess>>('/api/v1/platform/me')
     if (!response.data.data)

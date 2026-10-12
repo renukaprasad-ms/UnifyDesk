@@ -13,7 +13,6 @@ import {
   FiSend,
   FiServer,
   FiSmartphone,
-  FiUsers,
 } from 'react-icons/fi'
 import { SiGmail } from 'react-icons/si'
 import { useLocation, useNavigate } from 'react-router'
@@ -21,8 +20,7 @@ import EmailProviderPicker from '../email/EmailProviderPicker'
 import ConversationList from '../inbox/ConversationList'
 import { channelApi } from '../../features/channel/channelApi'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
-import { fetchBroadcastGroups } from '../../store/broadcast/broadcastSlice'
-import type { BroadcastSender } from '../../features/broadcast/types'
+import type { BroadcastMessageSummary, BroadcastSender, Page } from '../../features/broadcast/types'
 import {
   broadcastSenderConnectionDetails,
   broadcastSenderProviderLabel,
@@ -97,8 +95,44 @@ const identityFallback = (connection: ChannelConnection) =>
 const emailProviderIcon = (providerType: string) => {
   if (providerType === 'GMAIL') return <SiGmail aria-hidden="true" />
   if (providerType === 'MICROSOFT') return <FiGrid aria-hidden="true" />
+  if (providerType === 'ZOHO_MAIL') {
+    return <span className="text-[10px] font-black leading-none" aria-hidden="true">Z</span>
+  }
   if (providerType === 'IMAP_SMTP') return <FiServer aria-hidden="true" />
   return <FiMail aria-hidden="true" />
+}
+
+const emptyBroadcastHistory = (): Page<BroadcastMessageSummary> => ({
+  content: [],
+  number: 0,
+  size: 30,
+  totalElements: 0,
+  totalPages: 0,
+  first: true,
+  last: true,
+})
+
+const broadcastHistoryTitle = (message: BroadcastMessageSummary, channel: ChannelType) =>
+  message.subject?.trim() ||
+  message.bodyPreview?.trim()?.slice(0, 58) ||
+  `${channelMeta[channel].label} broadcast`
+
+const broadcastStatusLabel = (status: BroadcastMessageSummary['status']) =>
+  status
+    .replaceAll('_', ' ')
+    .toLowerCase()
+    .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase())
+
+const broadcastHistoryDate = (value?: string | null) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date)
 }
 
 export default function ChannelContextSidebar({ mode, onNavigate }: ChannelContextSidebarProps) {
@@ -108,7 +142,6 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const workspaceScopeRef = useRef({ companyId, epoch: workspaceEpoch })
   workspaceScopeRef.current = { companyId, epoch: workspaceEpoch }
   const inbox = useAppSelector((state) => state.inbox)
-  const broadcast = useAppSelector((state) => state.broadcast)
   const { can } = useIam()
   const location = useLocation()
   const navigate = useNavigate()
@@ -120,6 +153,12 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const [senders, setSenders] = useState<Record<string, SenderIdentity[]>>({})
   const [broadcastSenders, setBroadcastSenders] = useState<BroadcastSender[]>([])
   const [broadcastSenderLoading, setBroadcastSenderLoading] = useState(false)
+  const [broadcastHistory, setBroadcastHistory] = useState<Page<BroadcastMessageSummary>>(
+    emptyBroadcastHistory,
+  )
+  const [broadcastHistoryLoading, setBroadcastHistoryLoading] = useState(false)
+  const [broadcastHistoryLoadingMore, setBroadcastHistoryLoadingMore] = useState(false)
+  const [broadcastSearch, setBroadcastSearch] = useState('')
   const [localLoading, setLocalLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -136,16 +175,12 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const selectedConnectionId = search.get('connectionId')
   const selectedSenderId = search.get('senderId')
   const selectedConversationId = search.get('conversationId')
-  const selectedGroupId = search.get('groupId')
-  const legacyBroadcastMode = search.get('legacy') === '1' || Boolean(selectedGroupId)
+  const selectedBroadcastId = search.get('broadcastId')
+  const creatingBroadcast = search.get('create') === '1'
   const selectedFolder = search.get('folder') === 'SENT' ? 'SENT' : 'INBOX'
 
   const emailMode = mode === 'inbox' && channelType === 'EMAIL'
   const broadcastMode = mode === 'broadcast'
-  const broadcastGroups =
-    broadcast.groupsCompanyId === companyId && broadcast.groupsChannelType === channelType
-      ? broadcast.groups
-      : []
   const emailConnections = inbox.connectionsCompanyId === companyId ? inbox.connections : []
   const connections = (
     channelType === 'EMAIL'
@@ -179,6 +214,14 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const visibleConversationTotalElements = searchActive
     ? searchTotalElements
     : conversationTotalElements
+  const normalizedBroadcastSearch = broadcastSearch.trim().toLowerCase()
+  const visibleBroadcasts = normalizedBroadcastSearch
+    ? broadcastHistory.content.filter((message) =>
+        [message.subject, message.bodyPreview, broadcastStatusLabel(message.status)]
+          .filter(Boolean)
+          .some((value) => value!.toLowerCase().includes(normalizedBroadcastSearch)),
+      )
+    : broadcastHistory.content
 
   useEffect(() => {
     if (!menuOpen) return
@@ -299,9 +342,41 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }, [broadcastMode, channelType, companyId, workspaceEpoch])
 
   useEffect(() => {
-    if (!companyId || !broadcastMode) return
-    void dispatch(fetchBroadcastGroups({ companyId, epoch: workspaceEpoch, channelType }))
-  }, [broadcastMode, channelType, companyId, dispatch])
+    if (!companyId || !broadcastMode) {
+      setBroadcastHistory(emptyBroadcastHistory())
+      setBroadcastHistoryLoading(false)
+      setBroadcastSearch('')
+      return
+    }
+
+    let active = true
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
+    const current = () =>
+      active &&
+      isWorkspaceEpochCurrent(
+        token,
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      )
+
+    setBroadcastHistoryLoading(true)
+    setBroadcastSearch('')
+    broadcastApi
+      .channelHistory(companyId, channelType, 0, 30)
+      .then((page) => {
+        if (current()) setBroadcastHistory(page)
+      })
+      .catch((requestError) => {
+        if (current()) setError(apiErrorMessage(requestError, 'Unable to load broadcast history'))
+      })
+      .finally(() => {
+        if (current()) setBroadcastHistoryLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [broadcastMode, channelType, companyId, creatingBroadcast, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !emailMode || !selectedConnectionId) {
@@ -464,6 +539,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     return result
   }, [broadcastMode, broadcastSenders, channelType, connections, senders])
 
+  const emailOnboarding = emailMode && !loading && identities.length === 0
+
   const selectedItem = useMemo(
     () =>
       identities.find(
@@ -539,68 +616,86 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     if (
       !desktop ||
       !broadcastMode ||
-      !legacyBroadcastMode ||
-      selectedGroupId ||
-      broadcastGroups.length === 0
+      creatingBroadcast ||
+      selectedBroadcastId ||
+      broadcastHistoryLoading ||
+      broadcastHistory.content.length === 0
     ) {
       return
     }
 
     const params = new URLSearchParams(location.search)
-    params.set('groupId', broadcastGroups[0].id)
-    params.delete('broadcastId')
-    params.delete('compose')
+    params.set('broadcastId', broadcastHistory.content[0].id)
+    params.delete('create')
+    params.delete('view')
+    params.delete('legacy')
+    params.delete('groupId')
     params.delete('newGroup')
+    params.delete('editGroup')
     navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true })
   }, [
-    broadcastGroups,
+    broadcastHistory.content,
+    broadcastHistoryLoading,
     broadcastMode,
+    creatingBroadcast,
     desktop,
-    legacyBroadcastMode,
     location.pathname,
     location.search,
     navigate,
-    selectedGroupId,
+    selectedBroadcastId,
   ])
 
-  const selectBroadcastGroup = (groupId: string) => {
+  const selectBroadcast = (broadcastId: string) => {
     const params = new URLSearchParams(location.search)
-    params.set('groupId', groupId)
-    params.set('legacy', '1')
-    params.delete('broadcastId')
-    params.delete('compose')
+    params.set('broadcastId', broadcastId)
+    params.delete('create')
+    params.delete('view')
+    params.delete('legacy')
+    params.delete('groupId')
     params.delete('newGroup')
+    params.delete('editGroup')
+    params.delete('compose')
     navigate({ pathname: location.pathname, search: `?${params.toString()}` })
     onNavigate()
   }
 
-  const createBroadcastGroup = () => {
-    if (channelType === 'WHATSAPP') return
-    const params = new URLSearchParams(location.search)
-    params.set('newGroup', '1')
-    params.set('legacy', '1')
-    params.delete('broadcastId')
-    navigate({ pathname: location.pathname, search: `?${params.toString()}` })
-    onNavigate()
-  }
-
-  const loadMoreBroadcastGroups = () => {
+  const loadMoreBroadcastHistory = () => {
     if (
       !companyId ||
-      broadcast.loadingMoreGroups ||
-      broadcast.groupsPage + 1 >= broadcast.groupsTotalPages
+      broadcastHistoryLoadingMore ||
+      broadcastHistory.number + 1 >= broadcastHistory.totalPages
     ) {
       return
     }
-    void dispatch(
-      fetchBroadcastGroups({
-        companyId,
-        epoch: workspaceEpoch,
-        channelType,
-        page: broadcast.groupsPage + 1,
-        append: true,
-      }),
-    )
+
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
+    setBroadcastHistoryLoadingMore(true)
+    broadcastApi
+      .channelHistory(companyId, channelType, broadcastHistory.number + 1, 30)
+      .then((page) => {
+        if (
+          !isWorkspaceEpochCurrent(
+            token,
+            workspaceScopeRef.current.companyId,
+            workspaceScopeRef.current.epoch,
+          )
+        ) {
+          return
+        }
+        setBroadcastHistory((current) => ({
+          ...page,
+          content: [
+            ...current.content,
+            ...page.content.filter(
+              (next) => !current.content.some((item) => item.id === next.id),
+            ),
+          ],
+        }))
+      })
+      .catch((requestError) => {
+        setError(apiErrorMessage(requestError, 'Unable to load more broadcasts'))
+      })
+      .finally(() => setBroadcastHistoryLoadingMore(false))
   }
 
   const selectFolder = (folder: 'INBOX' | 'SENT') => {
@@ -701,7 +796,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           : null))
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className={`flex h-full min-h-0 flex-col ${emailMode ? 'context-email-layout' : ''}`}>
       <div className="admin-sidebar-header">
         <div className="min-w-0">
           <p className="eyebrow">{mode === 'inbox' ? 'INBOX' : 'BROADCAST'}</p>
@@ -713,7 +808,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       </div>
 
       {(!broadcastMode || channelType !== 'WHATSAPP') && (
-        <div className="mt-4">
+        <div className={emailMode ? 'mt-2' : 'mt-4'}>
           <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
             {broadcastMode
               ? 'Broadcast account'
@@ -726,7 +821,10 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
             <button
               type="button"
               className="workspace-switcher"
-              disabled={loading || (!broadcastMode && identities.length === 0)}
+              disabled={
+                loading ||
+                (!broadcastMode && channelType !== 'EMAIL' && identities.length === 0)
+              }
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((current) => !current)}
@@ -920,31 +1018,37 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
             )}
           </div>
 
+          {emailMode &&
+            companyId &&
+            connectAllowed &&
+            !loading &&
+            identities.length === 0 && (
+              <EmailProviderPicker
+                companyId={companyId}
+                returnTo={location.pathname}
+                label="Connect email account"
+                className="primary-button mt-2 w-full justify-center gap-2"
+                buttonIcon="mail"
+                onError={setError}
+                onConnected={() => {
+                  void dispatch(
+                    fetchEmailConnections({
+                      companyId,
+                      epoch: workspaceEpoch,
+                      force: true,
+                    }),
+                  )
+                }}
+              />
+            )}
+
           {effectiveError && (
             <p className="mt-3 px-1 text-xs leading-5 text-rose-600">{effectiveError}</p>
           )}
         </div>
       )}
 
-      {broadcastMode && legacyBroadcastMode && (
-        <div className="mt-4">
-          <button
-            type="button"
-            className="secondary-button w-full gap-2"
-            disabled={channelType === 'WHATSAPP' || !can(PERMISSIONS.BROADCAST_CREATE)}
-            onClick={createBroadcastGroup}
-          >
-            <FiPlus aria-hidden="true" />
-            <span>New legacy group</span>
-          </button>
-          <p className="mt-2 px-1 text-[10px] leading-4 text-slate-500">
-            Legacy groups are kept for existing history. New Broadcasts should use Contacts, Lists
-            or Segments.
-          </p>
-        </div>
-      )}
-
-      {emailMode && (
+      {emailMode && !emailOnboarding && (
         <div className="email-folder-switcher" role="tablist" aria-label="Email folders">
           <button
             type="button"
@@ -969,7 +1073,16 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </div>
       )}
 
-      <div className="context-conversation-section mt-4 flex min-h-0 flex-1 flex-col border-t border-slate-100 pt-4">
+      {emailOnboarding ? (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+          <FiMail className="mx-auto text-lg text-slate-400" aria-hidden="true" />
+          <p className="mt-2 text-xs font-semibold text-slate-700">Your Inbox starts here</p>
+          <p className="mt-1 text-[10px] leading-4 text-slate-500">
+            Connect an email account above. Folders and conversations will appear after the first sync.
+          </p>
+        </div>
+      ) : (
+      <div className={`context-conversation-section flex min-h-0 flex-1 flex-col border-t border-slate-100 ${emailMode ? 'mt-2 pt-2' : 'mt-4 pt-4'}`}>
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
             {emptyListLabel}
@@ -983,7 +1096,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
 
         {emailMode ? (
           <>
-            <label className="relative mb-3 block">
+            <label className="relative mb-2 block">
               <FiSearch
                 aria-hidden="true"
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -994,10 +1107,10 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                 onChange={(event) => setConversationSearch(event.target.value)}
                 placeholder="Search chats"
                 aria-label="Search inbox conversations"
-                className="form-input w-full py-2 pl-9 pr-3 text-xs"
+                className="form-input h-10 w-full py-2 pl-9 pr-3 text-xs"
               />
             </label>
-            <div className="-mx-3 min-h-0 flex-1 overflow-y-auto border-t border-slate-100">
+            <div className="context-conversation-scroll -mx-3 min-h-0 flex-1 overflow-y-auto border-t border-slate-100">
               <ConversationList
                 compact
                 conversations={visibleConversations}
@@ -1012,76 +1125,78 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
               />
             </div>
           </>
-        ) : broadcastMode && !legacyBroadcastMode ? (
-          <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-5">
-            <p className="text-xs font-semibold text-slate-800">Canonical audience</p>
-            <p className="mt-1 text-[11px] leading-5 text-slate-600">
-              Choose Contacts, a List or a Segment in the Broadcast composer. Recipient eligibility
-              is resolved server-side before launch.
-            </p>
-            {channelType !== 'WHATSAPP' && (
-              <button
-                type="button"
-                className="secondary-button mt-3 w-full"
-                onClick={() => {
-                  const params = new URLSearchParams(location.search)
-                  params.set('legacy', '1')
-                  navigate({ pathname: location.pathname, search: `?${params.toString()}` })
-                }}
-              >
-                View legacy group history
-              </button>
-            )}
-          </div>
         ) : broadcastMode ? (
-          <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-            {broadcast.groupsStatus === 'loading' && broadcastGroups.length === 0 ? (
-              <div className="px-2 py-3"><ListSkeleton rows={5} /></div>
-            ) : broadcastGroups.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
-                <FiUsers className="mx-auto text-2xl text-slate-300" aria-hidden="true" />
-                <p className="mt-3 text-xs font-semibold text-slate-700">No groups yet</p>
-                <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                  Create a reusable recipient group, then send broadcasts to it whenever needed.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-1.5">
-                {broadcastGroups.map((group) => (
-                  <button
-                    key={group.id}
-                    type="button"
-                    className={`broadcast-group-nav-item ${
-                      selectedGroupId === group.id ? 'is-active' : ''
-                    }`}
-                    onClick={() => selectBroadcastGroup(group.id)}
-                  >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-indigo-50 text-indigo-500">
-                      <FiUsers aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0 flex-1 text-left">
-                      <span className="block truncate text-xs font-semibold text-slate-800">
-                        {group.name}
+          <>
+            <label className="relative mb-3 block">
+              <FiSearch
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="search"
+                value={broadcastSearch}
+                onChange={(event) => setBroadcastSearch(event.target.value)}
+                placeholder="Search broadcasts"
+                aria-label="Search broadcast history"
+                className="form-input w-full py-2 pl-9 pr-3 text-xs"
+              />
+            </label>
+            <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+              {broadcastHistoryLoading && broadcastHistory.content.length === 0 ? (
+                <div className="px-2 py-3"><ListSkeleton rows={6} /></div>
+              ) : visibleBroadcasts.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
+                  <FiSend className="mx-auto text-2xl text-slate-300" aria-hidden="true" />
+                  <p className="mt-3 text-xs font-semibold text-slate-700">
+                    {normalizedBroadcastSearch ? 'No matching broadcasts' : 'No broadcasts yet'}
+                  </p>
+                  <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                    {normalizedBroadcastSearch
+                      ? 'Try another search.'
+                      : 'New broadcasts will appear here after you create them.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-1.5">
+                  {visibleBroadcasts.map((message) => (
+                    <button
+                      key={message.id}
+                      type="button"
+                      className={`broadcast-group-nav-item ${
+                        selectedBroadcastId === message.id ? 'is-active' : ''
+                      }`}
+                      onClick={() => selectBroadcast(message.id)}
+                    >
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-indigo-50 text-indigo-500">
+                        <FiSend aria-hidden="true" />
                       </span>
-                      <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                        {group.memberCount.toLocaleString()} recipients
+                      <span className="min-w-0 flex-1 text-left">
+                        <span className="block truncate text-xs font-semibold text-slate-800">
+                          {broadcastHistoryTitle(message, channelType)}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-1.5 text-[10px] font-medium text-slate-500">
+                          <span className="truncate">{broadcastStatusLabel(message.status)}</span>
+                          <span aria-hidden="true">·</span>
+                          <span className="shrink-0">{broadcastHistoryDate(message.scheduledAt || message.createdAt)}</span>
+                        </span>
                       </span>
-                    </span>
-                  </button>
-                ))}
-                {broadcast.groupsPage + 1 < broadcast.groupsTotalPages && (
-                  <button
-                    type="button"
-                    className="secondary-button mt-2 w-full"
-                    onClick={loadMoreBroadcastGroups}
-                    disabled={broadcast.loadingMoreGroups}
-                  >
-                    {broadcast.loadingMoreGroups ? 'Loading…' : 'Load more'}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+                    </button>
+                  ))}
+                  {broadcastHistory.number + 1 < broadcastHistory.totalPages &&
+                    !normalizedBroadcastSearch && (
+                      <button
+                        type="button"
+                        className="secondary-button mt-2 w-full"
+                        onClick={loadMoreBroadcastHistory}
+                        disabled={broadcastHistoryLoadingMore}
+                      >
+                        {broadcastHistoryLoadingMore ? 'Loading…' : 'Load older broadcasts'}
+                      </button>
+                    )}
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
             <p className="text-xs font-semibold text-slate-700">
@@ -1093,6 +1208,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           </div>
         )}
       </div>
+      )}
 
       {!broadcastMode && channelType !== 'EMAIL' && connectAllowed && (
         <div className="mt-4 border-t border-slate-100 pt-4">

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.contacts.core.api.ContactDtos.ContactDashboardSummary;
 import com.messaging.contacts.core.api.ContactDtos.ContactDetail;
 import com.messaging.contacts.core.api.ContactDtos.ContactSummary;
 import com.messaging.contacts.core.api.ContactDtos.CustomFieldApiType;
@@ -52,6 +53,23 @@ class ContactApiContractTests {
 
     assertThat(componentNames).contains("preferenceSummary");
     assertThat(componentType(ContactSummary.class, "preferenceSummary")).isEqualTo(java.util.Map.class);
+  }
+
+  @Test
+  void dashboardSummaryExposesExactContactAndSubscriptionMetrics() {
+    List<String> componentNames =
+        Arrays.stream(ContactDashboardSummary.class.getRecordComponents())
+            .map(RecordComponent::getName)
+            .toList();
+
+    assertThat(componentNames)
+        .contains(
+            "totalContacts",
+            "newContacts30d",
+            "emailSubscribers",
+            "smsSubscribers",
+            "whatsappSubscribers",
+            "growth");
   }
 
   @Test

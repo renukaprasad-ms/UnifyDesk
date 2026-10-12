@@ -10,6 +10,7 @@ import com.messaging.channel.enums.ChannelType;
  */
 public enum BroadcastSenderProvider {
   AMAZON_SES,
+  UNIFYDESK_EMAIL,
   AZURE_EMAIL,
   SENDGRID,
   MSG91_EMAIL,
@@ -24,13 +25,14 @@ public enum BroadcastSenderProvider {
     return switch (this) {
       case MSG91_SMS -> ChannelType.SMS;
       case META_WHATSAPP -> ChannelType.WHATSAPP;
-      case AMAZON_SES, AZURE_EMAIL, SENDGRID, MSG91_EMAIL, GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
+      case AMAZON_SES, UNIFYDESK_EMAIL, AZURE_EMAIL, SENDGRID, MSG91_EMAIL, GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
           ChannelType.EMAIL;
     };
   }
 
   public boolean isBroadcastProvider() {
-    return this == AMAZON_SES
+    return this == UNIFYDESK_EMAIL
+        || this == AMAZON_SES
         || this == AZURE_EMAIL
         || this == SENDGRID
         || this == MSG91_EMAIL
@@ -39,7 +41,8 @@ public enum BroadcastSenderProvider {
   }
 
   public boolean isBulkProvider() {
-    return this == AMAZON_SES
+    return this == UNIFYDESK_EMAIL
+        || this == AMAZON_SES
         || this == AZURE_EMAIL
         || this == SENDGRID
         || this == MSG91_EMAIL;

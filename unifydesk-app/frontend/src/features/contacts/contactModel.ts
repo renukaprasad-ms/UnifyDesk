@@ -1,4 +1,5 @@
 import type {
+  ContactChannel,
   ContactDetail,
   ContactExportField,
   ContactPatchInput,
@@ -8,12 +9,21 @@ import type {
   ContactSummary,
   ContactWriteInput,
   ConsentImportDeclaration,
+  PreferenceState,
   ConsentImportMapping,
   CursorPage,
   ImportCommitInput,
   ImportFieldMapping,
   ImportFieldTarget,
 } from './types'
+
+export type ContactMarketingPreferences = Record<ContactChannel, PreferenceState>
+
+export const emptyContactMarketingPreferences: ContactMarketingPreferences = {
+  EMAIL: 'UNKNOWN',
+  SMS: 'UNKNOWN',
+  WHATSAPP: 'UNKNOWN',
+}
 
 export type ContactFormDraft = {
   displayName: string
@@ -52,7 +62,6 @@ export const parseContactSearchStatus = (value: string | null): ContactSearchSta
 
 export const validateContactDraft = (draft: ContactFormDraft, validateIdentities = true) => {
   const errors: Partial<Record<keyof ContactFormDraft, string>> = {}
-  if (!draft.displayName.trim()) errors.displayName = 'Display name is required.'
   if (draft.displayName.trim().length > 160) errors.displayName = 'Display name is too long.'
   if (
     validateIdentities &&
@@ -67,6 +76,13 @@ export const validateContactDraft = (draft: ContactFormDraft, validateIdentities
   return errors
 }
 
+const effectiveDisplayName = (draft: ContactFormDraft) =>
+  draft.displayName.trim() ||
+  [draft.firstName.trim(), draft.lastName.trim()].filter(Boolean).join(' ') ||
+  draft.email.trim() ||
+  draft.phone.trim() ||
+  'Contact'
+
 export const toCreateContactInput = (draft: ContactFormDraft): ContactWriteInput => {
   const identities: NonNullable<ContactWriteInput['identities']> = []
   if (draft.email.trim()) {
@@ -76,7 +92,7 @@ export const toCreateContactInput = (draft: ContactFormDraft): ContactWriteInput
     identities.push({ type: 'PHONE', value: draft.phone.trim(), primary: true })
   }
   return {
-    displayName: draft.displayName.trim(),
+    displayName: effectiveDisplayName(draft),
     firstName: draft.firstName.trim() || null,
     lastName: draft.lastName.trim() || null,
     organization: draft.organization.trim() || null,
@@ -90,7 +106,7 @@ export const toPatchContactInput = (
   version: number,
 ): ContactPatchInput => ({
   version,
-  displayName: draft.displayName.trim(),
+  displayName: effectiveDisplayName(draft),
   firstName: draft.firstName.trim() || null,
   lastName: draft.lastName.trim() || null,
   organization: draft.organization.trim() || null,

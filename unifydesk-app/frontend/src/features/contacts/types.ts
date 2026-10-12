@@ -5,6 +5,20 @@ export type CursorPage<T> = {
 }
 
 export type ContactChannel = 'EMAIL' | 'SMS' | 'WHATSAPP'
+
+export type ContactGrowthPoint = {
+  date: string
+  added: number
+}
+
+export type ContactDashboardSummary = {
+  totalContacts: number
+  newContacts30d: number
+  emailSubscribers: number
+  smsSubscribers: number
+  whatsappSubscribers: number
+  growth: ContactGrowthPoint[]
+}
 export type PreferenceState = 'UNKNOWN' | 'OPTED_IN' | 'OPTED_OUT'
 export type ContactSort = 'UPDATED_DESC' | 'CREATED_DESC' | 'NAME_ASC'
 export type ContactStatus = 'ACTIVE' | 'DELETED' | 'MERGED'

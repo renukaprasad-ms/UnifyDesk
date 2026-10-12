@@ -1,0 +1,5 @@
+# /etc/unifydesk-mail/inbound-curl.conf
+# Staging SAMPLE only. 0400, owner udmail-inbound, never committed with values.
+# URL is pinned to an on-node, private HTTP endpoint in the pipe script.
+header = "Authorization: Bearer REPLACE_WITH_EMAIL_PROVIDER_INTERNAL_API_TOKEN"
+# Do not place delivery recipient, queue ID or customer data in this file.

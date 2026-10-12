@@ -6,9 +6,11 @@ import java.util.Set;
 public enum ProviderType {
   GMAIL(ChannelType.EMAIL, ChannelConnectionCapability.INBOX),
   MICROSOFT(ChannelType.EMAIL, ChannelConnectionCapability.INBOX),
+  ZOHO_MAIL(ChannelType.EMAIL, ChannelConnectionCapability.INBOX),
   IMAP_SMTP(ChannelType.EMAIL, ChannelConnectionCapability.INBOX),
   SMTP(ChannelType.EMAIL, ChannelConnectionCapability.INBOX),
   AMAZON_SES(ChannelType.EMAIL, ChannelConnectionCapability.BROADCAST),
+  UNIFYDESK_EMAIL(ChannelType.EMAIL, ChannelConnectionCapability.BROADCAST),
   AZURE_EMAIL(ChannelType.EMAIL, ChannelConnectionCapability.BROADCAST),
   SENDGRID(ChannelType.EMAIL, ChannelConnectionCapability.BROADCAST),
   META_WHATSAPP(

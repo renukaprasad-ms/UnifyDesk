@@ -20,6 +20,7 @@ import type {
   ConnectMsg91EmailInput,
   ConnectMsg91Input,
   ConnectSendGridInput,
+  ConnectUnifyDeskEmailInput,
   ChannelReadiness,
   CreateAudienceBroadcastMessageInput,
   CreateBroadcastGroupInput,
@@ -61,6 +62,14 @@ export const broadcastApi = {
   async connectAmazonSes(companyId: string, input: ConnectAmazonSesInput) {
     const response = await apiClient.post<ApiResponse<BroadcastSender>>(
       `/api/v1/companies/${companyId}/broadcast/senders/amazon-ses`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async connectUnifyDeskEmail(companyId: string, input: ConnectUnifyDeskEmailInput) {
+    const response = await apiClient.post<ApiResponse<BroadcastSender>>(
+      `/api/v1/companies/${companyId}/broadcast/senders/unifydesk-email`,
       input,
     )
     return unwrap(response.data)
@@ -198,6 +207,14 @@ export const broadcastApi = {
     const response = await apiClient.get<ApiResponse<Page<BroadcastMessageSummary>>>(
       `/api/v1/companies/${companyId}/broadcast/groups/${groupId}/messages`,
       { params: { page, size } },
+    )
+    return unwrap(response.data)
+  },
+
+  async channelHistory(companyId: string, channelType: ChannelType, page = 0, size = 30) {
+    const response = await apiClient.get<ApiResponse<Page<BroadcastMessageSummary>>>(
+      `/api/v1/companies/${companyId}/broadcast/messages`,
+      { params: { channelType, page, size } },
     )
     return unwrap(response.data)
   },

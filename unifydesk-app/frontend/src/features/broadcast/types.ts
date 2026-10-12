@@ -47,6 +47,7 @@ export type BroadcastMemberImportResult = {
 
 export type BroadcastSenderProvider =
   | 'AMAZON_SES'
+  | 'UNIFYDESK_EMAIL'
   | 'AZURE_EMAIL'
   | 'SENDGRID'
   | 'MSG91_EMAIL'
@@ -82,6 +83,15 @@ export type UpsertBroadcastSetupSessionInput = {
   currentStep: number
   status: BroadcastSetupStatus
   setupDataJson?: string | null
+}
+
+export type ConnectUnifyDeskEmailInput = {
+  name: string
+  apiKey: string
+  sendingDomainId: string
+  fromAddress: string
+  displayName?: string | null
+  replyToAddress?: string | null
 }
 
 export type ConnectSendGridInput = {
@@ -277,6 +287,7 @@ export type BroadcastMessageSummary = {
   audienceSourceType?: BroadcastAudienceSourceType | null
   audienceSourceId?: string | null
   audienceSnapshotId?: string | null
+  channelType?: ChannelType | null
   senderId?: string | null
   sourceTemplateId?: string | null
   sourceTemplateVersion?: number | null

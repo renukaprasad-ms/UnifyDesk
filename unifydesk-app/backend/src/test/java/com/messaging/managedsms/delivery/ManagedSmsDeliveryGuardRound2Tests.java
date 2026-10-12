@@ -17,7 +17,9 @@ class ManagedSmsDeliveryGuardRound2Tests {
       new ManagedSmsDeliveryGuard(
           mock(ManagedSmsRuntimeRepository.class),
           properties,
-          mock(ManagedSmsProviderSafetyService.class));
+          mock(ManagedSmsProviderSafetyService.class),
+          mock(org.springframework.jdbc.core.JdbcTemplate.class),
+          new com.messaging.managedsms.metareach.MetaReachProperties());
 
   @Test
   void activeStatusesStillFailWhenAnyComplianceFactExpires() {

@@ -2,6 +2,81 @@
 
 This directory is the isolated runtime stack for the first-party email platform.
 
+## Windows WSL2 + local k3d development
+
+You can run the entire **local outbound Email product development stack** inside
+Windows WSL2 via the k3d cluster you created. No native `k3s` executable is
+required inside WSL. The script detects a kubectl context starting in `k3d-`,
+builds with Docker, then uses `k3d image import` into that specific cluster.
+
+**Your current local cluster** is `k3d-unifydesk-local`. Use:
+
+```bash
+cd ~/projects/UnifyDesk/email-provider
+kubectl config current-context         # k3d-unifydesk-local
+docker info >/dev/null                  # Docker Desktop WSL integration enabled
+./tests/k8s-script-smoke.sh            # mocked shell tests, safe
+./k8s.sh validate
+./k8s.sh start                          # Docker build, k3d import, deploy all components
+./k8s.sh status
+./k8s.sh logs app 100
+```
+
+In **this mode**, the namespace `email-platform` contains:
+
+| Component | Role |
+|---|---|
+| `email-provider` | Standalone UnifyDesk Email Spring Boot API |
+| `email-console` | Separate React/Vite Nginx UI; proxies only console session APIs |
+| `email-postgres` | Local PostgreSQL 18 + PVC |
+| `email-redis` | Local Redis + PVC |
+| `email-kafka` | Local Kafka (when `EMAIL_PROVIDER_KAFKA_MODE=local`) |
+| `email-mailpit` | Local SMTP capture, test inbox, **never a public mail sender** |
+
+The k3d-only manifest `k8s/app-k3d.yaml` has `hostNetwork: false` and
+overrides `EMAIL_PROVIDER_SMTP_HOST=email-mailpit.email-platform.svc.cluster.local`
+and `EMAIL_PROVIDER_SMTP_PORT=1025`. The original `k8s/app.yaml` is unchanged
+for native K3s/Postfix deployment. The SMTP override wins over values in
+`.env`; you cannot accidentally route messages to a public SMTP server through
+the default k3d deployment. Mailpit's in-memory test inbox is not intended for
+persistent records or deliverability verification.
+
+Use separate terminals to open the two local UIs:
+
+```bash
+./k8s.sh port-forward                # localhost:18010/
+./k8s.sh mailpit                     # localhost:18025 — sandbox email inbox
+```
+
+Other supported local commands:
+
+```bash
+./k8s.sh restart app                 # rebuild + reimport, keep Postgres running
+./k8s.sh restart mailpit
+./k8s.sh stop                        # scales namespace workloads down, keeps PVCs
+./k8s.sh start                       # restores the same persisted data
+kubectl -n email-platform get pods -w
+kubectl -n email-platform describe pod -l app=email-provider
+```
+
+**Keep `EMAIL_PROVIDER_DELIVERY_ENABLED=false` initially**. After the Email
+API starts and you create a test project/domain, enabling it can hand off emails
+to **Mailpit only** for sandbox testing. This does *not* send external email,
+exercise Postfix queue IDs or prove bounces, complaint feedback, production DNS
+alignment, inbox placement, IP warm-up or real provider acceptance. Do not point
+`EMAIL_PROVIDER_SMTP_HOST` at a real SMTP service from this local environment.
+
+The k3d cluster itself runs as Docker containers. Removing the **entire k3d
+cluster** may destroy `local-path` PVC-backed development data; `./k8s.sh stop`
+does not remove the cluster or PVCs. Give Docker Desktop enough memory for
+Kafka, PostgreSQL, Redis, the email-provider JVM and mail capture (6 GiB+
+recommended for smoother local development).
+
+If Docker build fails because Maven or application code fails compilation,
+check its error separately; image import will run only after a successful build.
+
+The native K3s guidance below applies only to a dedicated mail server, **not WSL2**.
+
 ## Runtime boundary
 
 ```text
@@ -10,12 +85,13 @@ EC2 mail node
 │   └── Postfix
 └── K3s namespace: email-platform
     ├── email-provider
+    ├── email-console (React/Nginx)
     ├── email-postgres
     ├── email-redis
     └── email-kafka (optional/local mode)
 ```
 
-The main Messaging Kubernetes stack is not touched by these manifests or by `email-k8s.sh`.
+The main UnifyDesk App Kubernetes stack is not touched by these manifests or by `k8s.sh`. The older `email-k8s.sh` is a compatibility wrapper.
 
 ## Why Postfix stays on the host
 
@@ -32,8 +108,9 @@ cp .env.example .env
 # Edit all CHANGE_ME values.
 nano .env
 
-chmod +x email-k8s.sh
-./email-k8s.sh start
+chmod +x k8s.sh
+./k8s.sh validate
+./k8s.sh start
 ```
 
 Generate secrets with:
@@ -46,36 +123,77 @@ openssl rand -hex 32
 ## Commands
 
 ```bash
-./email-k8s.sh start
-./email-k8s.sh stop
+./k8s.sh start
+./k8s.sh stop
 
-./email-k8s.sh restart
-./email-k8s.sh restart app
-./email-k8s.sh restart postgres
-./email-k8s.sh restart redis
-./email-k8s.sh restart kafka
+./k8s.sh restart
+./k8s.sh restart app
+./k8s.sh restart postgres
+./k8s.sh restart redis
+./k8s.sh restart kafka
 
-./email-k8s.sh logs app
-./email-k8s.sh logs postgres 200
-./email-k8s.sh logs redis
-./email-k8s.sh logs kafka
+./k8s.sh logs app
+./k8s.sh logs postgres 200
+./k8s.sh logs redis
+./k8s.sh logs kafka
 
-./email-k8s.sh describe app
-./email-k8s.sh status
-./email-k8s.sh top
-./email-k8s.sh top 5
-./email-k8s.sh top 1 once
+./k8s.sh describe app
+./k8s.sh status
+./k8s.sh top
+./k8s.sh top 5
+./k8s.sh top 1 once
 
-./email-k8s.sh build
-./email-k8s.sh apply-env
+./k8s.sh build
+./k8s.sh apply-env
+./k8s.sh validate
+./k8s.sh port-forward 18010
 
-./email-k8s.sh clear-db
-./email-k8s.sh delete
+./k8s.sh clear-db
+./k8s.sh delete
 ```
 
-`clear-db` and `delete` require explicit confirmation.
+**`start` restores the workloads after `stop`**, including their persisted volumes. `restart` (all) rebuilds/redeploys backend and frontend, waiting for dependencies; it **does not restart Postgres**. `restart postgres` is the explicit database restart.
+
+`clear-db` and `delete` require explicit confirmation. `clear-db` also refuses to clear data while the email app is running; stop first and then run `clear-db`. It will temporarily start Postgres as needed.
 
 `delete` removes workloads but intentionally leaves PVCs in place so database/queue data is not silently destroyed.
+
+## Security, persistence and console access
+
+The script refuses placeholder DB/Redis/master-key credentials or a missing/short internal API token. Fill in `EMAIL_PROVIDER_INTERNAL_API_TOKEN` (32+ characters), `EMAIL_PROVIDER_MASTER_KEY` (base64 encoding of exactly 32 random bytes), and individual database/Redis credentials. If feedback is enabled, `EMAIL_PROVIDER_FEEDBACK_TOKEN` must also be 32+ characters. **Keep delivery disabled** with `EMAIL_PROVIDER_DELIVERY_ENABLED=false` until live Postfix/IP/DNS and compliance tests are complete. The example uses `FLYWAY_BASELINE_ON_MIGRATE=false` for safer fresh deployment.
+
+Generate secrets safely:
+
+```bash
+openssl rand -base64 32                 # master AES-256 key
+openssl rand -hex 32                    # internal API, feedback, unsubscribe keys (each unique)
+```
+
+PostgreSQL 18's default PGDATA is nested beneath `/var/lib/postgresql`. The manifest mounts the PVC at `/var/lib/postgresql` to ensure database data survives pod replacement. **If you already initialized a cluster with the previous mount, back up and inspect its actual PGDATA before applying this change**. A PVC alone does not mean the original database files were persisted.
+
+The script proactively **blocks an automatic update** when an existing `email-postgres` StatefulSet still mounts `/var/lib/postgresql/data`. Restore or migrate the old cluster's actual PGDATA first, then explicitly apply the new `k8s/postgres.yaml` after the data has been secured. This check is not a substitute for verifying recovery from backup.
+
+The Email product HTTP API is ClusterIP-only. For **local-only** access to the independent console:
+
+```bash
+./k8s.sh port-forward
+# open http://127.0.0.1:18010/
+```
+
+Do not expose `/internal/v1/` over a public ingress. Postfix stays on the host, outside Kubernetes; the email pod uses `hostNetwork: true`, so firewall/restrict **host TCP 8010**. K3s must run on the dedicated mail node (Postfix reachable on host loopback). The script never configures a Postfix open relay, routes public email traffic, or opens port 25.
+
+`EMAIL_PROVIDER_KAFKA_MODE=external` does not delete a previously-created local Kafka deployment automatically, avoiding unintended queue loss. Clean up local Kafka separately after migrating data.
+
+## Local smoke check (no Kubernetes changes)
+
+```bash
+./tests/k8s-script-smoke.sh
+```
+
+The smoke check uses temporary fake `kubectl`, `docker`, and `k3s` binaries to
+validate script syntax, configuration security, service scaling and database restart
+safety without accessing your cluster. It does **not** test the actual Docker image
+build, Postfix, real Postgres persistence, or Kubernetes rollout.
 
 ## Kafka mode
 
@@ -104,7 +222,7 @@ The manifests are deliberately conservative for a 2-vCPU / 2-GiB test node:
 - Redis: 96 MiB max data, 160 MiB pod limit
 - Kafka: 256 MiB heap, 512 MiB pod limit
 
-This is suitable for controlled development/testing, not unrestricted high-volume sending. Monitor `./email-k8s.sh top`; move to a 4-GiB+ instance before sustained traffic.
+This is suitable for controlled development/testing, not unrestricted high-volume sending. Monitor `./k8s.sh top`; move to a 4-GiB+ instance before sustained traffic.
 
 ## SMTP validation
 
@@ -115,3 +233,34 @@ EMAIL_PROVIDER_VALIDATION_SMTP_ENABLED=false
 ```
 
 until a dedicated validator IP/node exists. Recipient probing must not use the production sending IP.
+
+## Why Flyway is necessary
+
+`SPRING_JPA_HIBERNATE_DDL_AUTO=validate` intentionally refuses to run if a
+migration-created table is missing (for example `dkim_keys`). Spring Boot 4
+requires **`spring-boot-starter-flyway`** for migration auto-configuration;
+`org.flywaydb:flyway-core` by itself is not sufficient in the modular starter
+architecture. Keep `flyway-database-postgresql` for PostgreSQL.
+
+On a *new* empty database the application applies the versioned migrations
+from `src/main/resources/db/migration/` (starting with `V1`), then Hibernate
+validates tables. On an existing database, Flyway uses its schema history to
+apply pending migrations; **do not delete or rewrite migration history** to
+work around a startup error. Migrations and credentials must be tested before
+any production rollout.
+
+To inspect the schema version on the local k3d PostgreSQL pod **without
+revealing the database password** (the DB pod has a local Unix socket):
+
+```bash
+kubectl -n email-platform exec email-postgres-0 -- sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT installed_rank, version, description, success FROM flyway_schema_history ORDER BY installed_rank;"'
+```
+
+If the history table is missing, the CLI may report `relation does not exist`
+until the newly configured Flyway starter completes its first migration. This
+is not a reason to reset persistent volumes.
+
+## Split applications
+
+The Spring Boot build lives at `backend/` and the React/Vite Nginx build at `frontend/`. The root `k8s.sh` handles both. Use `./k8s.sh restart frontend` to redeploy only the React console; `./k8s.sh restart app` rebuilds only Spring Boot. `./k8s.sh port-forward` serves the React UI at `http://127.0.0.1:18010/`. Use `./k8s.sh api-port-forward` for the **loopback-only** backend on port 18012. See the root README for operator-controlled onboarding.

@@ -199,6 +199,14 @@ public class BroadcastMessageService {
   }
 
   @Transactional(readOnly = true)
+  public Page<BroadcastMessageSummaryResponse> listByChannel(
+      Long companyId, ChannelType channelType, Pageable pageable) {
+    return messageRepository
+        .findByCompanyIdAndChannelTypeOrderByCreatedAtDesc(companyId, channelType, pageable)
+        .map(this::summary);
+  }
+
+  @Transactional(readOnly = true)
   public BroadcastMessageResponse get(Long companyId, Long broadcastId) {
     return response(require(companyId, broadcastId));
   }

@@ -88,6 +88,9 @@ export default function ManagedSmsPanel({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-bold text-slate-950">UnifyDesk Managed SMS</h2>
+            <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[9px] font-bold text-white">
+              RECOMMENDED
+            </span>
             {status && <ManagedSmsStatusBadge state={status.state} />}
           </div>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">

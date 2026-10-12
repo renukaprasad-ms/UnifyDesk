@@ -166,6 +166,30 @@ public class NotificationEventRecorder {
         occurredAt == null ? Instant.now() : occurredAt);
   }
 
+  @Transactional(propagation = Propagation.MANDATORY)
+  public long recordCrmTaskDue(
+      long taskId, long companyId, long assigneeId, long generation, String taskTitle) {
+    String safeTitle = taskTitle == null
+        ? "Customer follow-up"
+        : taskTitle.replaceAll("[\\p{Cntrl}]+", " ").trim();
+    if (safeTitle.isBlank()) safeTitle = "Customer follow-up";
+    if (safeTitle.length() > 160) safeTitle = safeTitle.substring(0, 160).trim();
+    return record(
+        "crm.task.due:" + taskId + ":" + generation,
+        "crm.task.due",
+        companyId,
+        null,
+        "USER",
+        assigneeId,
+        "crm.task.read",
+        "CRM_TASK",
+        Long.toString(taskId),
+        null,
+        Map.of("taskId", Long.toString(taskId), "taskTitle", safeTitle,
+            "generation", Long.toString(generation)),
+        Instant.now());
+  }
+
   private long record(
       String eventKey,
       String eventType,

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
+import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { channelApi } from '../../features/channel/channelApi'
@@ -94,6 +95,13 @@ const activeConnection = {
   nextAction: 'NONE' as const,
 }
 
+const renderConnections = () =>
+  render(
+    <MemoryRouter initialEntries={['/company/connections?section=whatsapp']}>
+      <CompanyConnections />
+    </MemoryRouter>,
+  )
+
 describe('CompanyConnections WhatsApp onboarding', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -111,7 +119,7 @@ describe('CompanyConnections WhatsApp onboarding', () => {
   })
 
   it('does not mint signup state on page load and obtains a fresh session for each explicit connect', async () => {
-    render(<CompanyConnections />)
+    renderConnections()
 
     await waitFor(() => expect(channelApi.list).toHaveBeenCalled())
     expect(metaWhatsAppApi.connection).toHaveBeenCalledWith('company-1')
@@ -157,7 +165,7 @@ describe('CompanyConnections WhatsApp onboarding', () => {
       nextAction: 'NONE',
     })
 
-    render(<CompanyConnections />)
+    renderConnections()
 
     vi.mocked(metaWhatsAppApi.reauthorizeSession).mockResolvedValue({
       ...signupSession,
@@ -200,7 +208,7 @@ describe('CompanyConnections WhatsApp onboarding', () => {
       state: 'reauthorize-state',
     })
 
-    render(<CompanyConnections />)
+    renderConnections()
 
     const reauthorize = await screen.findByRole('button', { name: /reauthorize/i })
     fireEvent.click(reauthorize)

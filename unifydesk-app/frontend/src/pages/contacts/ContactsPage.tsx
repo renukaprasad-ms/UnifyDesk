@@ -131,14 +131,14 @@ export default function ContactsPage() {
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
+      <div className="w-full">
         <ContactsNav />
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow">Audience</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Contacts</h1>
             <p className="mt-2 text-sm text-slate-500">
-              Keep customer details, permissions, Lists and Segments in one place.
+              Manage people, groups and communication permissions in one place.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -156,7 +156,7 @@ export default function ContactsPage() {
                   query.createdAfter ||
                   query.createdBefore,
                 )}
-                disabledReason="The frozen Round-1 export contract does not define arbitrary filtered Contact exports."
+                disabledReason="Clear the filters to export all contacts. Exporting a filtered result is not supported yet."
               />
             )}
             {can(PERMISSIONS.CONTACT_IMPORT) && (
@@ -250,7 +250,7 @@ export default function ContactsPage() {
                   setParams(next)
                 }}
               >
-                <option value="">Active/default</option>
+                <option value="">All active contacts</option>
                 <option value="ACTIVE">Active</option>
                 <option value="MERGED">Merged</option>
               </select>
@@ -310,7 +310,7 @@ export default function ContactsPage() {
                   className="font-semibold text-indigo-700 underline"
                   onClick={() => setAllMatching(true)}
                 >
-                  Select all matching results without enumerating contact IDs
+                  Select all contacts matching these filters
                 </button>
               </div>
             )}
@@ -482,6 +482,7 @@ export default function ContactsPage() {
           title="Create contact"
           initial={initialContactDraft}
           saving={saving}
+          showMarketingPermissions
           onClose={() => {
             setCreating(false)
             if (createFromInbox) {
@@ -494,17 +495,32 @@ export default function ContactsPage() {
               }, { replace: true })
             }
           }}
-          onSubmit={(draft) => {
+          onSubmit={(draft, marketing) => {
             if (!companyId) return
             const scope = captureScope()
             setSaving(true)
             setError('')
             contactsApi
               .create(companyId, toCreateContactInput(draft))
-              .then(async () => {
+              .then(async (created) => {
+                if (!scopeIsCurrent(scope)) return
+
+                let preferenceWarning = ''
+                try {
+                  await contactsApi.applyMarketingPreferences(
+                    companyId,
+                    created.id,
+                    marketing,
+                    'Recorded while creating the contact in UnifyDesk.',
+                  )
+                } catch {
+                  preferenceWarning =
+                    ' Contact was created, but one or more marketing permissions could not be saved.'
+                }
+
                 if (!scopeIsCurrent(scope)) return
                 setCreating(false)
-                setNotice('Contact created.')
+                setNotice('Contact created.' + preferenceWarning)
                 await contacts.refresh()
               })
               .catch((actionError) => {

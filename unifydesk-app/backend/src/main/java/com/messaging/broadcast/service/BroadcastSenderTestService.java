@@ -36,6 +36,12 @@ public class BroadcastSenderTestService {
   public BroadcastTestEmailResponse sendTestEmail(
       Long companyId, Long senderId, SendBroadcastTestEmailRequest request) {
     BroadcastSender sender = senderService.requireActive(companyId, senderId);
+    // Independent UnifyDesk Email's public API currently enforces marketing opt-in.
+    // A manually typed test address has no verified Contacts consent identity.
+    if (sender.getProvider() == BroadcastSenderProvider.UNIFYDESK_EMAIL) {
+      throw new BadRequestException(
+          "Use an opted-in Contacts audience for UnifyDesk Email testing");
+    }
     if (sender.getProvider().channelType() != ChannelType.EMAIL) {
       throw new BadRequestException("Test email is only available for email Broadcast providers");
     }

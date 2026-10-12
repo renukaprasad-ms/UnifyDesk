@@ -54,6 +54,7 @@ public class SecurityConfig {
                         "/api/v1/webhooks/meta/ads",
                         "/api/v1/webhooks/microsoft",
                         "/api/v1/webhooks/google/gmail",
+                        "/api/v1/webhooks/zoho-mail/*",
                         "/api/v1/webhooks/managed-email/ses",
                         "/api/v1/webhooks/cashfree",
                         "/api/v1/public/recipient-actions/email/unsubscribe/*"))
@@ -77,11 +78,13 @@ public class SecurityConfig {
                         "/api/v1/webhooks/meta/ads",
                         "/api/v1/webhooks/microsoft",
                         "/api/v1/webhooks/google/gmail",
+                        "/api/v1/webhooks/zoho-mail/*",
                         "/api/v1/webhooks/managed-email/ses",
                         "/api/v1/webhooks/cashfree",
                         "/api/v1/public/recipient-actions/email/unsubscribe/*",
                         "/api/v1/oauth/gmail/callback",
                         "/api/v1/oauth/microsoft/callback",
+                        "/api/v1/oauth/zoho-mail/callback",
                         "/api/v1/oauth/meta-ads/callback",
                         "/api/v1/oauth/google-ads/callback",
                         "/api/v1/email-assets/**")

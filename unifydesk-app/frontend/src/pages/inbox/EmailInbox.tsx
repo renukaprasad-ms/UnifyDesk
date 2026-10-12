@@ -13,14 +13,24 @@ import {
   FiX,
 } from 'react-icons/fi'
 import ConversationList from '../../components/inbox/ConversationList'
+import ContactRecipientInput from '../../components/inbox/ContactRecipientInput'
+import ContactFormDialog from '../../components/contacts/ContactFormDialog'
+import EmailProviderPicker from '../../components/email/EmailProviderPicker'
 import { conversationParticipant } from '../../components/inbox/conversationListUtils'
 import WhatsAppInbox from '../../components/whatsapp/WhatsAppInbox'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
+import { contactsApi } from '../../features/contacts/contactsApi'
+import {
+  emptyContactDraft,
+  toCreateContactInput,
+  type ContactFormDraft,
+} from '../../features/contacts/contactModel'
 import type { AsyncJob } from '../../features/asyncJob/types'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { imapSmtpApi } from '../../features/channel/imapSmtpApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
+import { zohoMailApi } from '../../features/channel/zohoMailApi'
 import type {
   EmailFolder,
   EmailSyncMode,
@@ -34,7 +44,6 @@ import type {
   InboxConversation,
   InboxEmailChangedEvent,
   InboxMessage,
-  InboxParticipant,
 } from '../../features/inbox/types'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -103,13 +112,6 @@ const forwardSubject = (subject?: string | null) => {
   return /^fwd?:/i.test(value) ? value : `Fwd: ${value || '(no subject)'}`
 }
 
-const createContactHref = (participant: InboxParticipant) => {
-  const params = new URLSearchParams({ new: '1' })
-  if (participant.participantType === 'EMAIL_ADDRESS') params.set('email', participant.address)
-  else params.set('phone', participant.address)
-  return `/contacts?${params.toString()}`
-}
-
 type ComposeAttachment = {
   clientId: string
   file: File
@@ -151,6 +153,9 @@ function EmailInboxView() {
   )
   const [syncing, setSyncing] = useState(false)
   const [sending, setSending] = useState(false)
+  const [contactCreateOpen, setContactCreateOpen] = useState(false)
+  const [contactCreateSaving, setContactCreateSaving] = useState(false)
+  const [createdInboxContactId, setCreatedInboxContactId] = useState<string | null>(null)
   const [readUpdatingConversationId, setReadUpdatingConversationId] = useState<string | null>(null)
   const [readUpdatingMessageId, setReadUpdatingMessageId] = useState<string | null>(null)
   const [markAllStarting, setMarkAllStarting] = useState(false)
@@ -226,6 +231,11 @@ function EmailInboxView() {
   )
 
   const selectedProviderType = selectedConnection?.providerType ?? null
+  const connectionsReady =
+    inbox.connectionsCompanyId === companyId &&
+    inbox.connectionsEpoch === workspaceEpoch &&
+    inbox.connectionsStatus === 'ready'
+  const noInboxConnections = connectionsReady && connections.length === 0
 
   const ownAddress = useMemo(() => {
     if (selectedConversation) {
@@ -249,6 +259,29 @@ function EmailInboxView() {
       null
     )
   }, [ownAddress, selectedConversation])
+
+  const contactCreateInitial = useMemo<ContactFormDraft | undefined>(() => {
+    if (!contactParticipant || contactParticipant.contactId) return undefined
+    return {
+      ...emptyContactDraft,
+      displayName: contactParticipant.displayName?.trim() || '',
+      email:
+        contactParticipant.participantType === 'EMAIL_ADDRESS'
+          ? contactParticipant.address
+          : '',
+      phone:
+        contactParticipant.participantType === 'PHONE_NUMBER'
+          ? contactParticipant.address
+          : '',
+    }
+  }, [contactParticipant])
+
+  const effectiveContactId = contactParticipant?.contactId ?? createdInboxContactId
+
+  useEffect(() => {
+    setCreatedInboxContactId(null)
+    setContactCreateOpen(false)
+  }, [selectedConversationId, workspaceEpoch])
 
   const loadConversations = useCallback(
     async (page = 0, append = false, force = false) => {
@@ -332,7 +365,7 @@ function EmailInboxView() {
       !companyId ||
       !selectedConnectionId ||
       !selectedProviderType ||
-      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedProviderType)
+      !['GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP'].includes(selectedProviderType)
     ) {
       setSyncJobs({})
       return
@@ -344,7 +377,9 @@ function EmailInboxView() {
         ? gmailApi.activeSync(companyId, selectedConnectionId)
         : selectedProviderType === 'MICROSOFT'
           ? microsoftApi.activeSync(companyId, selectedConnectionId)
-          : imapSmtpApi.activeSync(companyId, selectedConnectionId)
+          : selectedProviderType === 'ZOHO_MAIL'
+            ? zohoMailApi.activeSync(companyId, selectedConnectionId)
+            : imapSmtpApi.activeSync(companyId, selectedConnectionId)
 
     request
       .then((job) => {
@@ -363,7 +398,8 @@ function EmailInboxView() {
   useEffect(() => {
     const gmailResult = searchParams.get('gmail')
     const microsoftResult = searchParams.get('microsoft')
-    if (!gmailResult && !microsoftResult) return
+    const zohoResult = searchParams.get('zoho')
+    if (!gmailResult && !microsoftResult && !zohoResult) return
 
     if (gmailResult === 'connected') {
       snackbar.success('Gmail connected successfully')
@@ -381,9 +417,18 @@ function EmailInboxView() {
       snackbar.error('Unable to connect Microsoft 365. Please try again.')
     }
 
+    if (zohoResult === 'connected') {
+      snackbar.success('Zoho Mail connected successfully')
+    } else if (zohoResult === 'cancelled') {
+      snackbar.info('Zoho Mail connection was cancelled')
+    } else if (zohoResult) {
+      snackbar.error('Unable to connect Zoho Mail. Please try again.')
+    }
+
     const params = new URLSearchParams(searchParams)
     params.delete('gmail')
     params.delete('microsoft')
+    params.delete('zoho')
     setSearchParams(params, { replace: true })
     if (companyId) {
       void dispatch(fetchEmailConnections({ companyId, epoch: workspaceEpoch, force: true }))
@@ -520,6 +565,7 @@ function EmailInboxView() {
       if (
         job.jobType === 'GMAIL_SYNC' ||
         job.jobType === 'MICROSOFT_SYNC' ||
+        job.jobType === 'ZOHO_MAIL_SYNC' ||
         job.jobType === 'IMAP_SMTP_SYNC'
       ) {
         setSyncJobs((current) => {
@@ -605,7 +651,7 @@ function EmailInboxView() {
     }
     if (
       selectedConnection.status !== 'ACTIVE' ||
-      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
+      !['GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP'].includes(selectedConnection.providerType)
     ) {
       snackbar.info('The selected email account does not support sync.')
       return
@@ -622,7 +668,7 @@ function EmailInboxView() {
 
     if (
       selectedConnection.status !== 'ACTIVE' ||
-      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
+      !['GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP'].includes(selectedConnection.providerType)
     ) {
       snackbar.warning('The selected email account is not active.')
       return
@@ -664,7 +710,9 @@ function EmailInboxView() {
           ? await gmailApi.sync(companyId, selectedConnection.id, request)
           : selectedConnection.providerType === 'MICROSOFT'
             ? await microsoftApi.sync(companyId, selectedConnection.id, request)
-            : await imapSmtpApi.sync(companyId, selectedConnection.id, request)
+            : selectedConnection.providerType === 'ZOHO_MAIL'
+              ? await zohoMailApi.sync(companyId, selectedConnection.id, request)
+              : await imapSmtpApi.sync(companyId, selectedConnection.id, request)
       const job = await asyncJobApi.get(queued.jobId)
       setSyncJobs({ [job.jobId]: job })
       setShowSyncDialog(false)
@@ -1026,14 +1074,18 @@ function EmailInboxView() {
   const sendEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!companyId || !selectedConnection || sending) return
-    if (!['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)) {
+    if (!['GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP'].includes(selectedConnection.providerType)) {
       snackbar.warning('Sending is not available for the selected email provider.')
       return
     }
 
     const to = parseRecipients(composeTo)
-    const cc = parseRecipients(composeCc)
-    const bcc = parseRecipients(composeBcc)
+    const toSet = new Set(to)
+    const cc = parseRecipients(composeCc).filter((address) => !toSet.has(address))
+    const ccSet = new Set(cc)
+    const bcc = parseRecipients(composeBcc).filter(
+      (address) => !toSet.has(address) && !ccSet.has(address),
+    )
     if (to.length === 0 && cc.length === 0 && bcc.length === 0) {
       snackbar.warning('Add at least one To, CC, or BCC recipient.')
       return
@@ -1075,7 +1127,21 @@ function EmailInboxView() {
                 replyAll: composeMode === 'replyAll',
                 attachmentMediaIds,
               })
-            : await imapSmtpApi.send(companyId, selectedConnection.id, {
+            : selectedConnection.providerType === 'ZOHO_MAIL'
+              ? await zohoMailApi.send(companyId, selectedConnection.id, {
+                  to,
+                  cc,
+                  bcc,
+                  subject: composeSubject.trim(),
+                  bodyText: composeBody,
+                  replyToMessageId:
+                    composeMode === 'reply' || composeMode === 'replyAll'
+                      ? composeProviderMessageId || null
+                      : null,
+                  replyAll: composeMode === 'replyAll',
+                  attachmentMediaIds,
+                })
+              : await imapSmtpApi.send(companyId, selectedConnection.id, {
                 to,
                 cc,
                 bcc,
@@ -1105,6 +1171,7 @@ function EmailInboxView() {
     can(PERMISSIONS.EMAIL_SEND) &&
     (selectedConnection?.providerType === 'GMAIL' ||
       selectedConnection?.providerType === 'MICROSOFT' ||
+      selectedConnection?.providerType === 'ZOHO_MAIL' ||
       selectedConnection?.providerType === 'IMAP_SMTP')
 
   if (!companyId) {
@@ -1112,6 +1179,82 @@ function EmailInboxView() {
       <section className="px-6 py-8">
         <div className="panel p-8 text-center text-sm text-slate-500">
           Select a workspace to open the email inbox.
+        </div>
+      </section>
+    )
+  }
+
+  if (noInboxConnections) {
+    return (
+      <section className="channel-workspace-page">
+        <div className="channel-workspace-toolbar">
+          <div className="min-w-0">
+            <p className="eyebrow">INBOX</p>
+            <p className="mt-1 truncate text-xs font-semibold text-slate-700">Email</p>
+          </div>
+        </div>
+
+        <div className="channel-workspace-body">
+          <main className="channel-message-surface">
+            <div className="flex min-h-[calc(100dvh-210px)] items-center justify-center px-5 py-8 text-center sm:px-8">
+              <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
+                <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-indigo-50 text-2xl text-indigo-600">
+                  <FiMail aria-hidden="true" />
+                </span>
+                <p className="eyebrow mt-5">EMAIL INBOX</p>
+                <h1 className="mt-2 text-xl font-bold text-slate-950">Connect your email account</h1>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                  Bring your mailbox into UnifyDesk to read and reply to customer conversations
+                  from one shared workspace.
+                </p>
+
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  {['Gmail', 'Microsoft 365', 'Zoho Mail', 'IMAP + SMTP'].map((provider) => (
+                    <span
+                      key={provider}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600"
+                    >
+                      {provider}
+                    </span>
+                  ))}
+                </div>
+
+                {can(PERMISSIONS.EMAIL_CONNECT) ? (
+                  <div className="mx-auto mt-6 max-w-xs">
+                    <EmailProviderPicker
+                      companyId={companyId}
+                      returnTo="/inbox/email"
+                      label="Connect email account"
+                      className="primary-button w-full justify-center gap-2"
+                      buttonIcon="mail"
+                      onConnected={(connection) => {
+                        const params = new URLSearchParams(searchParams)
+                        params.set('connectionId', connection.connectionId)
+                        params.set('folder', 'INBOX')
+                        setSearchParams(params)
+                        void dispatch(
+                          fetchEmailConnections({
+                            companyId,
+                            epoch: workspaceEpoch,
+                            force: true,
+                          }),
+                        )
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-6 text-xs font-semibold text-slate-500">
+                    Ask a workspace administrator to connect an email account.
+                  </p>
+                )}
+
+                <p className="mt-4 text-[11px] leading-5 text-slate-400">
+                  After connection, UnifyDesk will sync your conversations and this screen will
+                  become your shared Inbox.
+                </p>
+              </div>
+            </div>
+          </main>
         </div>
       </section>
     )
@@ -1157,7 +1300,7 @@ function EmailInboxView() {
                 !selectedConnection ||
                 syncing ||
                 activeSyncJobs.length > 0 ||
-                !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
+                !['GMAIL', 'MICROSOFT', 'ZOHO_MAIL', 'IMAP_SMTP'].includes(selectedConnection.providerType)
               }
             >
               <FiMail aria-hidden="true" />
@@ -1241,38 +1384,53 @@ function EmailInboxView() {
               </p>
 
               <div className="mt-5 space-y-4">
-                <label className="block text-xs font-semibold text-slate-600">
-                  To
-                  <input
-                    type="text"
-                    className="form-input mt-1.5"
+                {companyId && (
+                  <ContactRecipientInput
+                    companyId={companyId}
+                    workspaceEpoch={workspaceEpoch}
+                    label="To"
                     value={composeTo}
-                    onChange={(event) => setComposeTo(event.target.value)}
-                    placeholder="one@example.com, two@example.com"
+                    onChange={setComposeTo}
+                    excludedEmails={[
+                      ...parseRecipients(composeTo),
+                      ...parseRecipients(composeCc),
+                      ...parseRecipients(composeBcc),
+                    ]}
+                    placeholder="Search contacts or type an email address"
                     autoFocus
                   />
-                </label>
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block text-xs font-semibold text-slate-600">
-                    CC
-                    <input
-                      type="text"
-                      className="form-input mt-1.5"
+                  {companyId && (
+                    <ContactRecipientInput
+                      companyId={companyId}
+                      workspaceEpoch={workspaceEpoch}
+                      label="CC"
                       value={composeCc}
-                      onChange={(event) => setComposeCc(event.target.value)}
-                      placeholder="cc@example.com"
+                      onChange={setComposeCc}
+                      excludedEmails={[
+                        ...parseRecipients(composeTo),
+                        ...parseRecipients(composeCc),
+                        ...parseRecipients(composeBcc),
+                      ]}
+                      placeholder="Search contacts or type an email"
                     />
-                  </label>
-                  <label className="block text-xs font-semibold text-slate-600">
-                    BCC
-                    <input
-                      type="text"
-                      className="form-input mt-1.5"
+                  )}
+                  {companyId && (
+                    <ContactRecipientInput
+                      companyId={companyId}
+                      workspaceEpoch={workspaceEpoch}
+                      label="BCC"
                       value={composeBcc}
-                      onChange={(event) => setComposeBcc(event.target.value)}
-                      placeholder="bcc@example.com"
+                      onChange={setComposeBcc}
+                      excludedEmails={[
+                        ...parseRecipients(composeTo),
+                        ...parseRecipients(composeCc),
+                        ...parseRecipients(composeBcc),
+                      ]}
+                      placeholder="Search contacts or type an email"
                     />
-                  </label>
+                  )}
                 </div>
                 <label className="block text-xs font-semibold text-slate-600">
                   Subject
@@ -1413,6 +1571,105 @@ function EmailInboxView() {
           </div>
         )}
 
+        <ContactFormDialog
+          open={contactCreateOpen}
+          title="Add sender to contacts"
+          initial={contactCreateInitial}
+          saving={contactCreateSaving}
+          showMarketingPermissions
+          onClose={() => {
+            if (!contactCreateSaving) setContactCreateOpen(false)
+          }}
+          onSubmit={(draft, marketing) => {
+            if (!companyId) return
+            const scope = workspaceEpochToken(companyId, workspaceEpoch)
+            setContactCreateSaving(true)
+
+            contactsApi
+              .create(companyId, toCreateContactInput(draft))
+              .then(async (created) => {
+                if (
+                  !isWorkspaceEpochCurrent(
+                    scope,
+                    workspaceScopeRef.current.companyId,
+                    workspaceScopeRef.current.epoch,
+                  )
+                ) {
+                  return
+                }
+
+                let preferenceWarning = false
+                try {
+                  await contactsApi.applyMarketingPreferences(
+                    companyId,
+                    created.id,
+                    marketing,
+                    'Recorded while adding an Inbox sender to Contacts.',
+                  )
+                } catch {
+                  preferenceWarning = true
+                }
+
+                if (
+                  !isWorkspaceEpochCurrent(
+                    scope,
+                    workspaceScopeRef.current.companyId,
+                    workspaceScopeRef.current.epoch,
+                  )
+                ) {
+                  return
+                }
+
+                setCreatedInboxContactId(created.id)
+                setContactCreateOpen(false)
+                if (preferenceWarning) {
+                  snackbar.warning(
+                    'Contact saved, but one or more marketing permissions could not be saved.',
+                  )
+                } else {
+                  snackbar.success('Contact saved.')
+                }
+
+                if (selectedConversationId) {
+                  try {
+                    await dispatch(
+                      fetchInboxConversationDetail({
+                        companyId,
+                        epoch: workspaceEpoch,
+                        conversationId: selectedConversationId,
+                      }),
+                    ).unwrap()
+                  } catch {
+                    // The contact is already saved and linked locally. A later Inbox refresh will
+                    // reconcile the canonical participant mapping.
+                  }
+                }
+              })
+              .catch((requestError) => {
+                if (
+                  isWorkspaceEpochCurrent(
+                    scope,
+                    workspaceScopeRef.current.companyId,
+                    workspaceScopeRef.current.epoch,
+                  )
+                ) {
+                  snackbar.error(apiErrorMessage(requestError, 'Unable to save contact'))
+                }
+              })
+              .finally(() => {
+                if (
+                  isWorkspaceEpochCurrent(
+                    scope,
+                    workspaceScopeRef.current.companyId,
+                    workspaceScopeRef.current.epoch,
+                  )
+                ) {
+                  setContactCreateSaving(false)
+                }
+              })
+          }}
+        />
+
         {showSyncDialog && (
           <div
             className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
@@ -1436,9 +1693,11 @@ function EmailInboxView() {
                 {' · '}
                 {selectedConnection?.providerType === 'MICROSOFT'
                   ? 'Microsoft'
-                  : selectedConnection?.providerType === 'IMAP_SMTP'
-                    ? 'IMAP + SMTP'
-                    : 'Gmail'}
+                  : selectedConnection?.providerType === 'ZOHO_MAIL'
+                    ? 'Zoho Mail'
+                    : selectedConnection?.providerType === 'IMAP_SMTP'
+                      ? 'IMAP + SMTP'
+                      : 'Gmail'}
               </p>
 
               <div className="mt-5">
@@ -1618,26 +1877,27 @@ function EmailInboxView() {
                     {selectedConversation && ownAddress ? ` · ${ownAddress}` : ''}
                   </p>
                 </div>
-                {contactParticipant?.contactId && can(PERMISSIONS.CONTACT_READ) && (
+                {effectiveContactId && can(PERMISSIONS.CONTACT_READ) && (
                   <Link
                     className="secondary-button shrink-0 gap-2 px-3"
-                    to={`/contacts/${contactParticipant.contactId}`}
+                    to={`/contacts/${effectiveContactId}`}
                   >
                     <FiUsers aria-hidden="true" />
                     <span className="hidden sm:inline">View contact</span>
                   </Link>
                 )}
                 {contactParticipant &&
-                  !contactParticipant.contactId &&
+                  !effectiveContactId &&
                   contactParticipant.contactResolution !== 'AMBIGUOUS' &&
                   can(PERMISSIONS.CONTACT_CREATE) && (
-                    <Link
+                    <button
+                      type="button"
                       className="secondary-button shrink-0 gap-2 px-3"
-                      to={createContactHref(contactParticipant)}
+                      onClick={() => setContactCreateOpen(true)}
                     >
                       <FiUsers aria-hidden="true" />
                       <span className="hidden sm:inline">Add to contacts</span>
-                    </Link>
+                    </button>
                   )}
                 {contactParticipant?.contactResolution === 'AMBIGUOUS' &&
                   can(PERMISSIONS.CONTACT_READ) && (

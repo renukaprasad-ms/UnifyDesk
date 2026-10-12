@@ -1,0 +1,9 @@
+# Postfix pgsql_table(5). Root/postfix readable, mode 0640.
+# Use a PRIVATE, read-only DB account and an internal TLS-protected or
+# loopback DB connection. Never expose your main DB on the public interface.
+hosts = 127.0.0.1
+user = udmail_postfix_ro
+password = REPLACE_WITH_RANDOM_READONLY_PASSWORD
+dbname = email_provider
+# Postfix pgsql %s expands to a properly SQL-quoted lookup parameter.
+query = SELECT '1' FROM email_mail_domains d JOIN email_product_organizations o ON o.id=d.organization_id WHERE d.domain_name=lower('%s') AND d.status='VERIFIED' AND d.inbound_enabled=TRUE AND o.status='ACTIVE' LIMIT 1

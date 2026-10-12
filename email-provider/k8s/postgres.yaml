@@ -98,7 +98,7 @@ spec:
               memory: 320Mi
           volumeMounts:
             - name: postgres-data
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql
   volumeClaimTemplates:
     - metadata:
         name: postgres-data
