@@ -7,10 +7,7 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
-import {
-  selectSelectedCompanyId,
-  selectWorkspaceEpoch,
-} from '../../store/workspace/workspaceSlice'
+import { selectSelectedCompanyId, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 import { ListSkeleton } from '../../components/ui/Skeleton'
 
@@ -81,7 +78,9 @@ export default function SegmentsPage() {
         )}
 
         {loading ? (
-          <div className="mt-6"><ListSkeleton rows={6} /></div>
+          <div className="mt-6">
+            <ListSkeleton rows={6} />
+          </div>
         ) : items.length === 0 ? (
           <div className="panel mt-6 p-10 text-center">
             <h2 className="font-bold text-slate-950">No Segments yet</h2>

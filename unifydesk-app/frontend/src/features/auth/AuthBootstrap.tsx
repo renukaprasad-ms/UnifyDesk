@@ -40,7 +40,7 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
               preferences?.appearanceMode ??
               readStoredAppearanceMode() ??
               user.appearanceMode ??
-              'LIGHT',
+              'SYSTEM',
           }),
         )
 

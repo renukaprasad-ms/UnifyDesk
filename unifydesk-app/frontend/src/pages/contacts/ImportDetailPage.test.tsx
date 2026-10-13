@@ -67,7 +67,7 @@ describe('ImportDetailPage', () => {
     expect(screen.getByLabelText('Import email as')).toHaveValue('IDENTITY:EMAIL')
     expect(screen.getByLabelText('Import phone as')).toHaveValue('IDENTITY:PHONE')
     expect(screen.getByLabelText('Import external_id as')).toHaveValue('IGNORE')
-    expect(screen.getByText(/Marketing permissions/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Marketing permissions' })).toBeInTheDocument()
   })
 
   it('allows explicit consent evidence mapping when marketing permissions are enabled', async () => {
@@ -82,7 +82,7 @@ describe('ImportDetailPage', () => {
 
     renderPage()
 
-    await screen.findByText(/Marketing permissions/i)
+    await screen.findByRole('heading', { name: 'Marketing permissions' })
 
     expect(screen.getByLabelText(/Import EMAIL marketing preference/i)).toBeChecked()
     expect(screen.getByText('Preference column')).toBeInTheDocument()
@@ -233,4 +233,23 @@ describe('ImportDetailPage', () => {
       'noopener,noreferrer',
     )
   })
+})
+
+it('stops preparing after a preview failure and lets the user retry the same uploaded file', async () => {
+  vi.mocked(contactsApi.getImport).mockResolvedValue({ id: 'import-1', status: 'UPLOADED' })
+  vi.mocked(contactsApi.previewImport)
+    .mockRejectedValueOnce(new Error('Server unavailable'))
+    .mockResolvedValueOnce({
+      headers: ['display_name', 'email'],
+      sampleRows: [['Test Contact', 'test@example.com']],
+    })
+  renderPage()
+  expect(await screen.findByRole('button', { name: 'Retry preview' })).toBeInTheDocument()
+  expect(screen.queryByText(/Preparing your CSV/)).toBeNull()
+  expect(screen.queryByRole('status', { name: 'Loading card' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Retry preview' }))
+  expect(await screen.findByLabelText('Import display_name as')).toBeInTheDocument()
+  expect(contactsApi.previewImport).toHaveBeenCalledTimes(2)
+  expect(contactsApi.getImport).toHaveBeenCalledTimes(2)
+  expect(screen.queryByRole('button', { name: 'Retry preview' })).toBeNull()
 })

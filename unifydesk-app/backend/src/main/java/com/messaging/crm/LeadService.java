@@ -44,7 +44,8 @@ public class LeadService {
   public record LeadSummary(long total, long newLeads, long qualified, long converted) {}
 
   public record StageEvent(
-      String id, Stage previousStage, Stage newStage, String actorUserId, Instant occurredAt) {}
+      String id, Stage previousStage, Stage newStage, String actorUserId, Instant occurredAt,
+      String actorName, String actorUsername) {}
 
   @Transactional
   public Lead enroll(long companyId, long contactId, long actorUserId) {
@@ -146,10 +147,12 @@ public class LeadService {
     get(companyId, contactId);
     return jdbc.query(
         """
-        select id, previous_stage, new_stage, actor_user_id, occurred_at
-        from crm_lead_stage_events
-        where company_id = ? and contact_id = ?
-        order by occurred_at desc, id desc
+        select event.id, event.previous_stage, event.new_stage, event.actor_user_id,
+          event.occurred_at, actor.name as actor_name, actor.username as actor_username
+        from crm_lead_stage_events event
+        left join users actor on actor.id = event.actor_user_id
+        where event.company_id = ? and event.contact_id = ?
+        order by event.occurred_at desc, event.id desc
         limit 100
         """,
         (rs, row) -> new StageEvent(
@@ -157,7 +160,9 @@ public class LeadService {
             rs.getString("previous_stage") == null ? null : Stage.valueOf(rs.getString("previous_stage")),
             Stage.valueOf(rs.getString("new_stage")),
             nullableId(rs, "actor_user_id"),
-            rs.getTimestamp("occurred_at").toInstant()),
+            rs.getTimestamp("occurred_at").toInstant(),
+            rs.getString("actor_name"),
+            rs.getString("actor_username")),
         companyId, contactId);
   }
 

@@ -5,6 +5,8 @@
 **Repository area:** unifydesk-app  
 **Target branch:** dev
 
+**Implementation update (2026-10-13):** The default Deals pipeline, unified Activities screen, internal notes, and basic Reports are now implemented. See [CRM Sales Workspace](CRM-SALES-WORKSPACE.md) for the current scope, permissions, migrations, and verification. The phases below remain the original product roadmap.
+
 ## 1. Product decision
 
 We will introduce a top-level **CRM** module in UnifyDesk instead of keeping **Contacts** as an isolated primary-navigation destination. The label will be **CRM**: it is short, recognizable to business users, and can accommodate Leads, Contacts, Companies, Deals, Tasks, Activities, and Reports.

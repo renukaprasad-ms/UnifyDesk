@@ -92,6 +92,12 @@ export const PERMISSIONS = {
   CRM_ACCOUNT_MODIFY: 'crm.account.modify',
   CRM_TASK_READ: 'crm.task.read',
   CRM_TASK_MODIFY: 'crm.task.modify',
+  CRM_TASK_WORKFLOW_MODIFY: 'crm.task.workflow.modify',
+  CRM_DEAL_READ: 'crm.deal.read',
+  CRM_DEAL_MODIFY: 'crm.deal.modify',
+  CRM_ACTIVITY_READ: 'crm.activity.read',
+  CRM_ACTIVITY_MODIFY: 'crm.activity.modify',
+  CRM_REPORT_READ: 'crm.report.read',
 
   SETTINGS_READ: 'settings.read',
   SETTINGS_MODIFY: 'settings.modify',

@@ -13,8 +13,15 @@
     <script>
       ;(() => {
         try {
-          const appearanceMode = window.localStorage.getItem('unifydesk.appearanceMode')
-          if (appearanceMode !== 'DARK') return
+          let appearanceMode = 'SYSTEM'
+          try {
+            appearanceMode = window.localStorage.getItem('unifydesk.appearanceMode') || 'SYSTEM'
+          } catch {}
+          const dark =
+            appearanceMode === 'DARK' ||
+            (appearanceMode !== 'LIGHT' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          if (!dark) return
 
           const root = document.documentElement
           root.dataset.colorScheme = 'dark'

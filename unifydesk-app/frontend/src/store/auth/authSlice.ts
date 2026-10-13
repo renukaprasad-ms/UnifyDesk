@@ -25,7 +25,7 @@ const authSlice = createSlice({
     setBootstrapped: (state) => {
       state.bootstrapped = true
     },
-    setAppearanceMode: (state, action: PayloadAction<'LIGHT' | 'DARK'>) => {
+    setAppearanceMode: (state, action: PayloadAction<'LIGHT' | 'DARK' | 'SYSTEM'>) => {
       if (state.user) state.user.appearanceMode = action.payload
     },
     sessionCleared: () => ({ ...initialState, bootstrapped: true }),

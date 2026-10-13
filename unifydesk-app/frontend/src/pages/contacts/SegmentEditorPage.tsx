@@ -1,3 +1,4 @@
+import { PageSkeleton, CardSkeleton } from '../../components/ui/Skeleton'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
@@ -24,10 +25,7 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import useBeforeUnloadGuard from '../../hooks/useBeforeUnloadGuard'
 import { useAppSelector } from '../../store/hooks'
-import {
-  selectSelectedCompanyId,
-  selectWorkspaceEpoch,
-} from '../../store/workspace/workspaceSlice'
+import { selectSelectedCompanyId, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 
 export default function SegmentEditorPage() {
@@ -52,6 +50,7 @@ export default function SegmentEditorPage() {
   const [errors, setErrors] = useState<string[]>([])
   const [serverErrors, setServerErrors] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(!creating)
   const [segmentVersion, setSegmentVersion] = useState<number | null>(null)
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false)
   const [savedSnapshot, setSavedSnapshot] = useState('')
@@ -62,7 +61,9 @@ export default function SegmentEditorPage() {
     () => JSON.stringify({ name, description, filter }),
     [description, filter, name],
   )
-  const dirty = savedSnapshot ? currentSnapshot !== savedSnapshot : Boolean(name.trim() || description.trim())
+  const dirty = savedSnapshot
+    ? currentSnapshot !== savedSnapshot
+    : Boolean(name.trim() || description.trim())
   useBeforeUnloadGuard(dirty && !saving)
 
   const canModify = can(PERMISSIONS.CONTACT_MODIFY)
@@ -89,6 +90,7 @@ export default function SegmentEditorPage() {
       })
 
     if (!creating && segmentId) {
+      setInitialLoading(true)
       contactsApi
         .getSegment(companyId, segmentId)
         .then((segment) => {
@@ -100,13 +102,20 @@ export default function SegmentEditorPage() {
           setFilter(nextFilter)
           setSegmentVersion(segment.version)
           setSavedSnapshot(
-            JSON.stringify({ name: segment.name, description: nextDescription, filter: nextFilter }),
+            JSON.stringify({
+              name: segment.name,
+              description: nextDescription,
+              filter: nextFilter,
+            }),
           )
         })
         .catch((loadError) => {
           if (scopeIsCurrent(scope)) {
             setServerErrors([apiErrorMessage(loadError, 'Unable to load Segment.')])
           }
+        })
+        .finally(() => {
+          if (scopeIsCurrent(scope)) setInitialLoading(false)
         })
     }
   }, [captureScope, companyId, creating, scopeIsCurrent, segmentId, workspaceEpoch])
@@ -339,6 +348,12 @@ export default function SegmentEditorPage() {
     }
   }
 
+  if (initialLoading)
+    return (
+      <section className="px-4 py-6 sm:px-6 lg:px-8">
+        <PageSkeleton />
+      </section>
+    )
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="w-full">
@@ -467,6 +482,7 @@ export default function SegmentEditorPage() {
           )}
         </div>
 
+        {counting && <CardSkeleton rows={3} />}
         {preview && (
           <section className="panel mt-5 p-5" aria-live="polite">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -500,17 +516,17 @@ export default function SegmentEditorPage() {
           </section>
         )}
       </div>
-        <ConfirmDialog
-          open={archiveConfirmOpen}
-          title="Archive this segment?"
-          description="Historical references will remain intact. The segment will stop appearing as an active audience."
-          confirmLabel="Yes, archive segment"
-          cancelLabel="No, keep segment"
-          tone="warning"
-          working={saving}
-          onCancel={() => setArchiveConfirmOpen(false)}
-          onConfirm={() => void archive()}
-        />
+      <ConfirmDialog
+        open={archiveConfirmOpen}
+        title="Archive this segment?"
+        description="Historical references will remain intact. The segment will stop appearing as an active audience."
+        confirmLabel="Yes, archive segment"
+        cancelLabel="No, keep segment"
+        tone="warning"
+        working={saving}
+        onCancel={() => setArchiveConfirmOpen(false)}
+        onConfirm={() => void archive()}
+      />
     </section>
   )
 }

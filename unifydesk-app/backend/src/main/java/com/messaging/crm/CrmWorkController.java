@@ -21,14 +21,36 @@ public class CrmWorkController {
   private final CompanyAuthorizationService authorization;
   private final CurrentUserService currentUser;
 
-  public record CreateAccount(@NotBlank String name, String website, String notes, Long ownerUserId) {}
-  public record CreateTask(@NotBlank String title, String details, String priority,
-                           Instant dueAt, Long assigneeUserId, Long contactId, Long accountId) {}
-  public record UpdateAccount(@NotBlank String name, String website, String notes,
-                              Long ownerUserId, @NotNull Long version) {}
-  public record UpdateTask(@NotBlank String title, String details, @NotBlank String priority,
-                           Instant dueAt, @NotNull Long assigneeUserId, Long contactId,
-                           Long accountId, @NotNull Long version) {}
+  public record CreateAccount(
+      @NotBlank String name, String website, String notes, Long ownerUserId) {}
+
+  public record CreateTask(
+      @NotBlank String title,
+      String details,
+      String priority,
+      Instant dueAt,
+      Long assigneeUserId,
+      Long contactId,
+      Long accountId,
+      String columnKey) {}
+
+  public record UpdateAccount(
+      @NotBlank String name,
+      String website,
+      String notes,
+      Long ownerUserId,
+      @NotNull Long version) {}
+
+  public record UpdateTask(
+      @NotBlank String title,
+      String details,
+      @NotBlank String priority,
+      Instant dueAt,
+      @NotNull Long assigneeUserId,
+      Long contactId,
+      Long accountId,
+      @NotNull Long version) {}
+
   public record SetStatus(@NotBlank String status, @NotNull Long version) {}
 
   private long require(long companyId, String permission) {
@@ -44,8 +66,9 @@ public class CrmWorkController {
     require(companyId, CompanyPermissionKeys.CRM_LEAD_READ);
     require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
     require(companyId, CompanyPermissionKeys.CONTACT_READ);
-    return ResponseEntity.ok(ApiResponse.success(
-        200, service.contact360(companyId, contactId), "Contact CRM overview fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, service.contact360(companyId, contactId), "Contact CRM overview fetched"));
   }
 
   @DeleteMapping("/accounts/{accountId}/contacts/{contactId}")
@@ -59,46 +82,69 @@ public class CrmWorkController {
 
   @GetMapping("/accounts")
   public ResponseEntity<ApiResponse<CrmWorkService.Page<CrmWorkService.Account>>> accounts(
-      @PathVariable long companyId, @RequestParam(required = false) Long before,
+      @PathVariable long companyId,
+      @RequestParam(required = false) Long before,
       @RequestParam(defaultValue = "50") int size) {
     require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
-    return ResponseEntity.ok(ApiResponse.success(200, service.accounts(companyId, before, size), "Accounts fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(200, service.accounts(companyId, before, size), "Accounts fetched"));
   }
 
   @GetMapping("/accounts/{accountId}")
   public ResponseEntity<ApiResponse<CrmWorkService.Account>> getAccount(
       @PathVariable long companyId, @PathVariable long accountId) {
     require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
-    return ResponseEntity.ok(ApiResponse.success(200, service.getAccount(companyId, accountId), "Account fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(200, service.getAccount(companyId, accountId), "Account fetched"));
   }
 
   @GetMapping("/accounts/{accountId}/contact-summaries")
-  public ResponseEntity<ApiResponse<java.util.List<CrmWorkService.AccountContact>>> accountContactSummaries(
-      @PathVariable long companyId, @PathVariable long accountId) {
+  public ResponseEntity<ApiResponse<java.util.List<CrmWorkService.AccountContact>>>
+      accountContactSummaries(@PathVariable long companyId, @PathVariable long accountId) {
     require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
     require(companyId, CompanyPermissionKeys.CONTACT_READ);
-    return ResponseEntity.ok(ApiResponse.success(200,
-        service.accountContactSummaries(companyId, accountId), "Account contacts fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            service.accountContactSummaries(companyId, accountId),
+            "Account contacts fetched"));
   }
 
   @PostMapping("/accounts")
   public ResponseEntity<ApiResponse<CrmWorkService.Account>> createAccount(
       @PathVariable long companyId, @Valid @RequestBody CreateAccount request) {
     require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_MODIFY);
-    return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(201,
-        service.createAccount(companyId, request.name(), request.website(), request.notes(), request.ownerUserId()),
-        "Account created"));
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                service.createAccount(
+                    companyId,
+                    request.name(),
+                    request.website(),
+                    request.notes(),
+                    request.ownerUserId()),
+                "Account created"));
   }
 
   @PatchMapping("/accounts/{accountId}")
   public ResponseEntity<ApiResponse<CrmWorkService.Account>> updateAccount(
-      @PathVariable long companyId, @PathVariable long accountId,
+      @PathVariable long companyId,
+      @PathVariable long accountId,
       @Valid @RequestBody UpdateAccount request) {
     require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_MODIFY);
-    return ResponseEntity.ok(ApiResponse.success(200,
-        service.updateAccount(companyId, accountId, request.version(),
-            request.name(), request.website(), request.notes(), request.ownerUserId()),
-        "Account updated"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            service.updateAccount(
+                companyId,
+                accountId,
+                request.version(),
+                request.name(),
+                request.website(),
+                request.notes(),
+                request.ownerUserId()),
+            "Account updated"));
   }
 
   @PostMapping("/accounts/{accountId}/contacts/{contactId}")
@@ -115,17 +161,23 @@ public class CrmWorkController {
       @PathVariable long companyId, @PathVariable long accountId) {
     require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
     require(companyId, CompanyPermissionKeys.CONTACT_READ);
-    return ResponseEntity.ok(ApiResponse.success(200, service.accountContactIds(companyId, accountId), "Account contacts fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, service.accountContactIds(companyId, accountId), "Account contacts fetched"));
   }
 
   @GetMapping("/tasks")
   public ResponseEntity<ApiResponse<CrmWorkService.Page<CrmWorkService.Task>>> tasks(
-      @PathVariable long companyId, @RequestParam(required = false) Long before,
-      @RequestParam(defaultValue = "50") int size, @RequestParam(required = false) Long assigneeUserId,
+      @PathVariable long companyId,
+      @RequestParam(required = false) Long before,
+      @RequestParam(defaultValue = "50") int size,
+      @RequestParam(required = false) Long assigneeUserId,
       @RequestParam(required = false) String status) {
     require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
     require(companyId, CompanyPermissionKeys.CONTACT_READ);
-    return ResponseEntity.ok(ApiResponse.success(200, service.tasks(companyId, before, size, assigneeUserId, status), "Tasks fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, service.tasks(companyId, before, size, assigneeUserId, status), "Tasks fetched"));
   }
 
   @PostMapping("/tasks")
@@ -135,32 +187,78 @@ public class CrmWorkController {
     if (request.contactId() != null) require(companyId, CompanyPermissionKeys.CONTACT_READ);
     if (request.accountId() != null) require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
     long assignee = request.assigneeUserId() == null ? actor : request.assigneeUserId();
-    return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(201,
-        service.createTask(companyId, request.title(), request.details(),
-            request.priority() == null ? "NORMAL" : request.priority(),
-            request.dueAt(), assignee, request.contactId(), request.accountId(), actor),
-        "Task created"));
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                service.createTask(
+                    companyId,
+                    request.title(),
+                    request.details(),
+                    request.priority() == null ? "NORMAL" : request.priority(),
+                    request.dueAt(),
+                    assignee,
+                    request.contactId(),
+                    request.accountId(),
+                    actor,
+                    request.columnKey()),
+                "Task created"));
   }
 
   @PatchMapping("/tasks/{taskId}")
   public ResponseEntity<ApiResponse<CrmWorkService.Task>> updateTask(
-      @PathVariable long companyId, @PathVariable long taskId,
+      @PathVariable long companyId,
+      @PathVariable long taskId,
       @Valid @RequestBody UpdateTask request) {
-    require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    long actor = require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
     if (request.contactId() != null) require(companyId, CompanyPermissionKeys.CONTACT_READ);
     if (request.accountId() != null) require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
-    return ResponseEntity.ok(ApiResponse.success(200,
-        service.updateTask(companyId, taskId, request.version(), request.title(),
-            request.details(), request.priority(), request.dueAt(), request.assigneeUserId(),
-            request.contactId(), request.accountId()),
-        "Task updated"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            service.updateTask(
+                companyId,
+                taskId,
+                request.version(),
+                request.title(),
+                request.details(),
+                request.priority(),
+                request.dueAt(),
+                request.assigneeUserId(),
+                request.contactId(),
+                request.accountId(),
+                actor),
+            "Task updated"));
   }
 
   @PatchMapping("/tasks/{taskId}/status")
   public ResponseEntity<ApiResponse<CrmWorkService.Task>> changeTaskStatus(
-      @PathVariable long companyId, @PathVariable long taskId, @Valid @RequestBody SetStatus request) {
-    require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
-    return ResponseEntity.ok(ApiResponse.success(200,
-        service.changeTaskStatus(companyId, taskId, request.version(), request.status()), "Task updated"));
+      @PathVariable long companyId,
+      @PathVariable long taskId,
+      @Valid @RequestBody SetStatus request) {
+    long actor = require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            service.changeTaskStatus(companyId, taskId, request.version(), request.status(), actor),
+            "Task updated"));
+  }
+
+  @GetMapping("/tasks/{taskId}")
+  public ResponseEntity<ApiResponse<CrmWorkService.Task>> task(
+      @PathVariable long companyId, @PathVariable long taskId) {
+    require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(200, service.getTask(companyId, taskId), "Task fetched"));
+  }
+
+  @GetMapping("/tasks/{taskId}/history")
+  public ResponseEntity<ApiResponse<java.util.List<CrmWorkService.TaskEvent>>> taskHistory(
+      @PathVariable long companyId, @PathVariable long taskId) {
+    require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(200, service.taskHistory(companyId, taskId), "Task history fetched"));
   }
 }

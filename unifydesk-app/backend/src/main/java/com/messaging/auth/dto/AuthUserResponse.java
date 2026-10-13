@@ -31,6 +31,6 @@ public record AuthUserResponse(
         verified,
         hasCompanies,
         companyCount,
-        UserAppearanceMode.LIGHT);
+        UserAppearanceMode.SYSTEM);
   }
 }

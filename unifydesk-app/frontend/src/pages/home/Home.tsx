@@ -19,10 +19,7 @@ import { Link } from 'react-router'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type { AdAccount, AdCampaign, AdProviderConnection } from '../../features/ads/types'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
-import type {
-  BroadcastMessageSummary,
-  Page as BroadcastPage,
-} from '../../features/broadcast/types'
+import type { BroadcastMessageSummary, Page as BroadcastPage } from '../../features/broadcast/types'
 import { channelApi } from '../../features/channel/channelApi'
 import type { ChannelConnection, ChannelType } from '../../features/channel/types'
 import { contactsApi } from '../../features/contacts/contactsApi'
@@ -57,6 +54,7 @@ import {
   selectWorkspaceEpoch,
 } from '../../store/workspace/workspaceSlice'
 import { CardSkeleton, ListSkeleton } from '../../components/ui/Skeleton'
+import { BreakdownChart, GrowthChart } from '../../components/ui/OverviewCharts'
 
 type ManagedEmailDashboard = {
   overview: ManagedEmailOverview | null
@@ -197,7 +195,11 @@ function SectionHeading({
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h2 className={eyebrow ? 'mt-2 text-lg font-bold text-slate-950' : 'text-lg font-bold text-slate-950'}>
+        <h2
+          className={
+            eyebrow ? 'mt-2 text-lg font-bold text-slate-950' : 'text-lg font-bold text-slate-950'
+          }
+        >
           {title}
         </h2>
         {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
@@ -377,9 +379,7 @@ export default function Home() {
         setBroadcasts(broadcastBundle?.recent ?? [])
         setInboxPage(nextInboxPage)
         setConnections(nextConnections ?? [])
-        setManagedEmail(
-          nextManagedEmail ?? { overview: null, usage: null, deliverability: null },
-        )
+        setManagedEmail(nextManagedEmail ?? { overview: null, usage: null, deliverability: null })
         setManagedSms(nextManagedSms ?? { status: null, usage: null, health: null })
         setAds(nextAds ?? { connections: [], accounts: [], campaigns: [], campaignTotal: 0 })
       } finally {
@@ -562,7 +562,11 @@ export default function Home() {
     inboxPage?.items.forEach((conversation) => {
       items.push({
         id: `inbox-${conversation.id}`,
-        title: conversation.subject || conversation.participants[0]?.displayName || conversation.participants[0]?.address || 'Inbox conversation',
+        title:
+          conversation.subject ||
+          conversation.participants[0]?.displayName ||
+          conversation.participants[0]?.address ||
+          'Inbox conversation',
         detail: conversation.lastMessagePreview || 'Conversation updated',
         at: conversation.lastMessageAt || new Date(0).toISOString(),
         to: `/inbox/${conversation.providerType === 'META_WHATSAPP' ? 'social-media' : 'email'}?conversationId=${conversation.id}`,
@@ -589,8 +593,8 @@ export default function Home() {
   }, [broadcasts, inboxPage?.items, recentContacts])
 
   const growthSeries = useMemo(() => buildGrowthSeries(contactSummary), [contactSummary])
-  const maxGrowth = Math.max(1, ...growthSeries.map((point) => point.added))
-  const recentUnread = inboxPage?.items.reduce((sum, conversation) => sum + conversation.unreadCount, 0) ?? 0
+  const recentUnread =
+    inboxPage?.items.reduce((sum, conversation) => sum + conversation.unreadCount, 0) ?? 0
 
   const kpis = [
     canReadContacts
@@ -781,13 +785,39 @@ export default function Home() {
                   <span className="flex size-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                     {kpi.icon}
                   </span>
-                  <FiArrowRight className="text-slate-300 transition group-hover:text-indigo-500" aria-hidden="true" />
+                  <FiArrowRight
+                    className="text-slate-300 transition group-hover:text-indigo-500"
+                    aria-hidden="true"
+                  />
                 </div>
                 <p className="mt-4 text-2xl font-bold text-slate-950">{kpi.value}</p>
                 <p className="mt-1 text-xs font-bold text-slate-700">{kpi.label}</p>
                 <p className="mt-1 text-[11px] leading-4 text-slate-500">{kpi.meta}</p>
               </Link>
             ))}
+          </div>
+        )}
+
+        {canReadContacts && (
+          <div className="mt-6 grid gap-4 xl:grid-cols-[1.7fr_1fr]">
+            <GrowthChart points={growthSeries} loading={loading} unavailable={!contactSummary} />
+            {loading ? (
+              <CardSkeleton rows={5} />
+            ) : contactSummary ? (
+              <BreakdownChart
+                title="Audience by channel"
+                description="Subscribed contacts. A contact can subscribe to multiple channels."
+                items={[
+                  { label: 'Email', value: contactSummary.emailSubscribers },
+                  { label: 'SMS', value: contactSummary.smsSubscribers },
+                  { label: 'WhatsApp', value: contactSummary.whatsappSubscribers },
+                ]}
+              />
+            ) : (
+              <div className="panel p-6 text-sm text-slate-500">
+                Channel audience data is unavailable. Try refreshing.
+              </div>
+            )}
           </div>
         )}
 
@@ -881,7 +911,10 @@ export default function Home() {
                     </div>
                     <p className="mt-1 truncate text-xs text-slate-500">{channel.detail}</p>
                   </div>
-                  <FiArrowRight className="shrink-0 text-slate-300 group-hover:text-indigo-500" aria-hidden="true" />
+                  <FiArrowRight
+                    className="shrink-0 text-slate-300 group-hover:text-indigo-500"
+                    aria-hidden="true"
+                  />
                 </Link>
               ))}
             </div>
@@ -903,12 +936,16 @@ export default function Home() {
               />
             </div>
             {loading ? (
-              <div className="p-4"><ListSkeleton rows={4} /></div>
+              <div className="p-4">
+                <ListSkeleton rows={4} />
+              </div>
             ) : broadcasts.length === 0 ? (
               <div className="px-5 py-10 text-center">
                 <FiSend className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
                 <p className="mt-3 text-sm font-bold text-slate-800">No broadcasts yet</p>
-                <p className="mt-1 text-xs text-slate-500">Create your first broadcast when your audience and sender are ready.</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Create your first broadcast when your audience and sender are ready.
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -941,14 +978,18 @@ export default function Home() {
                           {channelLabel(message.channelType)}
                         </td>
                         <td className="px-4 py-4">
-                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${broadcastStatusClass(message.status)}`}>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${broadcastStatusClass(message.status)}`}
+                          >
                             {statusLabel(message.status)}
                           </span>
                         </td>
                         <td className="px-4 py-4 text-right font-semibold text-slate-700">
                           {number.format(message.stats.accepted)}
                         </td>
-                        <td className={`px-4 py-4 text-right font-semibold ${message.stats.failed > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
+                        <td
+                          className={`px-4 py-4 text-right font-semibold ${message.stats.failed > 0 ? 'text-rose-600' : 'text-slate-700'}`}
+                        >
                           {number.format(message.stats.failed)}
                         </td>
                         <td className="px-5 py-4 text-right text-xs text-slate-500">
@@ -975,7 +1016,10 @@ export default function Home() {
                       : 'Latest customer conversations'
                   }
                   action={
-                    <Link className="secondary-button gap-2" to={canReadEmail ? '/inbox/email' : '/inbox/social-media'}>
+                    <Link
+                      className="secondary-button gap-2"
+                      to={canReadEmail ? '/inbox/email' : '/inbox/social-media'}
+                    >
                       Open Inbox
                       <FiArrowRight aria-hidden="true" />
                     </Link>
@@ -983,7 +1027,9 @@ export default function Home() {
                 />
               </div>
               {loading ? (
-                <div className="p-4"><ListSkeleton rows={5} /></div>
+                <div className="p-4">
+                  <ListSkeleton rows={5} />
+                </div>
               ) : !inboxPage || inboxPage.items.length === 0 ? (
                 <div className="px-5 py-10 text-center text-sm text-slate-500">
                   No Inbox conversations yet.
@@ -1002,7 +1048,10 @@ export default function Home() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <p className="truncate text-sm font-semibold text-slate-900">
-                            {conversation.subject || conversation.participants[0]?.displayName || conversation.participants[0]?.address || 'Conversation'}
+                            {conversation.subject ||
+                              conversation.participants[0]?.displayName ||
+                              conversation.participants[0]?.address ||
+                              'Conversation'}
                           </p>
                           {conversation.unreadCount > 0 && (
                             <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[9px] font-bold text-white">
@@ -1027,8 +1076,8 @@ export default function Home() {
           {canReadContacts && (
             <section className={`panel p-5 ${canReadInbox ? '' : 'xl:col-span-2'}`}>
               <SectionHeading
-                title="Contacts & audience growth"
-                description="New contacts over the last 30 days and current marketing permissions."
+                title="Audience details"
+                description="Marketing permissions, lists and segments in your workspace."
                 action={
                   <Link className="secondary-button gap-2" to="/contacts">
                     View contacts
@@ -1037,48 +1086,48 @@ export default function Home() {
                 }
               />
               {loading ? (
-                <div className="mt-4"><CardSkeleton rows={5} /></div>
+                <div className="mt-4">
+                  <CardSkeleton rows={5} />
+                </div>
               ) : (
                 <>
-                  <div className="mt-5 flex h-36 items-end gap-1 rounded-xl border border-slate-100 bg-slate-50 px-3 pb-3 pt-5">
-                    {growthSeries.map((point) => (
-                      <div key={point.date} className="flex h-full min-w-0 flex-1 items-end">
-                        <div
-                          className="w-full rounded-t bg-indigo-400"
-                          style={{
-                            height: point.added === 0 ? '3%' : `${Math.max(8, (point.added / maxGrowth) * 100)}%`,
-                          }}
-                          title={`${point.date}: ${point.added} contacts`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 flex justify-between text-[10px] text-slate-400">
-                    <span>30 days ago</span>
-                    <span>Today</span>
-                  </div>
-
                   <div className="mt-5 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-slate-200 p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Email</p>
-                      <p className="mt-1 text-lg font-bold text-slate-900">{number.format(contactSummary?.emailSubscribers ?? 0)}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        Email
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {number.format(contactSummary?.emailSubscribers ?? 0)}
+                      </p>
                       <p className="text-[11px] text-slate-500">subscribed</p>
                     </div>
                     <div className="rounded-xl border border-slate-200 p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">SMS</p>
-                      <p className="mt-1 text-lg font-bold text-slate-900">{number.format(contactSummary?.smsSubscribers ?? 0)}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        SMS
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {number.format(contactSummary?.smsSubscribers ?? 0)}
+                      </p>
                       <p className="text-[11px] text-slate-500">subscribed</p>
                     </div>
                     <div className="rounded-xl border border-slate-200 p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">WhatsApp</p>
-                      <p className="mt-1 text-lg font-bold text-slate-900">{number.format(contactSummary?.whatsappSubscribers ?? 0)}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        WhatsApp
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {number.format(contactSummary?.whatsappSubscribers ?? 0)}
+                      </p>
                       <p className="text-[11px] text-slate-500">subscribed</p>
                     </div>
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1">{lists.length} lists</span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1">{segments.length} segments</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                      {lists.length} lists
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                      {segments.length} segments
+                    </span>
                     <span className="rounded-full bg-indigo-50 px-2.5 py-1 font-semibold text-indigo-700">
                       +{number.format(contactSummary?.newContacts30d ?? 0)} contacts / 30d
                     </span>
@@ -1111,7 +1160,10 @@ export default function Home() {
                       </p>
                     </div>
                   </div>
-                  <Link className="text-xs font-semibold text-indigo-600" to="/company/connections?section=email">
+                  <Link
+                    className="text-xs font-semibold text-indigo-600"
+                    to="/company/connections?section=email"
+                  >
                     Manage
                   </Link>
                 </div>
@@ -1132,28 +1184,39 @@ export default function Home() {
                     </div>
                     {managedEmail.usage.limit > 0 && (
                       <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div className="h-full rounded-full bg-indigo-500" style={{ width: `${emailUsagePercent}%` }} />
+                        <div
+                          className="h-full rounded-full bg-indigo-500"
+                          style={{ width: `${emailUsagePercent}%` }}
+                        />
                       </div>
                     )}
                     {managedEmail.deliverability && (
                       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                         <div className="rounded-lg bg-slate-50 p-2">
-                          <p className="text-xs font-bold text-slate-800">{statusLabel(managedEmail.deliverability.status)}</p>
+                          <p className="text-xs font-bold text-slate-800">
+                            {statusLabel(managedEmail.deliverability.status)}
+                          </p>
                           <p className="text-[10px] text-slate-400">health</p>
                         </div>
                         <div className="rounded-lg bg-slate-50 p-2">
-                          <p className="text-xs font-bold text-slate-800">{(managedEmail.deliverability.hardBounceRate * 100).toFixed(2)}%</p>
+                          <p className="text-xs font-bold text-slate-800">
+                            {(managedEmail.deliverability.hardBounceRate * 100).toFixed(2)}%
+                          </p>
                           <p className="text-[10px] text-slate-400">bounce</p>
                         </div>
                         <div className="rounded-lg bg-slate-50 p-2">
-                          <p className="text-xs font-bold text-slate-800">{(managedEmail.deliverability.complaintRate * 100).toFixed(2)}%</p>
+                          <p className="text-xs font-bold text-slate-800">
+                            {(managedEmail.deliverability.complaintRate * 100).toFixed(2)}%
+                          </p>
                           <p className="text-[10px] text-slate-400">complaints</p>
                         </div>
                       </div>
                     )}
                   </>
                 ) : (
-                  <p className="mt-5 text-sm text-slate-500">Set up Managed Email to see usage and deliverability here.</p>
+                  <p className="mt-5 text-sm text-slate-500">
+                    Set up Managed Email to see usage and deliverability here.
+                  </p>
                 )}
               </div>
 
@@ -1166,11 +1229,16 @@ export default function Home() {
                     <div>
                       <p className="text-sm font-bold text-slate-950">Managed SMS</p>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        {managedSms.status ? statusLabel(managedSms.status.state) : 'Not configured'}
+                        {managedSms.status
+                          ? statusLabel(managedSms.status.state)
+                          : 'Not configured'}
                       </p>
                     </div>
                   </div>
-                  <Link className="text-xs font-semibold text-indigo-600" to="/company/connections?section=sms">
+                  <Link
+                    className="text-xs font-semibold text-indigo-600"
+                    to="/company/connections?section=sms"
+                  >
                     Manage
                   </Link>
                 </div>
@@ -1191,28 +1259,39 @@ export default function Home() {
                     </div>
                     {managedSms.usage.limit && managedSms.usage.limit > 0 ? (
                       <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div className="h-full rounded-full bg-violet-500" style={{ width: `${smsUsagePercent}%` }} />
+                        <div
+                          className="h-full rounded-full bg-violet-500"
+                          style={{ width: `${smsUsagePercent}%` }}
+                        />
                       </div>
                     ) : null}
                     {managedSms.health && (
                       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                         <div className="rounded-lg bg-slate-50 p-2">
-                          <p className="text-xs font-bold text-slate-800">{statusLabel(managedSms.health.status)}</p>
+                          <p className="text-xs font-bold text-slate-800">
+                            {statusLabel(managedSms.health.status)}
+                          </p>
                           <p className="text-[10px] text-slate-400">health</p>
                         </div>
                         <div className="rounded-lg bg-slate-50 p-2">
-                          <p className="text-xs font-bold text-slate-800">{number.format(managedSms.health.delivered)}</p>
+                          <p className="text-xs font-bold text-slate-800">
+                            {number.format(managedSms.health.delivered)}
+                          </p>
                           <p className="text-[10px] text-slate-400">delivered</p>
                         </div>
                         <div className="rounded-lg bg-slate-50 p-2">
-                          <p className="text-xs font-bold text-slate-800">{number.format(managedSms.health.failed + managedSms.health.rejected)}</p>
+                          <p className="text-xs font-bold text-slate-800">
+                            {number.format(managedSms.health.failed + managedSms.health.rejected)}
+                          </p>
                           <p className="text-[10px] text-slate-400">failed</p>
                         </div>
                       </div>
                     )}
                   </>
                 ) : (
-                  <p className="mt-5 text-sm text-slate-500">Set up Managed SMS to see usage and delivery health here.</p>
+                  <p className="mt-5 text-sm text-slate-500">
+                    Set up Managed SMS to see usage and delivery health here.
+                  </p>
                 )}
               </div>
             </div>
@@ -1249,7 +1328,10 @@ export default function Home() {
               {ads.connections.length > 0 ? (
                 <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
                   {ads.connections.slice(0, 3).map((connection) => (
-                    <div key={connection.id} className="flex items-center justify-between gap-3 p-3">
+                    <div
+                      key={connection.id}
+                      className="flex items-center justify-between gap-3 p-3"
+                    >
                       <div>
                         <p className="text-xs font-bold text-slate-800">
                           {connection.provider === 'META_ADS' ? 'Meta Ads' : 'Google Ads'}
@@ -1258,14 +1340,18 @@ export default function Home() {
                           {connection.displayName || 'Advertising provider'}
                         </p>
                       </div>
-                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${connection.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : connection.status === 'ERROR' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${connection.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : connection.status === 'ERROR' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600'}`}
+                      >
                         {statusLabel(connection.status)}
                       </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-slate-500">No advertising provider is connected yet.</p>
+                <p className="mt-4 text-sm text-slate-500">
+                  No advertising provider is connected yet.
+                </p>
               )}
             </section>
           )}
@@ -1278,7 +1364,9 @@ export default function Home() {
               />
             </div>
             {loading ? (
-              <div className="p-4"><ListSkeleton rows={6} /></div>
+              <div className="p-4">
+                <ListSkeleton rows={6} />
+              </div>
             ) : activities.length === 0 ? (
               <div className="px-5 py-10 text-center text-sm text-slate-500">
                 Activity will appear here as your team starts using the workspace.
@@ -1309,14 +1397,22 @@ export default function Home() {
         </div>
 
         <section className="mt-6">
-          <SectionHeading title="Quick actions" description="Common workspace tasks, one click away." />
+          <SectionHeading
+            title="Quick actions"
+            description="Common workspace tasks, one click away."
+          />
           <div
             className="mt-3 grid gap-3"
             style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}
           >
             {canCreateBroadcasts && (
-              <Link className="panel group flex items-center gap-3 p-4 hover:border-indigo-200" to="/broadcast/email">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><FiSend /></span>
+              <Link
+                className="panel group flex items-center gap-3 p-4 hover:border-indigo-200"
+                to="/broadcast/email"
+              >
+                <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                  <FiSend />
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">New broadcast</p>
                   <p className="text-xs text-slate-500">Email, SMS or WhatsApp</p>
@@ -1324,8 +1420,13 @@ export default function Home() {
               </Link>
             )}
             {canImportContacts && (
-              <Link className="panel group flex items-center gap-3 p-4 hover:border-indigo-200" to="/contacts/imports">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><FiUpload /></span>
+              <Link
+                className="panel group flex items-center gap-3 p-4 hover:border-indigo-200"
+                to="/contacts/imports"
+              >
+                <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <FiUpload />
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Import contacts</p>
                   <p className="text-xs text-slate-500">Add a CSV audience</p>
@@ -1333,8 +1434,13 @@ export default function Home() {
               </Link>
             )}
             {canReadInbox && (
-              <Link className="panel group flex items-center gap-3 p-4 hover:border-indigo-200" to={canReadEmail ? '/inbox/email' : '/inbox/social-media'}>
-                <span className="flex size-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600"><FiInbox /></span>
+              <Link
+                className="panel group flex items-center gap-3 p-4 hover:border-indigo-200"
+                to={canReadEmail ? '/inbox/email' : '/inbox/social-media'}
+              >
+                <span className="flex size-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                  <FiInbox />
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Open Inbox</p>
                   <p className="text-xs text-slate-500">Reply to conversations</p>
@@ -1342,8 +1448,13 @@ export default function Home() {
               </Link>
             )}
             {canReadChannels && (
-              <Link className="panel group flex items-center gap-3 p-4 hover:border-indigo-200" to="/company/connections">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><FiLink /></span>
+              <Link
+                className="panel group flex items-center gap-3 p-4 hover:border-indigo-200"
+                to="/company/connections"
+              >
+                <span className="flex size-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                  <FiLink />
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Connections</p>
                   <p className="text-xs text-slate-500">Manage channel setup</p>

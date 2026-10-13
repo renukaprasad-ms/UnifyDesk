@@ -133,8 +133,9 @@ describe('ContactsPage Round-2 remediation', () => {
   it('does not offer DELETED while preserving supported Contact statuses', () => {
     renderPage()
 
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
     const status = screen.getByLabelText('Status')
-    expect(within(status).getByRole('option', { name: 'Active/default' })).toBeInTheDocument()
+    expect(within(status).getByRole('option', { name: 'All active contacts' })).toBeInTheDocument()
     expect(within(status).getByRole('option', { name: 'Active' })).toBeInTheDocument()
     expect(within(status).getByRole('option', { name: 'Merged' })).toBeInTheDocument()
     expect(within(status).queryByRole('option', { name: 'Deleted' })).toBeNull()

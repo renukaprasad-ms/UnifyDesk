@@ -68,6 +68,12 @@ public final class CompanyPermissionKeys {
   public static final String CRM_ACCOUNT_MODIFY = "crm.account.modify";
   public static final String CRM_TASK_READ = "crm.task.read";
   public static final String CRM_TASK_MODIFY = "crm.task.modify";
+  public static final String CRM_TASK_WORKFLOW_MODIFY = "crm.task.workflow.modify";
+  public static final String CRM_DEAL_READ = "crm.deal.read";
+  public static final String CRM_DEAL_MODIFY = "crm.deal.modify";
+  public static final String CRM_ACTIVITY_READ = "crm.activity.read";
+  public static final String CRM_ACTIVITY_MODIFY = "crm.activity.modify";
+  public static final String CRM_REPORT_READ = "crm.report.read";
 
   public static final String TEMPLATE_READ = "template.read";
   public static final String TEMPLATE_CREATE = "template.create";
@@ -146,6 +152,12 @@ public final class CompanyPermissionKeys {
           CRM_ACCOUNT_MODIFY,
           CRM_TASK_READ,
           CRM_TASK_MODIFY,
+          CRM_TASK_WORKFLOW_MODIFY,
+          CRM_DEAL_READ,
+          CRM_DEAL_MODIFY,
+          CRM_ACTIVITY_READ,
+          CRM_ACTIVITY_MODIFY,
+          CRM_REPORT_READ,
           TEMPLATE_READ,
           TEMPLATE_CREATE,
           TEMPLATE_MODIFY,
@@ -176,6 +188,9 @@ public final class CompanyPermissionKeys {
           CRM_ACCOUNT_READ,
           CRM_TASK_READ,
           TEMPLATE_READ,
+          CRM_DEAL_READ,
+          CRM_ACTIVITY_READ,
+          CRM_REPORT_READ,
           ADS_READ,
           MEDIA_READ,
           MEDIA_UPLOAD);

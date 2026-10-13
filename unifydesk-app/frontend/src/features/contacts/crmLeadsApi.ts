@@ -17,6 +17,8 @@ export type LeadHistoryEvent = {
   previousStage: LeadStage | null
   newStage: LeadStage
   actorUserId: string | null
+  actorName?: string | null
+  actorUsername?: string | null
   occurredAt: string
 }
 export type LeadPage = { items: Lead[]; nextCursor: string | null; hasMore: boolean }
@@ -27,6 +29,12 @@ const unwrap = <T>(value: ApiResponse<T>) => {
   return value.data
 }
 export const crmLeadsApi = {
+  async get(companyId: string, contactId: string) {
+    return unwrap(
+      (await apiClient.get<ApiResponse<Lead>>(url(companyId) + '/' + encodeURIComponent(contactId)))
+        .data,
+    )
+  },
   async list(companyId: string, stage?: LeadStage, before?: string | null) {
     const response = await apiClient.get<ApiResponse<LeadPage>>(url(companyId), {
       params: { stage, before: before || undefined, size: 50 },
