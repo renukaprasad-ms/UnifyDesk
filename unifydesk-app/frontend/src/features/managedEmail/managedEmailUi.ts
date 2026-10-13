@@ -21,7 +21,18 @@ export const isBareDomainInput = (value: string) => {
   )
 }
 
+export const isValidSubdomain = (value: string) => {
+  const trimmed = value.trim().toLowerCase()
+  return (
+    /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(trimmed) &&
+    trimmed.length >= 2 &&
+    trimmed.length <= 63
+  )
+}
+
 export const domainStatusLabel = (status: ManagedEmailDomainStatus) => {
+  if (status === 'PENDING_APPROVAL') return 'Pending Approval'
+  if (status === 'REJECTED') return 'Rejected'
   if (status === 'PENDING_DNS') return 'Waiting for DNS'
   if (status === 'SUSPENDED_VERIFICATION') return 'Verification needs attention'
   if (status === 'SUSPENDED_POLICY') return 'Sending suspended'
@@ -33,8 +44,11 @@ export const domainStatusLabel = (status: ManagedEmailDomainStatus) => {
 
 export const domainStatusTone = (status: ManagedEmailDomainStatus) => {
   if (status === 'ACTIVE') return 'bg-emerald-50 text-emerald-700'
-  if (status === 'ERROR' || status === 'SUSPENDED_POLICY') {
+  if (status === 'ERROR' || status === 'SUSPENDED_POLICY' || status === 'REJECTED') {
     return 'bg-rose-50 text-rose-700'
+  }
+  if (status === 'PENDING_APPROVAL') {
+    return 'bg-blue-50 text-blue-700'
   }
   if (status === 'SUSPENDED_VERIFICATION' || status === 'PENDING_DNS') {
     return 'bg-amber-50 text-amber-700'

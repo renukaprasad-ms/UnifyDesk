@@ -68,6 +68,12 @@ const client = (overrides: Partial<ManagedEmailApi> = {}): ManagedEmailApi =>
         status: 'VERIFYING',
       }),
     ),
+    checkSubdomain: vi.fn().mockResolvedValue({
+      available: true,
+      subdomain: 'acme',
+      domain: 'acme.unifydesk.email',
+      message: 'The subdomain is available!',
+    }),
     refreshDomain: vi.fn().mockResolvedValue(domain()),
     retireDomain: vi.fn().mockResolvedValue(null),
     senders: vi.fn().mockResolvedValue([]),
@@ -204,7 +210,7 @@ describe('ManagedEmailModal', () => {
   it('keeps hosted-domain setup automatic and exposes no DNS task', async () => {
     const hosted = domain({
       type: 'UNIFYDESK_HOSTED',
-      domain: 'abc-k7m4q2.unifydesk.in',
+      domain: 'acme.unifydesk.in',
       status: 'ACTIVE',
       dnsRecords: [],
     })
@@ -213,7 +219,12 @@ describe('ManagedEmailModal', () => {
 
     await clickEnabled(/Use an UnifyDesk domain/i)
 
-    expect(await screen.findByText('abc-k7m4q2.unifydesk.in')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText(/Choose your company subdomain/i), {
+      target: { value: 'acme' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Submit Subdomain Request/i }))
+
+    expect(await screen.findByText('acme.unifydesk.in')).toBeTruthy()
     expect(screen.getByText(/Domain active/i)).toBeTruthy()
     expect(screen.queryByText(/Add these DNS records/i)).toBeNull()
     expect(screen.queryByText('Required for activation')).toBeNull()

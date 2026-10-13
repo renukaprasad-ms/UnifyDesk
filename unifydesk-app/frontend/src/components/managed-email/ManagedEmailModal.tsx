@@ -3,6 +3,7 @@ import {
   FiArrowLeft,
   FiCheckCircle,
   FiClipboard,
+  FiClock,
   FiCloud,
   FiCopy,
   FiGlobe,
@@ -16,6 +17,7 @@ import {
   domainStatusLabel,
   domainStatusTone,
   isBareDomainInput,
+  isValidSubdomain,
   normalizeBareDomain,
 } from '../../features/managedEmail/managedEmailUi'
 import {
@@ -29,7 +31,7 @@ import type {
 } from '../../features/managedEmail/types'
 import { CardSkeleton } from '../ui/Skeleton'
 
-type Stage = 'landing' | 'customer-domain' | 'creating-hosted' | 'domain'
+type Stage = 'landing' | 'customer-domain' | 'hosted-subdomain' | 'creating-hosted' | 'domain'
 
 type Props = {
   companyId: string
@@ -62,6 +64,12 @@ export default function ManagedEmailModal({
   const [domain, setDomain] = useState<ManagedEmailDomain | null>(null)
   const [senders, setSenders] = useState<ManagedEmailSender[]>([])
   const [domainInput, setDomainInput] = useState('')
+  const [subdomainInput, setSubdomainInput] = useState('')
+  const [checkingAvailability, setCheckingAvailability] = useState(false)
+  const [availabilityStatus, setAvailabilityStatus] = useState<{
+    available: boolean
+    message: string
+  } | null>(null)
   const [localPart, setLocalPart] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [replyToAddress, setReplyToAddress] = useState('')
@@ -168,21 +176,54 @@ export default function ManagedEmailModal({
     }
   }
 
-  const createHostedDomain = async () => {
-    setStage('creating-hosted')
+  const checkSubdomainAvailability = async () => {
+    const trimmed = subdomainInput.trim().toLowerCase()
+    if (!isValidSubdomain(trimmed)) {
+      setAvailabilityStatus({
+        available: false,
+        message: 'Subdomain must be between 2 and 63 lowercase letters, numbers, or hyphens.',
+      })
+      return
+    }
+    setCheckingAvailability(true)
+    setError(null)
+    try {
+      const result = await client.checkSubdomain(companyId, trimmed)
+      setAvailabilityStatus({
+        available: result.available,
+        message: result.message,
+      })
+    } catch (requestError) {
+      setAvailabilityStatus({
+        available: false,
+        message: managedEmailErrorMessage(requestError, 'Unable to check availability right now.'),
+      })
+    } finally {
+      setCheckingAvailability(false)
+    }
+  }
+
+  const createHostedDomain = async (event?: FormEvent) => {
+    event?.preventDefault()
+    const trimmed = subdomainInput.trim().toLowerCase()
+    if (!isValidSubdomain(trimmed)) {
+      setError('Subdomain must be between 2 and 63 lowercase letters, numbers, or hyphens.')
+      return
+    }
+
     setBusy(true)
     setError(null)
     try {
       const created = await client.createHostedDomain(companyId, {
+        desiredSubdomain: trimmed,
         idempotencyKey: idempotencyKey(),
       })
       showDomain(created)
       onChanged?.()
     } catch (requestError) {
       setError(
-        managedEmailErrorMessage(requestError, 'Unable to create your UnifyDesk email domain.'),
+        managedEmailErrorMessage(requestError, 'Unable to submit your domain request.'),
       )
-      setStage('landing')
     } finally {
       setBusy(false)
     }
@@ -331,7 +372,12 @@ export default function ManagedEmailModal({
               type="button"
               className="rounded-2xl border border-slate-200 p-5 text-left transition hover:border-indigo-200 hover:bg-slate-50 disabled:opacity-60"
               disabled={!canModify || busy || overview?.enabled !== true}
-              onClick={() => void createHostedDomain()}
+              onClick={() => {
+                setStage('hosted-subdomain')
+                setSubdomainInput('')
+                setAvailabilityStatus(null)
+                setError(null)
+              }}
             >
               <span className="flex size-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
                 <FiCloud aria-hidden="true" />
@@ -340,8 +386,7 @@ export default function ManagedEmailModal({
                 Use an UnifyDesk domain
               </span>
               <span className="mt-1 block text-xs leading-5 text-slate-600">
-                UnifyDesk creates and configures the email domain automatically. There are no DNS
-                tasks for you.
+                Request a custom branded subdomain (e.g. yourcompany.unifydesk.email) with no DNS setup needed.
               </span>
             </button>
           </div>
@@ -371,6 +416,82 @@ export default function ManagedEmailModal({
             <div className="mt-5 flex justify-end">
               <button type="submit" className="primary-button" disabled={busy}>
                 {busy ? 'Adding domain…' : 'Add domain'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {stage === 'hosted-subdomain' && (
+          <form className="mt-6" onSubmit={(event) => void createHostedDomain(event)}>
+            <label
+              className="block text-xs font-semibold text-slate-700"
+              htmlFor="managed-email-subdomain"
+            >
+              Choose your company subdomain
+            </label>
+            <p className="mt-1 text-xs text-slate-500">
+              Pick the subdomain you want to keep. We check availability immediately before submitting your request for admin approval.
+            </p>
+            <div className="mt-3 flex items-center rounded-xl border border-slate-300 bg-white px-3 shadow-sm focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
+              <input
+                id="managed-email-subdomain"
+                className="w-full border-0 bg-transparent py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0"
+                placeholder="acme"
+                value={subdomainInput}
+                onChange={(event) => {
+                  setSubdomainInput(event.target.value.toLowerCase().trim())
+                  setAvailabilityStatus(null)
+                  setError(null)
+                }}
+                disabled={busy}
+                autoFocus
+                autoComplete="off"
+              />
+              <span className="shrink-0 text-sm font-semibold text-slate-500 select-none">
+                .unifydesk.email
+              </span>
+              <button
+                type="button"
+                className="ml-3 shrink-0 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                onClick={() => void checkSubdomainAvailability()}
+                disabled={busy || checkingAvailability || !subdomainInput}
+              >
+                {checkingAvailability ? 'Checking…' : 'Check Availability'}
+              </button>
+            </div>
+
+            {availabilityStatus && (
+              <div
+                className={`mt-2.5 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${
+                  availabilityStatus.available
+                    ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border border-rose-200 bg-rose-50 text-rose-700'
+                }`}
+              >
+                {availabilityStatus.available ? (
+                  <FiCheckCircle className="size-4 shrink-0 text-emerald-600" />
+                ) : (
+                  <FiX className="size-4 shrink-0 text-rose-600" />
+                )}
+                <span>{availabilityStatus.message}</span>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={() => setStage('landing')}
+                disabled={busy}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={busy || !subdomainInput || availabilityStatus?.available === false}
+              >
+                {busy ? 'Submitting request…' : 'Submit Subdomain Request'}
               </button>
             </div>
           </form>
@@ -407,11 +528,15 @@ export default function ManagedEmailModal({
                   </span>
                 </div>
                 <p className="mt-2 text-xs leading-5 text-slate-500">
-                  {domain.type === 'UNIFYDESK_HOSTED'
-                    ? 'UnifyDesk configures this domain automatically. You do not need to change DNS.'
-                    : domain.status === 'ACTIVE'
-                      ? 'Your domain is verified and ready for Managed Email senders.'
-                      : 'DNS changes may need time to propagate. UnifyDesk will keep checking while this setup is open.'}
+                  {domain.status === 'PENDING_APPROVAL'
+                    ? 'Your custom subdomain request is currently under review by platform administrators.'
+                    : domain.status === 'REJECTED'
+                      ? `This subdomain request was rejected${domain.rejectionReason ? `: "${domain.rejectionReason}"` : '.'}`
+                      : domain.type === 'UNIFYDESK_HOSTED'
+                        ? 'UnifyDesk configures this domain automatically. You do not need to change DNS.'
+                        : domain.status === 'ACTIVE'
+                          ? 'Your domain is verified and ready for Managed Email senders.'
+                          : 'DNS changes may need time to propagate. UnifyDesk will keep checking while this setup is open.'}
                 </p>
               </div>
               {canModify && !['DELETED', 'RETIRED'].includes(domain.status) && (
@@ -426,6 +551,56 @@ export default function ManagedEmailModal({
                 </button>
               )}
             </div>
+
+            {domain.status === 'PENDING_APPROVAL' && (
+              <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50/70 p-4">
+                <div className="flex items-start gap-3">
+                  <FiClock className="mt-0.5 size-5 shrink-0 text-blue-600" />
+                  <div>
+                    <p className="text-xs font-bold text-blue-900">Request Pending Administrator Review</p>
+                    <p className="mt-1 text-xs leading-5 text-blue-700">
+                      Your requested subdomain <span className="font-semibold">{domain.domain}</span> has been submitted to platform administrators for verification. Once approved, DNS records and email sending capability will be provisioned automatically.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {domain.status === 'REJECTED' && (
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50/70 p-4">
+                <div className="flex items-start gap-3">
+                  <FiX className="mt-0.5 size-5 shrink-0 text-rose-600" />
+                  <div>
+                    <p className="text-xs font-bold text-rose-900">Subdomain Request Rejected</p>
+                    <p className="mt-1 text-xs leading-5 text-rose-700">
+                      {domain.rejectionReason
+                        ? `Reason: ${domain.rejectionReason}`
+                        : 'Your subdomain request could not be approved at this time.'}
+                    </p>
+                    {canModify && (
+                      <button
+                        type="button"
+                        className="mt-3 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700"
+                        onClick={() => {
+                          setStage('hosted-subdomain')
+                          setSubdomainInput('')
+                          setAvailabilityStatus(null)
+                          setError(null)
+                        }}
+                      >
+                        Request a different subdomain
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {domain.adminAssignedAlternative && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-800">
+                Notice: An administrator assigned an alternative subdomain for this workspace.
+              </div>
+            )}
 
             {domain.type === 'CUSTOMER_DOMAIN' &&
               domain.dnsRecords.length > 0 &&

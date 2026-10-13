@@ -190,6 +190,36 @@ public class ManagedEmailDomainNameService {
     }
   }
 
+  public String validateHostedSubdomain(String raw) {
+    if (raw == null || raw.isBlank()) {
+      throw new BadRequestException("Subdomain is required");
+    }
+    String clean = raw.trim().toLowerCase(Locale.ROOT);
+    if (clean.length() < 2 || clean.length() > 63) {
+      throw new BadRequestException("Subdomain must be between 2 and 63 characters");
+    }
+    if (!ASCII_LABEL.matcher(clean).matches()) {
+      throw new BadRequestException(
+          "Subdomain must contain only lowercase letters, numbers, and hyphens, and cannot begin or end with a hyphen");
+    }
+    if (RESERVED.contains(clean)) {
+      throw new BadRequestException("The subdomain '" + clean + "' is reserved and cannot be used");
+    }
+    if (containsProhibitedToken(clean)) {
+      throw new BadRequestException("The subdomain contains prohibited words");
+    }
+    return clean;
+  }
+
+  public String buildHostedDomain(String subdomain, String baseDomain) {
+    String cleanSub = validateHostedSubdomain(subdomain);
+    return cleanSub + "." + normalizeBaseDomain(baseDomain);
+  }
+
+  public String randomReservationToken() {
+    return randomBase32(6);
+  }
+
   private String randomBase32(int length) {
     char[] value = new char[length];
     for (int i = 0; i < length; i++) {

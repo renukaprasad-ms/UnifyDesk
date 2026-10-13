@@ -15,7 +15,15 @@ public final class ManagedEmailDtos {
       @NotBlank @Size(max = 253) String domain,
       @NotBlank @Size(max = 200) String idempotencyKey) {}
 
-  public record HostedDomainRequest(@NotBlank @Size(max = 200) String idempotencyKey) {}
+  public record HostedDomainRequest(
+      @NotBlank @Size(max = 200) String idempotencyKey,
+      @NotBlank @Size(min = 2, max = 63) String desiredSubdomain) {}
+
+  public record SubdomainAvailabilityResponse(
+      boolean available,
+      String subdomain,
+      String domain,
+      String message) {}
 
   public record CreateSenderRequest(
       @NotBlank String domainId,
@@ -53,7 +61,10 @@ public final class ManagedEmailDtos {
       String dmarcPolicy,
       List<DnsRecordResponse> dnsRecords,
       Instant activatedAt,
-      Instant lastCheckedAt) {}
+      Instant lastCheckedAt,
+      String requestedSubdomain,
+      String rejectionReason,
+      boolean adminAssignedAlternative) {}
 
   public record SenderResponse(
       String id,

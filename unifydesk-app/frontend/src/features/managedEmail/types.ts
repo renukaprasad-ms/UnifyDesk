@@ -8,6 +8,7 @@ export type ManagedEmailSendingStatus = 'ENABLED' | 'DISABLED' | 'PROVIDER_DISAB
 export type ManagedEmailDomainType = 'CUSTOMER_DOMAIN' | 'UNIFYDESK_HOSTED'
 
 export type ManagedEmailDomainStatus =
+  | 'PENDING_APPROVAL'
   | 'PROVISIONING'
   | 'PENDING_DNS'
   | 'VERIFYING'
@@ -18,6 +19,7 @@ export type ManagedEmailDomainStatus =
   | 'DELETING'
   | 'DELETED'
   | 'RETIRED'
+  | 'REJECTED'
 
 export type ManagedEmailDnsRecord = {
   id: string
@@ -42,6 +44,9 @@ export type ManagedEmailDomain = {
   dnsRecords: ManagedEmailDnsRecord[]
   activatedAt?: string | null
   lastCheckedAt?: string | null
+  requestedSubdomain?: string | null
+  rejectionReason?: string | null
+  adminAssignedAlternative?: boolean | null
 }
 
 export type ManagedEmailOverview = {
@@ -94,6 +99,14 @@ export type CreateCustomerManagedEmailDomainInput = {
 
 export type CreateHostedManagedEmailDomainInput = {
   idempotencyKey: string
+  desiredSubdomain: string
+}
+
+export type SubdomainAvailability = {
+  available: boolean
+  subdomain: string
+  domain?: string | null
+  message: string
 }
 
 export type CreateManagedEmailSenderInput = {

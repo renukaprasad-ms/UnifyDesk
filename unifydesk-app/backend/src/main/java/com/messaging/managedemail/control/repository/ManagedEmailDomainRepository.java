@@ -22,6 +22,8 @@ public interface ManagedEmailDomainRepository extends JpaRepository<ManagedEmail
 
   boolean existsByNormalizedDomainIgnoreCase(String normalizedDomain);
 
+  List<ManagedEmailDomain> findByStatusOrderByCreatedAtDesc(DomainStatus status);
+
   @Query(
       """
       select d from ManagedEmailDomain d

@@ -34,7 +34,10 @@ public class ManagedEmailResponseMapper {
         domain.getDmarcPolicy(),
         records,
         domain.getActivatedAt(),
-        lastChecked);
+        lastChecked,
+        domain.getRequestedSubdomain(),
+        domain.getRejectionReason(),
+        domain.isAdminAssignedAlternative());
   }
 
   private DnsRecordResponse dns(ManagedEmailDnsRecord record) {
