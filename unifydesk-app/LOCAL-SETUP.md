@@ -81,3 +81,13 @@ The shared local/tunnel Compose backend now defaults to a 1536 MB container, a 5
 Recreate the backend to apply changed JVM settings. CSV preview failures now stop the loading placeholder and offer **Retry preview** for the same upload.
 
 Personal appearance supports **Device**, **Light**, and **Dark**. Device is the default for accounts without an explicit choice and follows system changes live. Migration V115 updates the database default to SYSTEM and preserves existing explicit Light/Dark preferences.
+
+### Workspace dashboard
+
+The home dashboard starts three requests concurrently: `GET /api/v1/companies/{companyId}/dashboard/core` for contacts, broadcasts and Inbox; `/dashboard/channels` for connections, Managed Email and Managed SMS; and `/dashboard/ads` for advertising. Each group updates its own widgets and loading indicators when its response arrives. A slow or failed group does not delay the other groups. The original `/dashboard` endpoint remains available for clients that need the entire response.
+
+Each section endpoint schedules only its own reads. The backend resolves workspace membership and module permissions before scheduling reads, then calls the existing services through a dedicated Spring executor with eight workers and a queue of 64 tasks. Services retain their own transaction boundaries.
+
+Independent reads run concurrently. A failed, timed-out, or rejected read appears in `unavailableSections`; the remaining data is returned and the UI offers refresh. Unauthorized sections stay empty without being marked as failures. The default per-read deadline, including queue time, is 10 seconds and can be configured with `APP_DASHBOARD_TIMEOUT_MILLIS`. Expired queued reads are skipped; a read already running can continue until its underlying database or provider operation finishes.
+
+Rebuild both backend and frontend with `./local.ps1 up tunnel` to use this endpoint through the public domains, or `./local.ps1 up local` for localhost.
