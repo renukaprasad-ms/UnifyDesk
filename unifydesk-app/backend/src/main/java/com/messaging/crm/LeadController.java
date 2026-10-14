@@ -30,11 +30,13 @@ public class LeadController {
   public ResponseEntity<ApiResponse<LeadService.LeadPage>> list(
       @PathVariable long companyId,
       @RequestParam(required = false) LeadService.Stage stage,
+      @RequestParam(required = false) String temperature,
       @RequestParam(required = false) Long before,
       @RequestParam(defaultValue = "50") int size) {
     require(companyId, CompanyPermissionKeys.CRM_LEAD_READ);
     require(companyId, CompanyPermissionKeys.CONTACT_READ);
-    return ResponseEntity.ok(ApiResponse.success(200, service.list(companyId, stage, before, size), "Leads fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(200, service.list(companyId, stage, temperature, before, size), "Leads fetched"));
   }
 
   @GetMapping("/summary")

@@ -3,10 +3,19 @@ import WorkspaceDialog from '../../components/ui/WorkspaceDialog'
 import FilterPopover from '../../components/ui/FilterPopover'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { FiClock, FiRefreshCw, FiUsers } from 'react-icons/fi'
+import { FiCalendar, FiClock, FiGlobe, FiRefreshCw, FiUsers, FiZap } from 'react-icons/fi'
 import LeadHistoryPanel from '../../components/contacts/LeadHistoryPanel'
+import LeadFormsModal from '../../components/crm/LeadFormsModal'
+import LeadScoringModal from '../../components/crm/LeadScoringModal'
+import CrmAutomationModal from '../../components/crm/CrmAutomationModal'
+import BookingManagerModal from '../../components/crm/BookingManagerModal'
 import { leadDateTime, leadStageClass } from '../../features/contacts/leadPresentation'
-import { crmLeadsApi, type Lead, type LeadStage } from '../../features/contacts/crmLeadsApi'
+import {
+  crmLeadsApi,
+  type Lead,
+  type LeadStage,
+  type LeadTemperature,
+} from '../../features/contacts/crmLeadsApi'
 import {
   crmCustomFieldsApi,
   type CrmFieldDef,
@@ -33,11 +42,16 @@ export default function CrmLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [filter, setFilter] = useState<LeadStage | ''>('')
+  const [tempFilter, setTempFilter] = useState<LeadTemperature | ''>('')
   const [candidates, setCandidates] = useState<ContactSummary[]>([])
   const [contactId, setContactId] = useState('')
   const [contactQuery, setContactQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [showFormsModal, setShowFormsModal] = useState(false)
+  const [showScoringModal, setShowScoringModal] = useState(false)
+  const [showAutomationModal, setShowAutomationModal] = useState(false)
+  const [showBookingModal, setShowBookingModal] = useState(false)
   const [customDefs, setCustomDefs] = useState<CrmFieldDef[]>([])
   const [createCustomFields, setCreateCustomFields] = useState<CustomFieldValues>({})
   const [busy, setBusy] = useState(false)
@@ -85,7 +99,7 @@ export default function CrmLeadsPage() {
     const request = ++requestNumber.current
     setLoading(true)
     try {
-      const page = await crmLeadsApi.list(companyId, filter || undefined)
+      const page = await crmLeadsApi.list(companyId, filter || undefined, tempFilter || undefined)
       if (!isCurrent(scope) || request !== requestNumber.current) return
       setLeads(page.items)
       setNextCursor(page.nextCursor)
@@ -96,7 +110,7 @@ export default function CrmLeadsPage() {
     } finally {
       if (isCurrent(scope) && request === requestNumber.current) setLoading(false)
     }
-  }, [companyId, filter, capture, isCurrent])
+  }, [companyId, filter, tempFilter, capture, isCurrent])
 
   useEffect(() => {
     setLeads([])
@@ -195,7 +209,12 @@ export default function CrmLeadsPage() {
     const scope = capture()
     setBusy(true)
     try {
-      const page = await crmLeadsApi.list(companyId, filter || undefined, nextCursor)
+      const page = await crmLeadsApi.list(
+        companyId,
+        filter || undefined,
+        tempFilter || undefined,
+        nextCursor,
+      )
       if (isCurrent(scope)) {
         setLeads((current) => [...current, ...page.items])
         setNextCursor(page.nextCursor)
@@ -218,6 +237,42 @@ export default function CrmLeadsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            type="button"
+            className="secondary-button gap-2 text-xs"
+            onClick={() => setShowScoringModal(true)}
+            title="Configure Rule-Based Lead Scoring & Grade Thresholds"
+          >
+            <FiZap className="text-amber-500" />
+            Lead Scoring
+          </button>
+          <button
+            type="button"
+            className="secondary-button gap-2 text-xs"
+            onClick={() => setShowFormsModal(true)}
+            title="Manage Web-to-Lead Capture Forms"
+          >
+            <FiGlobe />
+            Web Forms
+          </button>
+          <button
+            type="button"
+            className="secondary-button gap-2 text-xs"
+            onClick={() => setShowAutomationModal(true)}
+            title="Configure CRM Workflow Automation Rules & Triggers"
+          >
+            <FiZap className="text-violet-500" />
+            Automations
+          </button>
+          <button
+            type="button"
+            className="secondary-button gap-2 text-xs"
+            onClick={() => setShowBookingModal(true)}
+            title="Manage Shareable Meeting Scheduling Links & Calendar Bookings"
+          >
+            <FiCalendar className="text-violet-600" />
+            Bookings
+          </button>
           <button
             type="button"
             className="secondary-button gap-2"
@@ -319,6 +374,34 @@ export default function CrmLeadsPage() {
           </div>
         </WorkspaceDialog>
       )}
+      {showFormsModal && companyId && (
+        <LeadFormsModal
+          companyId={companyId}
+          onClose={() => {
+            setShowFormsModal(false)
+            void refresh()
+          }}
+        />
+      )}
+      {showScoringModal && companyId && (
+        <LeadScoringModal
+          companyId={companyId}
+          onClose={() => setShowScoringModal(false)}
+          onRulesChanged={() => void refresh()}
+        />
+      )}
+      {showAutomationModal && companyId && (
+        <CrmAutomationModal
+          companyId={companyId}
+          onClose={() => setShowAutomationModal(false)}
+        />
+      )}
+      {showBookingModal && companyId && (
+        <BookingManagerModal
+          companyId={companyId}
+          onClose={() => setShowBookingModal(false)}
+        />
+      )}
       <div className="flex items-center gap-2">
         <span className="flex items-center gap-2 text-xs text-slate-500">
           <FiUsers />
@@ -326,10 +409,12 @@ export default function CrmLeadsPage() {
         </span>
         <FilterPopover
           className="ml-auto"
-          activeCount={Number(!!filter)}
-          onReset={() => setFilter('')}
+          activeCount={Number(!!filter) + Number(!!tempFilter)}
+          onReset={() => {
+            setFilter('')
+            setTempFilter('')
+          }}
         >
-          {' '}
           <label htmlFor="crm-lead-stage" className="text-sm font-medium">
             Stage
           </label>
@@ -346,24 +431,40 @@ export default function CrmLeadsPage() {
               </option>
             ))}
           </select>
+
+          <label htmlFor="crm-lead-temp" className="mt-3 block text-sm font-medium">
+            Grade & Temperature
+          </label>
+          <select
+            id="crm-lead-temp"
+            className="form-input"
+            value={tempFilter}
+            onChange={(e) => setTempFilter(e.target.value as LeadTemperature | '')}
+          >
+            <option value="">All grades</option>
+            <option value="HOT">🔥 Hot Leads</option>
+            <option value="WARM">⚡ Warm Leads</option>
+            <option value="COLD">❄️ Cold Leads</option>
+          </select>
         </FilterPopover>
       </div>
       <div
         className={`grid items-start gap-5 ${selectedLead ? 'xl:grid-cols-[minmax(0,1fr)_380px]' : ''}`}
       >
         {loading ? (
-          <TableSkeleton rows={5} columns={5} />
+          <TableSkeleton rows={5} columns={6} />
         ) : leads.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
             No leads found. Add an existing contact as a lead to start tracking its progress.
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
                 <tr>
                   <th className="p-4">Lead</th>
                   <th className="p-4">Organization</th>
+                  <th className="p-4">Score & Grade</th>
                   <th className="p-4">Status</th>
                   <th className="p-4">Last updated</th>
                   <th className="p-4">Activity</th>
@@ -373,16 +474,16 @@ export default function CrmLeadsPage() {
                 {leads.map((lead) => (
                   <tr
                     key={lead.contactId}
-                    className={`border-t border-slate-100 transition hover:bg-slate-50 ${selectedLead?.contactId === lead.contactId ? 'bg-indigo-50' : ''}`}
+                    className={`border-t border-slate-100 dark:border-slate-800 transition hover:bg-slate-50 dark:hover:bg-slate-800/50 ${selectedLead?.contactId === lead.contactId ? 'bg-indigo-50 dark:bg-indigo-950/40' : ''}`}
                   >
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-600">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
                           {(lead.displayName || '?').slice(0, 2).toUpperCase()}
                         </span>
                         <div>
                           <Link
-                            className="font-semibold text-slate-900 hover:text-indigo-600"
+                            className="font-semibold text-slate-900 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400"
                             to={'/contacts/' + lead.contactId}
                           >
                             {lead.displayName || 'Unnamed contact'}
@@ -410,6 +511,22 @@ export default function CrmLeadsPage() {
                       </div>
                     </td>
                     <td className="p-4">{lead.organization || '—'}</td>
+                    <td className="p-4">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+                          lead.temperature === 'HOT'
+                            ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                            : lead.temperature === 'WARM'
+                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                            : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                        }`}
+                      >
+                        {lead.temperature === 'HOT' && '🔥 Hot'}
+                        {lead.temperature === 'WARM' && '⚡ Warm'}
+                        {(!lead.temperature || lead.temperature === 'COLD') && '❄️ Cold'}
+                        <span className="opacity-75">· {lead.score ?? 0} pts</span>
+                      </span>
+                    </td>
                     <td className="p-4">
                       {can(PERMISSIONS.CRM_LEAD_MODIFY) ? (
                         <select

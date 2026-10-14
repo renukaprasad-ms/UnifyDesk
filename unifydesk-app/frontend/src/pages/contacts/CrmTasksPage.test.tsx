@@ -256,21 +256,9 @@ it('removes an acknowledged move from results when it leaves the active status f
   expect(mocks.tasks).toHaveBeenCalledTimes(2)
 })
 
-it('assigns a task from its board card without requiring the list editor', async () => {
-  mocks.update.mockResolvedValue({ ...task, assigneeUserId: '2', version: 4 })
+it('renders tasks on the board with their title and details', async () => {
   mount()
-  fireEvent.click(await screen.findByRole('button', { name: 'Assign Call customer' }))
-  expect(screen.getByRole('dialog', { name: 'Assign task' })).toBeInTheDocument()
-  fireEvent.change(screen.getByRole('combobox', { name: 'Assign to' }), { target: { value: '2' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Save assignment' }))
-  await waitFor(() =>
-    expect(mocks.update).toHaveBeenCalledWith(
-      '101',
-      expect.objectContaining({ version: 3 }),
-      expect.objectContaining({ assigneeUserId: '2', title: task.title }),
-    ),
-  )
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Assign task' })).toBeNull())
-  expect(screen.getByRole('button', { name: 'Board' })).toHaveAttribute('aria-pressed', 'true')
-  expect(screen.getByRole('button', { name: 'View history for Call customer' })).toBeInTheDocument()
+  const card = await screen.findByRole('article', { name: task.title })
+  expect(card).toBeInTheDocument()
+  expect(within(card).getByRole('heading', { level: 3, name: task.title })).toBeInTheDocument()
 })

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { FiPlus, FiClock, FiUser, FiMove } from 'react-icons/fi'
 import type { CrmTask, CrmTaskColumn } from '../../features/contacts/crmWorkApi'
 import { taskLabel, taskStatusClass } from '../../features/contacts/taskPresentation'
+import { taskTypeConfig } from '../../pages/contacts/CrmTaskDetailPage'
 
 export default function TaskBoard({
   tasks,
@@ -11,8 +12,8 @@ export default function TaskBoard({
   canMove,
   onMove,
   onOpen,
-  onEdit,
-  onAssign,
+  onEdit: _onEdit,
+  onAssign: _onAssign,
   onNew,
   assigneeName,
 }: {
@@ -23,7 +24,7 @@ export default function TaskBoard({
   canMove: boolean
   onMove: (task: CrmTask, key: string) => void
   onOpen: (task: CrmTask) => void
-  onEdit: (task: CrmTask) => void
+  onEdit?: (task: CrmTask) => void
   onAssign?: (task: CrmTask) => void
   onNew: (key: string) => void
   assigneeName: (task: CrmTask) => string
@@ -41,7 +42,7 @@ export default function TaskBoard({
           <section
             key={column.key}
             aria-label={column.name + ' column'}
-            className={`flex h-full min-h-0 w-72 min-w-72 flex-1 flex-col overflow-hidden rounded-xl border bg-slate-50 p-3 transition-colors ${over === column.key ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200'}`}
+            className={`flex h-full min-h-0 w-72 min-w-72 flex-1 flex-col overflow-hidden rounded-xl border bg-slate-50 p-3 transition-colors dark:bg-slate-900/60 ${over === column.key ? 'border-indigo-400 ring-2 ring-indigo-100 dark:border-indigo-500 dark:ring-indigo-900/30' : 'border-slate-200 dark:border-slate-800'}`}
             onDragOver={(e) => {
               if (canMove && !busy && dragged) {
                 e.preventDefault()
@@ -73,10 +74,10 @@ export default function TaskBoard({
                 <span
                   className={`size-2 shrink-0 rounded-full ${column.statusGroup === 'DONE' ? 'bg-emerald-500' : column.statusGroup === 'IN_PROGRESS' ? 'bg-indigo-500' : column.statusGroup === 'CANCELLED' ? 'bg-rose-400' : 'bg-slate-400'}`}
                 />
-                <h2 className="truncate text-sm font-bold" title={column.name}>
+                <h2 className="truncate text-sm font-bold text-slate-900 dark:text-slate-100" title={column.name}>
                   {column.name}
                 </h2>
-                <span className="rounded-md bg-slate-200 px-2 text-xs text-slate-600">
+                <span className="rounded-md bg-slate-200 px-2 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                   {items.length}
                 </span>
               </div>
@@ -98,6 +99,7 @@ export default function TaskBoard({
                   task.dueAt &&
                   new Date(task.dueAt).getTime() < Date.now() &&
                   ['OPEN', 'IN_PROGRESS'].includes(task.status)
+                const typeInfo = taskTypeConfig(task.taskType)
                 return (
                   <article
                     key={task.id}
@@ -113,52 +115,96 @@ export default function TaskBoard({
                       setDragged(null)
                       setOver(null)
                     }}
-                    className={`rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${canMove ? 'cursor-grab active:cursor-grabbing' : ''} ${dragged === task.id ? 'opacity-40' : ''}`}
+                    onClick={() => onOpen(task)}
+                    className={`group cursor-pointer rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 ${canMove ? 'cursor-grab active:cursor-grabbing' : ''} ${dragged === task.id ? 'opacity-40' : ''}`}
                   >
-                    <div className="mb-3 flex items-center justify-between">
-                      <span
-                        className={`rounded px-2 py-1 text-[10px] font-bold ${task.priority === 'HIGH' ? 'bg-rose-50 text-rose-600' : task.priority === 'LOW' ? 'bg-slate-100 text-slate-500' : 'bg-indigo-50 text-indigo-600'}`}
-                      >
-                        {taskLabel(task.priority)} priority
-                      </span>
+                    {/* Header tags: Priority + Task Type */}
+                    <div className="mb-2.5 flex items-center justify-between gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold border ${typeInfo.color}`}
+                        >
+                          <span className="mr-1">{typeInfo.icon}</span>
+                          {typeInfo.label}
+                        </span>
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${task.priority === 'HIGH' ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400' : task.priority === 'LOW' ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400'}`}
+                        >
+                          {taskLabel(task.priority)}
+                        </span>
+                      </div>
                       {pendingIds.has(task.id) ? (
-                        <span role="status" className="text-[10px] text-indigo-500">
+                        <span role="status" className="text-[10px] text-indigo-500 font-medium">
                           Saving...
                         </span>
                       ) : (
-                        <FiMove className="text-slate-400" />
+                        <FiMove className="text-slate-300 group-hover:text-slate-400 transition-colors" />
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => onOpen(task)}
-                      className="w-full break-words text-left text-sm font-semibold hover:text-indigo-600"
-                    >
+
+                    {/* Title */}
+                    <h3 className="break-words text-sm font-semibold text-slate-900 group-hover:text-indigo-600 dark:text-slate-100 dark:group-hover:text-indigo-400 transition-colors">
                       {task.title}
-                    </button>
+                    </h3>
+
+                    {/* Details / description excerpt */}
                     {task.details && (
-                      <p className="mt-2 line-clamp-2 break-words text-xs leading-5 text-slate-500">
+                      <p className="mt-1.5 line-clamp-2 break-words text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                         {task.details}
                       </p>
                     )}
-                    {task.dueAt && (
-                      <p
-                        className={`mt-3 flex items-center gap-1.5 text-xs ${overdue ? 'text-rose-600' : 'text-slate-500'}`}
-                      >
-                        <FiClock />
-                        {overdue ? 'Overdue - ' : ''}
-                        {new Date(task.dueAt).toLocaleDateString()}
-                      </p>
+
+                    {/* Linked Lead / Company badges */}
+                    {(task.contactName || task.accountName) && (
+                      <div className="mt-2.5 flex flex-wrap gap-1.5">
+                        {task.contactName && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-300"
+                            title={`Linked Lead: ${task.contactName}`}
+                          >
+                            <span className="text-[10px]">👤</span>
+                            <span className="truncate max-w-[130px]">{task.contactName}</span>
+                          </span>
+                        )}
+                        {task.accountName && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
+                            title={`Linked Company: ${task.accountName}`}
+                          >
+                            <span className="text-[10px]">🏢</span>
+                            <span className="truncate max-w-[130px]">{task.accountName}</span>
+                          </span>
+                        )}
+                      </div>
                     )}
-                    <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
-                      <FiUser />
-                      <span className="truncate">{assigneeName(task)}</span>
+
+                    {/* Due Date & Assignee row */}
+                    <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <FiUser className="shrink-0 text-slate-400" />
+                        <span className="truncate font-medium text-slate-700 dark:text-slate-300">
+                          {assigneeName(task)}
+                        </span>
+                      </div>
+                      {task.dueAt && (
+                        <p
+                          className={`flex items-center gap-1 shrink-0 font-medium ${overdue ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}
+                        >
+                          <FiClock />
+                          {new Date(task.dueAt).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
+
+                    {/* Quick Move Status Selector */}
                     {canMove && (
-                      <div className="mt-3 flex gap-2">
+                      <div
+                        className="mt-2.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <select
                           aria-label={'Move ' + task.title + ' to step'}
-                          className={`form-input min-w-0 flex-1 text-xs ${taskStatusClass(task.status)}`}
+                          className={`form-input w-full text-xs py-1.5 rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 ${taskStatusClass(task.status)}`}
                           value={task.columnKey || task.status}
                           disabled={busy || pendingIds.has(task.id)}
                           onChange={(e) => onMove(task, e.target.value)}
@@ -169,44 +215,13 @@ export default function TaskBoard({
                             </option>
                           ))}
                         </select>
-                        <button
-                          className="secondary-button text-xs"
-                          type="button"
-                          disabled={busy || pendingIds.size > 0}
-                          onClick={() => onEdit(task)}
-                        >
-                          Edit
-                        </button>
                       </div>
                     )}
-                    <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-                      {canMove && onAssign && (
-                        <button
-                          type="button"
-                          className="secondary-button gap-1 px-2 py-1.5 text-xs"
-                          aria-label={'Assign ' + task.title}
-                          disabled={busy || pendingIds.size > 0}
-                          onClick={() => onAssign(task)}
-                        >
-                          <FiUser />
-                          Assign
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="secondary-button gap-1 px-2 py-1.5 text-xs"
-                        aria-label={'View history for ' + task.title}
-                        onClick={() => onOpen(task)}
-                      >
-                        <FiClock />
-                        View history
-                      </button>
-                    </div>
                   </article>
                 )
               })}
               {!items.length && (
-                <p className="rounded-lg border border-dashed border-slate-300 px-3 py-8 text-center text-xs text-slate-400">
+                <p className="rounded-lg border border-dashed border-slate-300 px-3 py-8 text-center text-xs text-slate-400 dark:border-slate-800">
                   {canMove ? 'Drop a task here or create one' : 'No tasks in this step'}
                 </p>
               )}

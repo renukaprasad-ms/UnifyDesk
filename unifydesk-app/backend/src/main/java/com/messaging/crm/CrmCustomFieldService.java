@@ -193,15 +193,27 @@ public class CrmCustomFieldService {
    */
   public Map<String, Object> validateValues(long companyId, EntityType entityType,
       Map<String, Object> incoming) {
+    return validateValues(companyId, entityType, incoming, true);
+  }
+
+  /**
+   * Validates and sanitizes a client-supplied custom field map.
+   * When enforceRequired is false, only fields actually provided in incoming are validated/coerced,
+   * without demanding that every globally required custom field be present.
+   */
+  public Map<String, Object> validateValues(long companyId, EntityType entityType,
+      Map<String, Object> incoming, boolean enforceRequired) {
     if (incoming == null || incoming.isEmpty()) return Map.of();
     List<FieldDef> defs = list(companyId, entityType);
     Map<String, FieldDef> byKey =
         defs.stream().collect(java.util.stream.Collectors.toMap(FieldDef::fieldKey, d -> d));
-    // Check all required fields are present
-    for (FieldDef def : defs) {
-      if (def.required() && !incoming.containsKey(def.fieldKey())) {
-        throw new ApiException(HttpStatus.BAD_REQUEST,
-            "CRM_CUSTOM_FIELD_REQUIRED:" + def.fieldKey());
+    // Check all required fields are present if enforceRequired is requested
+    if (enforceRequired) {
+      for (FieldDef def : defs) {
+        if (def.required() && !incoming.containsKey(def.fieldKey())) {
+          throw new ApiException(HttpStatus.BAD_REQUEST,
+              "CRM_CUSTOM_FIELD_REQUIRED:" + def.fieldKey());
+        }
       }
     }
     java.util.Map<String, Object> clean = new java.util.LinkedHashMap<>();
@@ -211,6 +223,7 @@ public class CrmCustomFieldService {
       if (def == null) continue; // silently drop unknown keys
       Object value = entry.getValue();
       if (value == null) continue; // null = not set
+      if (value instanceof String s && s.trim().isEmpty()) continue; // skip blank optional value
       clean.put(key, coerce(def, value));
     }
     return clean;

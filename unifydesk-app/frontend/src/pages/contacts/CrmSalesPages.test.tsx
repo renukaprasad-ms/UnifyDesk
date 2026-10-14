@@ -206,35 +206,15 @@ it('moves deals immediately and saves their stage without replacing the board wi
   expect(mocks.deals).toHaveBeenCalledTimes(1)
 })
 
-it('exposes assignment, editing and history directly on a deal card', async () => {
-  const saved = { ...deal, ownerUserId: '2', ownerName: 'Sam', version: 4 }
-  mocks.editDeal.mockResolvedValue(saved)
+it('renders deal cards with title, amount, and linked customer', async () => {
   render(
     <MemoryRouter>
       <CrmDealsPage />
     </MemoryRouter>,
   )
-  await screen.findByRole('button', { name: 'Assign Renewal' })
-  expect(screen.getByRole('button', { name: 'Edit Renewal' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'View history for Renewal' })).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Edit Renewal' }))
-  expect(screen.getByRole('dialog', { name: 'Edit opportunity' })).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Close Edit opportunity' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Assign Renewal' }))
-  const picker = screen.getByRole('combobox', { name: 'Assign to' })
-  await screen.findByRole('option', { name: 'Sam' })
-  fireEvent.change(picker, { target: { value: '2' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Save assignment' }))
-  await waitFor(() =>
-    expect(mocks.editDeal).toHaveBeenCalledWith(
-      '101',
-      expect.objectContaining({ version: 3 }),
-      expect.objectContaining({ ownerUserId: '2', title: 'Renewal', amount: '10.05' }),
-    ),
-  )
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Assign deal' })).toBeNull())
-  fireEvent.click(screen.getByRole('button', { name: 'View history for Renewal' }))
-  await waitFor(() => expect(mocks.history).toHaveBeenCalledWith('101', '501'))
+  const card = await screen.findByRole('button', { name: 'Renewal' })
+  expect(card).toBeInTheDocument()
+  expect(screen.getByText('No linked customer')).toBeInTheDocument()
 })
 it('shows empty drop columns instead of replacing an empty pipeline with a splash panel', async () => {
   mocks.deals.mockResolvedValue({ items: [], nextCursor: null, hasMore: false })

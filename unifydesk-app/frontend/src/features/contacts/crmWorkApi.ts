@@ -13,6 +13,18 @@ export type CrmAccount = {
   createdAt: string
 }
 
+export type CrmComment = {
+  id: string
+  entityType: 'TASK' | 'DEAL' | 'LEAD'
+  entityId: string
+  body: string
+  authorUserId: string | null
+  authorName: string | null
+  authorEmail: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export type CrmTask = {
   id: string
   title: string
@@ -27,6 +39,10 @@ export type CrmTask = {
   createdAt?: string
   columnKey?: string
   updatedAt?: string
+  taskType?: string
+  contactName?: string | null
+  accountName?: string | null
+  assigneeName?: string | null
 }
 
 export type CrmTaskEvent = {
@@ -256,6 +272,7 @@ export const crmWorkApi = {
     options?: {
       columnKey?: string
       priority?: CrmTask['priority']
+      taskType?: string
       details?: string
       assigneeUserId?: string
       contactId?: string
@@ -277,6 +294,7 @@ export const crmWorkApi = {
       title: string
       details: string | null
       priority: CrmTask['priority']
+      taskType?: string
       dueAt: string | null
       assigneeUserId: string
       contactId: string | null
@@ -296,5 +314,34 @@ export const crmWorkApi = {
       { version: task.version, status },
     )
     return unwrap(result.data)
+  },
+
+  async deleteTask(companyId: string, taskId: string): Promise<void> {
+    await apiClient.delete(root(companyId) + '/tasks/' + encodeURIComponent(taskId))
+  },
+
+  async taskComments(companyId: string, taskId: string): Promise<CrmComment[]> {
+    const result = await apiClient.get<ApiResponse<CrmComment[]>>(
+      root(companyId) + '/tasks/' + encodeURIComponent(taskId) + '/comments',
+    )
+    return unwrap(result.data)
+  },
+
+  async addTaskComment(companyId: string, taskId: string, body: string): Promise<CrmComment> {
+    const result = await apiClient.post<ApiResponse<CrmComment>>(
+      root(companyId) + '/tasks/' + encodeURIComponent(taskId) + '/comments',
+      { body },
+    )
+    return unwrap(result.data)
+  },
+
+  async deleteTaskComment(companyId: string, taskId: string, commentId: string): Promise<void> {
+    await apiClient.delete(
+      root(companyId) +
+        '/tasks/' +
+        encodeURIComponent(taskId) +
+        '/comments/' +
+        encodeURIComponent(commentId),
+    )
   },
 }

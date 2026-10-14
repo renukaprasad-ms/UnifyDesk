@@ -4,14 +4,15 @@ import { BoardSkeleton, TableSkeleton } from '../../components/ui/Skeleton'
 import WorkspaceDialog from '../../components/ui/WorkspaceDialog'
 import FilterPopover from '../../components/ui/FilterPopover'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
-import { FiClock, FiPlus, FiRefreshCw, FiUser } from 'react-icons/fi'
+import { useNavigate, useSearchParams } from 'react-router'
+import { FiPlus, FiRefreshCw, FiUser, FiArrowRight } from 'react-icons/fi'
 import TaskBoard from '../../components/contacts/TaskBoard'
 import TaskSteps from '../../components/contacts/TaskSteps'
-import TaskHistoryPanel from '../../components/contacts/TaskHistoryPanel'
 import { taskStatusClass } from '../../features/contacts/taskPresentation'
 import { companyApi } from '../../features/company/companyApi'
 import { crmWorkApi, type CrmTaskColumn, type CrmTask } from '../../features/contacts/crmWorkApi'
+import { crmLeadsApi } from '../../features/contacts/crmLeadsApi'
+import { taskTypeConfig } from './CrmTaskDetailPage'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
@@ -21,6 +22,15 @@ import { selectSelectedCompanyId, selectWorkspaceEpoch } from '../../store/works
 
 const statuses: CrmTask['status'][] = ['OPEN', 'IN_PROGRESS', 'DONE', 'CANCELLED']
 const priorities: CrmTask['priority'][] = ['LOW', 'NORMAL', 'HIGH']
+const taskTypes = [
+  { key: 'TODO', label: 'General To-Do', icon: '📝' },
+  { key: 'CALL', label: 'Phone Call', icon: '📞' },
+  { key: 'MEETING', label: 'Meeting', icon: '👥' },
+  { key: 'EMAIL', label: 'Email', icon: '✉️' },
+  { key: 'FOLLOW_UP', label: 'Follow-up', icon: '📋' },
+  { key: 'LEAD', label: 'Lead Task', icon: '🎯' },
+  { key: 'COMPANY', label: 'Company Task', icon: '🏢' },
+]
 const label = (value: string) =>
   value
     .replaceAll('_', ' ')
@@ -38,6 +48,7 @@ export default function CrmTasksPage() {
   const epoch = useAppSelector(selectWorkspaceEpoch)
   const { capture, isCurrent } = useWorkspaceEpochScope(companyId, epoch)
   const { can } = useIam()
+  const navigate = useNavigate()
   const [view, setView] = useState<'board' | 'list'>('board')
   const [columns, setColumns] = useState<CrmTaskColumn[]>([])
   const [manageSteps, setManageSteps] = useState(false)
@@ -46,13 +57,16 @@ export default function CrmTasksPage() {
   const [next, setNext] = useState<string | null>(null)
   const [members, setMembers] = useState<Array<{ userId: string; name: string }>>([])
   const [accounts, setAccounts] = useState<Array<{ id: string; name: string }>>([])
+  const [leads, setLeads] = useState<Array<{ id: string; name: string }>>([])
   const [statusFilter, setStatusFilter] = useState<CrmTask['status'] | ''>('')
   const [assigneeFilter, setAssigneeFilter] = useState('')
   const [title, setTitle] = useState('')
   const [details, setDetails] = useState('')
+  const [taskType, setTaskType] = useState('TODO')
   const [dueDate, setDueDate] = useState('')
   const [priority, setPriority] = useState<CrmTask['priority']>('NORMAL')
   const [assignee, setAssignee] = useState('')
+  const [contactId, setContactId] = useState('')
   const [accountId, setAccountId] = useState('')
   const [assigning, setAssigning] = useState<CrmTask | null>(null)
   const [editing, setEditing] = useState<CrmTask | null>(null)
@@ -68,35 +82,15 @@ export default function CrmTasksPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [detail, setDetail] = useState<{ scope: string; taskId: string } | null>(null)
   const scopeKey = `${companyId}:${epoch}`
-  const [params, setParams] = useSearchParams()
-  const [linkedTask, setLinkedTask] = useState<CrmTask | null>(null)
-  const selectedTask =
-    detail?.scope === scopeKey
-      ? tasks.find((task) => task.id === detail.taskId) ||
-        (linkedTask?.id === detail.taskId ? linkedTask : null)
-      : null
+  const [params] = useSearchParams()
+
   useEffect(() => {
     const id = params.get('taskId')
-    if (!companyId || !id) return
-    let active = true
-    const scope = capture()
-    const found = tasks.find((task) => task.id === id)
-    void (found ? Promise.resolve(found) : crmWorkApi.task(companyId, id))
-      .then((task) => {
-        if (active && isCurrent(scope)) {
-          setLinkedTask(task)
-          setDetail({ scope: scopeKey, taskId: id })
-        }
-      })
-      .catch((error) => {
-        if (active && isCurrent(scope)) setError(apiErrorMessage(error, 'Unable to open task'))
-      })
-    return () => {
-      active = false
+    if (id) {
+      navigate('/crm/tasks/' + id, { replace: true })
     }
-  }, [companyId, params, tasks, scopeKey, capture, isCurrent])
+  }, [params, navigate])
   const assigneeName = (task: CrmTask) =>
     members.find((member) => member.userId === task.assigneeUserId)?.name || 'Assigned teammate'
 
@@ -169,6 +163,22 @@ export default function CrmTasksPage() {
           /* Unlinked tasks remain available. */
         })
     }
+    if (can(PERMISSIONS.CONTACT_READ) && typeof crmLeadsApi?.list === 'function') {
+      void crmLeadsApi
+        .list(companyId)
+        .then((page) => {
+          if (active && isCurrent(scope))
+            setLeads(
+              (page?.items || []).map((lead) => ({
+                id: lead.contactId,
+                name: lead.displayName || lead.organization || 'Lead',
+              })),
+            )
+        })
+        .catch(() => {
+          /* Leads list optional */
+        })
+    }
     return () => {
       active = false
     }
@@ -232,7 +242,6 @@ export default function CrmTasksPage() {
     setError('')
     const optimistic = { ...task, columnKey: key, status: column.statusGroup }
     setTasks((old) => old.map((t) => (t.id === task.id ? optimistic : t)))
-    setLinkedTask((old) => (old?.id === task.id ? optimistic : old))
     try {
       const saved = await crmWorkApi.taskColumn(companyId, task, key)
       if (!isCurrent(scope)) return
@@ -241,11 +250,9 @@ export default function CrmTasksPage() {
           ? old.filter((t) => t.id !== task.id)
           : old.map((t) => (t.id === task.id ? saved : t)),
       )
-      setLinkedTask((old) => (old?.id === task.id ? saved : old))
     } catch (err) {
       if (!isCurrent(scope)) return
       setTasks((old) => old.map((t) => (t.id === task.id ? task : t)))
-      setLinkedTask((old) => (old?.id === task.id ? task : old))
       setError(
         apiErrorMessage(err, 'Task could not be moved. Its previous step has been restored.'),
       )
@@ -259,8 +266,7 @@ export default function CrmTasksPage() {
   )
   const moving = pendingIds.size > 0
   const openTask = (task: CrmTask) => {
-    setDetail({ scope: scopeKey, taskId: task.id })
-    setParams({ taskId: task.id })
+    navigate('/crm/tasks/' + task.id)
   }
   const stepName = (task: CrmTask) =>
     columns.find((c) => c.key === (task.columnKey || task.status))?.name || label(task.status)
@@ -272,7 +278,9 @@ export default function CrmTasksPage() {
         columnKey: createColumn,
         details: details.trim(),
         priority,
+        taskType,
         assigneeUserId: assignee || undefined,
+        contactId: contactId || undefined,
         accountId: accountId || undefined,
       })
       if (!isCurrent(scope)) return
@@ -280,7 +288,9 @@ export default function CrmTasksPage() {
       setDetails('')
       setDueDate('')
       setPriority('NORMAL')
+      setTaskType('TODO')
       setAssignee('')
+      setContactId('')
       setAccountId('')
       setShowCreate(false)
     })
@@ -471,6 +481,21 @@ export default function CrmTasksPage() {
                   ))}
                 </select>
               </label>
+              <label className="text-sm">
+                Task type
+                <select
+                  aria-label="New task type"
+                  className="form-input mt-1 w-full"
+                  value={taskType}
+                  onChange={(event) => setTaskType(event.target.value)}
+                >
+                  {taskTypes.map((item) => (
+                    <option key={item.key} value={item.key}>
+                      {item.icon} {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               {can(PERMISSIONS.USER_READ) && (
                 <label className="text-sm">
                   Assign to
@@ -483,6 +508,23 @@ export default function CrmTasksPage() {
                     {members.map((member) => (
                       <option key={member.userId} value={member.userId}>
                         {member.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {can(PERMISSIONS.CONTACT_READ) && (
+                <label className="text-sm">
+                  Connected lead
+                  <select
+                    className="form-input mt-1 w-full"
+                    value={contactId}
+                    onChange={(event) => setContactId(event.target.value)}
+                  >
+                    <option value="">No lead</option>
+                    {leads.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
                       </option>
                     ))}
                   </select>
@@ -594,168 +636,125 @@ export default function CrmTasksPage() {
             <TableSkeleton rows={5} columns={4} />
           )
         ) : view === 'board' && columns.length > 0 ? (
-          <div
-            className={
-              selectedTask
-                ? 'grid h-full min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-5 xl:grid-cols-[minmax(0,1fr)_380px] xl:grid-rows-[minmax(0,1fr)]'
-                : 'h-full min-h-0 min-w-0'
-            }
-          >
-            <div className="h-full min-h-0 min-w-0">
-              <TaskBoard
-                tasks={tasks}
-                columns={columns}
-                busy={busy}
-                pendingIds={pendingIds}
-                canMove={can(PERMISSIONS.CRM_TASK_MODIFY)}
-                assigneeName={assigneeName}
-                onMove={moveTask}
-                onOpen={openTask}
-                onEdit={startEdit}
-                onAssign={can(PERMISSIONS.USER_READ) ? setAssigning : undefined}
-                onNew={(key) => {
-                  setCreateColumn(key)
-                  setShowCreate(true)
-                }}
-              />
-            </div>
-            {selectedTask && companyId && (
-              <div className="min-h-0 overflow-y-auto">
-                <TaskHistoryPanel
-                  key={scopeKey + ':' + selectedTask.id}
-                  companyId={companyId}
-                  task={selectedTask}
-                  stepName={stepName(selectedTask)}
-                  assigneeName={assigneeName(selectedTask)}
-                  onClose={() => {
-                    setDetail(null)
-                    setParams({})
-                  }}
-                />
-              </div>
-            )}
+          <div className="h-full min-h-0 min-w-0">
+            <TaskBoard
+              tasks={tasks}
+              columns={columns}
+              busy={busy}
+              pendingIds={pendingIds}
+              canMove={can(PERMISSIONS.CRM_TASK_MODIFY)}
+              assigneeName={assigneeName}
+              onMove={moveTask}
+              onOpen={openTask}
+              onEdit={startEdit}
+              onAssign={can(PERMISSIONS.USER_READ) ? setAssigning : undefined}
+              onNew={(key) => {
+                setCreateColumn(key)
+                setShowCreate(true)
+              }}
+            />
           </div>
         ) : tasks.length === 0 ? (
           <div className="rounded-xl border border-dashed p-8 text-center text-sm text-slate-500">
             No tasks match this filter.
           </div>
         ) : (
-          <div
-            className={`grid items-start gap-5 ${selectedTask ? 'xl:grid-cols-[minmax(0,1fr)_380px]' : ''}`}
-          >
-            <div className="panel overflow-hidden">
-              {tasks.map((task) => (
+          <div className="panel overflow-hidden">
+            {tasks.map((task) => {
+              const typeInfo = taskTypeConfig(task.taskType)
+              return (
                 <div
                   key={task.id}
-                  className={`border-b border-slate-100 p-5 ${selectedTask?.id === task.id ? 'bg-indigo-50' : ''}`}
+                  onClick={() => openTask(task)}
+                  className="group flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 p-4 transition-colors hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-800/40 cursor-pointer"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-900">{task.title}</p>
-                      <p className="text-xs text-slate-500">
-                        {task.dueAt
-                          ? 'Due ' + new Date(task.dueAt).toLocaleString()
-                          : 'No due date'}{' '}
-                        · {label(task.priority)}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-semibold border ${typeInfo.color}`}
+                      >
+                        <span className="mr-1">{typeInfo.icon}</span>
+                        {typeInfo.label}
+                      </span>
+                      <p className="font-semibold text-slate-900 group-hover:text-indigo-600 dark:text-slate-100 dark:group-hover:text-indigo-400 transition-colors">
+                        {task.title}
                       </p>
-                      <p className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                        <FiUser />
-                        {assigneeName(task)}
-                        {task.priority === 'HIGH' && (
-                          <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700">
-                            High priority
-                          </span>
-                        )}
-                      </p>
-                      <div className="mt-1 flex gap-3 text-xs">
-                        {task.contactId && (
-                          <Link to={'/contacts/' + task.contactId} className="text-indigo-600">
-                            Contact
-                          </Link>
-                        )}
-                        {task.accountId && (
-                          <Link to={'/crm/companies/' + task.accountId} className="text-indigo-600">
-                            Company
-                          </Link>
-                        )}
-                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {can(PERMISSIONS.CRM_TASK_MODIFY) ? (
-                        <>
-                          <select
-                            className={`form-input text-xs font-semibold ${taskStatusClass(task.status)}`}
-                            aria-label={'Status for ' + task.title}
-                            value={task.columnKey || task.status}
-                            disabled={busy || pendingIds.has(task.id)}
-                            onChange={(event) => void moveTask(task, event.target.value)}
-                          >
-                            {columns.map((column) => (
-                              <option key={column.key} value={column.key}>
-                                {column.name}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            className="secondary-button"
-                            type="button"
-                            disabled={busy || moving}
-                            onClick={() => startEdit(task)}
-                          >
-                            Edit
-                          </button>
-                        </>
-                      ) : (
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${taskStatusClass(task.status)}`}
-                        >
-                          {stepName(task)}
+                    {task.details && (
+                      <p className="mt-1 line-clamp-1 text-xs text-slate-500 dark:text-slate-400">
+                        {task.details}
+                      </p>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="flex items-center gap-1 font-medium">
+                        <FiUser className="text-slate-400" />
+                        {assigneeName(task)}
+                      </span>
+                      <span className="text-slate-300 dark:text-slate-700">·</span>
+                      <span>
+                        {task.dueAt
+                          ? 'Due ' + new Date(task.dueAt).toLocaleDateString()
+                          : 'No due date'}
+                      </span>
+                      <span className="text-slate-300 dark:text-slate-700">·</span>
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${task.priority === 'HIGH' ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400' : task.priority === 'LOW' ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400'}`}
+                      >
+                        {label(task.priority)} priority
+                      </span>
+                      {task.contactName && (
+                        <span className="inline-flex items-center gap-1 rounded bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
+                          <span>👤</span>
+                          {task.contactName}
                         </span>
                       )}
-                      <button
-                        className="secondary-button gap-2"
-                        type="button"
-                        aria-expanded={selectedTask?.id === task.id}
-                        aria-label={`View activity history for ${task.title}`}
-                        onClick={() => {
-                          setDetail({ scope: scopeKey, taskId: task.id })
-                          setParams({ taskId: task.id })
-                        }}
-                      >
-                        <FiClock />
-                        View history
-                      </button>
+                      {task.accountName && (
+                        <span className="inline-flex items-center gap-1 rounded bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+                          <span>🏢</span>
+                          {task.accountName}
+                        </span>
+                      )}
                     </div>
                   </div>
+                  <div
+                    className="flex items-center gap-2 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {can(PERMISSIONS.CRM_TASK_MODIFY) ? (
+                      <select
+                        className={`form-input text-xs font-semibold ${taskStatusClass(task.status)}`}
+                        aria-label={'Status for ' + task.title}
+                        value={task.columnKey || task.status}
+                        disabled={busy || pendingIds.has(task.id)}
+                        onChange={(event) => void moveTask(task, event.target.value)}
+                      >
+                        {columns.map((column) => (
+                          <option key={column.key} value={column.key}>
+                            {column.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${taskStatusClass(task.status)}`}
+                      >
+                        {stepName(task)}
+                      </span>
+                    )}
+                    <button
+                      className="secondary-button gap-1.5 text-xs"
+                      type="button"
+                      aria-label={`View details for ${task.title}`}
+                      onClick={() => openTask(task)}
+                    >
+                      <FiArrowRight />
+                      Details
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
-            {selectedTask && companyId && (
-              <TaskHistoryPanel
-                key={`${scopeKey}:${selectedTask.id}`}
-                companyId={companyId}
-                stepName={stepName(selectedTask)}
-                task={selectedTask}
-                assigneeName={assigneeName(selectedTask)}
-                onClose={() => {
-                  setDetail(null)
-                  setParams({})
-                }}
-              />
-            )}
+              )
+            })}
           </div>
-        )}
-        {(loading || (view === 'list' && tasks.length === 0)) && selectedTask && companyId && (
-          <TaskHistoryPanel
-            key={`${scopeKey}:${selectedTask.id}`}
-            companyId={companyId}
-            task={selectedTask}
-            assigneeName={assigneeName(selectedTask)}
-            onClose={() => {
-              setDetail(null)
-              setParams({})
-            }}
-          />
         )}
       </div>
       {assigning && (

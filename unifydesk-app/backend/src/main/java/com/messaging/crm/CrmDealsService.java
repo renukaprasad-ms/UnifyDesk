@@ -23,6 +23,7 @@ public class CrmDealsService {
   private final JdbcTemplate jdbc;
   private final CrmCustomFieldService crmCustomFields;
   private final CrmPipelineService pipelineService;
+  private final CrmAutomationService crmAutomationService;
 
   private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
       new com.fasterxml.jackson.databind.ObjectMapper();
@@ -35,14 +36,17 @@ public class CrmDealsService {
       @org.springframework.beans.factory.annotation.Autowired(required = false)
       CrmCustomFieldService crmCustomFields,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
-      CrmPipelineService pipelineService) {
+      CrmPipelineService pipelineService,
+      @org.springframework.beans.factory.annotation.Autowired(required = false)
+      CrmAutomationService crmAutomationService) {
     this.jdbc = jdbc;
     this.crmCustomFields = crmCustomFields;
     this.pipelineService = pipelineService != null ? pipelineService : new CrmPipelineService(jdbc);
+    this.crmAutomationService = crmAutomationService;
   }
 
   public CrmDealsService(JdbcTemplate jdbc) {
-    this(jdbc, null, null);
+    this(jdbc, null, null, null);
   }
 
   public enum Stage {
@@ -70,6 +74,16 @@ public class CrmDealsService {
       String accountName,
       String pipelineId,
       String pipelineName,
+      String attributionChannel,
+      String broadcastMessageId,
+      String broadcastSubject,
+      String adCampaignId,
+      String adCampaignName,
+      String leadFormId,
+      String leadFormTitle,
+      String utmSource,
+      String utmMedium,
+      String utmCampaign,
       java.util.Map<String, Object> customFields,
       long version,
       Instant createdAt,
@@ -86,7 +100,47 @@ public class CrmDealsService {
       Long accountId,
       Long pipelineId,
       String stage,
+      String attributionChannel,
+      Long broadcastMessageId,
+      Long adCampaignId,
+      Long leadFormId,
+      String utmSource,
+      String utmMedium,
+      String utmCampaign,
       java.util.Map<String, Object> customFields) {
+
+    public Input(
+        String title,
+        String description,
+        String amount,
+        String currency,
+        LocalDate expectedCloseDate,
+        Long ownerUserId,
+        Long contactId,
+        Long accountId,
+        Long pipelineId,
+        String stage,
+        java.util.Map<String, Object> customFields) {
+      this(
+          title,
+          description,
+          amount,
+          currency,
+          expectedCloseDate,
+          ownerUserId,
+          contactId,
+          accountId,
+          pipelineId,
+          stage,
+          "DIRECT_SALES",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          customFields);
+    }
 
     public Input(
         String title,
@@ -107,6 +161,13 @@ public class CrmDealsService {
           ownerUserId,
           contactId,
           accountId,
+          null,
+          null,
+          "DIRECT_SALES",
+          null,
+          null,
+          null,
+          null,
           null,
           null,
           customFields);
@@ -132,6 +193,13 @@ public class CrmDealsService {
           accountId,
           null,
           null,
+          "DIRECT_SALES",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
           java.util.Map.of());
     }
   }
@@ -151,12 +219,18 @@ public class CrmDealsService {
   private static final String SELECT =
       """
       select d.*, u.name as owner_name, c.display_name as contact_name, a.name as account_name,
-             p.name as pipeline_name
+             p.name as pipeline_name,
+             bm.subject as broadcast_subject,
+             ac.name as ad_campaign_name,
+             lf.title as lead_form_title
       from crm_deals d
       left join users u on u.id = d.owner_user_id
       left join contacts c on c.company_id = d.company_id and c.id = d.contact_id
       left join crm_accounts a on a.company_id = d.company_id and a.id = d.account_id
       left join crm_pipelines p on p.company_id = d.company_id and p.id = d.pipeline_id
+      left join broadcast_messages bm on bm.id = d.broadcast_message_id
+      left join ad_campaigns ac on ac.id = d.ad_campaign_id
+      left join crm_lead_forms lf on lf.company_id = d.company_id and lf.id = d.lead_form_id
       """;
 
   private static String id(ResultSet rs, String field) throws SQLException {
@@ -189,6 +263,16 @@ public class CrmDealsService {
         rs.getString("account_name"),
         id(rs, "pipeline_id"),
         rs.getString("pipeline_name"),
+        rs.getString("attribution_channel") != null ? rs.getString("attribution_channel") : "DIRECT_SALES",
+        id(rs, "broadcast_message_id"),
+        rs.getString("broadcast_subject"),
+        id(rs, "ad_campaign_id"),
+        rs.getString("ad_campaign_name"),
+        id(rs, "lead_form_id"),
+        rs.getString("lead_form_title"),
+        rs.getString("utm_source"),
+        rs.getString("utm_medium"),
+        rs.getString("utm_campaign"),
         customFields,
         rs.getLong("version"),
         rs.getTimestamp("created_at").toInstant(),
@@ -266,12 +350,19 @@ public class CrmDealsService {
       customJson = "{}";
     }
 
+    String channel = input.attributionChannel() != null && !input.attributionChannel().isBlank()
+        ? input.attributionChannel().trim()
+        : "DIRECT_SALES";
+
     long key = IdGenerator.nextId();
     jdbc.update(
         """
         insert into crm_deals(id, company_id, pipeline_id, stage, title, description, amount, currency,
-          expected_close_date, owner_user_id, contact_id, account_id, custom_fields, created_by_user_id)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, cast(? as jsonb), ?)
+          expected_close_date, owner_user_id, contact_id, account_id,
+          attribution_channel, broadcast_message_id, ad_campaign_id, lead_form_id,
+          utm_source, utm_medium, utm_campaign,
+          custom_fields, created_by_user_id)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, cast(? as jsonb), ?)
         """,
         key,
         companyId,
@@ -285,11 +376,36 @@ public class CrmDealsService {
         owner,
         input.contactId(),
         input.accountId(),
+        channel,
+        input.broadcastMessageId(),
+        input.adCampaignId(),
+        input.leadFormId(),
+        text(input.utmSource()),
+        text(input.utmMedium()),
+        text(input.utmCampaign()),
         customJson,
         actor);
 
     event(companyId, key, "CREATED", null, stage, null, actor);
-    return get(companyId, key);
+    Deal created = get(companyId, key);
+    if (crmAutomationService != null) {
+      try {
+        crmAutomationService.fireEvent(
+            companyId,
+            "DEAL_CREATED",
+            "DEAL",
+            String.valueOf(key),
+            java.util.Map.of(
+                "dealId", key,
+                "dealName", created.title(),
+                "stage", stage,
+                "amount", amount,
+                "currency", input.currency(),
+                "ownerUserId", owner,
+                "contactId", input.contactId() != null ? input.contactId() : ""));
+      } catch (Exception ignored) {}
+    }
+    return created;
   }
 
   @Transactional
@@ -302,6 +418,20 @@ public class CrmDealsService {
         input.pipelineId() != null
             ? input.pipelineId()
             : (previous.pipelineId() != null ? Long.parseLong(previous.pipelineId()) : pipelineService.ensureDefaultPipeline(companyId));
+
+    String channel = input.attributionChannel() != null && !input.attributionChannel().isBlank()
+        ? input.attributionChannel().trim()
+        : previous.attributionChannel();
+
+    Long broadcastId = input.broadcastMessageId() != null
+        ? input.broadcastMessageId()
+        : (previous.broadcastMessageId() != null ? Long.parseLong(previous.broadcastMessageId()) : null);
+    Long adId = input.adCampaignId() != null
+        ? input.adCampaignId()
+        : (previous.adCampaignId() != null ? Long.parseLong(previous.adCampaignId()) : null);
+    Long formId = input.leadFormId() != null
+        ? input.leadFormId()
+        : (previous.leadFormId() != null ? Long.parseLong(previous.leadFormId()) : null);
 
     java.util.Map<String, Object> customToSave =
         input.customFields() != null
@@ -321,7 +451,10 @@ public class CrmDealsService {
         jdbc.update(
             """
         update crm_deals set title=?, description=?, amount=?, currency=?, expected_close_date=?,
-          owner_user_id=?, contact_id=?, account_id=?, pipeline_id=?, custom_fields=cast(? as jsonb),
+          owner_user_id=?, contact_id=?, account_id=?, pipeline_id=?,
+          attribution_channel=?, broadcast_message_id=?, ad_campaign_id=?, lead_form_id=?,
+          utm_source=?, utm_medium=?, utm_campaign=?,
+          custom_fields=cast(? as jsonb),
           version=version+1, updated_at=now()
         where company_id=? and id=? and version=?
         """,
@@ -334,6 +467,13 @@ public class CrmDealsService {
             input.contactId(),
             input.accountId(),
             pipelineId,
+            channel,
+            broadcastId,
+            adId,
+            formId,
+            input.utmSource() != null ? text(input.utmSource()) : previous.utmSource(),
+            input.utmMedium() != null ? text(input.utmMedium()) : previous.utmMedium(),
+            input.utmCampaign() != null ? text(input.utmCampaign()) : previous.utmCampaign(),
             customJson,
             companyId,
             dealId,
@@ -399,7 +539,24 @@ public class CrmDealsService {
     if (count != 1) throw conflict();
     event(
         companyId, dealId, "STAGE_CHANGED", previous.stage(), stage, "Stage", actor);
-    return get(companyId, dealId);
+    Deal moved = get(companyId, dealId);
+    if (crmAutomationService != null) {
+      try {
+        crmAutomationService.fireEvent(
+            companyId,
+            "DEAL_STAGE_CHANGED",
+            "DEAL",
+            String.valueOf(dealId),
+            java.util.Map.of(
+                "dealId", dealId,
+                "dealName", moved.title(),
+                "fromStage", previous.stage(),
+                "toStage", stage,
+                "ownerUserId", moved.ownerUserId() != null ? moved.ownerUserId() : "",
+                "contactId", moved.contactId() != null ? moved.contactId() : ""));
+      } catch (Exception ignored) {}
+    }
+    return moved;
   }
 
   @Transactional
@@ -490,6 +647,12 @@ public class CrmDealsService {
         next,
         changed,
         actor);
+  }
+
+  @Transactional
+  public void delete(long companyId, long dealId, long actor) {
+    get(companyId, dealId);
+    jdbc.update("delete from crm_deals where company_id = ? and id = ?", companyId, dealId);
   }
 
   private static String text(String value) {

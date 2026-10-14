@@ -4,6 +4,10 @@ import { Link } from 'react-router'
 import { FiArrowRight, FiClock, FiRefreshCw, FiUser, FiX, FiSliders, FiCheck, FiMessageCircle } from 'react-icons/fi'
 import { crmLeadsApi, type Lead, type LeadHistoryEvent } from '../../features/contacts/crmLeadsApi'
 import {
+  crmLeadScoringApi,
+  type LeadScoreResult,
+} from '../../features/contacts/crmLeadScoringApi'
+import {
   crmCustomFieldsApi,
   type CrmFieldDef,
   type CustomFieldValues,
@@ -49,6 +53,18 @@ export default function LeadHistoryPanel({
   const [editingCustom, setEditingCustom] = useState(false)
   const [savingCustom, setSavingCustom] = useState(false)
   const [customError, setCustomError] = useState('')
+
+  // Lead score breakdown state
+  const [scoreResult, setScoreResult] = useState<LeadScoreResult | null>(null)
+  const [showScoreBreakdown, setShowScoreBreakdown] = useState(false)
+
+  useEffect(() => {
+    if (!companyId || !lead.contactId) return
+    crmLeadScoringApi
+      .getLeadScore(companyId, lead.contactId)
+      .then(setScoreResult)
+      .catch(() => {})
+  }, [companyId, lead.contactId, lead.stage, reload])
 
   useEffect(() => {
     setCustomFields(lead.customFields || {})
@@ -128,7 +144,59 @@ export default function LeadHistoryPanel({
         >
           {stageLabel(lead.stage)}
         </span>
-        <dl className="mt-5 grid grid-cols-2 gap-4 text-xs">
+
+        {/* Lead Score & Temperature Badge Card */}
+        <div className="mt-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Lead Score & Grade
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                (scoreResult?.temperature || lead.temperature) === 'HOT'
+                  ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                  : (scoreResult?.temperature || lead.temperature) === 'WARM'
+                  ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                  : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+              }`}
+            >
+              {(scoreResult?.temperature || lead.temperature) === 'HOT' && '🔥 Hot Lead'}
+              {(scoreResult?.temperature || lead.temperature) === 'WARM' && '⚡ Warm Lead'}
+              {(!scoreResult?.temperature && !lead.temperature) || (scoreResult?.temperature || lead.temperature) === 'COLD' ? '❄️ Cold Lead' : ''}
+            </span>
+          </div>
+
+          <div className="flex items-baseline justify-between">
+            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
+              {scoreResult?.score ?? lead.score ?? 0}{' '}
+              <span className="text-xs font-normal text-slate-400">points</span>
+            </div>
+            {scoreResult && scoreResult.breakdown.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowScoreBreakdown(!showScoreBreakdown)}
+                className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                {showScoreBreakdown ? 'Hide Breakdown' : `${scoreResult.breakdown.length} Rules Matched`}
+              </button>
+            )}
+          </div>
+
+          {showScoreBreakdown && scoreResult && scoreResult.breakdown.length > 0 && (
+            <div className="mt-2 space-y-1.5 border-t border-slate-200/60 dark:border-slate-800 pt-2 text-[11px]">
+              {scoreResult.breakdown.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                  <span className="truncate pr-2">{item.reason || item.ruleName}</span>
+                  <span className="shrink-0 font-bold text-emerald-600 dark:text-emerald-400">
+                    +{item.points}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <dl className="mt-4 grid grid-cols-2 gap-4 text-xs">
           <div>
             <dt className="text-slate-500">Created</dt>
             <dd className="mt-1 font-medium text-slate-900 dark:text-slate-100">{leadDateTime(lead.createdAt)}</dd>

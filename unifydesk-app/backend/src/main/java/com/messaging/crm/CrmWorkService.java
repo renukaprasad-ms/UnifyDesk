@@ -78,7 +78,45 @@ public class CrmWorkService {
       long version,
       Instant createdAt,
       Instant updatedAt,
-      String columnKey) {}
+      String columnKey,
+      String taskType,
+      String contactName,
+      String accountName,
+      String assigneeName) {
+    public Task(
+        String id,
+        String title,
+        String details,
+        String status,
+        String priority,
+        Instant dueAt,
+        String assigneeUserId,
+        String contactId,
+        String accountId,
+        long version,
+        Instant createdAt,
+        Instant updatedAt,
+        String columnKey) {
+      this(
+          id,
+          title,
+          details,
+          status,
+          priority,
+          dueAt,
+          assigneeUserId,
+          contactId,
+          accountId,
+          version,
+          createdAt,
+          updatedAt,
+          columnKey,
+          "TODO",
+          null,
+          null,
+          null);
+    }
+  }
 
   public record TaskEvent(
       String id,
@@ -112,6 +150,14 @@ public class CrmWorkService {
     return value == null ? null : value.toString();
   }
 
+  private static String col(ResultSet rs, String name) {
+    try {
+      return rs.getString(name);
+    } catch (SQLException ignored) {
+      return null;
+    }
+  }
+
   private static Account account(ResultSet rs, int row) throws SQLException {
     java.util.Map<String, Object> customFields = java.util.Map.of();
     String rawCustom = rs.getString("custom_fields");
@@ -133,6 +179,7 @@ public class CrmWorkService {
 
   private static Task task(ResultSet rs, int row) throws SQLException {
     var due = rs.getTimestamp("due_at");
+    String type = col(rs, "task_type");
     return new Task(
         id(rs, "id"),
         rs.getString("title"),
@@ -146,7 +193,11 @@ public class CrmWorkService {
         rs.getLong("version"),
         rs.getTimestamp("created_at").toInstant(),
         rs.getTimestamp("updated_at").toInstant(),
-        rs.getString("column_key") == null ? rs.getString("status") : rs.getString("column_key"));
+        rs.getString("column_key") == null ? rs.getString("status") : rs.getString("column_key"),
+        type == null || type.isBlank() ? "TODO" : type,
+        col(rs, "contact_name"),
+        col(rs, "account_name"),
+        col(rs, "assignee_name"));
   }
 
   private static String trimmed(String value, int max) {
@@ -463,11 +514,18 @@ public class CrmWorkService {
     List<Task> results =
         jdbc.query(
             """
-        select * from crm_tasks
-        where company_id = ? and (cast(? as bigint) is null or id < ?)
-          and (cast(? as bigint) is null or assignee_user_id = ?)
-          and (cast(? as varchar) is null or status = ?)
-        order by id desc limit ?
+        select t.*,
+               c.display_name as contact_name,
+               a.name as account_name,
+               u.name as assignee_name
+        from crm_tasks t
+        left join contacts c on c.company_id = t.company_id and c.id = t.contact_id
+        left join crm_accounts a on a.company_id = t.company_id and a.id = t.account_id
+        left join users u on u.id = t.assignee_user_id
+        where t.company_id = ? and (cast(? as bigint) is null or t.id < ?)
+          and (cast(? as bigint) is null or t.assignee_user_id = ?)
+          and (cast(? as varchar) is null or t.status = ?)
+        order by t.id desc limit ?
         """,
             CrmWorkService::task,
             companyId,
@@ -495,7 +553,7 @@ public class CrmWorkService {
       Long accountId,
       long actor) {
     return createTask(
-        companyId, title, details, priority, dueAt, assignee, contactId, accountId, actor, "OPEN");
+        companyId, title, details, priority, dueAt, assignee, contactId, accountId, actor, "OPEN", "TODO");
   }
 
   @Transactional
@@ -510,12 +568,30 @@ public class CrmWorkService {
       Long accountId,
       long actor,
       String columnKey) {
+    return createTask(
+        companyId, title, details, priority, dueAt, assignee, contactId, accountId, actor, columnKey, "TODO");
+  }
+
+  @Transactional
+  public Task createTask(
+      long companyId,
+      String title,
+      String details,
+      String priority,
+      Instant dueAt,
+      long assignee,
+      Long contactId,
+      Long accountId,
+      long actor,
+      String columnKey,
+      String taskType) {
     String safeTitle = trimmed(title, 240);
     if (safeTitle == null)
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_TITLE_REQUIRED");
     if (!List.of("LOW", "NORMAL", "HIGH").contains(priority)) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_PRIORITY_INVALID");
     }
+    String safeType = (taskType == null || taskType.isBlank()) ? "TODO" : taskType.trim().toUpperCase();
     activeMember(companyId, assignee);
     requireContact(companyId, contactId);
     requireAccount(companyId, accountId);
@@ -525,8 +601,8 @@ public class CrmWorkService {
     jdbc.update(
         """
         insert into crm_tasks(id,company_id,title,details,priority,due_at,
-                              assignee_user_id,contact_id,account_id,created_by_user_id,column_key,status,completed_at)
-        values(?,?,?,?,?,?,?,?,?,?,?,?,case when ?='DONE' then now() else null end)
+                              assignee_user_id,contact_id,account_id,created_by_user_id,column_key,status,completed_at,task_type)
+        values(?,?,?,?,?,?,?,?,?,?,?,?,case when ?='DONE' then now() else null end,?)
         """,
         key,
         companyId,
@@ -540,7 +616,8 @@ public class CrmWorkService {
         actor,
         column.key(),
         column.statusGroup(),
-        column.statusGroup());
+        column.statusGroup(),
+        safeType);
     appendTaskEvent(
         companyId, key, "CREATED", null, column.statusGroup(), null, actor, null, column.name());
     return getTask(companyId, key);
@@ -559,6 +636,24 @@ public class CrmWorkService {
       Long contactId,
       Long accountId,
       long actor) {
+    return updateTask(
+        companyId, taskId, version, title, details, priority, dueAt, assignee, contactId, accountId, actor, null);
+  }
+
+  @Transactional
+  public Task updateTask(
+      long companyId,
+      long taskId,
+      long version,
+      String title,
+      String details,
+      String priority,
+      Instant dueAt,
+      long assignee,
+      Long contactId,
+      Long accountId,
+      long actor,
+      String taskType) {
     Task previous = getTask(companyId, taskId);
     String safeTitle = trimmed(title, 240);
     if (safeTitle == null || version < 0) {
@@ -567,6 +662,7 @@ public class CrmWorkService {
     if (priority == null || !List.of("LOW", "NORMAL", "HIGH").contains(priority)) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_PRIORITY_INVALID");
     }
+    String safeType = (taskType == null || taskType.isBlank()) ? previous.taskType() : taskType.trim().toUpperCase();
     activeMember(companyId, assignee);
     requireContact(companyId, contactId);
     requireAccount(companyId, accountId);
@@ -575,7 +671,7 @@ public class CrmWorkService {
             """
         update crm_tasks
            set title = ?, details = ?, priority = ?, due_at = ?,
-               assignee_user_id = ?, contact_id = ?, account_id = ?,
+               assignee_user_id = ?, contact_id = ?, account_id = ?, task_type = ?,
                reminder_generation = reminder_generation
                  + case when assignee_user_id <> ?
                    or due_at is distinct from cast(? as timestamptz)
@@ -590,6 +686,7 @@ public class CrmWorkService {
             assignee,
             contactId,
             accountId,
+            safeType,
             assignee,
             dueAt == null ? null : Timestamp.from(dueAt),
             companyId,
@@ -606,6 +703,7 @@ public class CrmWorkService {
       changed.add("Assignee");
     if (!Objects.equals(previous.contactId(), result.contactId())) changed.add("Contact");
     if (!Objects.equals(previous.accountId(), result.accountId())) changed.add("Company");
+    if (!Objects.equals(previous.taskType(), result.taskType())) changed.add("Type");
     if (!changed.isEmpty())
       appendTaskEvent(
           companyId,
@@ -622,12 +720,28 @@ public class CrmWorkService {
   public Task getTask(long companyId, long taskId) {
     List<Task> rows =
         jdbc.query(
-            "select * from crm_tasks where company_id = ? and id = ?",
+            """
+            select t.*,
+                   c.display_name as contact_name,
+                   a.name as account_name,
+                   u.name as assignee_name
+            from crm_tasks t
+            left join contacts c on c.company_id = t.company_id and c.id = t.contact_id
+            left join crm_accounts a on a.company_id = t.company_id and a.id = t.account_id
+            left join users u on u.id = t.assignee_user_id
+            where t.company_id = ? and t.id = ?
+            """,
             CrmWorkService::task,
             companyId,
             taskId);
     if (rows.isEmpty()) throw new ApiException(HttpStatus.NOT_FOUND, "CRM_TASK_NOT_FOUND");
     return rows.getFirst();
+  }
+
+  @Transactional
+  public void deleteTask(long companyId, long taskId, long actor) {
+    getTask(companyId, taskId);
+    jdbc.update("delete from crm_tasks where company_id = ? and id = ?", companyId, taskId);
   }
 
   @Transactional

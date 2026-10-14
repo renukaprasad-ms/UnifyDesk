@@ -3,12 +3,16 @@ import type { ApiResponse } from '../../lib/api/types'
 import type { CustomFieldValues } from './crmCustomFieldsApi'
 
 export type LeadStage = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'UNQUALIFIED' | 'CONVERTED'
+export type LeadTemperature = 'HOT' | 'WARM' | 'COLD'
+
 export type Lead = {
   contactId: string
   displayName: string | null
   organization: string | null
   ownerUserId: string | null
   stage: LeadStage
+  score?: number
+  temperature?: LeadTemperature
   customFields?: CustomFieldValues
   version: number
   createdAt: string
@@ -37,9 +41,14 @@ export const crmLeadsApi = {
         .data,
     )
   },
-  async list(companyId: string, stage?: LeadStage, before?: string | null) {
+  async list(companyId: string, stage?: LeadStage, temperature?: LeadTemperature | '', before?: string | null) {
     const response = await apiClient.get<ApiResponse<LeadPage>>(url(companyId), {
-      params: { stage, before: before || undefined, size: 50 },
+      params: {
+        stage: stage || undefined,
+        temperature: temperature || undefined,
+        before: before || undefined,
+        size: 50,
+      },
     })
     return unwrap(response.data)
   },

@@ -1,7 +1,7 @@
 import { PageSkeleton } from '../../components/ui/Skeleton'
 import FilterPopover from '../../components/ui/FilterPopover'
 import { useEffect, useState } from 'react'
-import { FiBarChart2, FiDownload, FiRefreshCw } from 'react-icons/fi'
+import { FiBarChart2, FiDownload, FiRefreshCw, FiTrendingUp, FiPieChart, FiTarget } from 'react-icons/fi'
 import { BreakdownChart } from '../../components/ui/OverviewCharts'
 import {
   crmSalesApi,
@@ -13,6 +13,8 @@ import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpo
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
+import CrmForecastView from '../../features/contacts/CrmForecastView'
+import CrmAttributionView from '../../features/contacts/CrmAttributionView'
 
 function exportReport(report: CrmReport) {
   const safe = (value: string | number) =>
@@ -54,6 +56,7 @@ export default function CrmReportsPage() {
   const companyId = useAppSelector(selectSelectedCompanyId),
     epoch = useAppSelector(selectWorkspaceEpoch)
   const { capture, isCurrent } = useWorkspaceEpochScope(companyId, epoch)
+  const [activeTab, setActiveTab] = useState<'forecast' | 'attribution' | 'overview'>('forecast')
   const [days, setDays] = useState(30),
     [reload, setReload] = useState(0)
   const key = `${companyId}:${epoch}:${days}:${reload}`
@@ -103,48 +106,96 @@ export default function CrmReportsPage() {
     <section className="space-y-5 px-4 py-6 sm:px-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="eyebrow">CRM ANALYTICS</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-950">Reports</h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Understand your pipeline, lead progress and team follow-through.
+          <p className="eyebrow">CRM INTELLIGENCE</p>
+          <h1 className="mt-2 text-3xl font-bold text-slate-950 dark:text-slate-100">Sales Intelligence & Reports</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Weighted pipeline forecasting, closed-loop campaign attribution, conversion, and team activity.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <FilterPopover activeCount={Number(days !== 30)} onReset={() => setDays(30)}>
-            <label className="text-xs font-semibold">
-              Activity period{' '}
-              <select
-                aria-label="Report activity period"
-                className="form-input"
-                value={days}
-                onChange={(e) => setDays(Number(e.target.value))}
-              >
-                {[7, 30, 90].map((d) => (
-                  <option key={d} value={d}>
-                    Last {d} days
-                  </option>
-                ))}
-              </select>
-            </label>
-          </FilterPopover>
+
+        {/* View Switcher Tabs */}
+        <div className="flex items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
           <button
-            className="secondary-button gap-2"
-            disabled={loading}
-            onClick={() => setReload((n) => n + 1)}
+            onClick={() => setActiveTab('forecast')}
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+              activeTab === 'forecast'
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
           >
-            <FiRefreshCw />
-            Refresh
+            <FiTrendingUp className="size-4" />
+            <span>Sales Forecast & Quotas</span>
           </button>
           <button
-            className="secondary-button gap-2"
-            disabled={!report}
-            onClick={() => report && exportReport(report)}
+            onClick={() => setActiveTab('attribution')}
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+              activeTab === 'attribution'
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
           >
-            <FiDownload />
-            Export CSV
+            <FiTarget className="size-4" />
+            <span>Campaign Attribution & ROI</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+              activeTab === 'overview'
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <FiPieChart className="size-4" />
+            <span>Activity Overview</span>
           </button>
         </div>
       </header>
+
+      {activeTab === 'forecast' ? (
+        companyId ? (
+          <CrmForecastView companyId={companyId} />
+        ) : null
+      ) : activeTab === 'attribution' ? (
+        companyId ? (
+          <CrmAttributionView companyId={companyId} />
+        ) : null
+      ) : (
+        <>
+          <div className="flex justify-end gap-2">
+            <FilterPopover activeCount={Number(days !== 30)} onReset={() => setDays(30)}>
+              <label className="text-xs font-semibold">
+                Activity period{' '}
+                <select
+                  aria-label="Report activity period"
+                  className="form-input"
+                  value={days}
+                  onChange={(e) => setDays(Number(e.target.value))}
+                >
+                  {[7, 30, 90].map((d) => (
+                    <option key={d} value={d}>
+                      Last {d} days
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </FilterPopover>
+            <button
+              className="secondary-button gap-2"
+              disabled={loading}
+              onClick={() => setReload((n) => n + 1)}
+            >
+              <FiRefreshCw />
+              Refresh
+            </button>
+            <button
+              className="secondary-button gap-2"
+              disabled={!report}
+              onClick={() => report && exportReport(report)}
+            >
+              <FiDownload />
+              Export CSV
+            </button>
+          </div>
       {loading ? (
         <PageSkeleton />
       ) : result?.error ? (
@@ -309,6 +360,8 @@ export default function CrmReportsPage() {
             </section>
           </>
         )
+      )}
+        </>
       )}
     </section>
   )

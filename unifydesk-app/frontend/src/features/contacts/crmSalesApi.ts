@@ -63,6 +63,13 @@ export type DealFields = {
   accountId: string | null
   pipelineId?: string | null
   stage?: string
+  attributionChannel?: string | null
+  broadcastMessageId?: string | null
+  adCampaignId?: string | null
+  leadFormId?: string | null
+  utmSource?: string | null
+  utmMedium?: string | null
+  utmCampaign?: string | null
   customFields?: CustomFieldValues
 }
 
@@ -74,9 +81,38 @@ export type Deal = DealFields & {
   ownerName: string | null
   contactName: string | null
   accountName: string | null
+  attributionChannel: string
+  broadcastMessageId: string | null
+  broadcastSubject: string | null
+  adCampaignId: string | null
+  adCampaignName: string | null
+  leadFormId: string | null
+  leadFormTitle: string | null
+  utmSource: string | null
+  utmMedium: string | null
+  utmCampaign: string | null
   version: number
   createdAt: string
   updatedAt: string
+}
+
+export type DealAttachment = {
+  id: string
+  dealId: string
+  mediaId: string
+  filename: string
+  contentType: string | null
+  sizeBytes: number
+  uploaderUserId: string | null
+  uploaderName: string | null
+  createdAt: string
+}
+
+export type AttachDealDocumentInput = {
+  mediaId: string
+  filename?: string
+  contentType?: string
+  sizeBytes?: number
 }
 
 export type DealEvent = {
@@ -114,6 +150,168 @@ export type CrmReport = {
   trend: { date: string; leads: number; deals: number; completedTasks: number }[]
   team: { userId: string; name: string; actions: number }[]
   generatedAt: string
+}
+
+export type CrmForecastSummary = {
+  totalOpenDeals: number
+  unweightedPipeline: number | string
+  weightedPipeline: number | string
+  wonDealsCount: number
+  wonAmount: number | string
+  lostDealsCount: number
+  lostAmount: number | string
+  totalForecast: number | string
+  targetQuota: number | string
+  quotaAttainmentPct: number
+  projectedAttainmentPct: number
+  winRatePct: number
+  currency: string
+}
+
+export type CrmForecastStage = {
+  stageKey: string
+  stageName: string
+  category: string
+  probability: number
+  color: string
+  dealsCount: number
+  totalAmount: number | string
+  weightedAmount: number | string
+}
+
+export type CrmForecastTimeline = {
+  periodKey: string
+  periodLabel: string
+  openDealsCount: number
+  unweightedAmount: number | string
+  weightedAmount: number | string
+  wonDealsCount: number
+  wonAmount: number | string
+}
+
+export type CrmForecastRep = {
+  userId: string
+  userName: string
+  openDealsCount: number
+  unweightedAmount: number | string
+  weightedAmount: number | string
+  wonDealsCount: number
+  wonAmount: number | string
+  targetQuota: number | string
+  quotaAttainmentPct: number
+  projectedAttainmentPct: number
+}
+
+export type CrmForecastDeal = {
+  id: string
+  title: string
+  stage: string
+  stageName: string
+  category: string
+  probability: number
+  amount: number | string
+  weightedAmount: number | string
+  currency: string
+  expectedCloseDate: string | null
+  ownerUserId: string | null
+  ownerName: string
+  accountName: string | null
+  contactName: string | null
+}
+
+export type CrmForecastResponse = {
+  period: string
+  periodLabel: string
+  startDate: string | null
+  endDate: string | null
+  pipelineId: number | null
+  pipelineName: string
+  summary: CrmForecastSummary
+  stages: CrmForecastStage[]
+  timeline: CrmForecastTimeline[]
+  reps: CrmForecastRep[]
+  deals: CrmForecastDeal[]
+  generatedAt: string
+}
+
+export type CrmSalesQuota = {
+  id: string
+  userId: string
+  userName: string
+  periodType: string
+  periodKey: string
+  targetAmount: number | string
+  currency: string
+  updatedAt: string
+}
+
+export type SetQuotaInput = {
+  userId: string | number
+  periodType: string
+  periodKey: string
+  targetAmount: number
+  currency?: string
+}
+
+export type ChannelAttribution = {
+  channel: string
+  channelLabel: string
+  dealsCount: number
+  openAmount: number | string
+  wonDealsCount: number
+  wonAmount: number | string
+  lostDealsCount: number
+  winRatePct: number
+}
+
+export type CampaignRoi = {
+  id: string
+  title: string
+  campaignType: string // 'BROADCAST', 'AD_CAMPAIGN', 'WEB_FORM'
+  subtype: string
+  dealsCount: number
+  openAmount: number | string
+  wonDealsCount: number
+  wonAmount: number | string
+}
+
+export type AttributionReport = {
+  period: string
+  periodLabel: string
+  totalWonRevenue: number | string
+  marketingAttributedWon: number | string
+  marketingContributionPct: number
+  totalAttributedDeals: number
+  channels: ChannelAttribution[]
+  topBroadcasts: CampaignRoi[]
+  topAdCampaigns: CampaignRoi[]
+  topLeadForms: CampaignRoi[]
+  generatedAt: string
+}
+
+export type BroadcastOption = {
+  id: string
+  subject: string
+  channelType: string
+}
+
+export type AdCampaignOption = {
+  id: string
+  name: string
+  provider: string
+}
+
+export type LeadFormOption = {
+  id: string
+  title: string
+  formKey: string
+}
+
+export type AttributionOptions = {
+  broadcasts: BroadcastOption[]
+  adCampaigns: AdCampaignOption[]
+  leadForms: LeadFormOption[]
+  standardChannels: string[]
 }
 
 const root = (company: string) => `/api/v1/companies/${encodeURIComponent(company)}/crm`
@@ -173,6 +371,62 @@ export const crmSalesApi = {
           root(company) + '/deals/' + encodeURIComponent(id) + '/history',
         )
       ).data,
+    )
+  },
+
+  async deleteDeal(company: string, id: string): Promise<void> {
+    await apiClient.delete(root(company) + '/deals/' + encodeURIComponent(id))
+  },
+
+  async dealComments(company: string, dealId: string) {
+    return unwrap(
+      (
+        await apiClient.get<
+          ApiResponse<
+            Array<{
+              id: string
+              entityType: string
+              entityId: string
+              body: string
+              authorUserId: string | null
+              authorName: string | null
+              authorEmail: string | null
+              createdAt: string
+              updatedAt: string
+            }>
+          >
+        >(root(company) + '/deals/' + encodeURIComponent(dealId) + '/comments')
+      ).data,
+    )
+  },
+
+  async addDealComment(company: string, dealId: string, body: string) {
+    return unwrap(
+      (
+        await apiClient.post<
+          ApiResponse<{
+            id: string
+            entityType: string
+            entityId: string
+            body: string
+            authorUserId: string | null
+            authorName: string | null
+            authorEmail: string | null
+            createdAt: string
+            updatedAt: string
+          }>
+        >(root(company) + '/deals/' + encodeURIComponent(dealId) + '/comments', { body })
+      ).data,
+    )
+  },
+
+  async deleteDealComment(company: string, dealId: string, commentId: string): Promise<void> {
+    await apiClient.delete(
+      root(company) +
+        '/deals/' +
+        encodeURIComponent(dealId) +
+        '/comments/' +
+        encodeURIComponent(commentId),
     )
   },
 
@@ -239,6 +493,96 @@ export const crmSalesApi = {
         await apiClient.get<ApiResponse<CrmReport>>(root(company) + '/reports', {
           params: { days },
         })
+      ).data,
+    )
+  },
+
+  async listAttachments(company: string, dealId: string): Promise<DealAttachment[]> {
+    return unwrap(
+      (
+        await apiClient.get<ApiResponse<DealAttachment[]>>(
+          `${root(company)}/deals/${encodeURIComponent(dealId)}/attachments`,
+        )
+      ).data,
+    )
+  },
+
+  async attachDocument(
+    company: string,
+    dealId: string,
+    input: AttachDealDocumentInput,
+  ): Promise<DealAttachment> {
+    return unwrap(
+      (
+        await apiClient.post<ApiResponse<DealAttachment>>(
+          `${root(company)}/deals/${encodeURIComponent(dealId)}/attachments`,
+          input,
+        )
+      ).data,
+    )
+  },
+
+  async deleteAttachment(
+    company: string,
+    dealId: string,
+    attachmentId: string,
+  ): Promise<void> {
+    await apiClient.delete(
+      `${root(company)}/deals/${encodeURIComponent(dealId)}/attachments/${encodeURIComponent(attachmentId)}`,
+    )
+  },
+
+  async getForecast(
+    company: string,
+    params: { period?: string; pipelineId?: string; ownerUserId?: string } = {},
+  ): Promise<CrmForecastResponse> {
+    return unwrap(
+      (
+        await apiClient.get<ApiResponse<CrmForecastResponse>>(root(company) + '/forecast', {
+          params,
+        })
+      ).data,
+    )
+  },
+
+  async getQuotas(
+    company: string,
+    params: { periodType?: string; periodKey?: string } = {},
+  ): Promise<CrmSalesQuota[]> {
+    return unwrap(
+      (
+        await apiClient.get<ApiResponse<CrmSalesQuota[]>>(root(company) + '/quotas', {
+          params,
+        })
+      ).data,
+    )
+  },
+
+  async setQuota(company: string, input: SetQuotaInput): Promise<CrmSalesQuota> {
+    return unwrap(
+      (
+        await apiClient.put<ApiResponse<CrmSalesQuota>>(root(company) + '/quotas', input)
+      ).data,
+    )
+  },
+
+  async getAttributionReport(
+    company: string,
+    params: { period?: string } = {},
+  ): Promise<AttributionReport> {
+    return unwrap(
+      (
+        await apiClient.get<ApiResponse<AttributionReport>>(root(company) + '/reports/attribution', {
+          params,
+        })
+      ).data,
+    )
+  },
+
+  async getAttributionOptions(company: string): Promise<AttributionOptions> {
+    return unwrap(
+      (
+        await apiClient.get<ApiResponse<AttributionOptions>>(root(company) + '/attribution/options')
       ).data,
     )
   },

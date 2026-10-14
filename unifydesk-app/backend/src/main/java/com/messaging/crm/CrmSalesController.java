@@ -19,6 +19,8 @@ public class CrmSalesController {
   private final CrmDealsService deals;
   private final CrmActivityService activity;
   private final CrmReportsService reports;
+  private final CrmForecastService forecast;
+  private final CrmAttributionService attribution;
   private final CompanyAuthorizationService authorization;
   private final CurrentUserService currentUser;
 
@@ -106,6 +108,15 @@ public class CrmSalesController {
             "Deal stage updated"));
   }
 
+  @DeleteMapping("/deals/{dealId}")
+  public ResponseEntity<ApiResponse<Void>> delete(
+      @PathVariable long companyId, @PathVariable long dealId) {
+    dealRead(companyId);
+    long actor = require(companyId, CompanyPermissionKeys.CRM_DEAL_MODIFY);
+    deals.delete(companyId, dealId, actor);
+    return ResponseEntity.ok(ApiResponse.success(200, null, "Deal deleted"));
+  }
+
   @GetMapping("/activities")
   public ResponseEntity<ApiResponse<CrmActivityService.Page>> activities(
       @PathVariable long companyId,
@@ -160,5 +171,64 @@ public class CrmSalesController {
         CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(
         ApiResponse.success(200, reports.report(companyId, days), "CRM report generated"));
+  }
+
+  @GetMapping("/forecast")
+  public ResponseEntity<ApiResponse<CrmForecastService.ForecastResponse>> forecast(
+      @PathVariable long companyId,
+      @RequestParam(required = false) String period,
+      @RequestParam(required = false) Long pipelineId,
+      @RequestParam(required = false) Long ownerUserId) {
+    dealRead(companyId);
+    require(companyId, CompanyPermissionKeys.CRM_REPORT_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            forecast.getForecast(companyId, period, pipelineId, ownerUserId),
+            "Sales forecast generated"));
+  }
+
+  @GetMapping("/quotas")
+  public ResponseEntity<ApiResponse<java.util.List<CrmForecastService.SalesQuotaDto>>> quotas(
+      @PathVariable long companyId,
+      @RequestParam(required = false) String periodType,
+      @RequestParam(required = false) String periodKey) {
+    dealRead(companyId);
+    require(companyId, CompanyPermissionKeys.CRM_REPORT_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, forecast.getQuotas(companyId, periodType, periodKey), "Sales quotas fetched"));
+  }
+
+  @PutMapping("/quotas")
+  public ResponseEntity<ApiResponse<CrmForecastService.SalesQuotaDto>> setQuota(
+      @PathVariable long companyId, @Valid @RequestBody CrmForecastService.SetQuotaInput input) {
+    dealRead(companyId);
+    long actor = require(companyId, CompanyPermissionKeys.CRM_DEAL_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(200, forecast.setQuota(companyId, input, actor), "Sales quota saved"));
+  }
+
+  @GetMapping("/reports/attribution")
+  public ResponseEntity<ApiResponse<CrmAttributionService.AttributionReport>> attributionReport(
+      @PathVariable long companyId, @RequestParam(required = false) String period) {
+    dealRead(companyId);
+    require(companyId, CompanyPermissionKeys.CRM_REPORT_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            attribution.getReport(companyId, period),
+            "Marketing attribution report generated"));
+  }
+
+  @GetMapping("/attribution/options")
+  public ResponseEntity<ApiResponse<CrmAttributionService.AttributionOptions>> attributionOptions(
+      @PathVariable long companyId) {
+    dealRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            attribution.getOptions(companyId),
+            "Attribution options fetched"));
   }
 }

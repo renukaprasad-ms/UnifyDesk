@@ -42,7 +42,11 @@ import CrmLeadsPage from '../pages/contacts/CrmLeadsPage'
 import CrmCompaniesPage from '../pages/contacts/CrmCompaniesPage'
 import CrmCompanyDetailPage from '../pages/contacts/CrmCompanyDetailPage'
 import CrmTasksPage from '../pages/contacts/CrmTasksPage'
+import CrmTaskDetailPage from '../pages/contacts/CrmTaskDetailPage'
 import CrmDealsPage from '../pages/contacts/CrmDealsPage'
+import CrmDealDetailPage from '../pages/contacts/CrmDealDetailPage'
+import PublicLeadFormPage from '../pages/crm/PublicLeadFormPage'
+import PublicBookingPage from '../pages/crm/PublicBookingPage'
 import CrmActivitiesPage from '../pages/contacts/CrmActivitiesPage'
 import CrmReportsPage from '../pages/contacts/CrmReportsPage'
 import CrmCustomFieldsSettingsPage from '../pages/contacts/CrmCustomFieldsSettingsPage'
@@ -87,6 +91,8 @@ import WorkspaceRoute from './guards/WorkspaceRoute'
 const AppRoutes = () => (
   <Routes>
     <Route path="/unsubscribe" element={<EmailUnsubscribePage />} />
+    <Route path="/forms/:formKey" element={<PublicLeadFormPage />} />
+    <Route path="/book/:slug" element={<PublicBookingPage />} />
 
     <Route element={<AuthLayout />}>
       <Route path="/invite/:token" element={<InviteAccept />} />
@@ -281,6 +287,14 @@ const AppRoutes = () => (
                   </WorkspaceEpochBoundary>
                 }
               />
+              <Route
+                path="crm/tasks/:taskId"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <CrmTaskDetailPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.CONTACT_READ]} />}>
               <Route
@@ -295,6 +309,14 @@ const AppRoutes = () => (
                   element={
                     <WorkspaceEpochBoundary>
                       <CrmDealsPage />
+                    </WorkspaceEpochBoundary>
+                  }
+                />
+                <Route
+                  path="crm/deals/:dealId"
+                  element={
+                    <WorkspaceEpochBoundary>
+                      <CrmDealDetailPage />
                     </WorkspaceEpochBoundary>
                   }
                 />

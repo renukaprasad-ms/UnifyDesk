@@ -40,7 +40,8 @@ public class CrmWorkController {
       Long assigneeUserId,
       Long contactId,
       Long accountId,
-      String columnKey) {}
+      String columnKey,
+      String taskType) {}
 
   public record UpdateAccount(
       @NotBlank String name,
@@ -63,7 +64,8 @@ public class CrmWorkController {
       @NotNull Long assigneeUserId,
       Long contactId,
       Long accountId,
-      @NotNull Long version) {}
+      @NotNull Long version,
+      String taskType) {}
 
   public record SetStatus(@NotBlank String status, @NotNull Long version) {}
 
@@ -217,7 +219,8 @@ public class CrmWorkController {
                     request.contactId(),
                     request.accountId(),
                     actor,
-                    request.columnKey()),
+                    request.columnKey(),
+                    request.taskType()),
                 "Task created"));
   }
 
@@ -243,7 +246,8 @@ public class CrmWorkController {
                 request.assigneeUserId(),
                 request.contactId(),
                 request.accountId(),
-                actor),
+                actor,
+                request.taskType()),
             "Task updated"));
   }
 
@@ -267,6 +271,14 @@ public class CrmWorkController {
     require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(
         ApiResponse.success(200, service.getTask(companyId, taskId), "Task fetched"));
+  }
+
+  @DeleteMapping("/tasks/{taskId}")
+  public ResponseEntity<ApiResponse<Void>> deleteTask(
+      @PathVariable long companyId, @PathVariable long taskId) {
+    long actor = require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    service.deleteTask(companyId, taskId, actor);
+    return ResponseEntity.ok(ApiResponse.success(200, null, "Task deleted"));
   }
 
   @GetMapping("/tasks/{taskId}/history")

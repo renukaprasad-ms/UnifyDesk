@@ -1,20 +1,19 @@
 import AssigneeDialog from '../../components/ui/AssigneeDialog'
 import BoardViewToggle from '../../components/ui/BoardViewToggle'
-import { BoardSkeleton, TableSkeleton, ListSkeleton } from '../../components/ui/Skeleton'
+import { BoardSkeleton, TableSkeleton } from '../../components/ui/Skeleton'
 import WorkspaceDialog from '../../components/ui/WorkspaceDialog'
 import FilterPopover from '../../components/ui/FilterPopover'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import {
   FiArrowRight,
   FiBriefcase,
-  FiClock,
   FiPlus,
   FiRefreshCw,
   FiUser,
-  FiX,
-  FiMessageCircle,
   FiSliders,
+  FiZap,
+  FiCalendar,
 } from 'react-icons/fi'
 import {
   crmSalesApi,
@@ -22,26 +21,26 @@ import {
   dealStageColor,
   salesLabel,
   type Deal,
-  type DealEvent,
   type DealFields,
   type DealStage,
   type Pipeline,
   type PipelineStage,
+  type AttributionOptions,
 } from '../../features/contacts/crmSalesApi'
 import {
   crmCustomFieldsApi,
   type CrmFieldDef,
 } from '../../features/contacts/crmCustomFieldsApi'
 import { CustomFieldsSection } from '../../components/crm/CustomFieldRenderer'
-import SendWhatsAppModal from '../../components/crm/SendWhatsAppModal'
 import PipelineManagerModal from '../../components/crm/PipelineManagerModal'
+import CrmAutomationModal from '../../components/crm/CrmAutomationModal'
+import BookingManagerModal from '../../components/crm/BookingManagerModal'
 import { crmWorkApi } from '../../features/contacts/crmWorkApi'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import { companyApi } from '../../features/company/companyApi'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
-import { leadDateTime } from '../../features/contacts/leadPresentation'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
@@ -57,200 +56,14 @@ const empty: DealFields = {
   accountId: null,
   pipelineId: null,
   stage: 'NEW',
+  attributionChannel: 'DIRECT_SALES',
+  broadcastMessageId: null,
+  adCampaignId: null,
+  leadFormId: null,
+  utmSource: null,
+  utmMedium: null,
+  utmCampaign: null,
   customFields: {},
-}
-
-function DealDetails({
-  companyId,
-  deal,
-  onClose,
-  onEdit,
-  canEdit,
-  customDefs,
-}: {
-  companyId: string
-  deal: Deal
-  onClose: () => void
-  onEdit: () => void
-  canEdit: boolean
-  customDefs?: CrmFieldDef[]
-}) {
-  const { can } = useIam()
-  const canSendWhatsApp = can(PERMISSIONS.WHATSAPP_SEND)
-  const [showWhatsApp, setShowWhatsApp] = useState(false)
-  const [historyReload, setHistoryReload] = useState(0)
-
-  const [result, setResult] = useState<{
-    version: number
-    events: DealEvent[]
-    error: string
-  } | null>(null)
-  useEffect(() => {
-    let active = true
-    void crmSalesApi
-      .history(companyId, deal.id)
-      .then((events) => {
-        if (active) setResult({ version: deal.version, events, error: '' })
-      })
-      .catch((error) => {
-        if (active)
-          setResult({
-            version: deal.version,
-            events: [],
-            error: apiErrorMessage(error, 'Unable to load history'),
-          })
-      })
-    return () => {
-      active = false
-    }
-  }, [companyId, deal.id, deal.version, historyReload])
-  return (
-    <aside className="panel p-5">
-      <div className="flex justify-between gap-3">
-        <div>
-          <p className="eyebrow">OPPORTUNITY</p>
-          <h2 className="mt-2 break-words text-lg font-bold text-slate-950">{deal.title}</h2>
-        </div>
-        <button className="secondary-button p-2" onClick={onClose} aria-label="Close deal details">
-          <FiX />
-        </button>
-      </div>
-      <p className="mt-4 text-2xl font-bold text-slate-950">
-        {dealMoney(deal.amount, deal.currency)}
-      </p>
-      <span
-        className={`mt-3 inline-block rounded-full px-3 py-1 text-xs font-bold ${dealStageColor(deal.stage)}`}
-      >
-        {salesLabel(deal.stage)}
-      </span>
-      <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-slate-500">
-        {deal.description || 'No description added.'}
-      </p>
-      <dl className="mt-5 grid grid-cols-2 gap-4 text-xs">
-        <div>
-          <dt className="text-slate-500">Owner</dt>
-          <dd className="mt-1 text-slate-900">{deal.ownerName || 'Unassigned'}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-500">Expected close</dt>
-          <dd className="mt-1 text-slate-900">{deal.expectedCloseDate || 'Not scheduled'}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-500">Created</dt>
-          <dd className="mt-1 text-slate-900">{leadDateTime(deal.createdAt)}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-500">Updated</dt>
-          <dd className="mt-1 text-slate-900">{leadDateTime(deal.updatedAt)}</dd>
-        </div>
-      </dl>
-      <div className="mt-4 flex flex-wrap gap-3 text-xs font-semibold text-indigo-600">
-        {deal.contactId && (
-          <Link to={`/contacts/${deal.contactId}`}>{deal.contactName || 'Contact'}</Link>
-        )}
-        {deal.accountId && (
-          <Link to={`/crm/companies/${deal.accountId}`}>{deal.accountName || 'Company'}</Link>
-        )}
-      </div>
-      {customDefs && customDefs.length > 0 && (
-        <div className="mt-5 border-t border-slate-100 pt-4">
-          <p className="eyebrow mb-2">CUSTOM ATTRIBUTES</p>
-          <dl className="grid grid-cols-2 gap-2 text-xs">
-            {customDefs.map((def) => {
-              const val = deal.customFields ? deal.customFields[def.fieldKey] : null
-              const displayVal =
-                val != null && val !== ''
-                  ? Array.isArray(val)
-                    ? val.join(', ')
-                    : typeof val === 'boolean'
-                    ? val ? 'Yes' : 'No'
-                    : String(val)
-                  : null
-              return (
-                <div
-                  key={def.id}
-                  className="rounded-lg bg-slate-50 p-2.5 border border-slate-100"
-                >
-                  <dt className="text-slate-500 font-medium">{def.label}</dt>
-                  <dd className="mt-1 font-semibold text-slate-900 break-words">
-                    {displayVal ? (
-                      displayVal
-                    ) : (
-                      <span className="font-normal text-slate-400 italic">Not set</span>
-                    )}
-                  </dd>
-                </div>
-              )
-            })}
-          </dl>
-        </div>
-      )}
-      <div className="mt-5 flex flex-wrap gap-2">
-        {canEdit && (
-          <button className="secondary-button" onClick={onEdit}>
-            Edit opportunity
-          </button>
-        )}
-        {canSendWhatsApp && (
-          <button
-            type="button"
-            className="primary-button bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white flex items-center gap-1.5 text-xs py-2 px-3 shadow-xs"
-            onClick={() => setShowWhatsApp(true)}
-          >
-            <FiMessageCircle className="h-4 w-4" />
-            Send WhatsApp
-          </button>
-        )}
-      </div>
-      <h3 className="mt-6 flex items-center gap-2 border-t border-slate-100 pt-5 text-sm font-bold text-slate-950">
-        <FiClock />
-        Activity history
-      </h3>
-      <p className="mt-2 text-xs text-slate-500">
-        Latest 100 changes · {Intl.DateTimeFormat().resolvedOptions().timeZone}
-      </p>
-      {result?.version !== deal.version ? (
-        <ListSkeleton rows={3} />
-      ) : result.error ? (
-        <p role="alert" className="mt-4 text-xs text-rose-600">
-          {result.error}
-        </p>
-      ) : (
-        <ol className="mt-5 space-y-5">
-          {result.events.map((event) => (
-            <li key={event.id} className="border-l-2 border-indigo-100 pl-4">
-              <p className="text-xs font-semibold text-slate-900">
-                {event.eventType === 'STAGE_CHANGED'
-                  ? `${salesLabel(event.previousStage || 'NEW')} → ${salesLabel(event.newStage)}`
-                  : event.eventType === 'CREATED'
-                    ? 'Deal created'
-                    : `Updated: ${event.changedFields}`}
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                {event.actorName || event.actorUsername || 'Unknown actor'}
-              </p>
-              <time dateTime={event.occurredAt} className="mt-1 block text-[11px] text-slate-400">
-                {leadDateTime(event.occurredAt)}
-              </time>
-            </li>
-          ))}
-        </ol>
-      )}
-
-      {showWhatsApp && (
-        <SendWhatsAppModal
-          companyId={companyId}
-          contactId={deal.contactId}
-          dealId={deal.id}
-          recipientName={deal.contactName}
-          onClose={() => setShowWhatsApp(false)}
-          onSuccess={() => {
-            setHistoryReload((v) => v + 1)
-          }}
-        />
-      )}
-    </aside>
-  )
 }
 
 export default function CrmDealsPage() {
@@ -258,14 +71,14 @@ export default function CrmDealsPage() {
   const epoch = useAppSelector(selectWorkspaceEpoch)
   const { capture, isCurrent } = useWorkspaceEpochScope(companyId, epoch)
   const { can } = useIam()
-  const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
   const [deals, setDeals] = useState<Deal[]>([])
   const [next, setNext] = useState<string | null>(null)
   const [view, setView] = useState<'board' | 'list'>('board')
   const [stage, setStage] = useState<string>('')
   const [query, setQuery] = useState('')
   const [appliedQuery, setAppliedQuery] = useState('')
-  const [selected, setSelected] = useState<Deal | null>(null)
   const [editing, setEditing] = useState<Deal | null>(null)
   const [assigning, setAssigning] = useState<Deal | null>(null)
   const [creating, setCreating] = useState(false)
@@ -281,21 +94,35 @@ export default function CrmDealsPage() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
   const [activePipelineId, setActivePipelineId] = useState<string>('')
   const [showPipelineManager, setShowPipelineManager] = useState(false)
+  const [showAutomationModal, setShowAutomationModal] = useState(false)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+
+  // Marketing attribution options for deal creation/editing
+  const [attributionOptions, setAttributionOptions] = useState<AttributionOptions | null>(null)
+
+  useEffect(() => {
+    if (!companyId || (!creating && !editing)) return
+    if (typeof crmSalesApi?.getAttributionOptions === 'function') {
+      crmSalesApi.getAttributionOptions(companyId).then(setAttributionOptions).catch(() => {})
+    }
+  }, [companyId, creating, editing])
 
   const loadPipelines = useCallback(async () => {
     if (!companyId) return
     try {
-      const list = await crmSalesApi.pipelines(companyId)
-      setPipelines(list)
-      if (list.length > 0) {
-        setActivePipelineId((prev) => {
-          if (prev && list.some((p) => p.id === prev)) return prev
-          const def = list.find((p) => p.isDefault)
-          return def ? def.id : list[0].id
-        })
+      if (typeof crmSalesApi?.pipelines === 'function') {
+        const list = await crmSalesApi.pipelines(companyId)
+        setPipelines(list)
+        if (list.length > 0) {
+          setActivePipelineId((prev) => {
+            if (prev && list.some((p) => p.id === prev)) return prev
+            const def = list.find((p) => p.isDefault)
+            return def ? def.id : list[0].id
+          })
+        }
       }
-    } catch (err) {
-      console.error('Failed to load pipelines', err)
+    } catch {
+      // Keep default pipeline fallback
     }
   }, [companyId])
 
@@ -363,21 +190,10 @@ export default function CrmDealsPage() {
   }, [load])
   useEffect(() => {
     const id = params.get('dealId')
-    if (!id || !companyId) return
-    let active = true
-    const scope = capture()
-    void crmSalesApi
-      .deal(companyId, id)
-      .then((deal) => {
-        if (active && isCurrent(scope)) setSelected(deal)
-      })
-      .catch((e) => {
-        if (active && isCurrent(scope)) setError(apiErrorMessage(e, 'Unable to open deal'))
-      })
-    return () => {
-      active = false
+    if (id) {
+      navigate('/crm/deals/' + id, { replace: true })
     }
-  }, [companyId, params, capture, isCurrent])
+  }, [params, navigate])
   useEffect(() => {
     if (!companyId || (!creating && !editing && !assigning)) return
     let active = true
@@ -420,8 +236,7 @@ export default function CrmDealsPage() {
     }
   }, [companyId, creating, editing, assigning, contactQuery, can, capture, isCurrent])
   const open = (deal: Deal) => {
-    setSelected(deal)
-    setParams({ dealId: deal.id })
+    navigate('/crm/deals/' + deal.id)
   }
   const run = async (work: () => Promise<Deal>) => {
     if (busy) return
@@ -430,9 +245,7 @@ export default function CrmDealsPage() {
     try {
       const deal = await work()
       if (!isCurrent(scope)) return
-      setSelected(deal)
       setDeals((old) => old.map((d) => (d.id === deal.id ? deal : d)))
-      setParams({ dealId: deal.id })
       setCreating(false)
       setEditing(null)
       await load()
@@ -461,7 +274,6 @@ export default function CrmDealsPage() {
     setPending(new Set(pendingMoves.current))
     setError('')
     setDeals((old) => old.map((d) => (d.id === deal.id ? optimistic : d)))
-    setSelected((old) => (old?.id === deal.id ? optimistic : old))
     try {
       const saved = await crmSalesApi.moveDeal(companyId, deal, targetStage)
       if (!isCurrent(scope)) return
@@ -470,11 +282,9 @@ export default function CrmDealsPage() {
           ? old.filter((d) => d.id !== deal.id)
           : old.map((d) => (d.id === deal.id ? saved : d)),
       )
-      setSelected((old) => (old?.id === deal.id ? saved : old))
     } catch (err) {
       if (!isCurrent(scope)) return
       setDeals((old) => old.map((d) => (d.id === deal.id ? deal : d)))
-      setSelected((old) => (old?.id === deal.id ? deal : old))
       setError(
         apiErrorMessage(err, 'Deal could not be moved. Its previous stage has been restored.'),
       )
@@ -482,21 +292,6 @@ export default function CrmDealsPage() {
       pendingMoves.current.delete(operation)
       if (isCurrent(scope)) setPending(new Set(pendingMoves.current))
     }
-  }
-  const editDeal = (deal: Deal) => {
-    setEditing(deal)
-    setCreating(false)
-    setFields({
-      title: deal.title,
-      description: deal.description,
-      amount: deal.amount,
-      currency: deal.currency,
-      expectedCloseDate: deal.expectedCloseDate,
-      ownerUserId: deal.ownerUserId,
-      contactId: deal.contactId,
-      accountId: deal.accountId,
-      customFields: deal.customFields || {},
-    })
   }
   const assignDeal = async (ownerUserId: string | null) => {
     if (!companyId || !assigning) return
@@ -521,7 +316,7 @@ export default function CrmDealsPage() {
     <article
       key={deal.id}
       aria-busy={pending.has(scopeKey + ':' + deal.id)}
-      className={`panel p-4 ${draggedId === deal.id ? 'opacity-50' : ''}`}
+      className={`group cursor-pointer rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 ${draggedId === deal.id ? 'opacity-50' : ''}`}
       draggable={canEdit && !busy && !pending.has(scopeKey + ':' + deal.id)}
       onDragStart={(event) => {
         event.dataTransfer.setData('text/plain', deal.id)
@@ -529,20 +324,22 @@ export default function CrmDealsPage() {
         setDraggedId(deal.id)
       }}
       onDragEnd={() => setDraggedId(null)}
+      onClick={() => open(deal)}
     >
       <button
-        className="w-full text-left text-sm font-bold text-slate-950 hover:text-indigo-600"
+        type="button"
+        className="w-full text-left text-sm font-bold text-slate-950 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
         onClick={() => open(deal)}
       >
         {deal.title}
       </button>
-      <p className="mt-3 text-base font-bold text-slate-900">
+      <p className="mt-2 text-base font-extrabold text-slate-900 dark:text-slate-100">
         {dealMoney(deal.amount, deal.currency)}
       </p>
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
         {deal.accountName || deal.contactName || 'No linked customer'}
       </p>
-      <div className="mt-4 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+      <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
         <span className="flex items-center gap-1">
           <FiUser />
           {deal.ownerName || 'Unassigned'}
@@ -557,11 +354,24 @@ export default function CrmDealsPage() {
             .map(([k, v]) => (
               <span
                 key={k}
-                className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600"
+                className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
               >
                 {k}: {Array.isArray(v) ? v.join(', ') : String(v)}
               </span>
             ))}
+        </div>
+      )}
+      {deal.attributionChannel && deal.attributionChannel !== 'DIRECT_SALES' && (
+        <div className="mt-2 flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 text-[10px] font-semibold text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 truncate max-w-full">
+            {deal.attributionChannel === 'BROADCAST' && '📢 '}
+            {deal.attributionChannel === 'META_ADS' && '🎯 '}
+            {deal.attributionChannel === 'GOOGLE_ADS' && '🌐 '}
+            {deal.attributionChannel === 'WEB_FORM' && '📝 '}
+            <span className="truncate">
+              {deal.broadcastSubject || deal.adCampaignName || deal.leadFormTitle || salesLabel(deal.attributionChannel)}
+            </span>
+          </span>
         </div>
       )}
       {pending.has(scopeKey + ':' + deal.id) && (
@@ -570,54 +380,22 @@ export default function CrmDealsPage() {
         </p>
       )}
       {canEdit && (
-        <select
-          aria-label={`Stage for ${deal.title}`}
-          className="form-input mt-4 w-full text-xs"
-          disabled={busy || pending.has(scopeKey + ':' + deal.id)}
-          value={deal.stage}
-          onChange={(e) => void moveDeal(deal, e.target.value)}
-        >
-          {currentStages.map((s) => (
-            <option key={s.key} value={s.key}>
-              {s.name} ({s.probability}%)
-            </option>
-          ))}
-        </select>
+        <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+          <select
+            aria-label={`Stage for ${deal.title}`}
+            className="form-input w-full text-xs py-1.5 rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50"
+            disabled={busy || pending.has(scopeKey + ':' + deal.id)}
+            value={deal.stage}
+            onChange={(e) => void moveDeal(deal, e.target.value)}
+          >
+            {currentStages.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.name} ({s.probability}%)
+              </option>
+            ))}
+          </select>
+        </div>
       )}
-      <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-        {canEdit && (
-          <>
-            <button
-              type="button"
-              className="secondary-button gap-1 px-2 py-1.5 text-xs"
-              aria-label={'Assign ' + deal.title}
-              disabled={busy || moving}
-              onClick={() => setAssigning(deal)}
-            >
-              <FiUser />
-              Assign
-            </button>
-            <button
-              type="button"
-              className="secondary-button px-2 py-1.5 text-xs"
-              aria-label={'Edit ' + deal.title}
-              disabled={busy || moving}
-              onClick={() => editDeal(deal)}
-            >
-              Edit
-            </button>
-          </>
-        )}
-        <button
-          type="button"
-          className="secondary-button gap-1 px-2 py-1.5 text-xs"
-          aria-label={'View history for ' + deal.title}
-          onClick={() => open(deal)}
-        >
-          <FiClock />
-          View history
-        </button>
-      </div>
     </article>
   )
   return (
@@ -631,6 +409,24 @@ export default function CrmDealsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            type="button"
+            className="secondary-button gap-2 text-xs"
+            onClick={() => setShowAutomationModal(true)}
+            title="Configure CRM Workflow Automation Rules & Triggers"
+          >
+            <FiZap className="text-violet-500" />
+            Automations
+          </button>
+          <button
+            type="button"
+            className="secondary-button gap-2 text-xs"
+            onClick={() => setShowBookingModal(true)}
+            title="Manage Shareable Meeting Scheduling Links & Calendar Bookings"
+          >
+            <FiCalendar className="text-violet-600" />
+            Bookings
+          </button>
           <button
             className="secondary-button gap-2"
             disabled={loading || busy || moving}
@@ -847,6 +643,161 @@ export default function CrmDealsPage() {
                 />
               </label>
             </div>
+
+            {/* Marketing & Campaign Attribution */}
+            <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 p-4 space-y-3">
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                  Marketing Attribution & Source
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Link this deal to a marketing campaign, broadcast, or web form for full closed-loop ROI tracking
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  Source Channel
+                  <select
+                    className="form-input mt-1.5 w-full text-xs"
+                    value={fields.attributionChannel || 'DIRECT_SALES'}
+                    onChange={(e) => {
+                      const channel = e.target.value
+                      setFields((prev) => ({
+                        ...prev,
+                        attributionChannel: channel,
+                        broadcastMessageId: channel === 'BROADCAST' ? prev.broadcastMessageId : null,
+                        adCampaignId:
+                          channel === 'META_ADS' || channel === 'GOOGLE_ADS'
+                            ? prev.adCampaignId
+                            : null,
+                        leadFormId: channel === 'WEB_FORM' ? prev.leadFormId : null,
+                      }))
+                    }}
+                  >
+                    <option value="DIRECT_SALES">💼 Direct Sales / Outbound</option>
+                    <option value="BROADCAST">📢 Broadcast Campaign (WhatsApp / Email)</option>
+                    <option value="META_ADS">🎯 Meta Ads (Facebook / Instagram)</option>
+                    <option value="GOOGLE_ADS">🌐 Google Ads (Search / Display)</option>
+                    <option value="WEB_FORM">📝 Web Lead Form</option>
+                    <option value="REFERRAL">🤝 Referral</option>
+                    <option value="ORGANIC">🌱 Organic / Search</option>
+                    <option value="EVENT_WEBINAR">🎤 Event / Webinar</option>
+                    <option value="PARTNER">🏢 Partner</option>
+                  </select>
+                </label>
+
+                {fields.attributionChannel === 'BROADCAST' && (
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                    Linked Broadcast Campaign
+                    <select
+                      className="form-input mt-1.5 w-full text-xs"
+                      value={fields.broadcastMessageId || ''}
+                      onChange={(e) =>
+                        setFields((prev) => ({
+                          ...prev,
+                          broadcastMessageId: e.target.value || null,
+                        }))
+                      }
+                    >
+                      <option value="">Select Broadcast Campaign...</option>
+                      {attributionOptions?.broadcasts?.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.channelType === 'WHATSAPP' ? '💬' : '✉️'} {b.subject}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                {(fields.attributionChannel === 'META_ADS' ||
+                  fields.attributionChannel === 'GOOGLE_ADS') && (
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                    Linked Ad Campaign
+                    <select
+                      className="form-input mt-1.5 w-full text-xs"
+                      value={fields.adCampaignId || ''}
+                      onChange={(e) =>
+                        setFields((prev) => ({
+                          ...prev,
+                          adCampaignId: e.target.value || null,
+                        }))
+                      }
+                    >
+                      <option value="">Select Ad Campaign...</option>
+                      {attributionOptions?.adCampaigns
+                        ?.filter(
+                          (a) =>
+                            (fields.attributionChannel === 'META_ADS' && a.provider === 'META') ||
+                            (fields.attributionChannel === 'GOOGLE_ADS' &&
+                              a.provider === 'GOOGLE') ||
+                            !a.provider,
+                        )
+                        .map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name} ({a.provider})
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                )}
+
+                {fields.attributionChannel === 'WEB_FORM' && (
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                    Linked Web Lead Form
+                    <select
+                      className="form-input mt-1.5 w-full text-xs"
+                      value={fields.leadFormId || ''}
+                      onChange={(e) =>
+                        setFields((prev) => ({
+                          ...prev,
+                          leadFormId: e.target.value || null,
+                        }))
+                      }
+                    >
+                      <option value="">Select Web Form...</option>
+                      {attributionOptions?.leadForms?.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          📝 {f.title} ({f.formKey})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+
+              {/* Optional UTM Tags */}
+              <div className="grid gap-2 pt-1 sm:grid-cols-3">
+                <input
+                  type="text"
+                  placeholder="UTM Source (e.g. newsletter)"
+                  className="form-input text-xs"
+                  value={fields.utmSource || ''}
+                  onChange={(e) =>
+                    setFields((prev) => ({ ...prev, utmSource: e.target.value || null }))
+                  }
+                />
+                <input
+                  type="text"
+                  placeholder="UTM Medium (e.g. cpc, email)"
+                  className="form-input text-xs"
+                  value={fields.utmMedium || ''}
+                  onChange={(e) =>
+                    setFields((prev) => ({ ...prev, utmMedium: e.target.value || null }))
+                  }
+                />
+                <input
+                  type="text"
+                  placeholder="UTM Campaign (e.g. launch2026)"
+                  className="form-input text-xs"
+                  value={fields.utmCampaign || ''}
+                  onChange={(e) =>
+                    setFields((prev) => ({ ...prev, utmCampaign: e.target.value || null }))
+                  }
+                />
+              </div>
+            </div>
+
             {customDefs.length > 0 && (
               <CustomFieldsSection
                 defs={customDefs}
@@ -958,9 +909,7 @@ export default function CrmDealsPage() {
           </select>
         </FilterPopover>
       </div>
-      <div
-        className={`min-h-0 flex-1 overflow-auto grid gap-5 ${selected ? 'grid-rows-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_370px] xl:grid-rows-[minmax(0,1fr)]' : ''}`}
-      >
+      <div className="min-h-0 flex-1 overflow-auto">
         <div className="flex h-full min-h-0 min-w-0 flex-col">
           {loading ? (
             view === 'board' ? (
@@ -1066,6 +1015,20 @@ export default function CrmDealsPage() {
                         <p className="mt-1 text-xs font-normal text-slate-500">
                           {d.accountName || d.contactName}
                         </p>
+                        {d.attributionChannel && d.attributionChannel !== 'DIRECT_SALES' && (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center gap-1 rounded bg-purple-50 dark:bg-purple-950/60 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                              {d.attributionChannel === 'BROADCAST' && '📢 '}
+                              {d.attributionChannel === 'META_ADS' && '🎯 '}
+                              {d.attributionChannel === 'GOOGLE_ADS' && '🌐 '}
+                              {d.attributionChannel === 'WEB_FORM' && '📝 '}
+                              {d.broadcastSubject ||
+                                d.adCampaignName ||
+                                d.leadFormTitle ||
+                                salesLabel(d.attributionChannel)}
+                            </span>
+                          </div>
+                        )}
                         {d.customFields && Object.keys(d.customFields).length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {Object.entries(d.customFields)
@@ -1117,38 +1080,6 @@ export default function CrmDealsPage() {
             </button>
           )}
         </div>
-        {selected && companyId && (
-          <div className="min-h-0 overflow-y-auto">
-            <DealDetails
-              key={selected.id}
-              companyId={companyId}
-              deal={selected}
-              canEdit={canEdit && !moving}
-              customDefs={customDefs}
-              onClose={() => {
-                setSelected(null)
-                setParams({})
-              }}
-              onEdit={() => {
-                setFields({
-                  title: selected.title,
-                  description: selected.description,
-                  amount: selected.amount,
-                  currency: selected.currency,
-                  expectedCloseDate: selected.expectedCloseDate,
-                  ownerUserId: selected.ownerUserId,
-                  contactId: selected.contactId,
-                  accountId: selected.accountId,
-                  pipelineId: selected.pipelineId || activePipelineId,
-                  stage: selected.stage,
-                  customFields: selected.customFields || {},
-                })
-                setEditing(selected)
-                setCreating(false)
-              }}
-            />
-          </div>
-        )}
       </div>
       {assigning && (
         <AssigneeDialog
@@ -1177,6 +1108,18 @@ export default function CrmDealsPage() {
             setActivePipelineId(id)
             setStage('')
           }}
+        />
+      )}
+      {showAutomationModal && companyId && (
+        <CrmAutomationModal
+          companyId={companyId}
+          onClose={() => setShowAutomationModal(false)}
+        />
+      )}
+      {showBookingModal && companyId && (
+        <BookingManagerModal
+          companyId={companyId}
+          onClose={() => setShowBookingModal(false)}
         />
       )}
     </section>

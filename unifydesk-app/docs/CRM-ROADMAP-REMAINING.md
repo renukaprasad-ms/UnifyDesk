@@ -21,11 +21,11 @@ Custom fields were ranked **#1** in our competitive gap analysis against **Zoho 
 | **Custom Fields (Leads, Deals, Accounts)** | ✅ **Done** | Native | Native | Fully shipped & verified |
 | **WhatsApp 1-Click Action from CRM** | ✅ **Done** | Third-party / Add-on | Add-on only | **Shipped (1-Click template/free-form + CRM timeline)** |
 | **Multiple Sales Pipelines & Custom Stages** | ✅ **Done** | Unlimited | Multiple Business Process Flows | **Shipped (Pipelines, custom stages, weighted probs, Kanban)** |
-| **Web-to-Lead Capture Forms** | ❌ **Missing** | Web Forms builder | Power Pages / Portals | **Tier 1 (High Priority)** |
-| **Deal Document / File Attachments** | ❌ **Missing** | Native attachments | SharePoint / OneDrive | **Tier 1 (High Priority)** |
-| **Sales Forecasting & Weighted Pipelines** | ❌ **Basic summary only** | Native forecasting | AI-driven forecasting | **Tier 2 (Medium-High)** |
-| **Campaign & Broadcast Attribution** | ❌ **Missing** | Campaigns module | Marketing Insights | **Tier 2 (Medium-High - Differentiator)** |
-| **Rule-Based Lead Scoring** | ❌ **Missing** | Rule scoring / Zia | Predictive Scoring | **Tier 2 (Medium)** |
+| **Web-to-Lead Capture Forms** | ✅ **Done** | Web Forms builder | Power Pages / Portals | **Shipped (Form Builder, Public Submissions, Embeds, Analytics)** |
+| **Deal Document / File Attachments** | ✅ **Done** | Native attachments | SharePoint / OneDrive | **Shipped (Proposals, Pitch Decks, Contracts, Drag & Drop Upload)** |
+| **Sales Forecasting & Weighted Pipelines** | ✅ **Done** | Native forecasting | AI-driven forecasting | **Shipped (Probabilistic Forecast, Close Cohorts, Rep Quotas & Dashboard)** |
+| **Campaign & Broadcast Attribution** | ✅ **Done** | Campaigns module | Marketing Insights | **Shipped (Closed-loop attribution, UTM tracking, ROI Leaderboard & Dashboard)** |
+| **Rule-Based Lead Scoring** | ❌ **Missing** | Rule scoring / Zia | Predictive Scoring | **Tier 2 (Next)** |
 | **CRM Workflow Automation / Triggers** | ❌ **Manual stage changes** | Blueprints & Workflows | Power Automate | **Tier 3 (Medium)** |
 | **Meeting Scheduler / Calendar Sync** | ❌ **Missing** | Zoho Bookings / Calendar | Outlook / Teams Bookings | **Tier 3 (Medium)** |
 | **Telephony / Click-to-Call** | ❌ **Missing** | PhoneBridge | Teams Calling | **Tier 4 (Future / R3+)** |
@@ -57,61 +57,191 @@ Custom fields were ranked **#1** in our competitive gap analysis against **Zoho 
   - Create & Edit Deal dialog with interactive Pipeline and Stage selector.
 
 #### 3. Web-to-Lead Capture Forms
-* **Why it matters**: Top-of-funnel acquisition is currently manual. Users must import contacts or manually create leads.
-* **What needs to be built**:
-  - Form builder or public submission endpoint: `POST /api/v1/public/forms/{formKey}/submit`.
-  - Maps incoming form submissions directly to `contacts` + `crm_leads` + optional custom fields.
-  - Embeddable HTML/iframe snippet for landing pages or Webflow/WordPress sites.
-  - Auto-tagging and source assignment (`source = 'WEB_FORM'`).
-* **Effort**: Medium (~2 days) | **Impact**: Closes the loop from website visitor → Qualified CRM Lead.
+* **Status**: ✅ **COMPLETED & SHIPPED**
+* **Delivered Capabilities**:
+  - **Database Migration `V118__crm_lead_forms.sql`**: Added `crm_lead_forms` and `crm_form_submissions` tables with counters, indexed keys, and JSONB fields.
+  - **Service & Ingestion Engine (`CrmLeadFormService`)**:
+    - Automatic identity resolution via normalized email / phone number matching against existing contacts.
+    - Creates new contacts with `source = 'WEB_FORM'` when no match exists.
+    - Automatic lead qualification & enrollment into `crm_leads` with configured default lead stage.
+    - Saves custom field values via `CrmCustomFieldService`.
+    - Logs form inquiry in `crm_notes` and records submission history with IP, User-Agent, and full payload snapshot.
+  - **Public REST API (`CrmPublicLeadFormController`)**:
+    - `GET /api/v1/public/crm/forms/{formKey}`: Retrieves active form schema.
+    - `POST /api/v1/public/crm/forms/{formKey}/submit`: Unauthenticated submission handler with CSRF exemption.
+  - **Public Landing Page (`PublicLeadFormPage.tsx`)**:
+    - Direct shareable landing page at `/forms/{formKey}` with responsive inputs, submission handling, success states, and optional redirect support.
+  - **Form Builder & Manager (`LeadFormsModal.tsx`)**:
+    - Form listing with status toggle (`ACTIVE` / `PAUSED`), submission counters, and quick actions.
+    - Interactive Form Builder: configure titles, descriptions, stages, success messages, and reorderable fields (standard presets + CRM custom fields).
+    - Live Form Preview tab in the editor.
+    - Embed & Share tab with direct links, responsive `<iframe>` code, and pure HTML+JS form snippets for embedding on Webflow, WordPress, Shopify, or custom websites.
+    - Submissions viewer drawer to inspect submission history and linked contact profiles.
+  - **CRM Leads Page Integration**: "Web Forms" button in `CrmLeadsPage.tsx`.
 
 #### 4. Deal Document & Proposal Attachments
-* **Why it matters**: Almost every B2B sales opportunity requires attaching proposals, pitch decks, scopes of work, or signed contracts.
-* **What needs to be built**:
-  - `crm_deal_attachments` table linking `deal_id`, `media_id` (using existing UnifyDesk media storage), filename, size, and uploader.
-  - Drag-and-drop file upload zone in `DealDetails` panel.
-  - Download and preview capabilities.
-* **Effort**: Low (~1 day) | **Impact**: High utility for deal management.
+* **Status**: ✅ **COMPLETED & SHIPPED**
+* **Delivered Capabilities**:
+  - **Database Migration `V119__crm_deal_attachments.sql`**: Added `crm_deal_attachments` table linking `deal_id`, `media_id`, `filename`, `content_type`, `size_bytes`, `uploader_user_id`, and `created_at` with cascading deletes and indexes.
+  - **Service & Ingestion Engine (`CrmDealAttachmentService`)**:
+    - Validates company access and deal existence.
+    - Records upload details and associates `media_id` with company.
+    - Automatically logs `attached_document: <filename>` and `removed_document: <filename>` into `crm_deal_events` timeline.
+  - **REST API (`CrmDealAttachmentController`)**:
+    - `GET /api/v1/companies/{companyId}/crm/deals/{dealId}/attachments`
+    - `POST /api/v1/companies/{companyId}/crm/deals/{dealId}/attachments`
+    - `DELETE /api/v1/companies/{companyId}/crm/deals/{dealId}/attachments/{attachmentId}`
+  - **Drag-and-Drop Upload & Document Management UI (`DealAttachmentsSection.tsx`)**:
+    - Drag-and-drop file upload zone supporting proposals, pitch decks, PDFs, contracts, spreadsheets, presentations, and images up to 50MB.
+    - Real-time percentage upload progress bar.
+    - Document cards with tailored filetype icons (PDF, Spreadsheet, Presentation, Image, Archive, Document), file size, uploader attribution, and upload date.
+    - 1-Click secure download/preview using signed URLs from `MediaService`.
+    - Integrated directly into the `DealDetails` drawer in `CrmDealsPage.tsx`. Automatically refreshes deal activity history upon upload or deletion.
 
 ---
 
 ### 📈 Tier 2: Sales Acceleration & Pipeline Intelligence
 
 #### 5. Sales Forecasting & Weighted Pipeline
-* **Current gap**: Reports show total open amount, won amount, and lost amount.
-* **What to add**:
-  - Stage probability weighting (e.g., `PROPOSAL` = 50%, `NEGOTIATION` = 80%).
-  - Weighted pipeline forecast: $\sum (\text{deal amount} \times \text{stage probability})$.
-  - Month/Quarter close date filters ("Expected close this month vs. next month").
-  - Target/Quota progress bar per sales rep.
+* **Status**: ✅ **COMPLETED & SHIPPED**
+* **Delivered Capabilities**:
+  - **Database Migration `V120__crm_sales_quotas.sql`**: Added `crm_sales_quotas` table linking `company_id`, `user_id`, `period_type` (`MONTHLY`/`QUARTERLY`), `period_key`, `target_amount`, and `currency`.
+  - **Service & Ingestion Engine (`CrmForecastService`)**:
+    - Calculates stage probability weighting: $\sum (\text{deal amount} \times \text{win probability} \div 100)$.
+    - Period resolution: `this_month`, `next_month`, `this_quarter`, `next_quarter`, `this_year`, `all_open`.
+    - Total committed forecast metric: $\text{Closed-Won} + \text{Weighted Open Pipeline}$.
+    - Target quota attainment % and projected attainment % calculations.
+    - Close-date monthly cohort timeline aggregation.
+    - Sales rep aggregation and leaderboard.
+  - **REST API Endpoints**:
+    - `GET /api/v1/companies/{companyId}/crm/forecast`: Comprehensive forecast payload with summary metrics, stages, cohorts, reps, and individual deals.
+    - `GET /api/v1/companies/{companyId}/crm/quotas`: Fetches assigned sales quotas.
+    - `PUT /api/v1/companies/{companyId}/crm/quotas`: Upserts rep target quotas with audit tracking.
+  - **Interactive Executive Dashboard (`CrmForecastView.tsx`)**:
+    - Integrated tab switcher in `CrmReportsPage.tsx` ("Sales Forecast & Quotas" vs "Activity Overview").
+    - 5 Executive KPI cards: Total Forecast, Weighted Pipeline, Nominal Pipeline, Closed-Won Deals, and Quota Attainment progress bar.
+    - Pipeline Stages & Probabilities Matrix with visual bars and face vs weighted values.
+    - Expected Close Date Timeline cohorts with won vs open breakdown.
+    - Sales Rep Quotas & Attainment Leaderboard with color-coded attainment progress bars.
+    - Interactive "Assign Target Quota" modal for setting monthly/quarterly sales targets.
+    - Opportunities in Forecast table displaying individual deal probabilities, nominal, and weighted revenue.
 
 #### 6. Broadcast & Ad Attribution on Deals
-* **Current gap**: Contacts have sources, but Deals don't show which marketing campaign or ad generated the revenue.
-* **What to add**:
-  - `campaign_id` (linking to Broadcast campaigns) and `ad_campaign_id` (linking to Ad Center) on `crm_deals`.
-  - When a lead is converted from a broadcast interaction or ad lead form, automatically stamp the deal.
-  - ROI report: "Campaign Summer Sale generated ₹12,50,000 in Closed-Won Deals".
+* **Status**: ✅ **COMPLETED & SHIPPED**
+* **Delivered Capabilities**:
+  - **Database Migration `V121__crm_deal_campaign_attribution.sql`**: Added `attribution_channel`, `broadcast_message_id`, `ad_campaign_id`, `lead_form_id`, `utm_source`, `utm_medium`, and `utm_campaign` columns with foreign keys and performance indexes.
+  - **Service & Ingestion Engine (`CrmAttributionService` & `CrmDealsService`)**:
+    - Automatic multi-touch and first-touch attribution mapping on `crm_deals`.
+    - Options resolver for Broadcast campaigns (WhatsApp/Email), Meta/Google Ad campaigns, and Inbound Lead Forms.
+    - Closed-loop revenue calculation: Total Won Revenue vs. Marketing Attributed Won Revenue and Contribution Share %.
+    - Channel-level breakdown with win rate %: Broadcast, Meta Ads, Google Ads, Web Forms, Direct Sales, Referral, Organic, Events, Partners.
+    - Asset & Campaign Leaderboard aggregating won deals, open pipeline, and closed revenue per marketing asset.
+  - **REST API Endpoints (`CrmSalesController`)**:
+    - `GET /api/v1/companies/{companyId}/crm/reports/attribution`: Generates period-filtered attribution report.
+    - `GET /api/v1/companies/{companyId}/crm/attribution/options`: Retrieves linked broadcast, ad campaign, and lead form options.
+  - **Interactive Deal Management UI (`CrmDealsPage.tsx`)**:
+    - Create/Edit Deal dialog with dedicated **Marketing Attribution & Source** section.
+    - Dynamic campaign selector dropdowns reflecting selected channel.
+    - UTM parameter tracking inputs.
+    - Deal Details drawer displays the Marketing Attribution card with channel badge and linked campaign/form.
+    - Kanban cards and list view table display marketing source badges (📢 Broadcast, 🎯 Meta Ads, 🌐 Google Ads, 📝 Web Form).
+  - **Attribution & Campaign ROI Dashboard (`CrmAttributionView.tsx`)**:
+    - Integrated as 3rd tab in **Sales Intelligence & Reports** (`CrmReportsPage.tsx`).
+    - 4 Executive KPI cards: Total Won Revenue, Marketing Attributed Revenue, Contribution Share %, Attributed Deals.
+    - Full Channel Attribution & Conversion table.
+    - Campaign & Asset Leaderboard with subtabs (All, Broadcasts, Ad Campaigns, Web Forms).
 
-#### 7. Rule-Based Lead Scoring
-* **Current gap**: Sales reps must manually guess which leads are hot or cold.
-* **What to add**:
-  - Configurable scoring rules (e.g., +20 pts if email opened, +30 pts if replied on WhatsApp, +10 pts if visited website, +15 pts if budget > ₹5,00,000).
-  - Visual score badge on Lead cards (🔥 Hot, ⚡ Warm, ❄️ Cold).
+#### 7. Rule-Based Lead Scoring & Temperature Grading
+* **Status**: ✅ **COMPLETED & SHIPPED**
+* **Delivered Capabilities**:
+  - **Database Migration `V122__crm_lead_scoring.sql`**:
+    - Added `score`, `temperature` (`HOT`, `WARM`, `COLD`), `score_breakdown` (JSONB), and `scored_at` columns with performance indexes to `crm_leads`.
+    - Created `crm_lead_score_rules` table: supports rule conditions (`HAS_PHONE`, `HAS_EMAIL`, `HAS_ORGANIZATION`, `STAGE_MATCH`, `FORM_SUBMISSION`, `HAS_DEAL`, `COMMUNICATION_ACTIVITY`, `CUSTOM_FIELD_MATCH`), operator evaluations, point increments/penalties, and rule toggles.
+    - Created `crm_lead_score_settings` table: configurable company-wide temperature thresholds (defaults: 70+ for 🔥 Hot, 30-69 for ⚡ Warm, <30 for ❄️ Cold).
+  - **Scoring Engine Service (`CrmLeadScoringService.java`)**:
+    - Automatic seeding of standard out-of-the-box scoring rules on company initialization.
+    - Real-time scoring evaluation across 8 dimensions: identities, organization, stage, inbound form submissions, linked active deals, interaction history, and custom field values.
+    - Automatic score recomputation triggered on lead creation (`enroll`), stage progression (`move`), and custom field updates (`updateCustomFields`).
+    - Company-wide batch recalculation endpoint for instantly rescoring all leads after modifying rules or thresholds.
+  - **REST API Endpoints (`CrmLeadScoringController.java` & `LeadController.java`)**:
+    - `GET /api/v1/companies/{companyId}/crm/scoring/rules`: List all scoring rules.
+    - `POST /api/v1/companies/{companyId}/crm/scoring/rules`: Create new scoring rule.
+    - `PUT /api/v1/companies/{companyId}/crm/scoring/rules/{ruleId}`: Update rule or point weight.
+    - `DELETE /api/v1/companies/{companyId}/crm/scoring/rules/{ruleId}`: Delete scoring rule.
+    - `GET /api/v1/companies/{companyId}/crm/scoring/settings`: Fetch temperature thresholds.
+    - `PUT /api/v1/companies/{companyId}/crm/scoring/settings`: Update hot/warm thresholds.
+    - `POST /api/v1/companies/{companyId}/crm/scoring/recalculate`: Batch recalculate all leads.
+    - `GET /api/v1/companies/{companyId}/crm/scoring/leads/{contactId}`: Fetch breakdown of points for an individual lead.
+    - `GET /api/v1/companies/{companyId}/crm/leads?temperature=HOT|WARM|COLD`: Server-side temperature filtering.
+  - **Interactive Management & Visual UI**:
+    - **Score & Grade Column** in `CrmLeadsPage.tsx`: Interactive badges with temperature styling (🔥 Hot / ⚡ Warm / ❄️ Cold) and exact point total.
+    - **Temperature Filtering**: One-click filter in `CrmLeadsPage.tsx` filter menu to immediately isolate Hot, Warm, or Cold prospects.
+    - **Lead Scoring Config Dialog (`LeadScoringModal.tsx`)**:
+      - Scoring Rules tab: Add/edit rule conditions, points, enable/disable toggles, rule deletion, and instant batch recalculation button.
+      - Temperature Thresholds tab: Interactive visual preview spectrum with adjustable Hot and Warm point thresholds.
+    - **Lead Grade & Score Breakdown Card (`LeadHistoryPanel.tsx`)**:
+      - Displays temperature badge, total score, and itemized list of awarded points with badges and timestamps for why the lead scored those points.
 
 ---
 
 ### ⚡ Tier 3: Workflow Automation & Process
 
-#### 8. Event-Driven CRM Automation Rules
-* **What to add**:
-  - "When deal moves to `WON` → automatically create task 'Onboard client' assigned to account manager".
-  - "When new lead created from web form → send WhatsApp greeting template + notify sales team".
-  - Round-robin lead assignment among active sales agents.
+#### 8. Event-Driven CRM Automation Rules & Triggers
+* **Status**: ✅ **COMPLETED & SHIPPED**
+* **Delivered Capabilities**:
+  - **Database Migration `V123__crm_automation_rules.sql`**:
+    - Created `crm_automation_rules` table: supports trigger types (`LEAD_ENROLLED`, `LEAD_STAGE_CHANGED`, `FORM_SUBMITTED`, `DEAL_CREATED`, `DEAL_STAGE_CHANGED`), trigger condition configurations, action types (`CREATE_TASK`, `ASSIGN_OWNER`, `UPDATE_LEAD_STAGE`), execution counters, and timestamps.
+    - Created `crm_automation_logs` table: audit trail tracking every automation execution with rule ID, trigger, entity ID, action, execution status (`SUCCESS`, `SKIPPED`, `FAILED`), execution summary details, and timestamp.
+    - Created `crm_round_robin_state` table: tracks last assigned agent per company for fair, rotating lead/task distribution across active sales team members.
+  - **Backend Automation Engine (`CrmAutomationService.java` & `CrmAutomationController.java`)**:
+    - Centralized `fireEvent(companyId, triggerType, entityType, entityId, context)` engine with safe, non-blocking failure isolation.
+    - Automatic token replacement in task templates (e.g. `{contactName}`, `{dealName}`, `{stage}`).
+    - Built-in Round-Robin agent rotator utilizing active company members.
+    - Automatic due date computation (`Instant.now().plus(dueDays, ChronoUnit.DAYS)`).
+    - Task creation directly integrated into `crm_tasks` Kanban board via `CrmWorkService.createTask`.
+    - Integrated lifecycle triggers in `LeadService.java` (`enroll` & `move`), `CrmDealsService.java` (`create` & `move`), and `CrmLeadFormService.java` (`submitPublicForm`).
+    - REST API endpoints for rule CRUD, instant toggling (`PATCH /toggle`), and real-time execution log retrieval.
+  - **Interactive Automation Manager (`CrmAutomationModal.tsx`)**:
+    - **Automation Rules Tab**:
+      - Rule cards displaying trigger condition pill, visual arrow `→`, action pill, active status toggle switch, execution counter, and edit/delete actions.
+      - Interactive Rule Builder: select trigger event, configure stage conditions, choose automated action, set task instructions, priority, due days offset, and assignee routing (`ROUND_ROBIN` or `LEAD_OWNER`).
+    - **Execution History & Logs Tab**:
+      - Real-time audit table displaying execution timestamps, triggering rule, entity, status pill, and execution details.
+    - Integrated top toolbar action button ("Automations" with ⚡ icon) in both `CrmLeadsPage.tsx` and `CrmDealsPage.tsx`.
 
-#### 9. Meeting Scheduler / Calendar Sync
-* **What to add**:
-  - Shareable booking link (like Calendly / Zoho Bookings) connected to Google Calendar / Outlook.
-  - Booked meetings automatically create calendar events + CRM activity logs.
+#### 9. Meeting Scheduler & Calendar Booking Links
+* **Status**: ✅ **COMPLETED & SHIPPED**
+* **Delivered Capabilities**:
+  - **Database Migration `V124__crm_meeting_scheduler.sql`**:
+    - Created `crm_booking_types` table: host user ID, unique public `slug`, title, description, duration minutes (15, 30, 45, 60), location type (`GOOGLE_MEET`, `PHONE`, `IN_PERSON`, `CUSTOM`), working hours (`09:00` - `18:00`), active days of week array (`[1,2,3,4,5]`), buffer time after meetings, active status toggle, and created/updated timestamps.
+    - Created `crm_meeting_bookings` table: booking type ID, host user ID, contact ID, guest name, guest email, guest phone, guest notes, start time, end time, timezone, status (`SCHEDULED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`), meeting link (e.g., Google Meet), cancellation reason, and timestamps.
+  - **Public & Admin Security Configuration (`SecurityConfig.java`)**:
+    - Exemption of `/api/v1/public/crm/bookings/**` from CSRF tokens and unauthenticated public permitAll access for guest clients.
+  - **Backend Booking & Scheduling Engine (`CrmBookingService.java`, `CrmBookingController.java`, `CrmPublicBookingController.java`)**:
+    - Full CRUD for host booking types and availability schedules.
+    - Public booking page resolver: maps vanity URL `/book/:slug` to host and company branding.
+    - Intelligent slot availability algorithm (`getAvailableSlots`): computes candidate time slots across operating days of the week, working hours, duration, buffer intervals, and suppresses already booked slots or conflicts.
+    - Seamless Guest Booking Execution (`bookPublicMeeting`):
+      - Verifies requested time slot availability with conflict locking.
+      - Generates secure Google Meet conference links (`https://meet.google.com/xxx-yyyy-zzz`).
+      - Resolves or automatically registers the prospect as a new CRM contact (`ContactService.createContact`) if not existing.
+      - Automatically generates a CRM task (`CrmWorkService.createTask`) for the sales rep with priority and due date set to the meeting time.
+      - Triggers audit logs and activity history.
+  - **Public Calendly-Style Guest Booking Page (`PublicBookingPage.tsx`)**:
+    - Accessible via `/book/:slug` (and registered in `AppRoutes.tsx`).
+    - Modern, responsive dual-column scheduling interface:
+      - Left column: Host profile avatar, name, meeting title, duration badge with clock icon, location badge with video icon, and meeting description.
+      - Right column: 14-day horizontal date selector strip with day names, interactive time slot selection grid (morning, afternoon, evening slots).
+      - Booking Details modal form: collects Guest Full Name, Email Address, Phone Number, and Meeting Agenda / Notes.
+      - Instant confirmation screen: displays meeting confirmation card with formatted date/time, host name, Google Meet join button, and calendar reminder summary.
+  - **Admin Meeting Scheduler Manager (`BookingManagerModal.tsx`)**:
+    - **Booking Links Tab**:
+      - Cards for all meeting types with duration, location badge, working hours, and active status toggle.
+      - "Copy Link" button with instant clipboard feedback (`https://app.unifydesk.in/book/{slug}`).
+      - "Create Booking Link" form: configure slug, title, description, duration, location type, working hours start/end, buffer minutes, and operating days.
+    - **Scheduled Meetings Tab**:
+      - Complete listing of upcoming and past booked meetings with guest name, email, phone, host rep, status pill, Google Meet link button, and cancellation dialog.
+    - Integrated top toolbar action button ("Bookings" with 📅 calendar icon) in both `CrmLeadsPage.tsx` and `CrmDealsPage.tsx`.
 
 ---
 

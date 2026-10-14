@@ -24,20 +24,28 @@ public class LeadService {
   private final JdbcTemplate jdbc;
   private final ContactRepository contacts;
   private final CrmCustomFieldService crmCustomFields;
+  private final CrmLeadScoringService crmLeadScoringService;
+  private final CrmAutomationService crmAutomationService;
 
   @org.springframework.beans.factory.annotation.Autowired
   public LeadService(
       JdbcTemplate jdbc,
       ContactRepository contacts,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
-      CrmCustomFieldService crmCustomFields) {
+      CrmCustomFieldService crmCustomFields,
+      @org.springframework.beans.factory.annotation.Autowired(required = false)
+      CrmLeadScoringService crmLeadScoringService,
+      @org.springframework.beans.factory.annotation.Autowired(required = false)
+      CrmAutomationService crmAutomationService) {
     this.jdbc = jdbc;
     this.contacts = contacts;
     this.crmCustomFields = crmCustomFields;
+    this.crmLeadScoringService = crmLeadScoringService;
+    this.crmAutomationService = crmAutomationService;
   }
 
   public LeadService(JdbcTemplate jdbc, ContactRepository contacts) {
-    this(jdbc, contacts, null);
+    this(jdbc, contacts, null, null, null);
   }
 
   private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
@@ -56,6 +64,8 @@ public class LeadService {
       String ownerUserId,
       Stage stage,
       java.util.Map<String, Object> customFields,
+      int score,
+      String temperature,
       long version,
       Instant createdAt,
       Instant updatedAt) {}
@@ -103,7 +113,27 @@ public class LeadService {
       throw new ApiException(HttpStatus.CONFLICT, "CRM_LEAD_ALREADY_EXISTS");
     }
     appendEvent(companyId, contactId, null, Stage.NEW, actorUserId);
-    return get(companyId, contactId);
+    if (crmLeadScoringService != null) {
+      try {
+        crmLeadScoringService.calculateScore(companyId, contactId);
+      } catch (Exception ignored) {}
+    }
+    Lead created = get(companyId, contactId);
+    if (crmAutomationService != null) {
+      try {
+        crmAutomationService.fireEvent(
+            companyId,
+            "LEAD_ENROLLED",
+            "LEAD",
+            String.valueOf(contactId),
+            java.util.Map.of(
+                "contactId", contactId,
+                "contactName", created.displayName() != null ? created.displayName() : "Lead",
+                "ownerUserId", created.ownerUserId() != null ? created.ownerUserId() : "",
+                "stage", "NEW"));
+      } catch (Exception ignored) {}
+    }
+    return created;
   }
 
   @Transactional
@@ -132,6 +162,11 @@ public class LeadService {
         where company_id = ? and contact_id = ?
         """,
         json, actorUserId, companyId, contactId);
+    if (crmLeadScoringService != null) {
+      try {
+        crmLeadScoringService.calculateScore(companyId, contactId);
+      } catch (Exception ignored) {}
+    }
     return get(companyId, contactId);
   }
 
@@ -151,7 +186,8 @@ public class LeadService {
   }
 
   @Transactional(readOnly = true)
-  public LeadPage list(long companyId, Stage stage, Long beforeContactId, int requestedSize) {
+  public LeadPage list(
+      long companyId, Stage stage, String temperature, Long beforeContactId, int requestedSize) {
     int size = Math.max(1, Math.min(requestedSize, 100));
     if (beforeContactId != null && beforeContactId <= 0) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_INVALID_CURSOR");
@@ -164,19 +200,31 @@ public class LeadService {
         where l.company_id = ?
           and c.status = 'ACTIVE'
           and (cast(? as varchar) is null or l.stage = ?)
+          and (cast(? as varchar) is null or l.temperature = ?)
           and (cast(? as bigint) is null or l.contact_id < ?)
-        order by l.contact_id desc
+        order by l.score desc, l.contact_id desc
         limit ?
         """,
         LeadService::mapLead,
-        companyId, stage == null ? null : stage.name(), stage == null ? null : stage.name(),
-        beforeContactId, beforeContactId, size + 1);
+        companyId,
+        stage == null ? null : stage.name(),
+        stage == null ? null : stage.name(),
+        temperature == null || temperature.isBlank() ? null : temperature.trim().toUpperCase(),
+        temperature == null || temperature.isBlank() ? null : temperature.trim().toUpperCase(),
+        beforeContactId,
+        beforeContactId,
+        size + 1);
     boolean more = rows.size() > size;
     List<Lead> items = more ? rows.subList(0, size) : rows;
     return new LeadPage(
         items,
         more && !items.isEmpty() ? items.getLast().contactId() : null,
         more);
+  }
+
+  @Transactional(readOnly = true)
+  public LeadPage list(long companyId, Stage stage, Long beforeContactId, int requestedSize) {
+    return list(companyId, stage, null, beforeContactId, requestedSize);
   }
 
   @Transactional
@@ -209,7 +257,28 @@ public class LeadService {
         """,
         stage.name(), actorUserId, companyId, contactId, expectedVersion);
     appendEvent(companyId, contactId, previous.stage(), stage, actorUserId);
-    return get(companyId, contactId);
+    if (crmLeadScoringService != null) {
+      try {
+        crmLeadScoringService.calculateScore(companyId, contactId);
+      } catch (Exception ignored) {}
+    }
+    Lead moved = get(companyId, contactId);
+    if (crmAutomationService != null) {
+      try {
+        crmAutomationService.fireEvent(
+            companyId,
+            "LEAD_STAGE_CHANGED",
+            "LEAD",
+            String.valueOf(contactId),
+            java.util.Map.of(
+                "contactId", contactId,
+                "contactName", moved.displayName() != null ? moved.displayName() : "Lead",
+                "fromStage", previous.stage().name(),
+                "toStage", stage.name(),
+                "ownerUserId", moved.ownerUserId() != null ? moved.ownerUserId() : ""));
+      } catch (Exception ignored) {}
+    }
+    return moved;
   }
 
   @Transactional(readOnly = true)
@@ -280,6 +349,16 @@ public class LeadService {
         customFields = MAPPER.readValue(rawCustom, MAP_REF);
       } catch (Exception ignored) {}
     }
+    int score = 0;
+    try {
+      score = rs.getInt("score");
+    } catch (Exception ignored) {}
+    String temperature = "COLD";
+    try {
+      String rawTemp = rs.getString("temperature");
+      if (rawTemp != null && !rawTemp.isBlank()) temperature = rawTemp.toUpperCase();
+    } catch (Exception ignored) {}
+
     return new Lead(
         Long.toString(rs.getLong("contact_id")),
         rs.getString("display_name"),
@@ -287,6 +366,8 @@ public class LeadService {
         nullableId(rs, "owner_user_id"),
         Stage.valueOf(rs.getString("stage")),
         customFields,
+        score,
+        temperature,
         rs.getLong("version"),
         rs.getTimestamp("created_at").toInstant(),
         rs.getTimestamp("updated_at").toInstant());
