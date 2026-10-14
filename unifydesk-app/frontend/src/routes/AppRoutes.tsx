@@ -45,6 +45,7 @@ import CrmTasksPage from '../pages/contacts/CrmTasksPage'
 import CrmDealsPage from '../pages/contacts/CrmDealsPage'
 import CrmActivitiesPage from '../pages/contacts/CrmActivitiesPage'
 import CrmReportsPage from '../pages/contacts/CrmReportsPage'
+import CrmCustomFieldsSettingsPage from '../pages/contacts/CrmCustomFieldsSettingsPage'
 import ContactsPage from '../pages/contacts/ContactsPage'
 import ContactSettingsPage from '../pages/contacts/ContactSettingsPage'
 import ImportDetailPage from '../pages/contacts/ImportDetailPage'
@@ -329,6 +330,14 @@ const AppRoutes = () => (
                   }
                 />
               </Route>
+              <Route
+                path="crm/settings/custom-fields"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <CrmCustomFieldsSettingsPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
               <Route
                 path="contacts"
                 element={

@@ -22,7 +22,15 @@ public class CrmWorkController {
   private final CurrentUserService currentUser;
 
   public record CreateAccount(
-      @NotBlank String name, String website, String notes, Long ownerUserId) {}
+      @NotBlank String name,
+      String website,
+      String notes,
+      Long ownerUserId,
+      java.util.Map<String, Object> customFields) {
+    public CreateAccount(String name, String website, String notes, Long ownerUserId) {
+      this(name, website, notes, ownerUserId, java.util.Map.of());
+    }
+  }
 
   public record CreateTask(
       @NotBlank String title,
@@ -39,7 +47,13 @@ public class CrmWorkController {
       String website,
       String notes,
       Long ownerUserId,
-      @NotNull Long version) {}
+      @NotNull Long version,
+      java.util.Map<String, Object> customFields) {
+    public UpdateAccount(
+        String name, String website, String notes, Long ownerUserId, Long version) {
+      this(name, website, notes, ownerUserId, version, null);
+    }
+  }
 
   public record UpdateTask(
       @NotBlank String title,
@@ -123,7 +137,8 @@ public class CrmWorkController {
                     request.name(),
                     request.website(),
                     request.notes(),
-                    request.ownerUserId()),
+                    request.ownerUserId(),
+                    request.customFields()),
                 "Account created"));
   }
 
@@ -143,7 +158,8 @@ public class CrmWorkController {
                 request.name(),
                 request.website(),
                 request.notes(),
-                request.ownerUserId()),
+                request.ownerUserId(),
+                request.customFields()),
             "Account updated"));
   }
 

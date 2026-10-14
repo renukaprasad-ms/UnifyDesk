@@ -4,6 +4,7 @@ import {
   FiCheckSquare,
   FiClock,
   FiGrid,
+  FiSettings,
   FiTarget,
   FiUserPlus,
   FiUsers,
@@ -23,6 +24,7 @@ const currentItems = [
   { label: 'Reports', to: '/crm/reports', icon: <FiBarChart2 /> },
   { label: 'Lists', to: '/contacts/lists', icon: <FiBriefcase /> },
   { label: 'Segments', to: '/contacts/segments', icon: <FiTarget /> },
+  { label: 'Custom Fields', to: '/crm/settings/custom-fields', icon: <FiSettings /> },
 ]
 
 export default function CrmSidebar({ onNavigate }: { onNavigate: () => void }) {
@@ -49,6 +51,7 @@ export default function CrmSidebar({ onNavigate }: { onNavigate: () => void }) {
         PERMISSIONS.CRM_TASK_READ,
         PERMISSIONS.CONTACT_READ,
       ].every(can)
+    if (item.to === '/crm/settings/custom-fields') return can(PERMISSIONS.CRM_FIELD_READ)
     if (item.to === '/crm/overview') return true
     return can(PERMISSIONS.CONTACT_READ)
   })

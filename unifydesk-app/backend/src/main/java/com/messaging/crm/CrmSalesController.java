@@ -24,7 +24,7 @@ public class CrmSalesController {
 
   public record Edit(@NotNull Long version, @NotNull CrmDealsService.Input fields) {}
 
-  public record Move(@NotNull Long version, @NotNull CrmDealsService.Stage stage) {}
+  public record Move(@NotNull Long version, @NotBlank String stage) {}
 
   public record Note(Long contactId, @NotBlank String body) {}
 
@@ -46,13 +46,15 @@ public class CrmSalesController {
   @GetMapping("/deals")
   public ResponseEntity<ApiResponse<CrmDealsService.Page>> deals(
       @PathVariable long companyId,
-      @RequestParam(required = false) CrmDealsService.Stage stage,
+      @RequestParam(required = false) Long pipelineId,
+      @RequestParam(required = false) String stage,
       @RequestParam(required = false) Long before,
       @RequestParam(required = false) String q,
       @RequestParam(defaultValue = "50") int size) {
     dealRead(companyId);
     return ResponseEntity.ok(
-        ApiResponse.success(200, deals.list(companyId, stage, before, q, size), "Deals fetched"));
+        ApiResponse.success(
+            200, deals.list(companyId, pipelineId, stage, before, q, size), "Deals fetched"));
   }
 
   @GetMapping("/deals/{dealId}")

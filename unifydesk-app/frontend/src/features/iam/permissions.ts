@@ -98,6 +98,8 @@ export const PERMISSIONS = {
   CRM_ACTIVITY_READ: 'crm.activity.read',
   CRM_ACTIVITY_MODIFY: 'crm.activity.modify',
   CRM_REPORT_READ: 'crm.report.read',
+  CRM_FIELD_READ: 'crm.field.read',
+  CRM_FIELD_MODIFY: 'crm.field.modify',
 
   SETTINGS_READ: 'settings.read',
   SETTINGS_MODIFY: 'settings.modify',

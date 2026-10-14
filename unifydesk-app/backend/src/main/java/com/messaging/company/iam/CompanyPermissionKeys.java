@@ -74,6 +74,8 @@ public final class CompanyPermissionKeys {
   public static final String CRM_ACTIVITY_READ = "crm.activity.read";
   public static final String CRM_ACTIVITY_MODIFY = "crm.activity.modify";
   public static final String CRM_REPORT_READ = "crm.report.read";
+  public static final String CRM_FIELD_READ = "crm.field.read";
+  public static final String CRM_FIELD_MODIFY = "crm.field.modify";
 
   public static final String TEMPLATE_READ = "template.read";
   public static final String TEMPLATE_CREATE = "template.create";
@@ -158,6 +160,8 @@ public final class CompanyPermissionKeys {
           CRM_ACTIVITY_READ,
           CRM_ACTIVITY_MODIFY,
           CRM_REPORT_READ,
+          CRM_FIELD_READ,
+          CRM_FIELD_MODIFY,
           TEMPLATE_READ,
           TEMPLATE_CREATE,
           TEMPLATE_MODIFY,
@@ -191,6 +195,7 @@ public final class CompanyPermissionKeys {
           CRM_DEAL_READ,
           CRM_ACTIVITY_READ,
           CRM_REPORT_READ,
+          CRM_FIELD_READ,
           ADS_READ,
           MEDIA_READ,
           MEDIA_UPLOAD);

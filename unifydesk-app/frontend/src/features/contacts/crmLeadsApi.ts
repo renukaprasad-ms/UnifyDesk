@@ -1,5 +1,6 @@
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
+import type { CustomFieldValues } from './crmCustomFieldsApi'
 
 export type LeadStage = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'UNQUALIFIED' | 'CONVERTED'
 export type Lead = {
@@ -8,6 +9,7 @@ export type Lead = {
   organization: string | null
   ownerUserId: string | null
   stage: LeadStage
+  customFields?: CustomFieldValues
   version: number
   createdAt: string
   updatedAt: string
@@ -51,8 +53,22 @@ export const crmLeadsApi = {
     const response = await apiClient.get<ApiResponse<LeadSummary>>(url(companyId) + '/summary')
     return unwrap(response.data)
   },
-  async enroll(companyId: string, contactId: string) {
-    const response = await apiClient.post<ApiResponse<Lead>>(url(companyId), { contactId })
+  async enroll(companyId: string, contactId: string, customFields?: CustomFieldValues) {
+    const response = await apiClient.post<ApiResponse<Lead>>(url(companyId), {
+      contactId,
+      customFields: customFields || {},
+    })
+    return unwrap(response.data)
+  },
+  async updateCustomFields(
+    companyId: string,
+    contactId: string,
+    customFields: CustomFieldValues,
+  ) {
+    const response = await apiClient.patch<ApiResponse<Lead>>(
+      url(companyId) + '/' + encodeURIComponent(contactId) + '/custom-fields',
+      { customFields },
+    )
     return unwrap(response.data)
   },
   async moveStage(companyId: string, contactId: string, version: number, stage: LeadStage) {

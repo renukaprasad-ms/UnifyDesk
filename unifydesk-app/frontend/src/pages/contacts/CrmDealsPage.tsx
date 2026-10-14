@@ -13,18 +13,28 @@ import {
   FiRefreshCw,
   FiUser,
   FiX,
+  FiMessageCircle,
+  FiSliders,
 } from 'react-icons/fi'
 import {
   crmSalesApi,
   dealMoney,
-  dealStages,
   dealStageColor,
   salesLabel,
   type Deal,
   type DealEvent,
   type DealFields,
   type DealStage,
+  type Pipeline,
+  type PipelineStage,
 } from '../../features/contacts/crmSalesApi'
+import {
+  crmCustomFieldsApi,
+  type CrmFieldDef,
+} from '../../features/contacts/crmCustomFieldsApi'
+import { CustomFieldsSection } from '../../components/crm/CustomFieldRenderer'
+import SendWhatsAppModal from '../../components/crm/SendWhatsAppModal'
+import PipelineManagerModal from '../../components/crm/PipelineManagerModal'
 import { crmWorkApi } from '../../features/contacts/crmWorkApi'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import { companyApi } from '../../features/company/companyApi'
@@ -45,6 +55,9 @@ const empty: DealFields = {
   ownerUserId: null,
   contactId: null,
   accountId: null,
+  pipelineId: null,
+  stage: 'NEW',
+  customFields: {},
 }
 
 function DealDetails({
@@ -53,13 +66,20 @@ function DealDetails({
   onClose,
   onEdit,
   canEdit,
+  customDefs,
 }: {
   companyId: string
   deal: Deal
   onClose: () => void
   onEdit: () => void
   canEdit: boolean
+  customDefs?: CrmFieldDef[]
 }) {
+  const { can } = useIam()
+  const canSendWhatsApp = can(PERMISSIONS.WHATSAPP_SEND)
+  const [showWhatsApp, setShowWhatsApp] = useState(false)
+  const [historyReload, setHistoryReload] = useState(0)
+
   const [result, setResult] = useState<{
     version: number
     events: DealEvent[]
@@ -83,7 +103,7 @@ function DealDetails({
     return () => {
       active = false
     }
-  }, [companyId, deal.id, deal.version])
+  }, [companyId, deal.id, deal.version, historyReload])
   return (
     <aside className="panel p-5">
       <div className="flex justify-between gap-3">
@@ -132,11 +152,56 @@ function DealDetails({
           <Link to={`/crm/companies/${deal.accountId}`}>{deal.accountName || 'Company'}</Link>
         )}
       </div>
-      {canEdit && (
-        <button className="secondary-button mt-5" onClick={onEdit}>
-          Edit opportunity
-        </button>
+      {customDefs && customDefs.length > 0 && (
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <p className="eyebrow mb-2">CUSTOM ATTRIBUTES</p>
+          <dl className="grid grid-cols-2 gap-2 text-xs">
+            {customDefs.map((def) => {
+              const val = deal.customFields ? deal.customFields[def.fieldKey] : null
+              const displayVal =
+                val != null && val !== ''
+                  ? Array.isArray(val)
+                    ? val.join(', ')
+                    : typeof val === 'boolean'
+                    ? val ? 'Yes' : 'No'
+                    : String(val)
+                  : null
+              return (
+                <div
+                  key={def.id}
+                  className="rounded-lg bg-slate-50 p-2.5 border border-slate-100"
+                >
+                  <dt className="text-slate-500 font-medium">{def.label}</dt>
+                  <dd className="mt-1 font-semibold text-slate-900 break-words">
+                    {displayVal ? (
+                      displayVal
+                    ) : (
+                      <span className="font-normal text-slate-400 italic">Not set</span>
+                    )}
+                  </dd>
+                </div>
+              )
+            })}
+          </dl>
+        </div>
       )}
+      <div className="mt-5 flex flex-wrap gap-2">
+        {canEdit && (
+          <button className="secondary-button" onClick={onEdit}>
+            Edit opportunity
+          </button>
+        )}
+        {canSendWhatsApp && (
+          <button
+            type="button"
+            className="primary-button bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white flex items-center gap-1.5 text-xs py-2 px-3 shadow-xs"
+            onClick={() => setShowWhatsApp(true)}
+          >
+            <FiMessageCircle className="h-4 w-4" />
+            Send WhatsApp
+          </button>
+        )}
+      </div>
       <h3 className="mt-6 flex items-center gap-2 border-t border-slate-100 pt-5 text-sm font-bold text-slate-950">
         <FiClock />
         Activity history
@@ -171,6 +236,19 @@ function DealDetails({
           ))}
         </ol>
       )}
+
+      {showWhatsApp && (
+        <SendWhatsAppModal
+          companyId={companyId}
+          contactId={deal.contactId}
+          dealId={deal.id}
+          recipientName={deal.contactName}
+          onClose={() => setShowWhatsApp(false)}
+          onSuccess={() => {
+            setHistoryReload((v) => v + 1)
+          }}
+        />
+      )}
     </aside>
   )
 }
@@ -184,7 +262,7 @@ export default function CrmDealsPage() {
   const [deals, setDeals] = useState<Deal[]>([])
   const [next, setNext] = useState<string | null>(null)
   const [view, setView] = useState<'board' | 'list'>('board')
-  const [stage, setStage] = useState<DealStage | ''>('')
+  const [stage, setStage] = useState<string>('')
   const [query, setQuery] = useState('')
   const [appliedQuery, setAppliedQuery] = useState('')
   const [selected, setSelected] = useState<Deal | null>(null)
@@ -192,11 +270,53 @@ export default function CrmDealsPage() {
   const [assigning, setAssigning] = useState<Deal | null>(null)
   const [creating, setCreating] = useState(false)
   const [fields, setFields] = useState<DealFields>(empty)
+  const [customDefs, setCustomDefs] = useState<CrmFieldDef[]>([])
   const [owners, setOwners] = useState<{ id: string; name: string }[]>([])
   const [contacts, setContacts] = useState<{ id: string; name: string }[]>([])
   const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([])
   const [contactQuery, setContactQuery] = useState('')
   const [busy, setBusy] = useState(false)
+
+  // Pipelines state
+  const [pipelines, setPipelines] = useState<Pipeline[]>([])
+  const [activePipelineId, setActivePipelineId] = useState<string>('')
+  const [showPipelineManager, setShowPipelineManager] = useState(false)
+
+  const loadPipelines = useCallback(async () => {
+    if (!companyId) return
+    try {
+      const list = await crmSalesApi.pipelines(companyId)
+      setPipelines(list)
+      if (list.length > 0) {
+        setActivePipelineId((prev) => {
+          if (prev && list.some((p) => p.id === prev)) return prev
+          const def = list.find((p) => p.isDefault)
+          return def ? def.id : list[0].id
+        })
+      }
+    } catch (err) {
+      console.error('Failed to load pipelines', err)
+    }
+  }, [companyId])
+
+  useEffect(() => {
+    void loadPipelines()
+  }, [loadPipelines])
+
+  const activePipeline = pipelines.find((p) => p.id === activePipelineId) || pipelines[0] || null
+  const currentStages: PipelineStage[] = activePipeline?.stages || [
+    { id: '1', key: 'NEW', name: 'New', category: 'OPEN', probability: 10, displayOrder: 1, color: 'sky' },
+    { id: '2', key: 'QUALIFIED', name: 'Qualified', category: 'OPEN', probability: 25, displayOrder: 2, color: 'indigo' },
+    { id: '3', key: 'PROPOSAL', name: 'Proposal', category: 'OPEN', probability: 50, displayOrder: 3, color: 'violet' },
+    { id: '4', key: 'NEGOTIATION', name: 'Negotiation', category: 'OPEN', probability: 75, displayOrder: 4, color: 'amber' },
+    { id: '5', key: 'WON', name: 'Won', category: 'WON', probability: 100, displayOrder: 5, color: 'emerald' },
+    { id: '6', key: 'LOST', name: 'Lost', category: 'LOST', probability: 0, displayOrder: 6, color: 'rose' },
+  ]
+
+  useEffect(() => {
+    if (!companyId) return
+    crmCustomFieldsApi.list(companyId, 'DEAL').then(setCustomDefs).catch(() => {})
+  }, [companyId])
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -214,6 +334,7 @@ export default function CrmDealsPage() {
       setLoading(true)
       try {
         const page = await crmSalesApi.deals(companyId, {
+          pipelineId: activePipelineId || undefined,
           stage: stage || undefined,
           q: appliedQuery || undefined,
           before,
@@ -229,7 +350,7 @@ export default function CrmDealsPage() {
         if (isCurrent(scope) && current === request.current) setLoading(false)
       }
     },
-    [companyId, stage, appliedQuery, capture, isCurrent],
+    [companyId, activePipelineId, stage, appliedQuery, capture, isCurrent],
   )
   useEffect(() => {
     let active = true
@@ -374,6 +495,7 @@ export default function CrmDealsPage() {
       ownerUserId: deal.ownerUserId,
       contactId: deal.contactId,
       accountId: deal.accountId,
+      customFields: deal.customFields || {},
     })
   }
   const assignDeal = async (ownerUserId: string | null) => {
@@ -427,6 +549,21 @@ export default function CrmDealsPage() {
         </span>
         <span>{deal.expectedCloseDate || 'No close date'}</span>
       </div>
+      {deal.customFields && Object.keys(deal.customFields).length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {Object.entries(deal.customFields)
+            .filter(([, v]) => v != null && v !== '')
+            .slice(0, 3)
+            .map(([k, v]) => (
+              <span
+                key={k}
+                className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600"
+              >
+                {k}: {Array.isArray(v) ? v.join(', ') : String(v)}
+              </span>
+            ))}
+        </div>
+      )}
       {pending.has(scopeKey + ':' + deal.id) && (
         <p role="status" className="mt-2 text-xs text-indigo-500">
           Saving...
@@ -438,11 +575,11 @@ export default function CrmDealsPage() {
           className="form-input mt-4 w-full text-xs"
           disabled={busy || pending.has(scopeKey + ':' + deal.id)}
           value={deal.stage}
-          onChange={(e) => void moveDeal(deal, e.target.value as DealStage)}
+          onChange={(e) => void moveDeal(deal, e.target.value)}
         >
-          {dealStages.map((s) => (
-            <option key={s} value={s}>
-              {salesLabel(s)}
+          {currentStages.map((s) => (
+            <option key={s.key} value={s.key}>
+              {s.name} ({s.probability}%)
             </option>
           ))}
         </select>
@@ -592,6 +729,42 @@ export default function CrmDealsPage() {
                   }
                 />
               </label>
+              <label className="text-xs font-semibold text-slate-600">
+                Sales Pipeline
+                <select
+                  className="form-input mt-2 w-full"
+                  value={fields.pipelineId || activePipelineId}
+                  onChange={(e) => {
+                    const newPid = e.target.value
+                    const p = pipelines.find((item) => item.id === newPid)
+                    setFields({
+                      ...fields,
+                      pipelineId: newPid,
+                      stage: p?.stages[0]?.key || 'NEW',
+                    })
+                  }}
+                >
+                  {pipelines.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.isDefault ? '(Default)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs font-semibold text-slate-600">
+                Stage
+                <select
+                  className="form-input mt-2 w-full"
+                  value={fields.stage || currentStages[0]?.key || 'NEW'}
+                  onChange={(e) => setFields({ ...fields, stage: e.target.value })}
+                >
+                  {(pipelines.find((p) => p.id === (fields.pipelineId || activePipelineId))?.stages || currentStages).map((s) => (
+                    <option key={s.key} value={s.key}>
+                      {s.name} ({s.probability}%)
+                    </option>
+                  ))}
+                </select>
+              </label>
               {can(PERMISSIONS.USER_READ) && (
                 <label className="text-xs font-semibold text-slate-600">
                   Owner
@@ -674,6 +847,22 @@ export default function CrmDealsPage() {
                 />
               </label>
             </div>
+            {customDefs.length > 0 && (
+              <CustomFieldsSection
+                defs={customDefs}
+                values={fields.customFields || {}}
+                onChange={(key, val) =>
+                  setFields((prev) => ({
+                    ...prev,
+                    customFields: {
+                      ...(prev.customFields || {}),
+                      [key]: val,
+                    },
+                  }))
+                }
+                disabled={busy}
+              />
+            )}
             <div className="mt-4 flex gap-2">
               <button className="primary-button" disabled={busy} type="submit">
                 {busy ? 'Saving…' : 'Save deal'}
@@ -695,6 +884,36 @@ export default function CrmDealsPage() {
       )}
       <div className="flex flex-wrap items-center gap-3">
         <BoardViewToggle value={view} onChange={setView} />
+        {pipelines.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <select
+              aria-label="Active pipeline"
+              className="form-input text-xs font-semibold py-1.5 px-3 rounded-xl border-indigo-200 dark:border-indigo-900 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200"
+              value={activePipelineId}
+              onChange={(e) => {
+                setActivePipelineId(e.target.value)
+                setStage('')
+              }}
+            >
+              {pipelines.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} {p.isDefault ? '★' : ''} ({p.stages.length} stages)
+                </option>
+              ))}
+            </select>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setShowPipelineManager(true)}
+                className="secondary-button text-xs py-1.5 px-2.5 flex items-center gap-1 font-semibold"
+                title="Manage Pipelines & Stages"
+              >
+                <FiSliders className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Pipelines</span>
+              </button>
+            )}
+          </div>
+        )}
         <span className="text-xs text-slate-500">{deals.length} loaded</span>
         <FilterPopover
           className="ml-auto"
@@ -706,7 +925,6 @@ export default function CrmDealsPage() {
             setAppliedQuery('')
           }}
         >
-          {' '}
           <form
             className="flex gap-2"
             onSubmit={(e) => {
@@ -729,12 +947,12 @@ export default function CrmDealsPage() {
             className="form-input"
             value={stage}
             disabled={moving}
-            onChange={(e) => setStage(e.target.value as DealStage | '')}
+            onChange={(e) => setStage(e.target.value)}
           >
             <option value="">All stages</option>
-            {dealStages.map((s) => (
-              <option key={s} value={s}>
-                {salesLabel(s)}
+            {currentStages.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.name}
               </option>
             ))}
           </select>
@@ -746,7 +964,7 @@ export default function CrmDealsPage() {
         <div className="flex h-full min-h-0 min-w-0 flex-col">
           {loading ? (
             view === 'board' ? (
-              <BoardSkeleton columns={6} />
+              <BoardSkeleton columns={currentStages.length || 6} />
             ) : (
               <TableSkeleton columns={6} />
             )
@@ -761,58 +979,71 @@ export default function CrmDealsPage() {
           ) : view === 'board' ? (
             <div className="min-h-0 flex-1 overflow-x-auto pb-2">
               <div className="flex h-full min-h-0 gap-4">
-                {dealStages.map((s) => (
-                  <section
-                    key={s}
-                    className={`flex h-full min-h-0 min-w-72 flex-1 flex-col overflow-hidden rounded-xl border p-3 ${draggedId ? 'border-indigo-200 bg-indigo-50' : 'border-slate-200 bg-slate-50'}`}
-                    aria-label={`${salesLabel(s)} stage`}
-                    onDragOver={(event) => {
-                      if (canEdit && !busy && draggedId) event.preventDefault()
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault()
-                      const id = event.dataTransfer.getData('text/plain')
-                      const deal = deals.find((item) => item.id === id)
-                      setDraggedId(null)
-                      if (canEdit && !busy && companyId && deal && deal.stage !== s)
-                        void moveDeal(deal, s)
-                    }}
-                  >
-                    <h2 className="mb-4 flex items-center justify-between">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${dealStageColor(s)}`}
-                      >
-                        {salesLabel(s)}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {deals.filter((d) => d.stage === s).length}
-                      </span>
-                      {canEdit && s === 'NEW' && (
-                        <button
-                          type="button"
-                          className="secondary-button p-1.5"
-                          aria-label={'Create deal in ' + salesLabel(s)}
-                          disabled={busy || moving}
-                          onClick={() => {
-                            setFields(empty)
-                            setCreating(true)
-                            setEditing(null)
-                          }}
-                        >
-                          <FiPlus />
-                        </button>
-                      )}
-                    </h2>
-                    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
-                      {deals.filter((d) => d.stage === s).map(card)}
-                      {!deals.some((d) => d.stage === s) && (
-                        <p className="rounded-lg border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">
-                          No loaded deals
-                        </p>
-                      )}
-                    </div>
-                  </section>
-                ))}
+                {currentStages.map((stg) => {
+                  const stageDeals = deals.filter(
+                    (d) =>
+                      d.stage.toUpperCase() === stg.key.toUpperCase() ||
+                      d.stage.toUpperCase() === stg.name.toUpperCase(),
+                  )
+                  const stageTotal = stageDeals.reduce(
+                    (sum, d) => sum + (parseFloat(d.amount) || 0),
+                    0,
+                  )
+                  return (
+                    <section
+                      key={stg.id || stg.key}
+                      className={`flex h-full min-h-0 min-w-72 flex-1 flex-col overflow-hidden rounded-2xl border p-3.5 transition-all ${
+                        draggedId
+                          ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/20'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40'
+                      }`}
+                      aria-label={`${stg.name} stage`}
+                      onDragOver={(event) => {
+                        if (canEdit && !busy && draggedId) event.preventDefault()
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault()
+                        const id = event.dataTransfer.getData('text/plain')
+                        const deal = deals.find((item) => item.id === id)
+                        setDraggedId(null)
+                        if (canEdit && !busy && companyId && deal && deal.stage !== stg.key)
+                          void moveDeal(deal, stg.key)
+                      }}
+                    >
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${dealStageColor(
+                              stg.name,
+                              stg.color,
+                            )}`}
+                          >
+                            {stg.name}
+                          </span>
+                          <span className="text-xs font-bold text-slate-500">
+                            {stageDeals.length}
+                          </span>
+                        </div>
+                        <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
+                          <span>Probability: {stg.probability}%</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {stageDeals.length > 0
+                              ? `${stageDeals[0].currency} ${stageTotal.toLocaleString()}`
+                              : '—'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+                        {stageDeals.map(card)}
+                        {stageDeals.length === 0 && (
+                          <p className="rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-5 text-center text-xs text-slate-400">
+                            No loaded deals
+                          </p>
+                        )}
+                      </div>
+                    </section>
+                  )
+                })}
               </div>
             </div>
           ) : (
@@ -835,6 +1066,21 @@ export default function CrmDealsPage() {
                         <p className="mt-1 text-xs font-normal text-slate-500">
                           {d.accountName || d.contactName}
                         </p>
+                        {d.customFields && Object.keys(d.customFields).length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {Object.entries(d.customFields)
+                              .filter(([, v]) => v != null && v !== '')
+                              .slice(0, 2)
+                              .map(([k, v]) => (
+                                <span
+                                  key={k}
+                                  className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-normal text-slate-500"
+                                >
+                                  {k}: {Array.isArray(v) ? v.join(', ') : String(v)}
+                                </span>
+                              ))}
+                          </div>
+                        )}
                       </td>
                       <td className="whitespace-nowrap p-4">{dealMoney(d.amount, d.currency)}</td>
                       <td className="p-4">
@@ -878,6 +1124,7 @@ export default function CrmDealsPage() {
               companyId={companyId}
               deal={selected}
               canEdit={canEdit && !moving}
+              customDefs={customDefs}
               onClose={() => {
                 setSelected(null)
                 setParams({})
@@ -892,6 +1139,9 @@ export default function CrmDealsPage() {
                   ownerUserId: selected.ownerUserId,
                   contactId: selected.contactId,
                   accountId: selected.accountId,
+                  pipelineId: selected.pipelineId || activePipelineId,
+                  stage: selected.stage,
+                  customFields: selected.customFields || {},
                 })
                 setEditing(selected)
                 setCreating(false)
@@ -911,6 +1161,22 @@ export default function CrmDealsPage() {
           error={error}
           onSave={(id) => void assignDeal(id)}
           onClose={() => setAssigning(null)}
+        />
+      )}
+      {showPipelineManager && companyId && (
+        <PipelineManagerModal
+          companyId={companyId}
+          pipelines={pipelines}
+          activePipelineId={activePipelineId}
+          onClose={() => setShowPipelineManager(false)}
+          onPipelinesChanged={() => {
+            void loadPipelines()
+            void load()
+          }}
+          onSelectPipeline={(id) => {
+            setActivePipelineId(id)
+            setStage('')
+          }}
         />
       )}
     </section>

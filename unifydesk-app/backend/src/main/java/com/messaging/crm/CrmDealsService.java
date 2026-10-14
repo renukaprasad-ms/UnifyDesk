@@ -11,17 +11,39 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class CrmDealsService {
   private final JdbcTemplate jdbc;
+  private final CrmCustomFieldService crmCustomFields;
+  private final CrmPipelineService pipelineService;
+
+  private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
+      new com.fasterxml.jackson.databind.ObjectMapper();
+  private static final com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>> MAP_REF =
+      new com.fasterxml.jackson.core.type.TypeReference<>() {};
+
+  @org.springframework.beans.factory.annotation.Autowired
+  public CrmDealsService(
+      JdbcTemplate jdbc,
+      @org.springframework.beans.factory.annotation.Autowired(required = false)
+      CrmCustomFieldService crmCustomFields,
+      @org.springframework.beans.factory.annotation.Autowired(required = false)
+      CrmPipelineService pipelineService) {
+    this.jdbc = jdbc;
+    this.crmCustomFields = crmCustomFields;
+    this.pipelineService = pipelineService != null ? pipelineService : new CrmPipelineService(jdbc);
+  }
+
+  public CrmDealsService(JdbcTemplate jdbc) {
+    this(jdbc, null, null);
+  }
 
   public enum Stage {
     NEW,
@@ -36,7 +58,7 @@ public class CrmDealsService {
       String id,
       String title,
       String description,
-      Stage stage,
+      String stage,
       String amount,
       String currency,
       LocalDate expectedCloseDate,
@@ -46,6 +68,9 @@ public class CrmDealsService {
       String contactName,
       String accountId,
       String accountName,
+      String pipelineId,
+      String pipelineName,
+      java.util.Map<String, Object> customFields,
       long version,
       Instant createdAt,
       Instant updatedAt) {}
@@ -58,7 +83,58 @@ public class CrmDealsService {
       LocalDate expectedCloseDate,
       Long ownerUserId,
       Long contactId,
-      Long accountId) {}
+      Long accountId,
+      Long pipelineId,
+      String stage,
+      java.util.Map<String, Object> customFields) {
+
+    public Input(
+        String title,
+        String description,
+        String amount,
+        String currency,
+        LocalDate expectedCloseDate,
+        Long ownerUserId,
+        Long contactId,
+        Long accountId,
+        java.util.Map<String, Object> customFields) {
+      this(
+          title,
+          description,
+          amount,
+          currency,
+          expectedCloseDate,
+          ownerUserId,
+          contactId,
+          accountId,
+          null,
+          null,
+          customFields);
+    }
+
+    public Input(
+        String title,
+        String description,
+        String amount,
+        String currency,
+        LocalDate expectedCloseDate,
+        Long ownerUserId,
+        Long contactId,
+        Long accountId) {
+      this(
+          title,
+          description,
+          amount,
+          currency,
+          expectedCloseDate,
+          ownerUserId,
+          contactId,
+          accountId,
+          null,
+          null,
+          java.util.Map.of());
+    }
+  }
 
   public record Page(List<Deal> items, String nextCursor, boolean hasMore) {}
 
@@ -74,10 +150,13 @@ public class CrmDealsService {
 
   private static final String SELECT =
       """
-      select d.*, u.name as owner_name,c.display_name as contact_name,a.name as account_name
-      from crm_deals d left join users u on u.id=d.owner_user_id
-      left join contacts c on c.company_id=d.company_id and c.id=d.contact_id
-      left join crm_accounts a on a.company_id=d.company_id and a.id=d.account_id
+      select d.*, u.name as owner_name, c.display_name as contact_name, a.name as account_name,
+             p.name as pipeline_name
+      from crm_deals d
+      left join users u on u.id = d.owner_user_id
+      left join contacts c on c.company_id = d.company_id and c.id = d.contact_id
+      left join crm_accounts a on a.company_id = d.company_id and a.id = d.account_id
+      left join crm_pipelines p on p.company_id = d.company_id and p.id = d.pipeline_id
       """;
 
   private static String id(ResultSet rs, String field) throws SQLException {
@@ -87,11 +166,18 @@ public class CrmDealsService {
 
   private static Deal map(ResultSet rs, int row) throws SQLException {
     var close = rs.getDate("expected_close_date");
+    java.util.Map<String, Object> customFields = java.util.Map.of();
+    String rawCustom = rs.getString("custom_fields");
+    if (rawCustom != null && !rawCustom.isBlank()) {
+      try {
+        customFields = MAPPER.readValue(rawCustom, MAP_REF);
+      } catch (Exception ignored) {}
+    }
     return new Deal(
         id(rs, "id"),
         rs.getString("title"),
         rs.getString("description"),
-        Stage.valueOf(rs.getString("stage")),
+        rs.getString("stage"),
         rs.getBigDecimal("amount").stripTrailingZeros().toPlainString(),
         rs.getString("currency"),
         close == null ? null : close.toLocalDate(),
@@ -101,6 +187,9 @@ public class CrmDealsService {
         rs.getString("contact_name"),
         id(rs, "account_id"),
         rs.getString("account_name"),
+        id(rs, "pipeline_id"),
+        rs.getString("pipeline_name"),
+        customFields,
         rs.getLong("version"),
         rs.getTimestamp("created_at").toInstant(),
         rs.getTimestamp("updated_at").toInstant());
@@ -116,7 +205,7 @@ public class CrmDealsService {
   }
 
   @Transactional(readOnly = true)
-  public Page list(long companyId, Stage stage, Long before, String query, int size) {
+  public Page list(long companyId, Long pipelineId, String stage, Long before, String query, int size) {
     if (before != null && before <= 0) throw invalid();
     String search = query == null ? "" : query.trim();
     if (search.length() > 100) throw invalid();
@@ -125,14 +214,19 @@ public class CrmDealsService {
         jdbc.query(
             SELECT
                 + """
-        where d.company_id=? and (cast(? as varchar) is null or d.stage=?)
-          and (cast(? as bigint) is null or d.id<?) and position(lower(?) in lower(d.title))>0
+        where d.company_id = ?
+          and (cast(? as bigint) is null or d.pipeline_id = ?)
+          and (cast(? as varchar) is null or d.stage = ?)
+          and (cast(? as bigint) is null or d.id < ?)
+          and position(lower(?) in lower(d.title)) > 0
         order by d.id desc limit ?
         """,
             CrmDealsService::map,
             companyId,
-            stage == null ? null : stage.name(),
-            stage == null ? null : stage.name(),
+            pipelineId,
+            pipelineId,
+            stage,
+            stage,
             before,
             before,
             search,
@@ -142,19 +236,47 @@ public class CrmDealsService {
     return new Page(items, more ? items.getLast().id() : null, more);
   }
 
+  @Transactional(readOnly = true)
+  public Page list(long companyId, Stage stage, Long before, String query, int size) {
+    return list(companyId, null, stage == null ? null : stage.name(), before, query, size);
+  }
+
   @Transactional
   public Deal create(long companyId, Input input, long actor) {
     BigDecimal amount = validate(companyId, input);
     long owner = input.ownerUserId() == null ? actor : input.ownerUserId();
     requireOwner(companyId, owner);
+
+    long pipelineId =
+        input.pipelineId() != null
+            ? input.pipelineId()
+            : pipelineService.ensureDefaultPipeline(companyId);
+
+    String stage = input.stage() != null && !input.stage().isBlank() ? input.stage().trim() : "NEW";
+
+    java.util.Map<String, Object> cleanCustom =
+        crmCustomFields != null
+            ? crmCustomFields.validateValues(
+                companyId, CrmCustomFieldService.EntityType.DEAL, input.customFields())
+            : input.customFields() != null ? input.customFields() : java.util.Map.of();
+    String customJson;
+    try {
+      customJson = MAPPER.writeValueAsString(cleanCustom);
+    } catch (Exception e) {
+      customJson = "{}";
+    }
+
     long key = IdGenerator.nextId();
     jdbc.update(
         """
-        insert into crm_deals(id,company_id,title,description,amount,currency,expected_close_date,
-          owner_user_id,contact_id,account_id,created_by_user_id) values(?,?,?,?,?,?,?,?,?,?,?)
+        insert into crm_deals(id, company_id, pipeline_id, stage, title, description, amount, currency,
+          expected_close_date, owner_user_id, contact_id, account_id, custom_fields, created_by_user_id)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, cast(? as jsonb), ?)
         """,
         key,
         companyId,
+        pipelineId,
+        stage,
         input.title().trim(),
         text(input.description()),
         amount,
@@ -163,8 +285,10 @@ public class CrmDealsService {
         owner,
         input.contactId(),
         input.accountId(),
+        customJson,
         actor);
-    event(companyId, key, "CREATED", null, "NEW", null, actor);
+
+    event(companyId, key, "CREATED", null, stage, null, actor);
     return get(companyId, key);
   }
 
@@ -173,11 +297,32 @@ public class CrmDealsService {
     Deal previous = get(companyId, dealId);
     BigDecimal amount = validate(companyId, input);
     if (input.ownerUserId() != null) requireOwner(companyId, input.ownerUserId());
+
+    long pipelineId =
+        input.pipelineId() != null
+            ? input.pipelineId()
+            : (previous.pipelineId() != null ? Long.parseLong(previous.pipelineId()) : pipelineService.ensureDefaultPipeline(companyId));
+
+    java.util.Map<String, Object> customToSave =
+        input.customFields() != null
+            ? (crmCustomFields != null
+                ? crmCustomFields.validateValues(
+                    companyId, CrmCustomFieldService.EntityType.DEAL, input.customFields())
+                : input.customFields())
+            : (previous.customFields() != null ? previous.customFields() : java.util.Map.of());
+    String customJson;
+    try {
+      customJson = MAPPER.writeValueAsString(customToSave);
+    } catch (Exception e) {
+      customJson = "{}";
+    }
+
     int count =
         jdbc.update(
             """
-        update crm_deals set title=?,description=?,amount=?,currency=?,expected_close_date=?,
-          owner_user_id=?,contact_id=?,account_id=?,version=version+1,updated_at=now()
+        update crm_deals set title=?, description=?, amount=?, currency=?, expected_close_date=?,
+          owner_user_id=?, contact_id=?, account_id=?, pipeline_id=?, custom_fields=cast(? as jsonb),
+          version=version+1, updated_at=now()
         where company_id=? and id=? and version=?
         """,
             input.title().trim(),
@@ -188,6 +333,8 @@ public class CrmDealsService {
             input.ownerUserId(),
             input.contactId(),
             input.accountId(),
+            pipelineId,
+            customJson,
             companyId,
             dealId,
             version);
@@ -203,38 +350,61 @@ public class CrmDealsService {
     if (!Objects.equals(previous.ownerUserId(), result.ownerUserId())) changed.add("Owner");
     if (!Objects.equals(previous.contactId(), result.contactId())) changed.add("Contact");
     if (!Objects.equals(previous.accountId(), result.accountId())) changed.add("Company");
+    if (!Objects.equals(previous.pipelineId(), result.pipelineId())) changed.add("Pipeline");
     if (!changed.isEmpty())
       event(
           companyId,
           dealId,
           "UPDATED",
-          previous.stage().name(),
-          result.stage().name(),
+          previous.stage(),
+          result.stage(),
           String.join(", ", changed),
           actor);
     return result;
   }
 
   @Transactional
-  public Deal move(long companyId, long dealId, long version, Stage stage, long actor) {
+  public Deal move(long companyId, long dealId, long version, String stage, long actor) {
     Deal previous = get(companyId, dealId);
     if (previous.version() != version) throw conflict();
-    if (previous.stage() == stage) return previous;
+    if (previous.stage().equalsIgnoreCase(stage)) return previous;
+
+    // Check if stage category is WON or LOST
+    List<String> categories =
+        jdbc.query(
+            """
+            select s.category from crm_pipeline_stages s
+            join crm_deals d on d.company_id = s.company_id and d.pipeline_id = s.pipeline_id
+            where d.company_id = ? and d.id = ? and s.key = ?
+            """,
+            (rs, row) -> rs.getString("category"),
+            companyId,
+            dealId,
+            stage);
+    String cat = !categories.isEmpty() ? categories.getFirst() : stage;
+    boolean isClosed = "WON".equalsIgnoreCase(cat) || "LOST".equalsIgnoreCase(cat);
+
     int count =
         jdbc.update(
             """
-        update crm_deals set stage=?,closed_at=case when ? in ('WON','LOST') then now() else null end,
-          version=version+1,updated_at=now() where company_id=? and id=? and version=?
+        update crm_deals set stage = ?, closed_at = case when ? then now() else null end,
+          version = version + 1, updated_at = now()
+        where company_id = ? and id = ? and version = ?
         """,
-            stage.name(),
-            stage.name(),
+            stage,
+            isClosed,
             companyId,
             dealId,
             version);
     if (count != 1) throw conflict();
     event(
-        companyId, dealId, "STAGE_CHANGED", previous.stage().name(), stage.name(), "Stage", actor);
+        companyId, dealId, "STAGE_CHANGED", previous.stage(), stage, "Stage", actor);
     return get(companyId, dealId);
+  }
+
+  @Transactional
+  public Deal move(long companyId, long dealId, long version, Stage stage, long actor) {
+    return move(companyId, dealId, version, stage.name(), actor);
   }
 
   @Transactional(readOnly = true)
@@ -274,60 +444,51 @@ public class CrmDealsService {
       amount = new BigDecimal(input.amount()).setScale(scale, RoundingMode.UNNECESSARY);
       if (amount.signum() < 0 || amount.compareTo(new BigDecimal("99999999999999999")) > 0)
         throw invalid();
-    } catch (IllegalArgumentException | ArithmeticException exception) {
+    } catch (Exception e) {
       throw invalid();
     }
-    if (input.expectedCloseDate() != null
-        && (input.expectedCloseDate().getYear() < 1900
-            || input.expectedCloseDate().getYear() > 9999)) throw invalid();
     if (input.contactId() != null
-        && jdbc.queryForObject(
-                "select count(*) from contacts where company_id=? and id=? and status='ACTIVE'",
-                Long.class,
-                companyId,
-                input.contactId())
-            != 1) throw invalid();
+        && jdbc.queryForList(
+                "select 1 from contacts where company_id=? and id=?", companyId, input.contactId())
+            .isEmpty()) throw invalid();
     if (input.accountId() != null
-        && jdbc.queryForObject(
-                "select count(*) from crm_accounts where company_id=? and id=?",
-                Long.class,
+        && jdbc.queryForList(
+                "select 1 from crm_accounts where company_id=? and id=?",
                 companyId,
                 input.accountId())
-            != 1) throw invalid();
+            .isEmpty()) throw invalid();
     return amount;
   }
 
-  private void requireOwner(long companyId, long owner) {
-    var members =
+  private void requireOwner(long companyId, long ownerUserId) {
+    var rows =
         jdbc.queryForList(
-            """
-        select m.user_id from company_members m join users u on u.id=m.user_id
-        where m.company_id=? and m.user_id=? and m.status='ACTIVE' and u.status='ACTIVE'
-        for share of m,u
-        """,
-            Long.class,
+            "select 1 from company_members where company_id=? and user_id=? and status='ACTIVE'",
             companyId,
-            owner);
-    if (members.isEmpty()) throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_DEAL_OWNER_INVALID");
+            ownerUserId);
+    if (rows.isEmpty()) throw invalid();
   }
 
   private void event(
-      long company,
-      long deal,
+      long companyId,
+      long dealId,
       String type,
-      String before,
-      String after,
-      String fields,
+      String previous,
+      String next,
+      String changed,
       long actor) {
     jdbc.update(
-        "insert into crm_deal_events(id,company_id,deal_id,event_type,previous_stage,new_stage,changed_fields,actor_user_id) values(?,?,?,?,?,?,?,?)",
+        """
+        insert into crm_deal_events(id,company_id,deal_id,event_type,previous_stage,new_stage,changed_fields,actor_user_id)
+        values(?,?,?,?,?,?,?,?)
+        """,
         IdGenerator.nextId(),
-        company,
-        deal,
+        companyId,
+        dealId,
         type,
-        before,
-        after,
-        fields,
+        previous,
+        next,
+        changed,
         actor);
   }
 
@@ -336,10 +497,10 @@ public class CrmDealsService {
   }
 
   private static ApiException invalid() {
-    return new ApiException(HttpStatus.BAD_REQUEST, "CRM_DEAL_INVALID_INPUT");
+    return new ApiException(HttpStatus.BAD_REQUEST, "CRM_DEAL_INVALID");
   }
 
   private static ApiException conflict() {
-    return new ApiException(HttpStatus.CONFLICT, "CRM_DEAL_VERSION_CONFLICT");
+    return new ApiException(HttpStatus.CONFLICT, "CRM_DEAL_CONFLICT");
   }
 }

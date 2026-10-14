@@ -20,10 +20,30 @@ import org.springframework.transaction.annotation.Transactional;
  * identities, communication preferences or marketing eligibility.
  */
 @Service
-@RequiredArgsConstructor
 public class LeadService {
   private final JdbcTemplate jdbc;
   private final ContactRepository contacts;
+  private final CrmCustomFieldService crmCustomFields;
+
+  @org.springframework.beans.factory.annotation.Autowired
+  public LeadService(
+      JdbcTemplate jdbc,
+      ContactRepository contacts,
+      @org.springframework.beans.factory.annotation.Autowired(required = false)
+      CrmCustomFieldService crmCustomFields) {
+    this.jdbc = jdbc;
+    this.contacts = contacts;
+    this.crmCustomFields = crmCustomFields;
+  }
+
+  public LeadService(JdbcTemplate jdbc, ContactRepository contacts) {
+    this(jdbc, contacts, null);
+  }
+
+  private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
+      new com.fasterxml.jackson.databind.ObjectMapper();
+  private static final com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>> MAP_REF =
+      new com.fasterxml.jackson.core.type.TypeReference<>() {};
 
   public enum Stage {
     NEW, CONTACTED, QUALIFIED, UNQUALIFIED, CONVERTED
@@ -35,6 +55,7 @@ public class LeadService {
       String organization,
       String ownerUserId,
       Stage stage,
+      java.util.Map<String, Object> customFields,
       long version,
       Instant createdAt,
       Instant updatedAt) {}
@@ -49,19 +70,68 @@ public class LeadService {
 
   @Transactional
   public Lead enroll(long companyId, long contactId, long actorUserId) {
+    return enroll(companyId, contactId, java.util.Map.of(), actorUserId);
+  }
+
+  @Transactional
+  public Lead enroll(
+      long companyId,
+      long contactId,
+      java.util.Map<String, Object> incomingCustomFields,
+      long actorUserId) {
     requireActiveContact(companyId, contactId);
+    java.util.Map<String, Object> cleanCustom =
+        crmCustomFields != null
+            ? crmCustomFields.validateValues(
+                companyId, CrmCustomFieldService.EntityType.LEAD, incomingCustomFields)
+            : incomingCustomFields != null ? incomingCustomFields : java.util.Map.of();
+    String json;
+    try {
+      json = MAPPER.writeValueAsString(cleanCustom);
+    } catch (Exception e) {
+      json = "{}";
+    }
     try {
       jdbc.update(
           """
           insert into crm_leads
-            (company_id, contact_id, stage, created_by_user_id, updated_by_user_id)
-          values (?, ?, 'NEW', ?, ?)
+            (company_id, contact_id, stage, custom_fields, created_by_user_id, updated_by_user_id)
+          values (?, ?, 'NEW', cast(? as jsonb), ?, ?)
           """,
-          companyId, contactId, actorUserId, actorUserId);
+          companyId, contactId, json, actorUserId, actorUserId);
     } catch (DuplicateKeyException e) {
       throw new ApiException(HttpStatus.CONFLICT, "CRM_LEAD_ALREADY_EXISTS");
     }
     appendEvent(companyId, contactId, null, Stage.NEW, actorUserId);
+    return get(companyId, contactId);
+  }
+
+  @Transactional
+  public Lead updateCustomFields(
+      long companyId,
+      long contactId,
+      java.util.Map<String, Object> incomingCustomFields,
+      long actorUserId) {
+    requireActiveContact(companyId, contactId);
+    get(companyId, contactId);
+    java.util.Map<String, Object> cleanCustom =
+        crmCustomFields != null
+            ? crmCustomFields.validateValues(
+                companyId, CrmCustomFieldService.EntityType.LEAD, incomingCustomFields)
+            : incomingCustomFields != null ? incomingCustomFields : java.util.Map.of();
+    String json;
+    try {
+      json = MAPPER.writeValueAsString(cleanCustom);
+    } catch (Exception e) {
+      throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "CRM_CUSTOM_FIELD_SERIALIZE_ERROR");
+    }
+    jdbc.update(
+        """
+        update crm_leads
+        set custom_fields = cast(? as jsonb), updated_by_user_id = ?, updated_at = now()
+        where company_id = ? and contact_id = ?
+        """,
+        json, actorUserId, companyId, contactId);
     return get(companyId, contactId);
   }
 
@@ -203,12 +273,20 @@ public class LeadService {
   }
 
   private static Lead mapLead(ResultSet rs, int row) throws SQLException {
+    java.util.Map<String, Object> customFields = java.util.Map.of();
+    String rawCustom = rs.getString("custom_fields");
+    if (rawCustom != null && !rawCustom.isBlank()) {
+      try {
+        customFields = MAPPER.readValue(rawCustom, MAP_REF);
+      } catch (Exception ignored) {}
+    }
     return new Lead(
         Long.toString(rs.getLong("contact_id")),
         rs.getString("display_name"),
         rs.getString("organization"),
         nullableId(rs, "owner_user_id"),
         Stage.valueOf(rs.getString("stage")),
+        customFields,
         rs.getLong("version"),
         rs.getTimestamp("created_at").toInstant(),
         rs.getTimestamp("updated_at").toInstant());

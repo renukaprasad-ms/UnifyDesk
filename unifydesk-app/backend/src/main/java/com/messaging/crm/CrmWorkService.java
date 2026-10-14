@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,10 +20,29 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class CrmWorkService {
+  private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
+      new com.fasterxml.jackson.databind.ObjectMapper();
+  private static final com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>
+      MAP_REF = new com.fasterxml.jackson.core.type.TypeReference<>() {};
+
   private final JdbcTemplate jdbc;
   private final CompanyMemberRepository members;
+  private final CrmCustomFieldService crmCustomFields;
+
+  @Autowired
+  public CrmWorkService(
+      JdbcTemplate jdbc,
+      CompanyMemberRepository members,
+      @Autowired(required = false) CrmCustomFieldService crmCustomFields) {
+    this.jdbc = jdbc;
+    this.members = members;
+    this.crmCustomFields = crmCustomFields;
+  }
+
+  public CrmWorkService(JdbcTemplate jdbc, CompanyMemberRepository members) {
+    this(jdbc, members, null);
+  }
 
   public record Account(
       String id,
@@ -30,8 +50,20 @@ public class CrmWorkService {
       String website,
       String notes,
       String ownerUserId,
+      java.util.Map<String, Object> customFields,
       long version,
-      Instant createdAt) {}
+      Instant createdAt) {
+    public Account(
+        String id,
+        String name,
+        String website,
+        String notes,
+        String ownerUserId,
+        long version,
+        Instant createdAt) {
+      this(id, name, website, notes, ownerUserId, java.util.Map.of(), version, createdAt);
+    }
+  }
 
   public record Task(
       String id,
@@ -81,12 +113,20 @@ public class CrmWorkService {
   }
 
   private static Account account(ResultSet rs, int row) throws SQLException {
+    java.util.Map<String, Object> customFields = java.util.Map.of();
+    String rawCustom = rs.getString("custom_fields");
+    if (rawCustom != null && !rawCustom.isBlank()) {
+      try {
+        customFields = MAPPER.readValue(rawCustom, MAP_REF);
+      } catch (Exception ignored) {}
+    }
     return new Account(
         id(rs, "id"),
         rs.getString("name"),
         rs.getString("website"),
         rs.getString("notes"),
         id(rs, "owner_user_id"),
+        customFields,
         rs.getLong("version"),
         rs.getTimestamp("created_at").toInstant());
   }
@@ -235,17 +275,33 @@ public class CrmWorkService {
 
   @Transactional
   public Account createAccount(
-      long companyId, String name, String website, String notes, Long owner) {
+      long companyId,
+      String name,
+      String website,
+      String notes,
+      Long owner,
+      java.util.Map<String, Object> customFields) {
     String safeName = trimmed(name, 240);
     if (safeName == null)
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ACCOUNT_NAME_REQUIRED");
     if (owner != null) activeMember(companyId, owner);
+    java.util.Map<String, Object> cleanCustom =
+        crmCustomFields != null
+            ? crmCustomFields.validateValues(
+                companyId, CrmCustomFieldService.EntityType.ACCOUNT, customFields)
+            : customFields != null ? customFields : java.util.Map.of();
+    String customJson;
+    try {
+      customJson = MAPPER.writeValueAsString(cleanCustom);
+    } catch (Exception e) {
+      customJson = "{}";
+    }
     long key = IdGenerator.nextId();
     try {
       jdbc.update(
           """
-          insert into crm_accounts(id,company_id,name,normalized_name,website,notes,owner_user_id)
-          values (?, ?, ?, ?, ?, ?, ?)
+          insert into crm_accounts(id,company_id,name,normalized_name,website,notes,owner_user_id,custom_fields)
+          values (?, ?, ?, ?, ?, ?, ?, cast(? as jsonb))
           """,
           key,
           companyId,
@@ -253,7 +309,8 @@ public class CrmWorkService {
           safeName.toLowerCase(java.util.Locale.ROOT),
           trimmed(website, 320),
           trimmed(notes, 4000),
-          owner);
+          owner,
+          customJson);
     } catch (DuplicateKeyException exception) {
       throw new ApiException(HttpStatus.CONFLICT, "CRM_ACCOUNT_ALREADY_EXISTS");
     }
@@ -262,6 +319,12 @@ public class CrmWorkService {
         CrmWorkService::account,
         companyId,
         key);
+  }
+
+  @Transactional
+  public Account createAccount(
+      long companyId, String name, String website, String notes, Long owner) {
+    return createAccount(companyId, name, website, notes, owner, java.util.Map.of());
   }
 
   @Transactional(readOnly = true)
@@ -299,12 +362,27 @@ public class CrmWorkService {
       String name,
       String website,
       String notes,
-      Long owner) {
+      Long owner,
+      java.util.Map<String, Object> customFields) {
     String safeName = trimmed(name, 240);
     if (safeName == null || version < 0) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_ACCOUNT_INVALID_UPDATE");
     }
     if (owner != null) activeMember(companyId, owner);
+    Account previous = getAccount(companyId, accountId);
+    java.util.Map<String, Object> customToSave =
+        customFields != null
+            ? (crmCustomFields != null
+                ? crmCustomFields.validateValues(
+                    companyId, CrmCustomFieldService.EntityType.ACCOUNT, customFields)
+                : customFields)
+            : (previous.customFields() != null ? previous.customFields() : java.util.Map.of());
+    String customJson;
+    try {
+      customJson = MAPPER.writeValueAsString(customToSave);
+    } catch (Exception e) {
+      customJson = "{}";
+    }
     int updated;
     try {
       updated =
@@ -312,7 +390,7 @@ public class CrmWorkService {
               """
           update crm_accounts
              set name = ?, normalized_name = ?, website = ?, notes = ?,
-                 owner_user_id = ?, version = version + 1, updated_at = now()
+                 owner_user_id = ?, custom_fields = cast(? as jsonb), version = version + 1, updated_at = now()
            where company_id = ? and id = ? and version = ?
           """,
               safeName,
@@ -320,6 +398,7 @@ public class CrmWorkService {
               trimmed(website, 320),
               trimmed(notes, 4000),
               owner,
+              customJson,
               companyId,
               accountId,
               version);
@@ -332,6 +411,18 @@ public class CrmWorkService {
         CrmWorkService::account,
         companyId,
         accountId);
+  }
+
+  @Transactional
+  public Account updateAccount(
+      long companyId,
+      long accountId,
+      long version,
+      String name,
+      String website,
+      String notes,
+      Long owner) {
+    return updateAccount(companyId, accountId, version, name, website, notes, owner, null);
   }
 
   @Transactional

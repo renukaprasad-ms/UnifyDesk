@@ -1,5 +1,6 @@
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
+import type { CustomFieldValues } from './crmCustomFieldsApi'
 
 export type CrmAccount = {
   id: string
@@ -7,6 +8,7 @@ export type CrmAccount = {
   website: string | null
   notes: string | null
   ownerUserId: string | null
+  customFields?: CustomFieldValues
   version: number
   createdAt: string
 }
@@ -201,9 +203,19 @@ export const crmWorkApi = {
     return unwrap(result.data)
   },
 
-  async addAccount(companyId: string, name: string) {
+  async addAccount(
+    companyId: string,
+    name: string,
+    extra?: {
+      website?: string | null
+      notes?: string | null
+      ownerUserId?: string | null
+      customFields?: CustomFieldValues
+    },
+  ) {
     const result = await apiClient.post<ApiResponse<CrmAccount>>(root(companyId) + '/accounts', {
       name,
+      ...extra,
     })
     return unwrap(result.data)
   },
@@ -216,6 +228,7 @@ export const crmWorkApi = {
       website: string | null
       notes: string | null
       ownerUserId: string | null
+      customFields?: CustomFieldValues
     },
   ) {
     const response = await apiClient.patch<ApiResponse<CrmAccount>>(

@@ -7,6 +7,12 @@ import {
   type CrmAccount,
   type AccountContact,
 } from '../../features/contacts/crmWorkApi'
+import {
+  crmCustomFieldsApi,
+  type CrmFieldDef,
+  type CustomFieldValues,
+} from '../../features/contacts/crmCustomFieldsApi'
+import { CustomFieldsSection } from '../../components/crm/CustomFieldRenderer'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import type { ContactSummary } from '../../features/contacts/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -29,6 +35,8 @@ export default function CrmCompanyDetailPage() {
   const [notes, setNotes] = useState('')
   const [owner, setOwner] = useState('')
   const [owners, setOwners] = useState<Array<{ userId: string; name: string }>>([])
+  const [customDefs, setCustomDefs] = useState<CrmFieldDef[]>([])
+  const [customFields, setCustomFields] = useState<CustomFieldValues>({})
   const [query, setQuery] = useState('')
   const [matches, setMatches] = useState<ContactSummary[]>([])
   const [chosen, setChosen] = useState('')
@@ -37,6 +45,11 @@ export default function CrmCompanyDetailPage() {
   const [error, setError] = useState('')
   const [refreshToken, setRefreshToken] = useState(0)
   const requestId = useRef(0)
+
+  useEffect(() => {
+    if (!companyId) return
+    crmCustomFieldsApi.list(companyId, 'ACCOUNT').then(setCustomDefs).catch(() => {})
+  }, [companyId])
 
   const load = useCallback(async () => {
     if (!companyId || !accountId) return
@@ -51,6 +64,7 @@ export default function CrmCompanyDetailPage() {
       setWebsite(profile.website ?? '')
       setNotes(profile.notes ?? '')
       setOwner(profile.ownerUserId ?? '')
+      setCustomFields(profile.customFields ?? {})
       if (can(PERMISSIONS.CONTACT_READ)) {
         const related = await crmWorkApi.accountContactSummaries(companyId, accountId)
         if (isCurrent(scope) && request === requestId.current) setContacts(related)
@@ -164,6 +178,7 @@ export default function CrmCompanyDetailPage() {
                     website: website.trim() || null,
                     notes: notes.trim() || null,
                     ownerUserId: can(PERMISSIONS.USER_READ) ? owner || null : account.ownerUserId,
+                    customFields,
                   }),
                 )
               }}
@@ -200,7 +215,7 @@ export default function CrmCompanyDetailPage() {
                 />
               </label>
               {can(PERMISSIONS.USER_READ) && (
-                <label className="text-sm font-semibold">
+                <label className="text-sm font-semibold sm:col-span-2">
                   Owner
                   <select
                     className="form-input mt-1 w-full"
@@ -220,8 +235,23 @@ export default function CrmCompanyDetailPage() {
                   </select>
                 </label>
               )}
-              {can(PERMISSIONS.CRM_ACCOUNT_MODIFY) && (
+              {customDefs.length > 0 && (
                 <div className="sm:col-span-2">
+                  <CustomFieldsSection
+                    defs={customDefs}
+                    values={customFields}
+                    onChange={(key, val) =>
+                      setCustomFields((prev) => ({
+                        ...prev,
+                        [key]: val,
+                      }))
+                    }
+                    disabled={!can(PERMISSIONS.CRM_ACCOUNT_MODIFY) || busy}
+                  />
+                </div>
+              )}
+              {can(PERMISSIONS.CRM_ACCOUNT_MODIFY) && (
+                <div className="sm:col-span-2 mt-2">
                   <button className="primary-button" type="submit" disabled={busy || !name.trim()}>
                     Save company
                   </button>

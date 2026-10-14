@@ -7,6 +7,12 @@ import { FiClock, FiRefreshCw, FiUsers } from 'react-icons/fi'
 import LeadHistoryPanel from '../../components/contacts/LeadHistoryPanel'
 import { leadDateTime, leadStageClass } from '../../features/contacts/leadPresentation'
 import { crmLeadsApi, type Lead, type LeadStage } from '../../features/contacts/crmLeadsApi'
+import {
+  crmCustomFieldsApi,
+  type CrmFieldDef,
+  type CustomFieldValues,
+} from '../../features/contacts/crmCustomFieldsApi'
+import { CustomFieldsSection } from '../../components/crm/CustomFieldRenderer'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import type { ContactSummary } from '../../features/contacts/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -32,12 +38,19 @@ export default function CrmLeadsPage() {
   const [contactQuery, setContactQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [customDefs, setCustomDefs] = useState<CrmFieldDef[]>([])
+  const [createCustomFields, setCreateCustomFields] = useState<CustomFieldValues>({})
   const [busy, setBusy] = useState(false)
   const requestNumber = useRef(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [detail, setDetail] = useState<{ scope: string; contactId: string } | null>(null)
   const scopeKey = `${companyId}:${epoch}`
+
+  useEffect(() => {
+    if (!companyId) return
+    crmCustomFieldsApi.list(companyId, 'LEAD').then(setCustomDefs).catch(() => {})
+  }, [companyId])
   const [params, setParams] = useSearchParams()
   const [linkedLead, setLinkedLead] = useState<Lead | null>(null)
   const selectedLead =
@@ -135,6 +148,7 @@ export default function CrmLeadsPage() {
     setContactId('')
     setContactQuery('')
     setCandidates([])
+    setCreateCustomFields({})
     setError('')
   }
 
@@ -143,10 +157,11 @@ export default function CrmLeadsPage() {
     const scope = capture()
     setBusy(true)
     try {
-      await crmLeadsApi.enroll(companyId, contactId)
+      await crmLeadsApi.enroll(companyId, contactId, createCustomFields)
       if (!isCurrent(scope)) return
       setCreating(false)
       setContactId('')
+      setCreateCustomFields({})
       await refresh()
     } catch (err) {
       if (isCurrent(scope)) setError(apiErrorMessage(err, 'Unable to create lead'))
@@ -269,10 +284,23 @@ export default function CrmLeadsPage() {
               <ListSkeleton rows={2} />
             ) : (
               <p className="mt-2 text-xs text-slate-500">
-                'Showing up to 30 matching contacts. Refine the search for more results.'
+                Showing up to 30 matching contacts. Refine the search for more results.
               </p>
             )}
-            <div className="mt-3 flex gap-2">
+            {customDefs.length > 0 && (
+              <CustomFieldsSection
+                defs={customDefs}
+                values={createCustomFields}
+                onChange={(key, val) =>
+                  setCreateCustomFields((prev: CustomFieldValues): CustomFieldValues => ({
+                    ...prev,
+                    [key]: val,
+                  }))
+                }
+                disabled={busy}
+              />
+            )}
+            <div className="mt-4 flex gap-2">
               <button
                 className="primary-button"
                 disabled={!contactId || busy || searching}
@@ -359,6 +387,22 @@ export default function CrmLeadsPage() {
                           >
                             {lead.displayName || 'Unnamed contact'}
                           </Link>
+                          {lead.customFields && Object.keys(lead.customFields).length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {Object.entries(lead.customFields).map(([k, v]) => {
+                                const def = customDefs.find((d) => d.fieldKey === k)
+                                const fieldLabel = def?.label || k
+                                return (
+                                  <span
+                                    key={k}
+                                    className="inline-flex items-center rounded bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-800/50"
+                                  >
+                                    {fieldLabel}: {Array.isArray(v) ? v.join(', ') : String(v)}
+                                  </span>
+                                )
+                              })}
+                            </div>
+                          )}
                           <p className="mt-1 text-[11px] text-slate-500">
                             Added {new Date(lead.createdAt).toLocaleDateString()}
                           </p>
@@ -418,6 +462,12 @@ export default function CrmLeadsPage() {
             key={`${scopeKey}:${selectedLead.contactId}`}
             companyId={companyId}
             lead={selectedLead}
+            onLeadUpdated={(updated) => {
+              setLeads((curr) =>
+                curr.map((item) => (item.contactId === updated.contactId ? updated : item)),
+              )
+              setLinkedLead(updated)
+            }}
             onClose={() => {
               setDetail(null)
               setParams({})
