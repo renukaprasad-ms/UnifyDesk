@@ -76,21 +76,25 @@ public class EntitlementService {
   @Transactional(readOnly = true)
   public String resolvedValue(Long companyId, String key) {
     String normalizedKey = normalizeKey(key);
-    EntitlementDefinition definition =
+    Optional<EntitlementDefinition> definition =
         definitionRepository
             .findByKey(normalizedKey)
-            .filter(EntitlementDefinition::isActive)
-            .orElseThrow(() -> new IllegalStateException("Unknown entitlement " + normalizedKey));
+            .filter(EntitlementDefinition::isActive);
 
-    CompanySubscription subscription =
-        effectiveSubscription(companyId)
-            .orElseThrow(() -> new PlanEntitlementException("Company has no active plan"));
+    if (definition.isEmpty()) {
+      return "0";
+    }
+
+    Optional<CompanySubscription> subscription = effectiveSubscription(companyId);
+    if (subscription.isEmpty()) {
+      return definition.get().getDefaultValue();
+    }
 
     return entitlementRepository
-        .findByPlanIdAndKey(subscription.getPlan().getId(), normalizedKey)
+        .findByPlanIdAndKey(subscription.get().getPlan().getId(), normalizedKey)
         .map(PlanEntitlement::getValue)
         .filter(value -> value != null && !value.isBlank())
-        .orElse(definition.getDefaultValue());
+        .orElse(definition.get().getDefaultValue());
   }
 
   @Transactional(readOnly = true)

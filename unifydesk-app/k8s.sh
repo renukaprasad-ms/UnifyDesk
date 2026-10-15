@@ -11,6 +11,8 @@ usage() {
 Usage:
   ./k8s.sh start
   ./k8s.sh stop
+  ./k8s.sh port-forward          # Exposes FE: localhost:5173, BE: localhost:8000
+  ./k8s.sh stop-forward          # Stops active port-forwards
   ./k8s.sh restart [service|all]
   ./k8s.sh delete
   ./k8s.sh clear-db
@@ -120,6 +122,44 @@ scale_if_exists() {
   fi
 }
 
+stop_port_forward() {
+  if [[ -f "${ROOT_DIR}/.port-forward.pid" ]]; then
+    while read -r pid || [[ -n "${pid}" ]]; do
+      kill "${pid}" 2>/dev/null || true
+    done < "${ROOT_DIR}/.port-forward.pid"
+    rm -f "${ROOT_DIR}/.port-forward.pid"
+  fi
+  pkill -f "kubectl.*port-forward.*5173:80" 2>/dev/null || true
+  pkill -f "kubectl.*port-forward.*8000:8001" 2>/dev/null || true
+  echo "Port-forwarding stopped."
+}
+
+port_forward() {
+  stop_port_forward >/dev/null 2>&1 || true
+  echo "Waiting for services to become ready..."
+  kubectl wait --for=condition=ready pod -l app=messaging-frontend --timeout=90s
+  kubectl wait --for=condition=ready pod -l app=messaging-backend --timeout=90s
+
+  kubectl port-forward --address 0.0.0.0 svc/messaging-frontend 5173:80 >/tmp/k8s-fe-port-forward.log 2>&1 &
+  local fe_pid=$!
+  kubectl port-forward --address 0.0.0.0 svc/messaging-backend 8000:8001 >/tmp/k8s-be-port-forward.log 2>&1 &
+  local be_pid=$!
+  echo "${fe_pid}" > "${ROOT_DIR}/.port-forward.pid"
+  echo "${be_pid}" >> "${ROOT_DIR}/.port-forward.pid"
+
+  sleep 1
+  if ! kill -0 "${fe_pid}" 2>/dev/null || ! kill -0 "${be_pid}" 2>/dev/null; then
+    echo "Port-forwarding failed. Check /tmp/k8s-fe-port-forward.log and /tmp/k8s-be-port-forward.log." >&2
+    stop_port_forward >/dev/null 2>&1
+    return 1
+  fi
+  echo "============================================================"
+  echo "🚀 Local Kubernetes Services Exposed:"
+  echo "   📱 Frontend UI:  http://localhost:5173"
+  echo "   ⚙️  Backend API:  http://localhost:8000"
+  echo "============================================================"
+}
+
 start() {
   load_env
 
@@ -128,10 +168,17 @@ start() {
   kubectl apply -f "${ROOT_DIR}/k8s/dependencies.yaml"
   kubectl apply -f "${ROOT_DIR}/k8s/backend.yaml"
   kubectl apply -f "${ROOT_DIR}/k8s/frontend.yaml"
+  scale_if_exists deployment postgres 1
+  scale_if_exists deployment redis 1
+  scale_if_exists deployment kafka 1
+  scale_if_exists statefulset messaging-backend 1
+  scale_if_exists deployment messaging-frontend 1
   kubectl get pods
+  port_forward
 }
 
 stop() {
+  stop_port_forward
   scale_if_exists statefulset messaging-backend 0
   scale_if_exists deployment messaging-frontend 0
   scale_if_exists deployment postgres 0
@@ -200,6 +247,7 @@ restart() {
 }
 
 delete_all() {
+  stop_port_forward
   kubectl delete -f "${ROOT_DIR}/k8s/frontend.yaml" --ignore-not-found
   kubectl delete -f "${ROOT_DIR}/k8s/backend.yaml" --ignore-not-found
   kubectl delete -f "${ROOT_DIR}/k8s/dependencies.yaml" --ignore-not-found
@@ -318,6 +366,8 @@ command="${1:-}"
 case "${command}" in
   start) start ;;
   stop) stop ;;
+  port-forward|forward) port_forward ;;
+  stop-forward) stop_port_forward ;;
   restart) shift; restart "$@" ;;
   delete) delete_all ;;
   clear-db) clear_db ;;

@@ -53,6 +53,17 @@ public class ManagedEmailController {
                 status.value(), result.value(), "Managed Email domain provisioning queued"));
   }
 
+  @GetMapping("/domains/hosted/check-subdomain")
+  public ResponseEntity<ApiResponse<SubdomainAvailabilityResponse>> checkSubdomain(
+      @PathVariable Long companyId, @RequestParam String subdomain) {
+    require(companyId, CompanyPermissionKeys.BROADCAST_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            domainService.checkSubdomainAvailability(subdomain),
+            "Subdomain availability checked"));
+  }
+
   @PostMapping("/domains/hosted")
   public ResponseEntity<ApiResponse<DomainResponse>> createHostedDomain(
       @PathVariable Long companyId, @Valid @RequestBody HostedDomainRequest request) {
@@ -63,7 +74,9 @@ public class ManagedEmailController {
     return ResponseEntity.status(status)
         .body(
             ApiResponse.success(
-                status.value(), result.value(), "Managed Email domain provisioning queued"));
+                status.value(),
+                result.value(),
+                "Managed Email hosted domain request submitted"));
   }
 
   @GetMapping("/domains/{domainId}")

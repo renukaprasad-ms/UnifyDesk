@@ -1,10 +1,10 @@
 package com.messaging.user.service;
 
+import com.messaging.auth.service.PasswordPolicyService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.ForbiddenException;
 import com.messaging.common.exception.NotFoundException;
-import com.messaging.auth.service.PasswordPolicyService;
 import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.enums.CompanyRole;
 import com.messaging.company.enums.CompanyStatus;
@@ -24,16 +24,16 @@ import com.messaging.session.service.UserSessionService;
 import com.messaging.user.dto.CreateUserRequest;
 import com.messaging.user.dto.ResetPasswordRequest;
 import com.messaging.user.dto.UpdateOwnProfileRequest;
-import com.messaging.user.dto.UpdateUserRequest;
-import com.messaging.user.dto.UserResponse;
-import com.messaging.user.dto.UserPreferencesResponse;
 import com.messaging.user.dto.UpdateUserPreferencesRequest;
+import com.messaging.user.dto.UpdateUserRequest;
+import com.messaging.user.dto.UserPreferencesResponse;
+import com.messaging.user.dto.UserResponse;
 import com.messaging.user.entity.User;
 import com.messaging.user.entity.UserPreference;
-import com.messaging.user.enums.UserStatus;
 import com.messaging.user.enums.UserAppearanceMode;
-import com.messaging.user.repository.UserRepository;
+import com.messaging.user.enums.UserStatus;
 import com.messaging.user.repository.UserPreferenceRepository;
+import com.messaging.user.repository.UserRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -122,7 +122,8 @@ public class UserService {
   }
 
   @Transactional
-  public UserPreferencesResponse updateCurrentUserPreferences(UpdateUserPreferencesRequest request) {
+  public UserPreferencesResponse updateCurrentUserPreferences(
+      UpdateUserPreferencesRequest request) {
     long userId = currentUserService.currentUserId();
     getUser(userId);
     UserPreference preference =
@@ -138,7 +139,7 @@ public class UserService {
     return userPreferenceRepository
         .findById(userId)
         .map(UserPreference::getAppearanceMode)
-        .orElse(UserAppearanceMode.LIGHT);
+        .orElse(UserAppearanceMode.SYSTEM);
   }
 
   @Transactional(readOnly = true)
@@ -310,8 +311,7 @@ public class UserService {
     user.setPurgedAt(null);
     userRepository.saveAndFlush(user);
 
-    deletionPurgeService.schedule(
-        LifecycleEntityType.USER, userId, null, userId, purgeAfter);
+    deletionPurgeService.schedule(LifecycleEntityType.USER, userId, null, userId, purgeAfter);
   }
 
   @Transactional

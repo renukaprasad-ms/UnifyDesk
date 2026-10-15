@@ -33,7 +33,7 @@ import PaymentReturnPage from '../pages/billing/PaymentReturnPage'
 import BroadcastWorkspace from '../pages/broadcast/BroadcastWorkspace'
 import CompanyConnections from '../pages/company/CompanyConnections'
 import CompanyDetails from '../pages/company/CompanyDetails'
-import CompanyPlan from '../pages/company/CompanyPlan'
+import BillingPage from '../pages/billing/BillingPage'
 import CompanyRoles from '../pages/company/CompanyRoles'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import ContactDetailPage from '../pages/contacts/ContactDetailPage'
@@ -42,6 +42,14 @@ import CrmLeadsPage from '../pages/contacts/CrmLeadsPage'
 import CrmCompaniesPage from '../pages/contacts/CrmCompaniesPage'
 import CrmCompanyDetailPage from '../pages/contacts/CrmCompanyDetailPage'
 import CrmTasksPage from '../pages/contacts/CrmTasksPage'
+import CrmTaskDetailPage from '../pages/contacts/CrmTaskDetailPage'
+import CrmDealsPage from '../pages/contacts/CrmDealsPage'
+import CrmDealDetailPage from '../pages/contacts/CrmDealDetailPage'
+import PublicLeadFormPage from '../pages/crm/PublicLeadFormPage'
+import PublicBookingPage from '../pages/crm/PublicBookingPage'
+import CrmActivitiesPage from '../pages/contacts/CrmActivitiesPage'
+import CrmReportsPage from '../pages/contacts/CrmReportsPage'
+import CrmCustomFieldsSettingsPage from '../pages/contacts/CrmCustomFieldsSettingsPage'
 import ContactsPage from '../pages/contacts/ContactsPage'
 import ContactSettingsPage from '../pages/contacts/ContactSettingsPage'
 import ImportDetailPage from '../pages/contacts/ImportDetailPage'
@@ -64,6 +72,7 @@ import PlatformPlanDetails from '../pages/platform/PlatformPlanDetails'
 import PlatformPlans from '../pages/platform/PlatformPlans'
 import PlatformManagedProviders from '../pages/platform/PlatformManagedProviders'
 import PlatformManagedSmsReviews from '../pages/platform/PlatformManagedSmsReviews'
+import PlatformManagedEmailReviews from '../pages/platform/PlatformManagedEmailReviews'
 import PlatformUsers from '../pages/platform/PlatformUsers'
 import PlatformWebhookCallbacks from '../pages/platform/PlatformWebhookCallbacks'
 import TemplateLibrary from '../pages/templates/TemplateLibrary'
@@ -82,6 +91,8 @@ import WorkspaceRoute from './guards/WorkspaceRoute'
 const AppRoutes = () => (
   <Routes>
     <Route path="/unsubscribe" element={<EmailUnsubscribePage />} />
+    <Route path="/forms/:formKey" element={<PublicLeadFormPage />} />
+    <Route path="/book/:slug" element={<PublicBookingPage />} />
 
     <Route element={<AuthLayout />}>
       <Route path="/invite/:token" element={<InviteAccept />} />
@@ -114,34 +125,83 @@ const AppRoutes = () => (
 
         <Route element={<WorkspaceRoute />}>
           <Route element={<MainLayout />}>
-            <Route path="/workspace" element={<WorkspaceEpochBoundary><Home /></WorkspaceEpochBoundary>} />
+            <Route
+              path="/workspace"
+              element={
+                <WorkspaceEpochBoundary>
+                  <Home />
+                </WorkspaceEpochBoundary>
+              }
+            />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route
               path="/billing/payment-return"
-              element={<WorkspaceEpochBoundary><PaymentReturnPage /></WorkspaceEpochBoundary>}
+              element={
+                <WorkspaceEpochBoundary>
+                  <PaymentReturnPage />
+                </WorkspaceEpochBoundary>
+              }
             />
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.WHATSAPP_READ]} />}>
-              <Route path="inbox/social-media" element={<WorkspaceEpochBoundary><EmailInbox /></WorkspaceEpochBoundary>} />
+              <Route
+                path="inbox/social-media"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <EmailInbox />
+                  </WorkspaceEpochBoundary>
+                }
+              />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.SMS_READ]} />}>
               <Route path="inbox/sms" element={<PlaceholderPage />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.EMAIL_READ]} />}>
-              <Route path="inbox/email" element={<WorkspaceEpochBoundary><EmailInbox /></WorkspaceEpochBoundary>} />
+              <Route
+                path="inbox/email"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <EmailInbox />
+                  </WorkspaceEpochBoundary>
+                }
+              />
             </Route>
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.BROADCAST_READ]} />}>
-              <Route path="broadcast/sms" element={<WorkspaceEpochBoundary><BroadcastWorkspace /></WorkspaceEpochBoundary>} />
-              <Route path="broadcast/social-media" element={<WorkspaceEpochBoundary><BroadcastWorkspace /></WorkspaceEpochBoundary>} />
-              <Route path="broadcast/email" element={<WorkspaceEpochBoundary><BroadcastWorkspace /></WorkspaceEpochBoundary>} />
+              <Route
+                path="broadcast/sms"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <BroadcastWorkspace />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="broadcast/social-media"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <BroadcastWorkspace />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="broadcast/email"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <BroadcastWorkspace />
+                  </WorkspaceEpochBoundary>
+                }
+              />
             </Route>
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.ADS_READ]} />}>
               <Route path="ad-center" element={<AdCenterOverview />} />
               <Route path="ad-center/unified-campaigns" element={<ReachlyoCampaigns />} />
               <Route path="ad-center/unified-campaigns/new" element={<ReachlyoCampaignWizard />} />
-              <Route path="ad-center/unified-campaigns/:campaignId" element={<ReachlyoCampaignWizard />} />
+              <Route
+                path="ad-center/unified-campaigns/:campaignId"
+                element={<ReachlyoCampaignWizard />}
+              />
               <Route path="ad-center/campaigns" element={<AdCampaigns />} />
               <Route path="ad-center/campaigns/:campaignId" element={<AdCampaignDetails />} />
               <Route path="ad-center/ad-sets/:adSetId" element={<AdSetDetails />} />
@@ -157,33 +217,225 @@ const AppRoutes = () => (
               <Route path="ad-center/settings" element={<AdSettings />} />
             </Route>
 
-            <Route element={<PermissionRoute anyOf={[PERMISSIONS.CRM_LEAD_READ, PERMISSIONS.CRM_ACCOUNT_READ, PERMISSIONS.CRM_TASK_READ, PERMISSIONS.CONTACT_READ]} />}>
+            <Route
+              element={
+                <PermissionRoute
+                  anyOf={[
+                    PERMISSIONS.CRM_LEAD_READ,
+                    PERMISSIONS.CRM_ACCOUNT_READ,
+                    PERMISSIONS.CRM_TASK_READ,
+                    PERMISSIONS.CONTACT_READ,
+                    PERMISSIONS.CRM_DEAL_READ,
+                    PERMISSIONS.CRM_ACTIVITY_READ,
+                    PERMISSIONS.CRM_REPORT_READ,
+                  ]}
+                />
+              }
+            >
               <Route path="crm" element={<Navigate to="/crm/overview" replace />} />
-              <Route path="crm/overview" element={<WorkspaceEpochBoundary><CrmOverview /></WorkspaceEpochBoundary>} />
+              <Route
+                path="crm/overview"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <CrmOverview />
+                  </WorkspaceEpochBoundary>
+                }
+              />
             </Route>
-            <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_LEAD_READ, PERMISSIONS.CONTACT_READ]} />}>
-              <Route path="crm/leads" element={<WorkspaceEpochBoundary><CrmLeadsPage /></WorkspaceEpochBoundary>} />
+            <Route
+              element={
+                <PermissionRoute allOf={[PERMISSIONS.CRM_LEAD_READ, PERMISSIONS.CONTACT_READ]} />
+              }
+            >
+              <Route
+                path="crm/leads"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <CrmLeadsPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
             </Route>
             <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_ACCOUNT_READ]} />}>
-              <Route path="crm/companies" element={<WorkspaceEpochBoundary><CrmCompaniesPage /></WorkspaceEpochBoundary>} />
-              <Route path="crm/companies/:accountId" element={<WorkspaceEpochBoundary><CrmCompanyDetailPage /></WorkspaceEpochBoundary>} />
+              <Route
+                path="crm/companies"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <CrmCompaniesPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="crm/companies/:accountId"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <CrmCompanyDetailPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
             </Route>
-            <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_TASK_READ, PERMISSIONS.CONTACT_READ]} />}>
-              <Route path="crm/tasks" element={<WorkspaceEpochBoundary><CrmTasksPage /></WorkspaceEpochBoundary>} />
+            <Route
+              element={
+                <PermissionRoute allOf={[PERMISSIONS.CRM_TASK_READ, PERMISSIONS.CONTACT_READ]} />
+              }
+            >
+              <Route
+                path="crm/tasks"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <CrmTasksPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="crm/tasks/:taskId"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <CrmTaskDetailPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.CONTACT_READ]} />}>
-              <Route path="contacts" element={<WorkspaceEpochBoundary><ContactsPage /></WorkspaceEpochBoundary>} />
-              <Route path="contacts/lists" element={<WorkspaceEpochBoundary><ListsPage /></WorkspaceEpochBoundary>} />
-              <Route path="contacts/lists/:listId" element={<WorkspaceEpochBoundary><ListDetailPage /></WorkspaceEpochBoundary>} />
-              <Route path="contacts/segments" element={<WorkspaceEpochBoundary><SegmentsPage /></WorkspaceEpochBoundary>} />
-              <Route path="contacts/segments/:segmentId" element={<WorkspaceEpochBoundary><SegmentEditorPage /></WorkspaceEpochBoundary>} />
-              <Route path="contacts/settings" element={<WorkspaceEpochBoundary><ContactSettingsPage /></WorkspaceEpochBoundary>} />
-              <Route path="contacts/:contactId" element={<WorkspaceEpochBoundary><ContactDetailPage /></WorkspaceEpochBoundary>} />
+              <Route
+                element={
+                  <PermissionRoute
+                    allOf={[PERMISSIONS.CRM_DEAL_READ, PERMISSIONS.CRM_ACCOUNT_READ]}
+                  />
+                }
+              >
+                <Route
+                  path="crm/deals"
+                  element={
+                    <WorkspaceEpochBoundary>
+                      <CrmDealsPage />
+                    </WorkspaceEpochBoundary>
+                  }
+                />
+                <Route
+                  path="crm/deals/:dealId"
+                  element={
+                    <WorkspaceEpochBoundary>
+                      <CrmDealDetailPage />
+                    </WorkspaceEpochBoundary>
+                  }
+                />
+              </Route>
+              <Route element={<PermissionRoute allOf={[PERMISSIONS.CRM_ACTIVITY_READ]} />}>
+                <Route
+                  path="crm/activities"
+                  element={
+                    <WorkspaceEpochBoundary>
+                      <CrmActivitiesPage />
+                    </WorkspaceEpochBoundary>
+                  }
+                />
+              </Route>
+              <Route
+                element={
+                  <PermissionRoute
+                    allOf={[
+                      PERMISSIONS.CRM_REPORT_READ,
+                      PERMISSIONS.CRM_DEAL_READ,
+                      PERMISSIONS.CRM_LEAD_READ,
+                      PERMISSIONS.CRM_TASK_READ,
+                    ]}
+                  />
+                }
+              >
+                <Route
+                  path="crm/reports"
+                  element={
+                    <WorkspaceEpochBoundary>
+                      <CrmReportsPage />
+                    </WorkspaceEpochBoundary>
+                  }
+                />
+              </Route>
+              <Route
+                path="crm/settings/custom-fields"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <CrmCustomFieldsSettingsPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="contacts"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <ContactsPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="contacts/lists"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <ListsPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="contacts/lists/:listId"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <ListDetailPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="contacts/segments"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <SegmentsPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="contacts/segments/:segmentId"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <SegmentEditorPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="contacts/settings"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <ContactSettingsPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="contacts/:contactId"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <ContactDetailPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
             </Route>
-            <Route element={<PermissionRoute allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_MODIFY]} />}>
-              <Route path="contacts/segments/new" element={<WorkspaceEpochBoundary><SegmentEditorPage /></WorkspaceEpochBoundary>} />
+            <Route
+              element={
+                <PermissionRoute allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_MODIFY]} />
+              }
+            >
+              <Route
+                path="contacts/segments/new"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <SegmentEditorPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
             </Route>
-            <Route element={<PermissionRoute allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_IMPORT]} />}>
+            <Route
+              element={
+                <PermissionRoute allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_IMPORT]} />
+              }
+            >
               <Route path="contacts/imports" element={<ImportsPage />} />
               <Route path="contacts/imports/:importId" element={<ImportDetailPage />} />
             </Route>
@@ -214,7 +466,11 @@ const AppRoutes = () => (
             >
               <Route
                 path="company/connections"
-                element={<WorkspaceEpochBoundary><CompanyConnections /></WorkspaceEpochBoundary>}
+                element={
+                  <WorkspaceEpochBoundary>
+                    <CompanyConnections />
+                  </WorkspaceEpochBoundary>
+                }
               />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.USER_READ]} />}>
@@ -223,8 +479,23 @@ const AppRoutes = () => (
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.ROLE_READ]} />}>
               <Route path="company/roles" element={<CompanyRoles />} />
             </Route>
-            <Route element={<PermissionRoute anyOf={[PERMISSIONS.BILLING_READ]} />}>
-              <Route path="company/plan" element={<WorkspaceEpochBoundary><CompanyPlan /></WorkspaceEpochBoundary>} />
+            <Route element={<PermissionRoute anyOf={[PERMISSIONS.BILLING_READ, PERMISSIONS.BILLING_BALANCE_READ]} />}>
+              <Route
+                path="billing"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <BillingPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="company/plan"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <BillingPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
             </Route>
           </Route>
         </Route>
@@ -243,8 +514,12 @@ const AppRoutes = () => (
           <Route path="/platform/billing" element={<PlatformBilling />} />
           <Route path="/platform/managed-providers" element={<PlatformManagedProviders />} />
           <Route path="/platform/managed-sms-reviews" element={<PlatformManagedSmsReviews />} />
+          <Route path="/platform/managed-email-reviews" element={<PlatformManagedEmailReviews />} />
           <Route path="/platform/admins" element={<PlatformAdmins />} />
-          <Route path="/platform/channel-analytics/webhook-callbacks" element={<PlatformWebhookCallbacks />} />
+          <Route
+            path="/platform/channel-analytics/webhook-callbacks"
+            element={<PlatformWebhookCallbacks />}
+          />
           <Route path="/platform/audit" element={<PlaceholderPage />} />
         </Route>
       </Route>

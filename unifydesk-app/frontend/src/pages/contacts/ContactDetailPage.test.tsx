@@ -11,6 +11,7 @@ vi.mock('../../features/contacts/contactsApi', () => ({
     get: vi.fn(),
     tags: vi.fn(),
     customFields: vi.fn(),
+    lists: vi.fn(),
     activity: vi.fn(),
     preferences: vi.fn(),
     suppressions: vi.fn(),
@@ -56,6 +57,7 @@ describe('ContactDetailPage', () => {
     vi.clearAllMocks()
     vi.mocked(useAppSelector).mockReturnValue('company-1')
     vi.mocked(useIam).mockReturnValue(iam)
+    vi.mocked(contactsApi.lists).mockResolvedValue([])
     vi.mocked(contactsApi.tags).mockResolvedValue([])
     vi.mocked(contactsApi.customFields).mockResolvedValue([])
     vi.mocked(contactsApi.activity).mockResolvedValue({
@@ -97,7 +99,7 @@ describe('ContactDetailPage', () => {
 
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit profile' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit contact' }))
     fireEvent.change(screen.getByDisplayValue('Alice'), {
       target: { value: 'Alice Updated' },
     })

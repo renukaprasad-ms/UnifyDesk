@@ -86,3 +86,37 @@ export function CardSkeleton({ rows = 3 }: { rows?: number }) {
     </div>
   )
 }
+
+export function BoardSkeleton({ columns = 4 }: { columns?: number }) {
+  return (
+    <div
+      role="status"
+      aria-label="Loading board"
+      className="flex h-full min-h-72 gap-4 overflow-hidden"
+    >
+      {Array.from({ length: columns }, (_, index) => (
+        <div
+          key={index}
+          className="skeleton-panel flex min-w-64 flex-1 flex-col gap-4 rounded-xl border p-4"
+        >
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="size-6" />
+          </div>
+          {Array.from({ length: 2 }, (_, card) => (
+            <div key={card} className="skeleton-panel-muted space-y-3 rounded-lg border p-4">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-1/2" />
+              <div className="flex gap-2 pt-2">
+                <Skeleton className="size-6 rounded-full" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}

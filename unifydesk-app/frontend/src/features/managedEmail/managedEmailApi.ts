@@ -9,6 +9,7 @@ import type {
   ManagedEmailOverview,
   ManagedEmailSender,
   ManagedEmailUsage,
+  SubdomainAvailability,
 } from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
@@ -44,6 +45,14 @@ export const managedEmailApi = {
     const response = await apiClient.post<ApiResponse<ManagedEmailDomain>>(
       `${basePath(companyId)}/domains/customer`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async checkSubdomain(companyId: string, subdomain: string) {
+    const response = await apiClient.get<ApiResponse<SubdomainAvailability>>(
+      `${basePath(companyId)}/domains/hosted/check-subdomain`,
+      { params: { subdomain } },
     )
     return unwrap(response.data)
   },

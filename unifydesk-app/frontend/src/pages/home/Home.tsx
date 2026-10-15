@@ -16,33 +16,24 @@ import {
   FiUsers,
 } from 'react-icons/fi'
 import { Link } from 'react-router'
-import { adCenterApi } from '../../features/ads/adCenterApi'
 import type { AdAccount, AdCampaign, AdProviderConnection } from '../../features/ads/types'
-import { broadcastApi } from '../../features/broadcast/broadcastApi'
-import type {
-  BroadcastMessageSummary,
-  Page as BroadcastPage,
-} from '../../features/broadcast/types'
-import { channelApi } from '../../features/channel/channelApi'
+import type { BroadcastMessageSummary } from '../../features/broadcast/types'
 import type { ChannelConnection, ChannelType } from '../../features/channel/types'
-import { contactsApi } from '../../features/contacts/contactsApi'
 import type {
   ContactDashboardSummary,
   ContactSummary,
   ListSummary,
   SegmentDefinition,
 } from '../../features/contacts/types'
+import { loadDashboardSections } from '../../features/dashboard/dashboardApi'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
-import { inboxApi } from '../../features/inbox/inboxApi'
 import type { InboxConversation, InboxPage } from '../../features/inbox/types'
-import { managedEmailApi } from '../../features/managedEmail/managedEmailApi'
 import type {
   ManagedEmailDeliverability,
   ManagedEmailOverview,
   ManagedEmailUsage,
 } from '../../features/managedEmail/types'
-import { managedSmsApi } from '../../features/managedSms/managedSmsApi'
 import type {
   ManagedSmsDeliveryHealth,
   ManagedSmsStatus,
@@ -57,6 +48,7 @@ import {
   selectWorkspaceEpoch,
 } from '../../store/workspace/workspaceSlice'
 import { CardSkeleton, ListSkeleton } from '../../components/ui/Skeleton'
+import { BreakdownChart, GrowthChart } from '../../components/ui/OverviewCharts'
 
 type ManagedEmailDashboard = {
   overview: ManagedEmailOverview | null
@@ -95,14 +87,6 @@ type ActivityItem = {
 }
 
 const number = new Intl.NumberFormat()
-
-const safe = async <T,>(work: () => Promise<T>): Promise<T | null> => {
-  try {
-    return await work()
-  } catch {
-    return null
-  }
-}
 
 const channelLabel = (channel?: ChannelType | null) =>
   channel === 'WHATSAPP' ? 'WhatsApp' : channel === 'SMS' ? 'SMS' : 'Email'
@@ -197,7 +181,11 @@ function SectionHeading({
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h2 className={eyebrow ? 'mt-2 text-lg font-bold text-slate-950' : 'text-lg font-bold text-slate-950'}>
+        <h2
+          className={
+            eyebrow ? 'mt-2 text-lg font-bold text-slate-950' : 'text-lg font-bold text-slate-950'
+          }
+        >
           {title}
         </h2>
         {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
@@ -230,7 +218,10 @@ export default function Home() {
   const canReadChannels = canReadEmail || canReadWhatsApp || canReadSms || canReadBroadcasts
 
   const [loading, setLoading] = useState(true)
+  const [channelsLoading, setChannelsLoading] = useState(true)
+  const [adsLoading, setAdsLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [dashboardError, setDashboardError] = useState<string | null>(null)
   const [contactSummary, setContactSummary] = useState<ContactDashboardSummary | null>(null)
   const [recentContacts, setRecentContacts] = useState<ContactSummary[]>([])
   const [lists, setLists] = useState<ListSummary[]>([])
@@ -263,125 +254,61 @@ export default function Home() {
       if (!scopeIsCurrent(scope)) return
 
       if (quiet) setRefreshing(true)
-      else setLoading(true)
-
-      const contactBundlePromise = canReadContacts
-        ? Promise.all([
-            safe(() => contactsApi.dashboardSummary(companyId)),
-            safe(() =>
-              contactsApi.list(companyId, {
-                status: 'ACTIVE',
-                sort: 'CREATED_DESC',
-                size: 5,
-              }),
-            ),
-            safe(() => contactsApi.lists(companyId)),
-            safe(() => contactsApi.segments(companyId)),
-          ]).then(([summary, recent, nextLists, nextSegments]) => ({
-            summary,
-            recent: recent?.items ?? [],
-            lists: nextLists ?? [],
-            segments: nextSegments ?? [],
-          }))
-        : Promise.resolve(null)
-
-      const broadcastBundlePromise = canReadBroadcasts
-        ? Promise.all(
-            (['EMAIL', 'SMS', 'WHATSAPP'] as ChannelType[]).map((channel) =>
-              safe(() => broadcastApi.channelHistory(companyId, channel, 0, 5)),
-            ),
-          ).then((historyPages) => {
-            const pages = historyPages.filter(
-              (page): page is BroadcastPage<BroadcastMessageSummary> => page !== null,
-            )
-            return {
-              total: pages.reduce((sum, page) => sum + page.totalElements, 0),
-              recent: pages
-                .flatMap((page) => page.content)
-                .sort(
-                  (left, right) =>
-                    new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-                )
-                .slice(0, 5),
-            }
-          })
-        : Promise.resolve(null)
-
-      const inboxPromise = canReadInbox
-        ? safe(() => inboxApi.conversations(companyId, 0, 5, null, 'INBOX'))
-        : Promise.resolve(null)
-
-      const connectionsPromise = canReadChannels
-        ? safe(() => channelApi.list(companyId))
-        : Promise.resolve(null)
-
-      const managedEmailPromise = canReadBroadcasts
-        ? Promise.all([
-            safe(() => managedEmailApi.overview(companyId)),
-            safe(() => managedEmailApi.usage(companyId)),
-            safe(() => managedEmailApi.deliverability(companyId)),
-          ]).then(([overview, usage, deliverability]) => ({
-            overview,
-            usage,
-            deliverability,
-          }))
-        : Promise.resolve(null)
-
-      const managedSmsPromise = canReadBroadcasts
-        ? Promise.all([
-            safe(() => managedSmsApi.status(companyId)),
-            safe(() => managedSmsApi.usage(companyId)),
-            safe(() => managedSmsApi.deliveryHealth(companyId)),
-          ]).then(([status, usage, health]) => ({ status, usage, health }))
-        : Promise.resolve(null)
-
-      const adsPromise = canReadAds
-        ? Promise.all([
-            safe(() => adCenterApi.connections(companyId)),
-            safe(() => adCenterApi.accounts(companyId)),
-            safe(() => adCenterApi.campaigns(companyId, undefined, 0, 50)),
-          ]).then(([adConnections, adAccounts, campaignPage]) => ({
-            connections: adConnections ?? [],
-            accounts: adAccounts ?? [],
-            campaigns: campaignPage?.content ?? [],
-            campaignTotal: campaignPage?.totalElements ?? 0,
-          }))
-        : Promise.resolve(null)
+      else {
+        setLoading(true)
+        setChannelsLoading(true)
+        setAdsLoading(true)
+        // Clear the previous workspace before loading, including when the new request fails.
+        setContactSummary(null)
+        setRecentContacts([])
+        setLists([])
+        setSegments([])
+        setBroadcastTotal(0)
+        setBroadcasts([])
+        setInboxPage(null)
+        setConnections([])
+        setManagedEmail({ overview: null, usage: null, deliverability: null })
+        setManagedSms({ status: null, usage: null, health: null })
+        setAds({ connections: [], accounts: [], campaigns: [], campaignTotal: 0 })
+      }
+      setDashboardError(null)
 
       try {
-        const [
-          contactBundle,
-          broadcastBundle,
-          nextInboxPage,
-          nextConnections,
-          nextManagedEmail,
-          nextManagedSms,
-          nextAds,
-        ] = await Promise.all([
-          contactBundlePromise,
-          broadcastBundlePromise,
-          inboxPromise,
-          connectionsPromise,
-          managedEmailPromise,
-          managedSmsPromise,
-          adsPromise,
-        ])
-
-        if (!scopeIsCurrent(scope)) return
-
-        setContactSummary(contactBundle?.summary ?? null)
-        setRecentContacts(contactBundle?.recent ?? [])
-        setLists(contactBundle?.lists ?? [])
-        setSegments(contactBundle?.segments ?? [])
-        setBroadcastTotal(broadcastBundle?.total ?? 0)
-        setBroadcasts(broadcastBundle?.recent ?? [])
-        setInboxPage(nextInboxPage)
-        setConnections(nextConnections ?? [])
-        setManagedEmail(
-          nextManagedEmail ?? { overview: null, usage: null, deliverability: null },
+        await loadDashboardSections(
+          companyId,
+          (section, data) => {
+            if (!scopeIsCurrent(scope)) return
+            if (section === 'core') {
+              setContactSummary(data.contacts.summary)
+              setRecentContacts(data.contacts.recent)
+              setLists(data.contacts.lists)
+              setSegments(data.contacts.segments)
+              setBroadcastTotal(data.broadcasts.total)
+              setBroadcasts(data.broadcasts.recent)
+              setInboxPage(data.inbox)
+            } else if (section === 'channels') {
+              setConnections(data.connections)
+              setManagedEmail(data.managedEmail)
+              setManagedSms(data.managedSms)
+            } else {
+              setAds(data.ads)
+            }
+            if (data.unavailableSections.length > 0) {
+              setDashboardError('Some dashboard data could not be loaded. Refresh to try again.')
+            }
+          },
+          () => {
+            if (scopeIsCurrent(scope)) {
+              setDashboardError('Some dashboard data could not be loaded. Refresh to try again.')
+            }
+          },
+          (section) => {
+            if (!scopeIsCurrent(scope)) return
+            if (section === 'core') setLoading(false)
+            else if (section === 'channels') setChannelsLoading(false)
+            else setAdsLoading(false)
+          },
         )
-        setManagedSms(nextManagedSms ?? { status: null, usage: null, health: null })
-        setAds(nextAds ?? { connections: [], accounts: [], campaigns: [], campaignTotal: 0 })
       } finally {
         if (scopeIsCurrent(scope)) {
           setLoading(false)
@@ -389,17 +316,7 @@ export default function Home() {
         }
       }
     },
-    [
-      canReadAds,
-      canReadBroadcasts,
-      canReadChannels,
-      canReadContacts,
-      canReadInbox,
-      captureScope,
-      companyId,
-      scopeIsCurrent,
-      workspaceEpoch,
-    ],
+    [captureScope, companyId, scopeIsCurrent, workspaceEpoch],
   )
 
   useEffect(() => {
@@ -509,7 +426,7 @@ export default function Home() {
     }
 
     if (items.length === 0) {
-      if (canReadEmail && !emailStatus.ready) {
+      if (!channelsLoading && canReadEmail && !emailStatus.ready) {
         items.push({
           id: 'email-not-ready',
           title: 'Email is not connected yet',
@@ -518,7 +435,7 @@ export default function Home() {
           tone: 'info',
         })
       }
-      if (canReadWhatsApp && !whatsAppStatus.ready) {
+      if (!channelsLoading && canReadWhatsApp && !whatsAppStatus.ready) {
         items.push({
           id: 'whatsapp-not-ready',
           title: 'WhatsApp is not connected yet',
@@ -536,6 +453,7 @@ export default function Home() {
     canReadChannels,
     canReadEmail,
     canReadWhatsApp,
+    channelsLoading,
     connections,
     emailStatus.ready,
     managedEmail.deliverability,
@@ -562,7 +480,11 @@ export default function Home() {
     inboxPage?.items.forEach((conversation) => {
       items.push({
         id: `inbox-${conversation.id}`,
-        title: conversation.subject || conversation.participants[0]?.displayName || conversation.participants[0]?.address || 'Inbox conversation',
+        title:
+          conversation.subject ||
+          conversation.participants[0]?.displayName ||
+          conversation.participants[0]?.address ||
+          'Inbox conversation',
         detail: conversation.lastMessagePreview || 'Conversation updated',
         at: conversation.lastMessageAt || new Date(0).toISOString(),
         to: `/inbox/${conversation.providerType === 'META_WHATSAPP' ? 'social-media' : 'email'}?conversationId=${conversation.id}`,
@@ -589,8 +511,8 @@ export default function Home() {
   }, [broadcasts, inboxPage?.items, recentContacts])
 
   const growthSeries = useMemo(() => buildGrowthSeries(contactSummary), [contactSummary])
-  const maxGrowth = Math.max(1, ...growthSeries.map((point) => point.added))
-  const recentUnread = inboxPage?.items.reduce((sum, conversation) => sum + conversation.unreadCount, 0) ?? 0
+  const recentUnread =
+    inboxPage?.items.reduce((sum, conversation) => sum + conversation.unreadCount, 0) ?? 0
 
   const kpis = [
     canReadContacts
@@ -757,21 +679,23 @@ export default function Home() {
           </div>
         </header>
 
-        {loading ? (
-          <div
-            className="mt-7 grid gap-4"
-            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}
+        {dashboardError && (
+          <p
+            role="alert"
+            className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
           >
-            {Array.from({ length: Math.max(4, kpis.length) }).map((_, index) => (
-              <CardSkeleton key={index} rows={2} />
-            ))}
-          </div>
-        ) : (
-          <div
-            className="mt-7 grid gap-3"
-            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}
-          >
-            {kpis.map((kpi) => (
+            {dashboardError}
+          </p>
+        )}
+
+        <div
+          className="mt-7 grid gap-3"
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}
+        >
+          {kpis.map((kpi) =>
+            (kpi.to === '/ad-center' ? adsLoading : loading) ? (
+              <CardSkeleton key={kpi.label} rows={2} />
+            ) : (
               <Link
                 key={kpi.label}
                 to={kpi.to}
@@ -781,13 +705,39 @@ export default function Home() {
                   <span className="flex size-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                     {kpi.icon}
                   </span>
-                  <FiArrowRight className="text-slate-300 transition group-hover:text-indigo-500" aria-hidden="true" />
+                  <FiArrowRight
+                    className="text-slate-300 transition group-hover:text-indigo-500"
+                    aria-hidden="true"
+                  />
                 </div>
                 <p className="mt-4 text-2xl font-bold text-slate-950">{kpi.value}</p>
                 <p className="mt-1 text-xs font-bold text-slate-700">{kpi.label}</p>
                 <p className="mt-1 text-[11px] leading-4 text-slate-500">{kpi.meta}</p>
               </Link>
-            ))}
+            ),
+          )}
+        </div>
+
+        {canReadContacts && (
+          <div className="mt-6 grid gap-4 xl:grid-cols-[1.7fr_1fr]">
+            <GrowthChart points={growthSeries} loading={loading} unavailable={!contactSummary} />
+            {loading ? (
+              <CardSkeleton rows={5} />
+            ) : contactSummary ? (
+              <BreakdownChart
+                title="Audience by channel"
+                description="Subscribed contacts. A contact can subscribe to multiple channels."
+                items={[
+                  { label: 'Email', value: contactSummary.emailSubscribers },
+                  { label: 'SMS', value: contactSummary.smsSubscribers },
+                  { label: 'WhatsApp', value: contactSummary.whatsappSubscribers },
+                ]}
+              />
+            ) : (
+              <div className="panel p-6 text-sm text-slate-500">
+                Channel audience data is unavailable. Try refreshing.
+              </div>
+            )}
           </div>
         )}
 
@@ -798,7 +748,7 @@ export default function Home() {
             description="Issues and setup steps that may affect sending, replies or campaign delivery."
           />
           <div className="mt-3">
-            {loading ? (
+            {(loading || channelsLoading || adsLoading) && attentionItems.length === 0 ? (
               <ListSkeleton rows={2} />
             ) : attentionItems.length === 0 ? (
               <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-800">
@@ -847,43 +797,50 @@ export default function Home() {
               className="mt-3 grid gap-3"
               style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}
             >
-              {channelCards.map((channel) => (
-                <Link
-                  key={channel.id}
-                  to={channel.to}
-                  className="panel group flex items-center gap-4 p-4 transition hover:border-indigo-200"
-                >
-                  <span
-                    className={`flex size-11 shrink-0 items-center justify-center rounded-xl text-lg ${
-                      channel.problem
-                        ? 'bg-rose-50 text-rose-600'
-                        : channel.ready
-                          ? 'bg-emerald-50 text-emerald-600'
-                          : 'bg-slate-100 text-slate-500'
-                    }`}
+              {channelCards.map((channel) =>
+                (channel.id === 'ads' ? adsLoading : channelsLoading) ? (
+                  <CardSkeleton key={channel.id} rows={2} />
+                ) : (
+                  <Link
+                    key={channel.id}
+                    to={channel.to}
+                    className="panel group flex items-center gap-4 p-4 transition hover:border-indigo-200"
                   >
-                    {channel.icon}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold text-slate-950">{channel.label}</p>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
-                          channel.problem
-                            ? 'bg-rose-50 text-rose-700'
-                            : channel.ready
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        {channel.problem ? 'ATTENTION' : channel.ready ? 'READY' : 'SETUP'}
-                      </span>
+                    <span
+                      className={`flex size-11 shrink-0 items-center justify-center rounded-xl text-lg ${
+                        channel.problem
+                          ? 'bg-rose-50 text-rose-600'
+                          : channel.ready
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      {channel.icon}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-slate-950">{channel.label}</p>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                            channel.problem
+                              ? 'bg-rose-50 text-rose-700'
+                              : channel.ready
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {channel.problem ? 'ATTENTION' : channel.ready ? 'READY' : 'SETUP'}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-slate-500">{channel.detail}</p>
                     </div>
-                    <p className="mt-1 truncate text-xs text-slate-500">{channel.detail}</p>
-                  </div>
-                  <FiArrowRight className="shrink-0 text-slate-300 group-hover:text-indigo-500" aria-hidden="true" />
-                </Link>
-              ))}
+                    <FiArrowRight
+                      className="shrink-0 text-slate-300 group-hover:text-indigo-500"
+                      aria-hidden="true"
+                    />
+                  </Link>
+                ),
+              )}
             </div>
           </section>
         )}
@@ -903,12 +860,16 @@ export default function Home() {
               />
             </div>
             {loading ? (
-              <div className="p-4"><ListSkeleton rows={4} /></div>
+              <div className="p-4">
+                <ListSkeleton rows={4} />
+              </div>
             ) : broadcasts.length === 0 ? (
               <div className="px-5 py-10 text-center">
                 <FiSend className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
                 <p className="mt-3 text-sm font-bold text-slate-800">No broadcasts yet</p>
-                <p className="mt-1 text-xs text-slate-500">Create your first broadcast when your audience and sender are ready.</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Create your first broadcast when your audience and sender are ready.
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -941,14 +902,18 @@ export default function Home() {
                           {channelLabel(message.channelType)}
                         </td>
                         <td className="px-4 py-4">
-                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${broadcastStatusClass(message.status)}`}>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${broadcastStatusClass(message.status)}`}
+                          >
                             {statusLabel(message.status)}
                           </span>
                         </td>
                         <td className="px-4 py-4 text-right font-semibold text-slate-700">
                           {number.format(message.stats.accepted)}
                         </td>
-                        <td className={`px-4 py-4 text-right font-semibold ${message.stats.failed > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
+                        <td
+                          className={`px-4 py-4 text-right font-semibold ${message.stats.failed > 0 ? 'text-rose-600' : 'text-slate-700'}`}
+                        >
                           {number.format(message.stats.failed)}
                         </td>
                         <td className="px-5 py-4 text-right text-xs text-slate-500">
@@ -975,7 +940,10 @@ export default function Home() {
                       : 'Latest customer conversations'
                   }
                   action={
-                    <Link className="secondary-button gap-2" to={canReadEmail ? '/inbox/email' : '/inbox/social-media'}>
+                    <Link
+                      className="secondary-button gap-2"
+                      to={canReadEmail ? '/inbox/email' : '/inbox/social-media'}
+                    >
                       Open Inbox
                       <FiArrowRight aria-hidden="true" />
                     </Link>
@@ -983,7 +951,9 @@ export default function Home() {
                 />
               </div>
               {loading ? (
-                <div className="p-4"><ListSkeleton rows={5} /></div>
+                <div className="p-4">
+                  <ListSkeleton rows={5} />
+                </div>
               ) : !inboxPage || inboxPage.items.length === 0 ? (
                 <div className="px-5 py-10 text-center text-sm text-slate-500">
                   No Inbox conversations yet.
@@ -1002,7 +972,10 @@ export default function Home() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <p className="truncate text-sm font-semibold text-slate-900">
-                            {conversation.subject || conversation.participants[0]?.displayName || conversation.participants[0]?.address || 'Conversation'}
+                            {conversation.subject ||
+                              conversation.participants[0]?.displayName ||
+                              conversation.participants[0]?.address ||
+                              'Conversation'}
                           </p>
                           {conversation.unreadCount > 0 && (
                             <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[9px] font-bold text-white">
@@ -1027,8 +1000,8 @@ export default function Home() {
           {canReadContacts && (
             <section className={`panel p-5 ${canReadInbox ? '' : 'xl:col-span-2'}`}>
               <SectionHeading
-                title="Contacts & audience growth"
-                description="New contacts over the last 30 days and current marketing permissions."
+                title="Audience details"
+                description="Marketing permissions, lists and segments in your workspace."
                 action={
                   <Link className="secondary-button gap-2" to="/contacts">
                     View contacts
@@ -1037,48 +1010,48 @@ export default function Home() {
                 }
               />
               {loading ? (
-                <div className="mt-4"><CardSkeleton rows={5} /></div>
+                <div className="mt-4">
+                  <CardSkeleton rows={5} />
+                </div>
               ) : (
                 <>
-                  <div className="mt-5 flex h-36 items-end gap-1 rounded-xl border border-slate-100 bg-slate-50 px-3 pb-3 pt-5">
-                    {growthSeries.map((point) => (
-                      <div key={point.date} className="flex h-full min-w-0 flex-1 items-end">
-                        <div
-                          className="w-full rounded-t bg-indigo-400"
-                          style={{
-                            height: point.added === 0 ? '3%' : `${Math.max(8, (point.added / maxGrowth) * 100)}%`,
-                          }}
-                          title={`${point.date}: ${point.added} contacts`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 flex justify-between text-[10px] text-slate-400">
-                    <span>30 days ago</span>
-                    <span>Today</span>
-                  </div>
-
                   <div className="mt-5 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-slate-200 p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Email</p>
-                      <p className="mt-1 text-lg font-bold text-slate-900">{number.format(contactSummary?.emailSubscribers ?? 0)}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        Email
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {number.format(contactSummary?.emailSubscribers ?? 0)}
+                      </p>
                       <p className="text-[11px] text-slate-500">subscribed</p>
                     </div>
                     <div className="rounded-xl border border-slate-200 p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">SMS</p>
-                      <p className="mt-1 text-lg font-bold text-slate-900">{number.format(contactSummary?.smsSubscribers ?? 0)}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        SMS
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {number.format(contactSummary?.smsSubscribers ?? 0)}
+                      </p>
                       <p className="text-[11px] text-slate-500">subscribed</p>
                     </div>
                     <div className="rounded-xl border border-slate-200 p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">WhatsApp</p>
-                      <p className="mt-1 text-lg font-bold text-slate-900">{number.format(contactSummary?.whatsappSubscribers ?? 0)}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        WhatsApp
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {number.format(contactSummary?.whatsappSubscribers ?? 0)}
+                      </p>
                       <p className="text-[11px] text-slate-500">subscribed</p>
                     </div>
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1">{lists.length} lists</span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1">{segments.length} segments</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                      {lists.length} lists
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                      {segments.length} segments
+                    </span>
                     <span className="rounded-full bg-indigo-50 px-2.5 py-1 font-semibold text-indigo-700">
                       +{number.format(contactSummary?.newContacts30d ?? 0)} contacts / 30d
                     </span>
@@ -1095,127 +1068,164 @@ export default function Home() {
               title="Managed channel usage"
               description="Current-period usage and delivery health for UnifyDesk Managed Email and SMS."
             />
-            <div className="mt-3 grid gap-4 xl:grid-cols-2">
-              <div className="panel p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                      <FiMail aria-hidden="true" />
-                    </span>
-                    <div>
-                      <p className="text-sm font-bold text-slate-950">Managed Email</p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {managedEmail.overview
-                          ? statusLabel(managedEmail.overview.serviceStatus)
-                          : 'Not configured'}
-                      </p>
-                    </div>
-                  </div>
-                  <Link className="text-xs font-semibold text-indigo-600" to="/company/connections?section=email">
-                    Manage
-                  </Link>
-                </div>
-                {managedEmail.usage ? (
-                  <>
-                    <div className="mt-5 flex items-end justify-between gap-3">
-                      <div>
-                        <p className="text-2xl font-bold text-slate-950">
-                          {number.format(managedEmail.usage.accepted)}
-                        </p>
-                        <p className="text-xs text-slate-500">accepted this period</p>
-                      </div>
-                      <p className="text-right text-xs text-slate-500">
-                        {managedEmail.usage.limit < 0
-                          ? 'Unlimited'
-                          : `${number.format(Math.max(0, managedEmail.usage.remaining))} remaining`}
-                      </p>
-                    </div>
-                    {managedEmail.usage.limit > 0 && (
-                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div className="h-full rounded-full bg-indigo-500" style={{ width: `${emailUsagePercent}%` }} />
-                      </div>
-                    )}
-                    {managedEmail.deliverability && (
-                      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                        <div className="rounded-lg bg-slate-50 p-2">
-                          <p className="text-xs font-bold text-slate-800">{statusLabel(managedEmail.deliverability.status)}</p>
-                          <p className="text-[10px] text-slate-400">health</p>
-                        </div>
-                        <div className="rounded-lg bg-slate-50 p-2">
-                          <p className="text-xs font-bold text-slate-800">{(managedEmail.deliverability.hardBounceRate * 100).toFixed(2)}%</p>
-                          <p className="text-[10px] text-slate-400">bounce</p>
-                        </div>
-                        <div className="rounded-lg bg-slate-50 p-2">
-                          <p className="text-xs font-bold text-slate-800">{(managedEmail.deliverability.complaintRate * 100).toFixed(2)}%</p>
-                          <p className="text-[10px] text-slate-400">complaints</p>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p className="mt-5 text-sm text-slate-500">Set up Managed Email to see usage and deliverability here.</p>
-                )}
+            {channelsLoading ? (
+              <div className="mt-3 grid gap-4 xl:grid-cols-2">
+                <CardSkeleton rows={5} />
+                <CardSkeleton rows={5} />
               </div>
+            ) : (
+              <div className="mt-3 grid gap-4 xl:grid-cols-2">
+                <div className="panel p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <FiMail aria-hidden="true" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-bold text-slate-950">Managed Email</p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {managedEmail.overview
+                            ? statusLabel(managedEmail.overview.serviceStatus)
+                            : 'Not configured'}
+                        </p>
+                      </div>
+                    </div>
+                    <Link
+                      className="text-xs font-semibold text-indigo-600"
+                      to="/company/connections?section=email"
+                    >
+                      Manage
+                    </Link>
+                  </div>
+                  {managedEmail.usage ? (
+                    <>
+                      <div className="mt-5 flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-2xl font-bold text-slate-950">
+                            {number.format(managedEmail.usage.accepted)}
+                          </p>
+                          <p className="text-xs text-slate-500">accepted this period</p>
+                        </div>
+                        <p className="text-right text-xs text-slate-500">
+                          {managedEmail.usage.limit < 0
+                            ? 'Unlimited'
+                            : `${number.format(Math.max(0, managedEmail.usage.remaining))} remaining`}
+                        </p>
+                      </div>
+                      {managedEmail.usage.limit > 0 && (
+                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-indigo-500"
+                            style={{ width: `${emailUsagePercent}%` }}
+                          />
+                        </div>
+                      )}
+                      {managedEmail.deliverability && (
+                        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                          <div className="rounded-lg bg-slate-50 p-2">
+                            <p className="text-xs font-bold text-slate-800">
+                              {statusLabel(managedEmail.deliverability.status)}
+                            </p>
+                            <p className="text-[10px] text-slate-400">health</p>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 p-2">
+                            <p className="text-xs font-bold text-slate-800">
+                              {(managedEmail.deliverability.hardBounceRate * 100).toFixed(2)}%
+                            </p>
+                            <p className="text-[10px] text-slate-400">bounce</p>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 p-2">
+                            <p className="text-xs font-bold text-slate-800">
+                              {(managedEmail.deliverability.complaintRate * 100).toFixed(2)}%
+                            </p>
+                            <p className="text-[10px] text-slate-400">complaints</p>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="mt-5 text-sm text-slate-500">
+                      Set up Managed Email to see usage and deliverability here.
+                    </p>
+                  )}
+                </div>
 
-              <div className="panel p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                      <FiSmartphone aria-hidden="true" />
-                    </span>
-                    <div>
-                      <p className="text-sm font-bold text-slate-950">Managed SMS</p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {managedSms.status ? statusLabel(managedSms.status.state) : 'Not configured'}
-                      </p>
-                    </div>
-                  </div>
-                  <Link className="text-xs font-semibold text-indigo-600" to="/company/connections?section=sms">
-                    Manage
-                  </Link>
-                </div>
-                {managedSms.usage ? (
-                  <>
-                    <div className="mt-5 flex items-end justify-between gap-3">
+                <div className="panel p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                        <FiSmartphone aria-hidden="true" />
+                      </span>
                       <div>
-                        <p className="text-2xl font-bold text-slate-950">
-                          {number.format(managedSms.usage.acceptedSegments)}
+                        <p className="text-sm font-bold text-slate-950">Managed SMS</p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {managedSms.status
+                            ? statusLabel(managedSms.status.state)
+                            : 'Not configured'}
                         </p>
-                        <p className="text-xs text-slate-500">segments this period</p>
                       </div>
-                      <p className="text-right text-xs text-slate-500">
-                        {managedSms.usage.limit && managedSms.usage.limit > 0
-                          ? `${number.format(Math.max(0, managedSms.usage.remaining ?? 0))} remaining`
-                          : 'Usage tracked'}
-                      </p>
                     </div>
-                    {managedSms.usage.limit && managedSms.usage.limit > 0 ? (
-                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div className="h-full rounded-full bg-violet-500" style={{ width: `${smsUsagePercent}%` }} />
+                    <Link
+                      className="text-xs font-semibold text-indigo-600"
+                      to="/company/connections?section=sms"
+                    >
+                      Manage
+                    </Link>
+                  </div>
+                  {managedSms.usage ? (
+                    <>
+                      <div className="mt-5 flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-2xl font-bold text-slate-950">
+                            {number.format(managedSms.usage.acceptedSegments)}
+                          </p>
+                          <p className="text-xs text-slate-500">segments this period</p>
+                        </div>
+                        <p className="text-right text-xs text-slate-500">
+                          {managedSms.usage.limit && managedSms.usage.limit > 0
+                            ? `${number.format(Math.max(0, managedSms.usage.remaining ?? 0))} remaining`
+                            : 'Usage tracked'}
+                        </p>
                       </div>
-                    ) : null}
-                    {managedSms.health && (
-                      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                        <div className="rounded-lg bg-slate-50 p-2">
-                          <p className="text-xs font-bold text-slate-800">{statusLabel(managedSms.health.status)}</p>
-                          <p className="text-[10px] text-slate-400">health</p>
+                      {managedSms.usage.limit && managedSms.usage.limit > 0 ? (
+                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-violet-500"
+                            style={{ width: `${smsUsagePercent}%` }}
+                          />
                         </div>
-                        <div className="rounded-lg bg-slate-50 p-2">
-                          <p className="text-xs font-bold text-slate-800">{number.format(managedSms.health.delivered)}</p>
-                          <p className="text-[10px] text-slate-400">delivered</p>
+                      ) : null}
+                      {managedSms.health && (
+                        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                          <div className="rounded-lg bg-slate-50 p-2">
+                            <p className="text-xs font-bold text-slate-800">
+                              {statusLabel(managedSms.health.status)}
+                            </p>
+                            <p className="text-[10px] text-slate-400">health</p>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 p-2">
+                            <p className="text-xs font-bold text-slate-800">
+                              {number.format(managedSms.health.delivered)}
+                            </p>
+                            <p className="text-[10px] text-slate-400">delivered</p>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 p-2">
+                            <p className="text-xs font-bold text-slate-800">
+                              {number.format(managedSms.health.failed + managedSms.health.rejected)}
+                            </p>
+                            <p className="text-[10px] text-slate-400">failed</p>
+                          </div>
                         </div>
-                        <div className="rounded-lg bg-slate-50 p-2">
-                          <p className="text-xs font-bold text-slate-800">{number.format(managedSms.health.failed + managedSms.health.rejected)}</p>
-                          <p className="text-[10px] text-slate-400">failed</p>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p className="mt-5 text-sm text-slate-500">Set up Managed SMS to see usage and delivery health here.</p>
-                )}
+                      )}
+                    </>
+                  ) : (
+                    <p className="mt-5 text-sm text-slate-500">
+                      Set up Managed SMS to see usage and delivery health here.
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </section>
         )}
 
@@ -1232,40 +1242,59 @@ export default function Home() {
                   </Link>
                 }
               />
-              <div className="mt-5 grid grid-cols-3 gap-3">
-                <div className="rounded-xl bg-slate-50 p-4">
-                  <p className="text-2xl font-bold text-slate-950">{activeAdConnections.length}</p>
-                  <p className="mt-1 text-[11px] text-slate-500">connected providers</p>
-                </div>
-                <div className="rounded-xl bg-slate-50 p-4">
-                  <p className="text-2xl font-bold text-slate-950">{managedAdAccounts.length}</p>
-                  <p className="mt-1 text-[11px] text-slate-500">managed accounts</p>
-                </div>
-                <div className="rounded-xl bg-slate-50 p-4">
-                  <p className="text-2xl font-bold text-slate-950">{ads.campaignTotal}</p>
-                  <p className="mt-1 text-[11px] text-slate-500">campaigns</p>
-                </div>
-              </div>
-              {ads.connections.length > 0 ? (
-                <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
-                  {ads.connections.slice(0, 3).map((connection) => (
-                    <div key={connection.id} className="flex items-center justify-between gap-3 p-3">
-                      <div>
-                        <p className="text-xs font-bold text-slate-800">
-                          {connection.provider === 'META_ADS' ? 'Meta Ads' : 'Google Ads'}
-                        </p>
-                        <p className="mt-0.5 text-[10px] text-slate-500">
-                          {connection.displayName || 'Advertising provider'}
-                        </p>
-                      </div>
-                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${connection.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : connection.status === 'ERROR' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>
-                        {statusLabel(connection.status)}
-                      </span>
-                    </div>
-                  ))}
+              {adsLoading ? (
+                <div className="mt-4">
+                  <CardSkeleton rows={5} />
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-slate-500">No advertising provider is connected yet.</p>
+                <>
+                  <div className="mt-5 grid grid-cols-3 gap-3">
+                    <div className="rounded-xl bg-slate-50 p-4">
+                      <p className="text-2xl font-bold text-slate-950">
+                        {activeAdConnections.length}
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-500">connected providers</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-4">
+                      <p className="text-2xl font-bold text-slate-950">
+                        {managedAdAccounts.length}
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-500">managed accounts</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-4">
+                      <p className="text-2xl font-bold text-slate-950">{ads.campaignTotal}</p>
+                      <p className="mt-1 text-[11px] text-slate-500">campaigns</p>
+                    </div>
+                  </div>
+                  {ads.connections.length > 0 ? (
+                    <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
+                      {ads.connections.slice(0, 3).map((connection) => (
+                        <div
+                          key={connection.id}
+                          className="flex items-center justify-between gap-3 p-3"
+                        >
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">
+                              {connection.provider === 'META_ADS' ? 'Meta Ads' : 'Google Ads'}
+                            </p>
+                            <p className="mt-0.5 text-[10px] text-slate-500">
+                              {connection.displayName || 'Advertising provider'}
+                            </p>
+                          </div>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${connection.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : connection.status === 'ERROR' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600'}`}
+                          >
+                            {statusLabel(connection.status)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm text-slate-500">
+                      No advertising provider is connected yet.
+                    </p>
+                  )}
+                </>
               )}
             </section>
           )}
@@ -1278,7 +1307,9 @@ export default function Home() {
               />
             </div>
             {loading ? (
-              <div className="p-4"><ListSkeleton rows={6} /></div>
+              <div className="p-4">
+                <ListSkeleton rows={6} />
+              </div>
             ) : activities.length === 0 ? (
               <div className="px-5 py-10 text-center text-sm text-slate-500">
                 Activity will appear here as your team starts using the workspace.
@@ -1309,14 +1340,22 @@ export default function Home() {
         </div>
 
         <section className="mt-6">
-          <SectionHeading title="Quick actions" description="Common workspace tasks, one click away." />
+          <SectionHeading
+            title="Quick actions"
+            description="Common workspace tasks, one click away."
+          />
           <div
             className="mt-3 grid gap-3"
             style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}
           >
             {canCreateBroadcasts && (
-              <Link className="panel group flex items-center gap-3 p-4 hover:border-indigo-200" to="/broadcast/email">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><FiSend /></span>
+              <Link
+                className="panel group flex items-center gap-3 p-4 hover:border-indigo-200"
+                to="/broadcast/email"
+              >
+                <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                  <FiSend />
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">New broadcast</p>
                   <p className="text-xs text-slate-500">Email, SMS or WhatsApp</p>
@@ -1324,8 +1363,13 @@ export default function Home() {
               </Link>
             )}
             {canImportContacts && (
-              <Link className="panel group flex items-center gap-3 p-4 hover:border-indigo-200" to="/contacts/imports">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><FiUpload /></span>
+              <Link
+                className="panel group flex items-center gap-3 p-4 hover:border-indigo-200"
+                to="/contacts/imports"
+              >
+                <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <FiUpload />
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Import contacts</p>
                   <p className="text-xs text-slate-500">Add a CSV audience</p>
@@ -1333,8 +1377,13 @@ export default function Home() {
               </Link>
             )}
             {canReadInbox && (
-              <Link className="panel group flex items-center gap-3 p-4 hover:border-indigo-200" to={canReadEmail ? '/inbox/email' : '/inbox/social-media'}>
-                <span className="flex size-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600"><FiInbox /></span>
+              <Link
+                className="panel group flex items-center gap-3 p-4 hover:border-indigo-200"
+                to={canReadEmail ? '/inbox/email' : '/inbox/social-media'}
+              >
+                <span className="flex size-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                  <FiInbox />
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Open Inbox</p>
                   <p className="text-xs text-slate-500">Reply to conversations</p>
@@ -1342,8 +1391,13 @@ export default function Home() {
               </Link>
             )}
             {canReadChannels && (
-              <Link className="panel group flex items-center gap-3 p-4 hover:border-indigo-200" to="/company/connections">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><FiLink /></span>
+              <Link
+                className="panel group flex items-center gap-3 p-4 hover:border-indigo-200"
+                to="/company/connections"
+              >
+                <span className="flex size-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                  <FiLink />
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Connections</p>
                   <p className="text-xs text-slate-500">Manage channel setup</p>

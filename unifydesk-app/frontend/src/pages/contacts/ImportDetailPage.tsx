@@ -1,3 +1,4 @@
+import { PageSkeleton, CardSkeleton } from '../../components/ui/Skeleton'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
@@ -33,8 +34,7 @@ const consentEvidenceOptions = [
   { value: 'Other documented consent', label: 'Other documented consent' },
 ] as const
 
-const channelLabel = (channel: ContactChannel) =>
-  channel === 'WHATSAPP' ? 'WhatsApp' : channel
+const channelLabel = (channel: ContactChannel) => (channel === 'WHATSAPP' ? 'WhatsApp' : channel)
 
 const targetKey = (target: ImportFieldTarget) => {
   if (target.type === 'IGNORE') return 'IGNORE'
@@ -144,6 +144,7 @@ export default function ImportDetailPage() {
   const [targetListId, setTargetListId] = useState('')
   const [lists, setLists] = useState<ListSummary[]>([])
   const [error, setError] = useState('')
+  const [reload, setReload] = useState(0)
   const [committing, setCommitting] = useState(false)
   const [downloadingErrors, setDownloadingErrors] = useState(false)
   const [pollingPaused, setPollingPaused] = useState(false)
@@ -151,6 +152,10 @@ export default function ImportDetailPage() {
 
   useEffect(() => {
     if (!companyId) return
+    let active = true
+    setError('')
+    setPreview(null)
+    setResource(null)
 
     Promise.all([
       contactsApi.getImport(companyId, importId),
@@ -158,12 +163,14 @@ export default function ImportDetailPage() {
       contactsApi.customFields(companyId),
     ])
       .then(async ([nextResource, nextLists, nextFields]) => {
+        if (!active) return
         setResource(nextResource)
         setLists(nextLists.filter((list) => list.status !== 'ARCHIVED'))
         setCustomFields(nextFields.filter((field) => field.status === 'ACTIVE'))
 
         if (['UPLOADED', 'DRAFT_UPLOAD', 'PREVIEWED'].includes(nextResource.status)) {
           const nextPreview = await contactsApi.previewImport(companyId, importId)
+          if (!active) return
           setPreview(nextPreview)
           setMappings(buildSuggestedImportMappings(nextPreview.headers))
           const suggestedConsent = buildSuggestedConsentMappings(nextPreview.headers)
@@ -171,8 +178,13 @@ export default function ImportDetailPage() {
           setConsentMode(suggestedConsent.length > 0 ? 'CSV' : 'NONE')
         }
       })
-      .catch((loadError) => setError(apiErrorMessage(loadError, 'Unable to load import.')))
-  }, [companyId, importId])
+      .catch((loadError) => {
+        if (active) setError(apiErrorMessage(loadError, 'Unable to load import.'))
+      })
+    return () => {
+      active = false
+    }
+  }, [companyId, importId, reload])
 
   useEffect(() => {
     if (!companyId || !resource || !['QUEUED', 'RUNNING'].includes(resource.status)) {
@@ -340,6 +352,12 @@ export default function ImportDetailPage() {
       Boolean(simpleConsentEvidence.trim()) &&
       simpleConsentConfirmed)
 
+  if (!resource && !error)
+    return (
+      <section className="px-4 py-6 sm:px-6 lg:px-8">
+        <PageSkeleton />
+      </section>
+    )
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="w-full">
@@ -514,7 +532,9 @@ export default function ImportDetailPage() {
 
               {ignoredCount > 0 && (
                 <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  <strong>{ignoredCount} column{ignoredCount === 1 ? '' : 's'} won't be imported.</strong>{' '}
+                  <strong>
+                    {ignoredCount} column{ignoredCount === 1 ? '' : 's'} won't be imported.
+                  </strong>{' '}
                   That is usually fine for IDs or source metadata. Review only the fields you need.
                 </div>
               )}
@@ -739,7 +759,8 @@ export default function ImportDetailPage() {
                   {strategy === 'SKIP' && (
                     <p className="mt-3 text-xs text-slate-500">
                       Existing contacts skipped as duplicates will keep their current permission
-                      state. The declaration applies to contacts successfully created by this import.
+                      state. The declaration applies to contacts successfully created by this
+                      import.
                     </p>
                   )}
                 </div>
@@ -879,9 +900,28 @@ export default function ImportDetailPage() {
               </button>
             </section>
           </>
+        ) : error ? (
+          <div className="panel mt-6 space-y-3 p-6">
+            <h2 className="font-semibold">Preview unavailable</h2>
+            <p className="text-sm text-slate-500">
+              Try again after the connection or server issue is resolved.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => setReload((n) => n + 1)}
+              >
+                Retry preview
+              </button>
+              <Link className="secondary-button" to="/contacts/imports">
+                Back to imports
+              </Link>
+            </div>
+          </div>
         ) : (
-          <div className="panel mt-6 p-6 text-sm text-slate-500" role="status">
-            Preparing your CSV…
+          <div className="mt-6">
+            <CardSkeleton rows={7} />
           </div>
         )}
       </div>

@@ -7,7 +7,7 @@ export type AuthUser = {
   verified: boolean
   hasCompanies: boolean
   companyCount: number
-  appearanceMode: 'LIGHT' | 'DARK'
+  appearanceMode: 'LIGHT' | 'DARK' | 'SYSTEM'
 }
 
 export type RegisterPayload = {

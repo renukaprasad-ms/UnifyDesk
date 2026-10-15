@@ -4,11 +4,14 @@ import com.messaging.common.exception.*;
 import com.messaging.company.entity.Company;
 import com.messaging.company.repository.CompanyRepository;
 import com.messaging.managedemail.control.config.ManagedEmailProperties;
+import com.messaging.managedemail.control.dto.ManagedEmailAdminDtos.*;
 import com.messaging.managedemail.control.dto.ManagedEmailDtos.*;
 import com.messaging.managedemail.control.entity.*;
 import com.messaging.managedemail.control.enums.ManagedEmailEnums.*;
 import com.messaging.managedemail.control.provisioning.ManagedEmailProvisioningService;
 import com.messaging.managedemail.control.repository.*;
+import com.messaging.user.entity.User;
+import com.messaging.user.repository.UserRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -25,7 +28,7 @@ public class ManagedEmailDomainService {
 
   private static final long DOMAIN_LOCK_NAMESPACE = 0x444f4d41494e0000L;
   private static final Set<DomainStatus> TERMINAL =
-      Set.of(DomainStatus.DELETED, DomainStatus.RETIRED);
+      Set.of(DomainStatus.DELETED, DomainStatus.RETIRED, DomainStatus.REJECTED);
 
   private final ManagedEmailDomainRepository domainRepository;
   private final ManagedEmailTenantService tenantService;
@@ -35,6 +38,7 @@ public class ManagedEmailDomainService {
   private final ManagedEmailDomainNameService domainNameService;
   private final ManagedEmailSenderLifecycleService senderLifecycleService;
   private final CompanyRepository companyRepository;
+  private final UserRepository userRepository;
   private final ManagedEmailProperties properties;
   private final JdbcTemplate jdbcTemplate;
 
@@ -101,70 +105,197 @@ public class ManagedEmailDomainService {
     return new CreateResult<>(mapper.domain(saved), false);
   }
 
+  @Transactional(readOnly = true)
+  public SubdomainAvailabilityResponse checkSubdomainAvailability(String rawSubdomain) {
+    if (rawSubdomain == null || rawSubdomain.isBlank()) {
+      return new SubdomainAvailabilityResponse(false, "", null, "Subdomain cannot be blank");
+    }
+    final String cleaned;
+    try {
+      cleaned = domainNameService.validateHostedSubdomain(rawSubdomain);
+    } catch (BadRequestException e) {
+      return new SubdomainAvailabilityResponse(false, rawSubdomain.trim(), null, e.getMessage());
+    }
+    String fullDomain =
+        domainNameService.buildHostedDomain(cleaned, properties.getHostedBaseDomain());
+    if (domainRepository.existsByNormalizedDomainIgnoreCase(fullDomain)) {
+      return new SubdomainAvailabilityResponse(
+          false,
+          cleaned,
+          fullDomain,
+          "The subdomain '" + cleaned + "' is already in use. Please choose another one.");
+    }
+    return new SubdomainAvailabilityResponse(
+        true, cleaned, fullDomain, "The subdomain '" + cleaned + "' is available!");
+  }
+
   @Transactional
   public CreateResult<DomainResponse> createHosted(
       Long companyId, Long userId, HostedDomainRequest request) {
     entitlementService.requireEnabled(companyId);
-    String operationKey =
-        provisioningService.requestKey("hosted-domain", companyId, request.idempotencyKey());
-    var replay = provisioningService.find(operationKey);
-    if (replay.isPresent()) {
-      ManagedEmailDomain existing =
-          domainRepository
-              .findByIdAndCompanyId(replay.get().getResourceId(), companyId)
-              .orElseThrow(() -> new NotFoundException("Managed Email domain not found"));
-      return new CreateResult<>(mapper.domain(existing), true);
+
+    // 1. Validate requested subdomain (syntax, reserved words, prohibited terms)
+    String cleanedSubdomain = domainNameService.validateHostedSubdomain(request.desiredSubdomain());
+    String fullDomain =
+        domainNameService.buildHostedDomain(cleanedSubdomain, properties.getHostedBaseDomain());
+
+    // 2. Critical pre-check: check if domain already exists in DB -> throw ConflictException
+    if (domainRepository.existsByNormalizedDomainIgnoreCase(fullDomain)) {
+      throw new ConflictException(
+          "The subdomain '" + cleanedSubdomain + "' is already in use. Please choose another one.");
+    }
+
+    // 3. Ensure this company does not already have an active request pending approval
+    boolean hasPending =
+        domainRepository.findByCompanyIdOrderByUpdatedAtDesc(companyId).stream()
+            .anyMatch(d -> d.getStatus() == DomainStatus.PENDING_APPROVAL);
+    if (hasPending) {
+      throw new ConflictException(
+          "A hosted domain request is already pending administrator approval for this workspace.");
     }
 
     entitlementService.requireDomainCapacity(companyId);
-    Company company =
-        companyRepository
-            .findById(companyId)
-            .orElseThrow(() -> new NotFoundException("Company not found"));
+    companyRepository
+        .findById(companyId)
+        .orElseThrow(() -> new NotFoundException("Company not found"));
     ManagedEmailTenant tenant = tenantService.ensureDesired(companyId);
 
-    ManagedEmailDomainNameService.HostedName hosted = null;
-    for (int attempt = 0; attempt < 8; attempt++) {
-      ManagedEmailDomainNameService.HostedName candidate =
-          domainNameService.generateHostedName(company.getName(), properties.getHostedBaseDomain());
-      if (!domainRepository.existsByNormalizedDomainIgnoreCase(candidate.domain())) {
-        hosted = candidate;
-        break;
-      }
-    }
-    if (hosted == null) {
-      throw new ServiceUnavailableException("Unable to reserve a Managed Email domain");
-    }
-
+    // 4. Save the hosted domain request in PENDING_APPROVAL status (provisioning enqueued upon approval)
     ManagedEmailDomain domain = new ManagedEmailDomain();
     domain.setCompanyId(companyId);
     domain.setTenantId(tenant.getId());
     domain.setDomainType(DomainType.UNIFYDESK_HOSTED);
-    domain.setNormalizedDomain(hosted.domain());
-    domain.setDisplayDomain(hosted.domain());
-    domain.setHostedSlug(hosted.slug());
-    domain.setHostedReservationToken(hosted.reservationToken());
-    domain.setStatus(DomainStatus.PROVISIONING);
+    domain.setNormalizedDomain(fullDomain);
+    domain.setDisplayDomain(fullDomain);
+    domain.setHostedSlug(cleanedSubdomain);
+    domain.setHostedReservationToken(domainNameService.randomReservationToken());
+    domain.setRequestedSubdomain(cleanedSubdomain);
+    domain.setStatus(DomainStatus.PENDING_APPROVAL);
     domain.setVerificationStatus(VerificationStatus.PENDING);
     domain.setDkimStatus(DkimStatus.PENDING);
     domain.setDmarcStatus(DmarcStatus.UNKNOWN);
     domain.setCreatedByUserId(userId);
+    domain.setAdminAssignedAlternative(false);
     ManagedEmailDomain saved = domainRepository.save(domain);
 
-    provisioningService.enqueue(
-        companyId,
-        ProvisioningResourceType.DOMAIN,
-        saved.getId(),
-        ProvisioningOperationType.ENSURE_DOMAIN_IDENTITY,
-        operationKey);
     return new CreateResult<>(mapper.domain(saved), false);
+  }
+
+  @Transactional(readOnly = true)
+  public List<HostedDomainReviewItem> listPendingHostedRequests() {
+    List<ManagedEmailDomain> pendings =
+        domainRepository.findByStatusOrderByCreatedAtDesc(DomainStatus.PENDING_APPROVAL);
+    return pendings.stream()
+        .map(
+            domain -> {
+              String companyName =
+                  companyRepository
+                      .findById(domain.getCompanyId())
+                      .map(Company::getName)
+                      .orElse("Unknown Company");
+              String userEmail =
+                  userRepository
+                      .findById(domain.getCreatedByUserId())
+                      .map(User::getEmail)
+                      .orElse(null);
+              return new HostedDomainReviewItem(
+                  domain.getId().toString(),
+                  domain.getCompanyId(),
+                  companyName,
+                  domain.getRequestedSubdomain(),
+                  domain.getDisplayDomain(),
+                  domain.getStatus(),
+                  domain.getCreatedAt(),
+                  domain.getCreatedByUserId(),
+                  userEmail,
+                  domain.getRejectionReason(),
+                  domain.isAdminAssignedAlternative());
+            })
+        .toList();
+  }
+
+  @Transactional
+  public DomainResponse decideHostedRequest(
+      Long domainId, Long adminUserId, DomainDecisionRequest decision) {
+    ManagedEmailDomain domain =
+        domainRepository
+            .findById(domainId)
+            .orElseThrow(() -> new NotFoundException("Domain request not found"));
+    if (domain.getStatus() != DomainStatus.PENDING_APPROVAL) {
+      throw new BadRequestException(
+          "Domain request is not pending approval (current status: " + domain.getStatus() + ")");
+    }
+
+    domain.setReviewedByUserId(adminUserId);
+    domain.setReviewedAt(Instant.now());
+
+    switch (decision.action()) {
+      case APPROVE -> {
+        domain.setStatus(DomainStatus.PROVISIONING);
+        ManagedEmailDomain saved = domainRepository.save(domain);
+        String operationKey =
+            provisioningService.requestKey(
+                "hosted-domain", domain.getCompanyId(), "approved-" + domain.getId());
+        provisioningService.enqueue(
+            domain.getCompanyId(),
+            ProvisioningResourceType.DOMAIN,
+            saved.getId(),
+            ProvisioningOperationType.ENSURE_DOMAIN_IDENTITY,
+            operationKey);
+        return mapper.domain(saved);
+      }
+      case ASSIGN_ALTERNATIVE -> {
+        if (decision.alternativeSubdomain() == null || decision.alternativeSubdomain().isBlank()) {
+          throw new BadRequestException(
+              "An alternative subdomain is required when action is ASSIGN_ALTERNATIVE");
+        }
+        String cleanAlternative =
+            domainNameService.validateHostedSubdomain(decision.alternativeSubdomain());
+        String alternativeDomain =
+            domainNameService.buildHostedDomain(
+                cleanAlternative, properties.getHostedBaseDomain());
+        if (domainRepository.existsByNormalizedDomainIgnoreCase(alternativeDomain)) {
+          throw new ConflictException(
+              "The alternative subdomain '" + cleanAlternative + "' is already in use.");
+        }
+        domain.setHostedSlug(cleanAlternative);
+        domain.setNormalizedDomain(alternativeDomain);
+        domain.setDisplayDomain(alternativeDomain);
+        domain.setAdminAssignedAlternative(true);
+        domain.setStatus(DomainStatus.PROVISIONING);
+        ManagedEmailDomain saved = domainRepository.save(domain);
+        String operationKey =
+            provisioningService.requestKey(
+                "hosted-domain", domain.getCompanyId(), "approved-alt-" + domain.getId());
+        provisioningService.enqueue(
+            domain.getCompanyId(),
+            ProvisioningResourceType.DOMAIN,
+            saved.getId(),
+            ProvisioningOperationType.ENSURE_DOMAIN_IDENTITY,
+            operationKey);
+        return mapper.domain(saved);
+      }
+      case REJECT -> {
+        if (decision.reason() == null || decision.reason().isBlank()) {
+          throw new BadRequestException(
+              "A rejection reason is required when rejecting a domain request");
+        }
+        domain.setStatus(DomainStatus.REJECTED);
+        domain.setRejectionReason(decision.reason().trim());
+        ManagedEmailDomain saved = domainRepository.save(domain);
+        return mapper.domain(saved);
+      }
+      default -> throw new BadRequestException("Unsupported decision action: " + decision.action());
+    }
   }
 
   @Transactional
   public DomainResponse refresh(Long companyId, Long domainId) {
     entitlementService.requireEnabled(companyId);
     ManagedEmailDomain domain = requireDomain(companyId, domainId);
-    if (domain.isTerminal() || domain.getStatus() == DomainStatus.DELETING) {
+    if (domain.isTerminal()
+        || domain.getStatus() == DomainStatus.DELETING
+        || domain.getStatus() == DomainStatus.PENDING_APPROVAL) {
       return mapper.domain(domain);
     }
     Instant recently = Instant.now().minus(Duration.ofSeconds(5));
@@ -183,6 +314,12 @@ public class ManagedEmailDomainService {
   @Transactional
   public DomainResponse delete(Long companyId, Long domainId) {
     ManagedEmailDomain domain = requireDomain(companyId, domainId);
+    if (domain.getStatus() == DomainStatus.PENDING_APPROVAL
+        || domain.getStatus() == DomainStatus.REJECTED) {
+      domain.setStatus(DomainStatus.DELETED);
+      return mapper.domain(domainRepository.save(domain));
+    }
+
     if (domain.isTerminal()) return mapper.domain(domain);
 
     domain.setStatus(DomainStatus.DELETING);

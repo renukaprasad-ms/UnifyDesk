@@ -150,9 +150,7 @@ describe('Contacts audience loaders workspace epoch remediation', () => {
     let aCalls = 0
     vi.mocked(contactsApi.segments).mockImplementation((companyId) => {
       if (companyId === 'company-a' && ++aCalls === 1) return oldA.promise
-      return Promise.resolve([
-        segment(companyId === 'company-b' ? 'B Segment' : 'A2 Segment'),
-      ])
+      return Promise.resolve([segment(companyId === 'company-b' ? 'B Segment' : 'A2 Segment')])
     })
 
     const view = render(wrap(<SegmentsPage />, '/contacts/segments', '/contacts/segments'))
@@ -188,9 +186,7 @@ describe('Contacts audience loaders workspace epoch remediation', () => {
     })
     vi.mocked(contactsApi.listMembers).mockImplementation((companyId) => {
       if (companyId === 'company-a' && ++aMemberCalls === 1) return oldMembers.promise
-      return Promise.resolve(
-        memberPage(companyId === 'company-b' ? 'B Member' : 'A2 Member'),
-      )
+      return Promise.resolve(memberPage(companyId === 'company-b' ? 'B Member' : 'A2 Member'))
     })
 
     const view = render(
@@ -199,17 +195,13 @@ describe('Contacts audience loaders workspace epoch remediation', () => {
 
     currentCompanyId = 'company-b'
     currentEpoch = 2
-    view.rerender(
-      wrap(<ListDetailPage />, '/contacts/lists/list-1', '/contacts/lists/:listId'),
-    )
+    view.rerender(wrap(<ListDetailPage />, '/contacts/lists/list-1', '/contacts/lists/:listId'))
     expect(await screen.findByText('B Detail')).toBeInTheDocument()
     expect(await screen.findByText('B Member')).toBeInTheDocument()
 
     currentCompanyId = 'company-a'
     currentEpoch = 3
-    view.rerender(
-      wrap(<ListDetailPage />, '/contacts/lists/list-1', '/contacts/lists/:listId'),
-    )
+    view.rerender(wrap(<ListDetailPage />, '/contacts/lists/list-1', '/contacts/lists/:listId'))
     expect(await screen.findByText('A2 Detail')).toBeInTheDocument()
     expect(await screen.findByText('A2 Member')).toBeInTheDocument()
 

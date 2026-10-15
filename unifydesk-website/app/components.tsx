@@ -129,6 +129,7 @@ export function Footer() {
           <Link href="/guides">Guides</Link>
           <Link href="/integrations">Integrations</Link>
           <Link href="/pricing">Pricing</Link>
+          <Link href="/best-omnichannel-broadcast-india">Broadcasts (India)</Link>
         </div>
         <div>
           <b>Company</b>

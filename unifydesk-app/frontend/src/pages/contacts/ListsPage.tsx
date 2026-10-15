@@ -1,3 +1,4 @@
+import WorkspaceDialog from '../../components/ui/WorkspaceDialog'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
@@ -7,10 +8,7 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
-import {
-  selectSelectedCompanyId,
-  selectWorkspaceEpoch,
-} from '../../store/workspace/workspaceSlice'
+import { selectSelectedCompanyId, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 import type { WorkspaceEpochToken } from '../../features/workspace/workspaceEpoch'
 import { ListSkeleton } from '../../components/ui/Skeleton'
@@ -24,6 +22,7 @@ export default function ListsPage() {
   )
   const { can } = useIam()
   const [items, setItems] = useState<ListSummary[]>([])
+  const [showCreate, setShowCreate] = useState(false)
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -61,6 +60,7 @@ export default function ListsPage() {
       await contactsApi.createList(companyId, { name: name.trim() })
       if (!scopeIsCurrent(scope)) return
       setName('')
+      setShowCreate(false)
       await load(scope)
     } catch (createError) {
       if (scopeIsCurrent(scope)) {
@@ -85,28 +85,40 @@ export default function ListsPage() {
           </div>
 
           {can(PERMISSIONS.CONTACT_MODIFY) && (
-            <form className="flex w-full gap-2 sm:w-auto" onSubmit={create}>
-              <label className="sr-only" htmlFor="list-name">
-                List name
-              </label>
-              <input
-                id="list-name"
-                className="form-input"
-                value={name}
-                placeholder="New List name"
-                onChange={(event) => setName(event.target.value)}
-              />
-              <button
-                className="primary-button whitespace-nowrap"
-                disabled={creating || !name.trim()}
-              >
-                {creating ? 'Creating…' : 'Create List'}
-              </button>
-            </form>
+            <button type="button" className="primary-button" onClick={() => setShowCreate(true)}>
+              New list
+            </button>
+          )}
+          {showCreate && can(PERMISSIONS.CONTACT_MODIFY) && (
+            <WorkspaceDialog
+              title="New list"
+              busy={creating}
+              error={error}
+              onClose={() => setShowCreate(false)}
+            >
+              <form className="flex flex-col gap-3" onSubmit={create}>
+                <label className="text-sm font-medium" htmlFor="list-name">
+                  List name
+                </label>
+                <input
+                  id="list-name"
+                  className="form-input"
+                  value={name}
+                  placeholder="New List name"
+                  onChange={(event) => setName(event.target.value)}
+                />
+                <button
+                  className="primary-button whitespace-nowrap"
+                  disabled={creating || !name.trim()}
+                >
+                  {creating ? 'Creating…' : 'Create List'}
+                </button>
+              </form>
+            </WorkspaceDialog>
           )}
         </header>
 
-        {error && (
+        {error && !showCreate && (
           <div
             role="alert"
             className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
@@ -116,7 +128,9 @@ export default function ListsPage() {
         )}
 
         {loading ? (
-          <div className="mt-6"><ListSkeleton rows={6} /></div>
+          <div className="mt-6">
+            <ListSkeleton rows={6} />
+          </div>
         ) : items.length === 0 ? (
           <div className="panel mt-6 p-10 text-center">
             <h2 className="font-bold text-slate-950">No Lists yet</h2>

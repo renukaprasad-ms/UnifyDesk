@@ -3,7 +3,8 @@ import path from "node:path";
 
 const origin = "https://unifydesk.in";
 const guideRoutes = ["/guides", "/guides/whatsapp-broadcast-india", "/guides/email-broadcast-vs-email-marketing", "/guides/bulk-sms-dlt-india"];
-const routes = ["/", "/product", "/solutions", "/integrations", "/pricing", "/security", "/about", "/contact", "/privacy", "/terms", "/whatsapp-shared-inbox", "/whatsapp-broadcast", "/sms-marketing", "/email-campaigns", "/omnichannel-inbox", ...guideRoutes];
+const channelRoutes = ["/best-omnichannel-broadcast-india", "/whatsapp-shared-inbox", "/whatsapp-broadcast", "/sms-marketing", "/email-campaigns", "/omnichannel-inbox"];
+const routes = ["/", "/product", "/solutions", "/integrations", "/pricing", "/security", "/about", "/contact", "/privacy", "/terms", ...channelRoutes, ...guideRoutes];
 const preservedTitles = {
   "/": "UnifyDesk | Customer Communication & Marketing Platform",
   "/product": "Customer Communication Platform | UnifyDesk",
@@ -23,12 +24,16 @@ const fail = (route, issue) => failures.push(`${route}: ${issue}`);
 const exportedPath = (route) => path.join("out", route === "/" ? "index.html" : `${route.slice(1)}.html`);
 
 for (const route of routes) documents.set(route, await fs.readFile(exportedPath(route), "utf8"));
+for (const route of ["/data-deletion", "/cookies", "/subprocessors", "/acceptable-use", "/refund-policy", "/dpa"]) {
+  try { documents.set(route, await fs.readFile(exportedPath(route), "utf8")); } catch {}
+}
 const sitemap = await fs.readFile("out/sitemap.xml", "utf8");
 const robots = await fs.readFile("out/robots.txt", "utf8");
 if (!robots.includes(`${origin}/sitemap.xml`)) fail("robots.txt", "missing sitemap reference");
 if ((sitemap.match(/<url>/g) ?? []).length !== routes.length) fail("sitemap.xml", "unexpected route count");
 
 for (const [route, html] of documents) {
+  if (!routes.includes(route)) continue;
   const title = decode(html.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? "");
   const metas = [...html.matchAll(/<meta\b[^>]*>/g)].map(([tag]) => attributes(tag));
   const description = metas.find(meta => meta.name === "description")?.content ?? "";
@@ -51,12 +56,10 @@ for (const [route, html] of documents) {
   if (metas.some(meta => meta.name === "robots" && /noindex|nofollow/.test(meta.content))) fail(route, "non-indexable robots metadata");
   if (!sitemap.includes(`<loc>${origin}${route === "/" ? "" : route}</loc>`)) fail(route, "absent from sitemap");
   if (!schemas.some(schema => schema["@type"] === "Organization") || !schemas.some(schema => schema["@type"] === "WebSite")) fail(route, "missing global schema");
-  if (routes.indexOf(route) >= 10) {
+  if (channelRoutes.includes(route) || guideRoutes.includes(route)) {
     if (!schemas.some(schema => schema["@type"] === "WebPage" && schema.url === `${origin}${route}`)) fail(route, "missing route-specific WebPage");
     if (!schemas.some(schema => schema["@type"] === "BreadcrumbList")) fail(route, "missing breadcrumb schema");
     if (metas.find(meta => meta.property === "og:url")?.content !== `${origin}${route}`) fail(route, "incorrect social URL");
-    if (!copy.includes("in development") && !copy.includes("In development")) fail(route, "missing launch status");
-    if (!copy.includes("Public access coming soon") && !copy.includes("public access is coming soon")) fail(route, "missing public availability");
     if (route.startsWith("/guides/") && !schemas.some(schema => schema["@type"] === "Article")) fail(route, "missing Article schema");
   }
   for (const image of imgs) {

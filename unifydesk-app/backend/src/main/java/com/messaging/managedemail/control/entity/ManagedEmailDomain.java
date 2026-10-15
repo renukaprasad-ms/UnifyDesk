@@ -79,6 +79,21 @@ public class ManagedEmailDomain {
   @Column(name = "released_at")
   private Instant releasedAt;
 
+  @Column(name = "requested_subdomain", length = 63)
+  private String requestedSubdomain;
+
+  @Column(name = "rejection_reason", length = 500)
+  private String rejectionReason;
+
+  @Column(name = "reviewed_by_user_id")
+  private Long reviewedByUserId;
+
+  @Column(name = "reviewed_at")
+  private Instant reviewedAt;
+
+  @Column(name = "admin_assigned_alternative", nullable = false)
+  private boolean adminAssignedAlternative;
+
   @Column(name = "created_by_user_id", nullable = false)
   private Long createdByUserId;
 
@@ -110,6 +125,8 @@ public class ManagedEmailDomain {
   }
 
   public boolean isTerminal() {
-    return status == DomainStatus.DELETED || status == DomainStatus.RETIRED;
+    return status == DomainStatus.DELETED
+        || status == DomainStatus.RETIRED
+        || status == DomainStatus.REJECTED;
   }
 }

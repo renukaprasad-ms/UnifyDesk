@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useRef, useState } from 'react'
+import { FiEye, FiEyeOff } from 'react-icons/fi'
 import { authApi } from '../../features/auth/authApi'
 import { resolvePostAuthRedirect } from '../../features/company/invitationContinuation'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -12,6 +13,7 @@ const Login = () => {
   const location = useLocation()
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [preAuthToken, setPreAuthToken] = useState<string | null>(null)
   const [otp, setOtp] = useState('')
@@ -204,15 +206,26 @@ const Login = () => {
               Forgot password?
             </Link>
           </span>
-          <input
-            className="form-input"
-            type="password"
-            placeholder="Enter password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
-            required
-          />
+          <span className="relative block">
+            <input
+              className="form-input pr-11"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Enter password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-slate-400 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-indigo-500"
+              onClick={() => setShowPassword((current) => !current)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? <FiEyeOff aria-hidden="true" /> : <FiEye aria-hidden="true" />}
+            </button>
+          </span>
         </label>
         {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
         <button type="submit" className="primary-button flex w-full" disabled={submitting}>

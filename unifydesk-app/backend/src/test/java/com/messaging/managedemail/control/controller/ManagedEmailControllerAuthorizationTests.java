@@ -62,7 +62,9 @@ class ManagedEmailControllerAuthorizationTests {
                     99L, new CustomerDomainRequest("example.com", "customer-key")))
         .isInstanceOf(SecurityException.class);
     assertThatThrownBy(
-            () -> controller.createHostedDomain(99L, new HostedDomainRequest("hosted-key")))
+            () -> controller.createHostedDomain(99L, new HostedDomainRequest("hosted-key", "acme")))
+        .isInstanceOf(SecurityException.class);
+    assertThatThrownBy(() -> controller.checkSubdomain(99L, "acme"))
         .isInstanceOf(SecurityException.class);
     assertThatThrownBy(() -> controller.domain(99L, 1L)).isInstanceOf(SecurityException.class);
     assertThatThrownBy(() -> controller.refreshDomain(99L, 1L))

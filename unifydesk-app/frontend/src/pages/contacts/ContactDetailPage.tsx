@@ -7,7 +7,7 @@ import ContactCrmPanel from '../../components/contacts/ContactCrmPanel'
 import IdentityManager from '../../components/contacts/IdentityManager'
 import ManualSuppressionForm from '../../components/contacts/ManualSuppressionForm'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
-import { CardSkeleton } from '../../components/ui/Skeleton'
+import { CardSkeleton, ListSkeleton } from '../../components/ui/Skeleton'
 import {
   contactPrimaryIdentityValue,
   createIdempotencyKey,
@@ -29,10 +29,7 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
-import {
-  selectSelectedCompanyId,
-  selectWorkspaceEpoch,
-} from '../../store/workspace/workspaceSlice'
+import { selectSelectedCompanyId, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 import type { WorkspaceEpochToken } from '../../features/workspace/workspaceEpoch'
 
@@ -78,7 +75,9 @@ export default function ContactDetailPage() {
   >(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [pendingPreferenceState, setPendingPreferenceState] = useState<CommunicationPreference['state'] | null>(null)
+  const [pendingPreferenceState, setPendingPreferenceState] = useState<
+    CommunicationPreference['state'] | null
+  >(null)
   const [suppressionToLift, setSuppressionToLift] = useState<Suppression | null>(null)
 
   const load = async (scope: WorkspaceEpochToken | null = captureScope()) => {
@@ -214,7 +213,9 @@ export default function ContactDetailPage() {
       <section className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="w-full">
           <ContactsNav />
-          <div className="mt-4"><CardSkeleton rows={7} /></div>
+          <div className="mt-4">
+            <CardSkeleton rows={7} />
+          </div>
         </div>
       </section>
     )
@@ -312,11 +313,22 @@ export default function ContactDetailPage() {
             <h2 className="text-lg font-bold text-slate-950">Lists</h2>
             {can(PERMISSIONS.CONTACT_MODIFY) && (
               <div className="mt-4 flex gap-2">
-                <select className="form-input" value={listToAdd} onChange={(event) => setListToAdd(event.target.value)}>
+                <select
+                  className="form-input"
+                  value={listToAdd}
+                  onChange={(event) => setListToAdd(event.target.value)}
+                >
                   <option value="">Add to a list…</option>
                   {listOptions
-                    .filter((option) => !(contact.lists ?? []).some((assigned) => assigned.id === option.id))
-                    .map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+                    .filter(
+                      (option) =>
+                        !(contact.lists ?? []).some((assigned) => assigned.id === option.id),
+                    )
+                    .map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                      </option>
+                    ))}
                 </select>
                 <button
                   className="primary-button"
@@ -324,7 +336,10 @@ export default function ContactDetailPage() {
                   onClick={() => {
                     if (!listToAdd) return
                     void mutate(
-                      () => contactsApi.addListMembers(companyId, listToAdd, [contactId]).then(() => undefined),
+                      () =>
+                        contactsApi
+                          .addListMembers(companyId, listToAdd, [contactId])
+                          .then(() => undefined),
                       'Contact added to list.',
                     ).then((changed) => changed && setListToAdd(''))
                   }}
@@ -425,7 +440,8 @@ export default function ContactDetailPage() {
             <section className="panel p-5 lg:col-span-2">
               <h2 className="text-lg font-bold text-slate-950">Marketing preferences</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Choose whether this contact can receive marketing on each channel. Permission is managed separately for email, SMS and WhatsApp.
+                Choose whether this contact can receive marketing on each channel. Permission is
+                managed separately for email, SMS and WhatsApp.
               </p>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 {channels.map((channel) => {
@@ -525,7 +541,10 @@ export default function ContactDetailPage() {
                 activity.map((item) => (
                   <div key={item.id} className="border-l-2 border-indigo-200 pl-4">
                     {item.href ? (
-                      <Link className="text-sm font-bold text-indigo-700 hover:underline" to={item.href}>
+                      <Link
+                        className="text-sm font-bold text-indigo-700 hover:underline"
+                        to={item.href}
+                      >
                         {item.title}
                       </Link>
                     ) : (
@@ -539,6 +558,7 @@ export default function ContactDetailPage() {
                 ))
               )}
             </div>
+            {activityLoadingMore && <ListSkeleton rows={2} />}
             {activityHasMore && (
               <button
                 className="secondary-button mt-4"
@@ -606,44 +626,44 @@ export default function ContactDetailPage() {
           </div>
         )}
       </div>
-        <ConfirmDialog
-          open={Boolean(pendingPreferenceState && editingPreference)}
-          title="Record this marketing preference?"
-          description={
-            pendingPreferenceState && editingPreference
-              ? `Record ${preferenceLabel(pendingPreferenceState)} for ${editingPreference} marketing? This creates an auditable preference event.`
-              : ''
-          }
-          confirmLabel="Yes, record preference"
-          cancelLabel="No, cancel"
-          tone={pendingPreferenceState === 'OPTED_OUT' ? 'warning' : 'default'}
-          working={busy}
-          onCancel={() => setPendingPreferenceState(null)}
-          onConfirm={() => pendingPreferenceState && void changePreference(pendingPreferenceState)}
-        />
-        <ConfirmDialog
-          open={Boolean(suppressionToLift)}
-          title="Lift this suppression?"
-          description="This changes the contact's sending eligibility and will be recorded for audit."
-          confirmLabel="Yes, lift suppression"
-          cancelLabel="No, keep suppression"
-          tone="warning"
-          working={busy}
-          onCancel={() => setSuppressionToLift(null)}
-          onConfirm={() => {
-            if (!suppressionToLift || !companyId) return
-            void mutate(
-              () =>
-                contactsApi
-                  .liftSuppression(companyId, contactId, suppressionToLift.id, {
-                    reason: 'Lifted by workspace user after review',
-                    idempotencyKey: createIdempotencyKey(),
-                  })
-                  .then(() => undefined),
-              'Suppression lifted.',
-            ).finally(() => setSuppressionToLift(null))
-          }}
-        />
+      <ConfirmDialog
+        open={Boolean(pendingPreferenceState && editingPreference)}
+        title="Record this marketing preference?"
+        description={
+          pendingPreferenceState && editingPreference
+            ? `Record ${preferenceLabel(pendingPreferenceState)} for ${editingPreference} marketing? This creates an auditable preference event.`
+            : ''
+        }
+        confirmLabel="Yes, record preference"
+        cancelLabel="No, cancel"
+        tone={pendingPreferenceState === 'OPTED_OUT' ? 'warning' : 'default'}
+        working={busy}
+        onCancel={() => setPendingPreferenceState(null)}
+        onConfirm={() => pendingPreferenceState && void changePreference(pendingPreferenceState)}
+      />
+      <ConfirmDialog
+        open={Boolean(suppressionToLift)}
+        title="Lift this suppression?"
+        description="This changes the contact's sending eligibility and will be recorded for audit."
+        confirmLabel="Yes, lift suppression"
+        cancelLabel="No, keep suppression"
+        tone="warning"
+        working={busy}
+        onCancel={() => setSuppressionToLift(null)}
+        onConfirm={() => {
+          if (!suppressionToLift || !companyId) return
+          void mutate(
+            () =>
+              contactsApi
+                .liftSuppression(companyId, contactId, suppressionToLift.id, {
+                  reason: 'Lifted by workspace user after review',
+                  idempotencyKey: createIdempotencyKey(),
+                })
+                .then(() => undefined),
+            'Suppression lifted.',
+          ).finally(() => setSuppressionToLift(null))
+        }}
+      />
     </section>
   )
 }
