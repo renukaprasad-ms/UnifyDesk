@@ -9,6 +9,7 @@ import {
   Target,
   Users,
   Building2,
+  BriefcaseBusiness,
   Layers3,
 } from "lucide-react";
 import { Footer, Header } from "../components";
@@ -18,7 +19,7 @@ import { ChannelLinks } from "../channel-sections";
 export const metadata: Metadata = {
   title: "Customer Communication Platform",
   description:
-    "Explore UnifyDesk for shared inboxes, contacts, consent, email, SMS and WhatsApp broadcasts, templates, Google Ads, Meta Ads and team controls.",
+    "Explore UnifyDesk for shared inboxes, CRM pipelines, contacts, consent, email, SMS and WhatsApp broadcasts, templates, Google Ads, Meta Ads and team controls.",
   alternates: { canonical: "/product" },
 };
 
@@ -28,6 +29,12 @@ const modules = [
     "WhatsApp, SMS and email conversations with channel context.",
     Inbox,
     ["Shared conversations", "Customer context", "Channel workflows"],
+  ],
+  [
+    "CRM & Pipelines",
+    "Visual deal stages, revenue forecasting, booking links and lead capture forms.",
+    BriefcaseBusiness,
+    ["Deal pipelines & stages", "Lead scoring & attribution", "Public booking pages & forms"],
   ],
   [
     "Broadcast",
