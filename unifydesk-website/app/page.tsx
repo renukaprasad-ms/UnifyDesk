@@ -11,6 +11,7 @@ import {
   Radio,
   ShieldCheck,
   Target,
+  TrendingUp,
   Users,
   Workflow,
 } from "lucide-react";
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
     absolute: "UnifyDesk | Customer Communication & Marketing Platform",
   },
   description:
-    "Bring customer conversations, contacts, broadcasts and advertising into one connected UnifyDesk workspace.",
+    "Bring customer conversations, contacts, broadcasts, CRM pipelines and advertising into one connected UnifyDesk workspace.",
   alternates: { canonical: "/" },
 };
 
@@ -37,6 +38,17 @@ const capabilities = [
     points: [
       "Connected channel accounts",
       "Customer context beside every thread",
+    ],
+  },
+  {
+    title: "Close deals faster with full context.",
+    label: "SALES CRM & PIPELINES",
+    body: "Track deals across visual pipeline stages, score high-intent leads, share public booking links and capture leads with embeddable web forms.",
+    icon: TrendingUp,
+    className: "crmFeature",
+    points: [
+      "Visual deal pipelines & forecasting",
+      "Public booking pages & lead capture forms",
     ],
   },
   {

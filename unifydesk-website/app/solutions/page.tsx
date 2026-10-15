@@ -1,5 +1,5 @@
 import type {Metadata} from "next";
-import {BriefcaseBusiness,Building2,Check,Headphones,Megaphone} from "lucide-react";
+import {BriefcaseBusiness,Building2,Check,Headphones,Megaphone,TrendingUp} from "lucide-react";
 import {Footer,Header} from "../components";
 import Link from "next/link";
 import {ChannelLinks} from "../channel-sections";
@@ -12,6 +12,7 @@ export const metadata:Metadata={
 
 const teams=[
   ["Business owners","VISIBILITY","See customer communication and growth workflows without stitching dashboards together.",Building2,["Company-level visibility","Connected activity","Plan and access controls"]],
+  ["Sales & revenue","PIPELINES","Track deals, schedule client bookings, and convert broadcast replies into closed deals.",TrendingUp,["Deal pipelines & forecasting","Public calendar booking links","Automated lead capture & scoring"]],
   ["Customer support","CONVERSATIONS","Give the team a shared place to work through conversations with context.",Headphones,["Shared inbox","Customer profile context","Channel workflows"]],
   ["Marketing teams","CAMPAIGNS","Move between broadcasts and advertising without losing audience context.",Megaphone,["Broadcast workflows","Ad Center","Performance context"]],
   ["Growing teams","CONTROL","Organize workspace access and providers as the team grows.",BriefcaseBusiness,["Roles & permissions","Provider connections","Company controls"]]
