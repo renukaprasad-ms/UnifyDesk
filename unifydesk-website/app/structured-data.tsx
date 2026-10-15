@@ -26,11 +26,14 @@ export default function StructuredData(){
       applicationCategory:"BusinessApplication",
       applicationSubCategory:"Customer communication and marketing platform",
       operatingSystem:"Web",
-      description:"A connected workspace for customer conversations, contacts, broadcasts, email, SMS, WhatsApp, Google Ads and Meta Ads.",
+      description:"A connected workspace for customer conversations, contacts, broadcasts, CRM pipelines, calendar bookings, email, SMS, WhatsApp, Google Ads and Meta Ads.",
       featureList:[
         "Shared customer inbox",
+        "Visual CRM and deal pipelines",
+        "Public calendar booking and lead capture forms",
         "Contact and consent management",
         "Email, SMS and WhatsApp broadcasts",
+        "Campaign attribution and revenue forecasting",
         "Google Ads and Meta Ads workflows",
         "Role-based workspace controls"
       ],

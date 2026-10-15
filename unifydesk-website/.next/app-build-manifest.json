@@ -30,13 +30,6 @@
       "static/chunks/main-app-97434b808146bb8e.js",
       "static/chunks/app/robots.txt/route-dc3d89f1865b847c.js"
     ],
-    "/manifest.webmanifest/route": [
-      "static/chunks/webpack-9d795f9e26b86992.js",
-      "static/chunks/4bd1b696-c023c6e3521b1417.js",
-      "static/chunks/255-9acdc15b78d766e6.js",
-      "static/chunks/main-app-97434b808146bb8e.js",
-      "static/chunks/app/manifest.webmanifest/route-dc3d89f1865b847c.js"
-    ],
     "/opengraph-image/route": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
@@ -58,6 +51,13 @@
       "static/chunks/main-app-97434b808146bb8e.js",
       "static/chunks/app/twitter-image/route-dc3d89f1865b847c.js"
     ],
+    "/manifest.webmanifest/route": [
+      "static/chunks/webpack-9d795f9e26b86992.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/255-9acdc15b78d766e6.js",
+      "static/chunks/main-app-97434b808146bb8e.js",
+      "static/chunks/app/manifest.webmanifest/route-dc3d89f1865b847c.js"
+    ],
     "/best-omnichannel-broadcast-india/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
@@ -74,30 +74,6 @@
       "static/chunks/387-02372f2136de2b32.js",
       "static/chunks/app/acceptable-use/page-66aef44a88f7f5bf.js"
     ],
-    "/guides/bulk-sms-dlt-india/page": [
-      "static/chunks/webpack-9d795f9e26b86992.js",
-      "static/chunks/4bd1b696-c023c6e3521b1417.js",
-      "static/chunks/255-9acdc15b78d766e6.js",
-      "static/chunks/main-app-97434b808146bb8e.js",
-      "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/guides/bulk-sms-dlt-india/page-66aef44a88f7f5bf.js"
-    ],
-    "/cookies/page": [
-      "static/chunks/webpack-9d795f9e26b86992.js",
-      "static/chunks/4bd1b696-c023c6e3521b1417.js",
-      "static/chunks/255-9acdc15b78d766e6.js",
-      "static/chunks/main-app-97434b808146bb8e.js",
-      "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/cookies/page-66aef44a88f7f5bf.js"
-    ],
-    "/email-campaigns/page": [
-      "static/chunks/webpack-9d795f9e26b86992.js",
-      "static/chunks/4bd1b696-c023c6e3521b1417.js",
-      "static/chunks/255-9acdc15b78d766e6.js",
-      "static/chunks/main-app-97434b808146bb8e.js",
-      "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/email-campaigns/page-237b8b01e8bb38c0.js"
-    ],
     "/guides/whatsapp-broadcast-india/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
@@ -105,30 +81,6 @@
       "static/chunks/main-app-97434b808146bb8e.js",
       "static/chunks/387-02372f2136de2b32.js",
       "static/chunks/app/guides/whatsapp-broadcast-india/page-66aef44a88f7f5bf.js"
-    ],
-    "/guides/email-broadcast-vs-email-marketing/page": [
-      "static/chunks/webpack-9d795f9e26b86992.js",
-      "static/chunks/4bd1b696-c023c6e3521b1417.js",
-      "static/chunks/255-9acdc15b78d766e6.js",
-      "static/chunks/main-app-97434b808146bb8e.js",
-      "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/guides/email-broadcast-vs-email-marketing/page-66aef44a88f7f5bf.js"
-    ],
-    "/data-deletion/page": [
-      "static/chunks/webpack-9d795f9e26b86992.js",
-      "static/chunks/4bd1b696-c023c6e3521b1417.js",
-      "static/chunks/255-9acdc15b78d766e6.js",
-      "static/chunks/main-app-97434b808146bb8e.js",
-      "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/data-deletion/page-66aef44a88f7f5bf.js"
-    ],
-    "/contact/page": [
-      "static/chunks/webpack-9d795f9e26b86992.js",
-      "static/chunks/4bd1b696-c023c6e3521b1417.js",
-      "static/chunks/255-9acdc15b78d766e6.js",
-      "static/chunks/main-app-97434b808146bb8e.js",
-      "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/contact/page-66aef44a88f7f5bf.js"
     ],
     "/dpa/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
@@ -138,6 +90,30 @@
       "static/chunks/387-02372f2136de2b32.js",
       "static/chunks/app/dpa/page-66aef44a88f7f5bf.js"
     ],
+    "/contact/page": [
+      "static/chunks/webpack-9d795f9e26b86992.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/255-9acdc15b78d766e6.js",
+      "static/chunks/main-app-97434b808146bb8e.js",
+      "static/chunks/387-02372f2136de2b32.js",
+      "static/chunks/app/contact/page-66aef44a88f7f5bf.js"
+    ],
+    "/email-campaigns/page": [
+      "static/chunks/webpack-9d795f9e26b86992.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/255-9acdc15b78d766e6.js",
+      "static/chunks/main-app-97434b808146bb8e.js",
+      "static/chunks/387-02372f2136de2b32.js",
+      "static/chunks/app/email-campaigns/page-237b8b01e8bb38c0.js"
+    ],
+    "/guides/email-broadcast-vs-email-marketing/page": [
+      "static/chunks/webpack-9d795f9e26b86992.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/255-9acdc15b78d766e6.js",
+      "static/chunks/main-app-97434b808146bb8e.js",
+      "static/chunks/387-02372f2136de2b32.js",
+      "static/chunks/app/guides/email-broadcast-vs-email-marketing/page-66aef44a88f7f5bf.js"
+    ],
     "/about/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
@@ -146,37 +122,37 @@
       "static/chunks/387-02372f2136de2b32.js",
       "static/chunks/app/about/page-66aef44a88f7f5bf.js"
     ],
-    "/omnichannel-inbox/page": [
+    "/cookies/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
       "static/chunks/255-9acdc15b78d766e6.js",
       "static/chunks/main-app-97434b808146bb8e.js",
       "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/omnichannel-inbox/page-237b8b01e8bb38c0.js"
+      "static/chunks/app/cookies/page-66aef44a88f7f5bf.js"
     ],
-    "/security/page": [
+    "/guides/bulk-sms-dlt-india/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
       "static/chunks/255-9acdc15b78d766e6.js",
       "static/chunks/main-app-97434b808146bb8e.js",
       "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/security/page-237b8b01e8bb38c0.js"
+      "static/chunks/app/guides/bulk-sms-dlt-india/page-66aef44a88f7f5bf.js"
     ],
-    "/pricing/page": [
+    "/privacy/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
       "static/chunks/255-9acdc15b78d766e6.js",
       "static/chunks/main-app-97434b808146bb8e.js",
       "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/pricing/page-237b8b01e8bb38c0.js"
+      "static/chunks/app/privacy/page-66aef44a88f7f5bf.js"
     ],
-    "/refund-policy/page": [
+    "/data-deletion/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
       "static/chunks/255-9acdc15b78d766e6.js",
       "static/chunks/main-app-97434b808146bb8e.js",
       "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/refund-policy/page-66aef44a88f7f5bf.js"
+      "static/chunks/app/data-deletion/page-66aef44a88f7f5bf.js"
     ],
     "/integrations/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
@@ -186,13 +162,22 @@
       "static/chunks/387-02372f2136de2b32.js",
       "static/chunks/app/integrations/page-237b8b01e8bb38c0.js"
     ],
-    "/whatsapp-broadcast/page": [
+    "/omnichannel-inbox/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
       "static/chunks/255-9acdc15b78d766e6.js",
       "static/chunks/main-app-97434b808146bb8e.js",
       "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/whatsapp-broadcast/page-237b8b01e8bb38c0.js"
+      "static/chunks/app/omnichannel-inbox/page-237b8b01e8bb38c0.js"
+    ],
+    "/product/page": [
+      "static/chunks/webpack-9d795f9e26b86992.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/255-9acdc15b78d766e6.js",
+      "static/chunks/main-app-97434b808146bb8e.js",
+      "static/chunks/387-02372f2136de2b32.js",
+      "static/chunks/569-bd4484c2808f0865.js",
+      "static/chunks/app/product/page-8e9d73fe48498460.js"
     ],
     "/sms-marketing/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
@@ -202,21 +187,29 @@
       "static/chunks/387-02372f2136de2b32.js",
       "static/chunks/app/sms-marketing/page-237b8b01e8bb38c0.js"
     ],
-    "/whatsapp-shared-inbox/page": [
+    "/refund-policy/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
       "static/chunks/255-9acdc15b78d766e6.js",
       "static/chunks/main-app-97434b808146bb8e.js",
       "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/whatsapp-shared-inbox/page-237b8b01e8bb38c0.js"
+      "static/chunks/app/refund-policy/page-66aef44a88f7f5bf.js"
     ],
-    "/privacy/page": [
+    "/pricing/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
       "static/chunks/255-9acdc15b78d766e6.js",
       "static/chunks/main-app-97434b808146bb8e.js",
       "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/privacy/page-66aef44a88f7f5bf.js"
+      "static/chunks/app/pricing/page-237b8b01e8bb38c0.js"
+    ],
+    "/whatsapp-broadcast/page": [
+      "static/chunks/webpack-9d795f9e26b86992.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/255-9acdc15b78d766e6.js",
+      "static/chunks/main-app-97434b808146bb8e.js",
+      "static/chunks/387-02372f2136de2b32.js",
+      "static/chunks/app/whatsapp-broadcast/page-237b8b01e8bb38c0.js"
     ],
     "/guides/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
@@ -234,14 +227,13 @@
       "static/chunks/387-02372f2136de2b32.js",
       "static/chunks/app/terms/page-66aef44a88f7f5bf.js"
     ],
-    "/product/page": [
+    "/security/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
       "static/chunks/255-9acdc15b78d766e6.js",
       "static/chunks/main-app-97434b808146bb8e.js",
       "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/569-bd4484c2808f0865.js",
-      "static/chunks/app/product/page-8e9d73fe48498460.js"
+      "static/chunks/app/security/page-237b8b01e8bb38c0.js"
     ],
     "/solutions/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
@@ -251,14 +243,6 @@
       "static/chunks/387-02372f2136de2b32.js",
       "static/chunks/app/solutions/page-237b8b01e8bb38c0.js"
     ],
-    "/subprocessors/page": [
-      "static/chunks/webpack-9d795f9e26b86992.js",
-      "static/chunks/4bd1b696-c023c6e3521b1417.js",
-      "static/chunks/255-9acdc15b78d766e6.js",
-      "static/chunks/main-app-97434b808146bb8e.js",
-      "static/chunks/387-02372f2136de2b32.js",
-      "static/chunks/app/subprocessors/page-66aef44a88f7f5bf.js"
-    ],
     "/page": [
       "static/chunks/webpack-9d795f9e26b86992.js",
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
@@ -267,6 +251,22 @@
       "static/chunks/387-02372f2136de2b32.js",
       "static/chunks/569-bd4484c2808f0865.js",
       "static/chunks/app/page-226b6c43d3644188.js"
+    ],
+    "/whatsapp-shared-inbox/page": [
+      "static/chunks/webpack-9d795f9e26b86992.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/255-9acdc15b78d766e6.js",
+      "static/chunks/main-app-97434b808146bb8e.js",
+      "static/chunks/387-02372f2136de2b32.js",
+      "static/chunks/app/whatsapp-shared-inbox/page-237b8b01e8bb38c0.js"
+    ],
+    "/subprocessors/page": [
+      "static/chunks/webpack-9d795f9e26b86992.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/255-9acdc15b78d766e6.js",
+      "static/chunks/main-app-97434b808146bb8e.js",
+      "static/chunks/387-02372f2136de2b32.js",
+      "static/chunks/app/subprocessors/page-66aef44a88f7f5bf.js"
     ]
   }
 }
