@@ -1,25 +1,32 @@
-export type UserAppearanceMode = 'LIGHT' | 'DARK'
+export type UserAppearanceMode = 'LIGHT' | 'DARK' | 'SYSTEM'
 
 export const DEFAULT_BRAND_COLOR = '#2563EB'
 export const APPEARANCE_STORAGE_KEY = 'unifydesk.appearanceMode'
 
-export const normalizeAppearanceMode = (
-  value: string | null | undefined,
-): UserAppearanceMode => (value === 'DARK' ? 'DARK' : 'LIGHT')
+export const normalizeAppearanceMode = (value: string | null | undefined): UserAppearanceMode =>
+  value === 'DARK' || value === 'LIGHT' ? value : 'SYSTEM'
 
 export const readStoredAppearanceMode = () => {
   if (typeof window === 'undefined') return null
-  const stored = window.localStorage.getItem(APPEARANCE_STORAGE_KEY)
-  return stored ? normalizeAppearanceMode(stored) : null
+  try {
+    const stored = window.localStorage.getItem(APPEARANCE_STORAGE_KEY)
+    return stored ? normalizeAppearanceMode(stored) : null
+  } catch {
+    return null
+  }
 }
 
 const persistAppearanceMode = (appearanceMode: UserAppearanceMode) => {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(APPEARANCE_STORAGE_KEY, appearanceMode)
+  try {
+    window.localStorage.setItem(APPEARANCE_STORAGE_KEY, appearanceMode)
+  } catch {
+    /* Device theme still works without storage. */
+  }
 }
 
 const appearanceTokens: Record<
-  UserAppearanceMode,
+  'LIGHT' | 'DARK',
   Record<
     | '--theme-bg'
     | '--theme-surface'
@@ -77,16 +84,23 @@ const adjust = (hex: string, offset: number) => {
 
 export const applyCompanyTheme = (
   brandColor: string | null | undefined,
-  appearanceMode: UserAppearanceMode = 'LIGHT',
+  appearanceMode: UserAppearanceMode = 'SYSTEM',
 ) => {
   if (typeof document === 'undefined') return
 
   const primary = normalizeHex(brandColor)
-  const mode = normalizeAppearanceMode(appearanceMode)
+  const preference = normalizeAppearanceMode(appearanceMode)
+  const mode =
+    preference === 'SYSTEM'
+      ? typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches
+        ? 'DARK'
+        : 'LIGHT'
+      : preference
   const root = document.documentElement
   root.dataset.colorScheme = mode.toLowerCase()
   root.style.colorScheme = mode.toLowerCase()
-  persistAppearanceMode(mode)
+  root.style.background = appearanceTokens[mode]['--theme-bg']
+  persistAppearanceMode(preference)
 
   Object.entries(appearanceTokens[mode]).forEach(([property, value]) => {
     root.style.setProperty(property, value)

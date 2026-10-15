@@ -1,7 +1,18 @@
+import { PageSkeleton } from '../../components/ui/Skeleton'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { companyApi } from '../../features/company/companyApi'
-import { crmWorkApi, type CrmAccount, type AccountContact } from '../../features/contacts/crmWorkApi'
+import {
+  crmWorkApi,
+  type CrmAccount,
+  type AccountContact,
+} from '../../features/contacts/crmWorkApi'
+import {
+  crmCustomFieldsApi,
+  type CrmFieldDef,
+  type CustomFieldValues,
+} from '../../features/contacts/crmCustomFieldsApi'
+import { CustomFieldsSection } from '../../components/crm/CustomFieldRenderer'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import type { ContactSummary } from '../../features/contacts/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -24,6 +35,8 @@ export default function CrmCompanyDetailPage() {
   const [notes, setNotes] = useState('')
   const [owner, setOwner] = useState('')
   const [owners, setOwners] = useState<Array<{ userId: string; name: string }>>([])
+  const [customDefs, setCustomDefs] = useState<CrmFieldDef[]>([])
+  const [customFields, setCustomFields] = useState<CustomFieldValues>({})
   const [query, setQuery] = useState('')
   const [matches, setMatches] = useState<ContactSummary[]>([])
   const [chosen, setChosen] = useState('')
@@ -32,6 +45,11 @@ export default function CrmCompanyDetailPage() {
   const [error, setError] = useState('')
   const [refreshToken, setRefreshToken] = useState(0)
   const requestId = useRef(0)
+
+  useEffect(() => {
+    if (!companyId) return
+    crmCustomFieldsApi.list(companyId, 'ACCOUNT').then(setCustomDefs).catch(() => {})
+  }, [companyId])
 
   const load = useCallback(async () => {
     if (!companyId || !accountId) return
@@ -46,13 +64,15 @@ export default function CrmCompanyDetailPage() {
       setWebsite(profile.website ?? '')
       setNotes(profile.notes ?? '')
       setOwner(profile.ownerUserId ?? '')
+      setCustomFields(profile.customFields ?? {})
       if (can(PERMISSIONS.CONTACT_READ)) {
         const related = await crmWorkApi.accountContactSummaries(companyId, accountId)
         if (isCurrent(scope) && request === requestId.current) setContacts(related)
       }
       setError('')
     } catch (err) {
-      if (isCurrent(scope) && request === requestId.current) setError(apiErrorMessage(err, 'Unable to load company profile'))
+      if (isCurrent(scope) && request === requestId.current)
+        setError(apiErrorMessage(err, 'Unable to load company profile'))
     } finally {
       if (isCurrent(scope) && request === requestId.current) setLoading(false)
     }
@@ -71,13 +91,23 @@ export default function CrmCompanyDetailPage() {
     if (!companyId || !can(PERMISSIONS.USER_READ)) return
     const scope = capture()
     let active = true
-    void companyApi.users(companyId).then((users) => {
-      if (active && isCurrent(scope)) {
-        setOwners(users.filter((user) => user.status === 'ACTIVE')
-          .map((user) => ({ userId: user.userId, name: user.name || user.email })))
-      }
-    }).catch(() => { /* Profile remains editable without member directory. */ })
-    return () => { active = false }
+    void companyApi
+      .users(companyId)
+      .then((users) => {
+        if (active && isCurrent(scope)) {
+          setOwners(
+            users
+              .filter((user) => user.status === 'ACTIVE')
+              .map((user) => ({ userId: user.userId, name: user.name || user.email })),
+          )
+        }
+      })
+      .catch(() => {
+        /* Profile remains editable without member directory. */
+      })
+    return () => {
+      active = false
+    }
   }, [companyId, epoch, can, capture, isCurrent])
 
   useEffect(() => {
@@ -85,13 +115,19 @@ export default function CrmCompanyDetailPage() {
     let active = true
     const scope = capture()
     const timer = setTimeout(() => {
-      void contactsApi.list(companyId, { q: query.trim() || undefined, status: 'ACTIVE', size: 30 })
-        .then((page) => { if (active && isCurrent(scope)) setMatches(page.items) })
+      void contactsApi
+        .list(companyId, { q: query.trim() || undefined, status: 'ACTIVE', size: 30 })
+        .then((page) => {
+          if (active && isCurrent(scope)) setMatches(page.items)
+        })
         .catch((err) => {
           if (active && isCurrent(scope)) setError(apiErrorMessage(err, 'Contact search failed'))
         })
     }, 300)
-    return () => { active = false; clearTimeout(timer) }
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
   }, [companyId, epoch, query, can, capture, isCurrent])
 
   const run = async (action: () => Promise<unknown>) => {
@@ -113,80 +149,209 @@ export default function CrmCompanyDetailPage() {
   }
 
   if (!companyId || !accountId) return <p>Choose a company in CRM.</p>
-  return <section className="w-full space-y-5 px-4 py-6 sm:px-6">
-    <Link className="text-sm font-semibold text-indigo-600" to="/crm/companies">← All companies</Link>
-    <header>
-      <p className="eyebrow">CRM / Customer company</p>
-      <h1 className="mt-2 text-3xl font-bold">{account?.name ?? 'Company profile'}</h1>
-    </header>
-    {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-    {loading ? <p role="status">Loading company…</p> : account && <>
-      <form className="grid gap-3 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void run(() => crmWorkApi.updateAccount(companyId, account, {
-            name: name.trim(), website: website.trim() || null, notes: notes.trim() || null,
-            ownerUserId: can(PERMISSIONS.USER_READ) ? (owner || null) : account.ownerUserId,
-          }))
-        }}>
-        <label className="text-sm font-semibold">Company name
-          <input className="form-input mt-1 w-full" value={name} maxLength={240}
-            disabled={!can(PERMISSIONS.CRM_ACCOUNT_MODIFY)} onChange={(event) => setName(event.target.value)} />
-        </label>
-        <label className="text-sm font-semibold">Website
-          <input className="form-input mt-1 w-full" value={website} maxLength={320}
-            disabled={!can(PERMISSIONS.CRM_ACCOUNT_MODIFY)} onChange={(event) => setWebsite(event.target.value)} />
-        </label>
-        <label className="text-sm font-semibold sm:col-span-2">Notes
-          <textarea className="form-input mt-1 w-full" rows={3} value={notes} maxLength={4000}
-            disabled={!can(PERMISSIONS.CRM_ACCOUNT_MODIFY)} onChange={(event) => setNotes(event.target.value)} />
-        </label>
-        {can(PERMISSIONS.USER_READ) && <label className="text-sm font-semibold">Owner
-          <select className="form-input mt-1 w-full" value={owner}
-            disabled={!can(PERMISSIONS.CRM_ACCOUNT_MODIFY)}
-            onChange={(event) => setOwner(event.target.value)}>
-            <option value="">Unassigned</option>
-            {owner && !owners.some((person) => person.userId === owner) &&
-              <option value={owner}>Existing owner</option>}
-            {owners.map((person) => <option key={person.userId} value={person.userId}>{person.name}</option>)}
-          </select>
-        </label>}
-        {can(PERMISSIONS.CRM_ACCOUNT_MODIFY) && <div className="sm:col-span-2">
-          <button className="primary-button" type="submit" disabled={busy || !name.trim()}>Save company</button>
-        </div>}
-      </form>
-      {can(PERMISSIONS.CONTACT_READ) && <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-bold">Linked contacts</h2>
-        <div className="space-y-2">
-          {contacts.map((contact) => <div key={contact.contactId} className="flex items-center justify-between gap-3">
-            <Link className="text-sm font-semibold text-indigo-600" to={'/contacts/' + contact.contactId}>
-              {contact.displayName || contact.contactId}
-            </Link>
-            {can(PERMISSIONS.CRM_ACCOUNT_MODIFY) && <button type="button" className="text-sm text-rose-600"
-              disabled={busy}
-              onClick={() => void run(() => crmWorkApi.unlinkContact(companyId, accountId, contact.contactId))}>Unlink</button>}
-          </div>)}
-          {!contacts.length && <p className="text-sm text-slate-500">No linked contacts.</p>}
-          {contacts.length === 100 && <p className="text-xs text-slate-500">Showing up to 100 contacts.</p>}
-        </div>
-        {can(PERMISSIONS.CRM_ACCOUNT_MODIFY) && <>
-          <label htmlFor="crm-company-contact-query" className="block text-sm font-semibold">Find contact to link</label>
-          <input id="crm-company-contact-query" className="form-input w-full" placeholder="Search contacts"
-            value={query} onChange={(event) => { setQuery(event.target.value); setChosen(''); setMatches([]) }} />
-          <div className="flex flex-wrap gap-2">
-            <select className="form-input min-w-48 flex-1" value={chosen} aria-label="Contact to link"
-              onChange={(event) => setChosen(event.target.value)}>
-              <option value="">Select a contact</option>
-              {matches.filter((contact) => !contacts.some((link) => link.contactId === contact.id))
-                .map((contact) => <option key={contact.id} value={contact.id}>
-                  {contact.displayName || 'Unnamed contact'} {contact.primaryEmail || ''}
-                </option>)}
-            </select>
-            <button className="primary-button" type="button" disabled={!chosen || busy}
-              onClick={() => void run(() => crmWorkApi.linkContact(companyId, accountId, chosen))}>Link contact</button>
-          </div>
-        </>}
-      </div>}
-    </>}
-  </section>
+  return (
+    <section className="w-full space-y-5 px-4 py-6 sm:px-6">
+      <Link className="text-sm font-semibold text-indigo-600" to="/crm/companies">
+        ← All companies
+      </Link>
+      <header>
+        <p className="eyebrow">CRM / Customer company</p>
+        <h1 className="mt-2 text-3xl font-bold">{account?.name ?? 'Company profile'}</h1>
+      </header>
+      {error && (
+        <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">
+          {error}
+        </p>
+      )}
+      {loading ? (
+        <PageSkeleton />
+      ) : (
+        account && (
+          <>
+            <form
+              className="grid gap-3 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void run(() =>
+                  crmWorkApi.updateAccount(companyId, account, {
+                    name: name.trim(),
+                    website: website.trim() || null,
+                    notes: notes.trim() || null,
+                    ownerUserId: can(PERMISSIONS.USER_READ) ? owner || null : account.ownerUserId,
+                    customFields,
+                  }),
+                )
+              }}
+            >
+              <label className="text-sm font-semibold">
+                Company name
+                <input
+                  className="form-input mt-1 w-full"
+                  value={name}
+                  maxLength={240}
+                  disabled={!can(PERMISSIONS.CRM_ACCOUNT_MODIFY)}
+                  onChange={(event) => setName(event.target.value)}
+                />
+              </label>
+              <label className="text-sm font-semibold">
+                Website
+                <input
+                  className="form-input mt-1 w-full"
+                  value={website}
+                  maxLength={320}
+                  disabled={!can(PERMISSIONS.CRM_ACCOUNT_MODIFY)}
+                  onChange={(event) => setWebsite(event.target.value)}
+                />
+              </label>
+              <label className="text-sm font-semibold sm:col-span-2">
+                Notes
+                <textarea
+                  className="form-input mt-1 w-full"
+                  rows={3}
+                  value={notes}
+                  maxLength={4000}
+                  disabled={!can(PERMISSIONS.CRM_ACCOUNT_MODIFY)}
+                  onChange={(event) => setNotes(event.target.value)}
+                />
+              </label>
+              {can(PERMISSIONS.USER_READ) && (
+                <label className="text-sm font-semibold sm:col-span-2">
+                  Owner
+                  <select
+                    className="form-input mt-1 w-full"
+                    value={owner}
+                    disabled={!can(PERMISSIONS.CRM_ACCOUNT_MODIFY)}
+                    onChange={(event) => setOwner(event.target.value)}
+                  >
+                    <option value="">Unassigned</option>
+                    {owner && !owners.some((person) => person.userId === owner) && (
+                      <option value={owner}>Existing owner</option>
+                    )}
+                    {owners.map((person) => (
+                      <option key={person.userId} value={person.userId}>
+                        {person.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {customDefs.length > 0 && (
+                <div className="sm:col-span-2">
+                  <CustomFieldsSection
+                    defs={customDefs}
+                    values={customFields}
+                    onChange={(key, val) =>
+                      setCustomFields((prev) => ({
+                        ...prev,
+                        [key]: val,
+                      }))
+                    }
+                    disabled={!can(PERMISSIONS.CRM_ACCOUNT_MODIFY) || busy}
+                  />
+                </div>
+              )}
+              {can(PERMISSIONS.CRM_ACCOUNT_MODIFY) && (
+                <div className="sm:col-span-2 mt-2">
+                  <button className="primary-button" type="submit" disabled={busy || !name.trim()}>
+                    Save company
+                  </button>
+                </div>
+              )}
+            </form>
+            {can(PERMISSIONS.CONTACT_READ) && (
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
+                <h2 className="text-lg font-bold">Linked contacts</h2>
+                <div className="space-y-2">
+                  {contacts.map((contact) => (
+                    <div
+                      key={contact.contactId}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <Link
+                        className="text-sm font-semibold text-indigo-600"
+                        to={'/contacts/' + contact.contactId}
+                      >
+                        {contact.displayName || contact.contactId}
+                      </Link>
+                      {can(PERMISSIONS.CRM_ACCOUNT_MODIFY) && (
+                        <button
+                          type="button"
+                          className="text-sm text-rose-600"
+                          disabled={busy}
+                          onClick={() =>
+                            void run(() =>
+                              crmWorkApi.unlinkContact(companyId, accountId, contact.contactId),
+                            )
+                          }
+                        >
+                          Unlink
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {!contacts.length && (
+                    <p className="text-sm text-slate-500">No linked contacts.</p>
+                  )}
+                  {contacts.length === 100 && (
+                    <p className="text-xs text-slate-500">Showing up to 100 contacts.</p>
+                  )}
+                </div>
+                {can(PERMISSIONS.CRM_ACCOUNT_MODIFY) && (
+                  <>
+                    <label
+                      htmlFor="crm-company-contact-query"
+                      className="block text-sm font-semibold"
+                    >
+                      Find contact to link
+                    </label>
+                    <input
+                      id="crm-company-contact-query"
+                      className="form-input w-full"
+                      placeholder="Search contacts"
+                      value={query}
+                      onChange={(event) => {
+                        setQuery(event.target.value)
+                        setChosen('')
+                        setMatches([])
+                      }}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        className="form-input min-w-48 flex-1"
+                        value={chosen}
+                        aria-label="Contact to link"
+                        onChange={(event) => setChosen(event.target.value)}
+                      >
+                        <option value="">Select a contact</option>
+                        {matches
+                          .filter(
+                            (contact) => !contacts.some((link) => link.contactId === contact.id),
+                          )
+                          .map((contact) => (
+                            <option key={contact.id} value={contact.id}>
+                              {contact.displayName || 'Unnamed contact'}{' '}
+                              {contact.primaryEmail || ''}
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        className="primary-button"
+                        type="button"
+                        disabled={!chosen || busy}
+                        onClick={() =>
+                          void run(() => crmWorkApi.linkContact(companyId, accountId, chosen))
+                        }
+                      >
+                        Link contact
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        )
+      )}
+    </section>
+  )
 }

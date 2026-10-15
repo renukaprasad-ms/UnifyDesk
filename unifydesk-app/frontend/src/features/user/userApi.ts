@@ -32,7 +32,7 @@ export const userApi = {
     return unwrap(response.data)
   },
 
-  async updatePreferences(appearanceMode: 'LIGHT' | 'DARK') {
+  async updatePreferences(appearanceMode: 'LIGHT' | 'DARK' | 'SYSTEM') {
     const response = await apiClient.patch<ApiResponse<UserPreferences>>(
       '/api/users/me/preferences',
       { appearanceMode },

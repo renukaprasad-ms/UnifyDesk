@@ -32,6 +32,7 @@ public final class ManagedEmailEnums {
   }
 
   public enum DomainStatus {
+    PENDING_APPROVAL,
     PROVISIONING,
     PENDING_DNS,
     VERIFYING,
@@ -41,7 +42,8 @@ public final class ManagedEmailEnums {
     ERROR,
     DELETING,
     DELETED,
-    RETIRED
+    RETIRED,
+    REJECTED
   }
 
   public enum VerificationStatus {

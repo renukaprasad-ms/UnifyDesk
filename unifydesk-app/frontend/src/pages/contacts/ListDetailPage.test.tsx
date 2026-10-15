@@ -9,6 +9,7 @@ import ListDetailPage from './ListDetailPage'
 vi.mock('../../features/contacts/contactsApi', () => ({
   contactsApi: {
     getList: vi.fn(),
+    list: vi.fn(),
     listMembers: vi.fn(),
     updateList: vi.fn(),
     archiveList: vi.fn(),
@@ -67,9 +68,19 @@ describe('ListDetailPage', () => {
     vi.mocked(contactsApi.addListMembers).mockResolvedValue({ added: 2 })
     renderPage()
 
-    const input = await screen.findByLabelText('Contact IDs')
-    fireEvent.change(input, { target: { value: 'contact-2, contact-3, contact-2' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add members' }))
+    vi.mocked(contactsApi.list).mockResolvedValue({
+      items: [
+        { ...member, id: 'contact-2', displayName: 'Bob' },
+        { ...member, id: 'contact-3', displayName: 'Carol' },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    })
+    const input = await screen.findByRole('searchbox')
+    fireEvent.change(input, { target: { value: 'contact' } })
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Bob/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Carol/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Add selected/ }))
 
     await waitFor(() =>
       expect(contactsApi.addListMembers).toHaveBeenCalledWith('company-1', 'list-1', [
@@ -85,6 +96,7 @@ describe('ListDetailPage', () => {
     renderPage()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove' }))
 
     await waitFor(() =>
       expect(contactsApi.removeListMember).toHaveBeenCalledWith('company-1', 'list-1', 'contact-1'),

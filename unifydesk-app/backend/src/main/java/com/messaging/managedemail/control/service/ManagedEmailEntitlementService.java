@@ -31,7 +31,7 @@ public class ManagedEmailEntitlementService {
   public void requireDomainCapacity(Long companyId) {
     long usage =
         domainRepository.countByCompanyIdAndStatusNotIn(
-            companyId, Set.of(DomainStatus.DELETED, DomainStatus.RETIRED));
+            companyId, Set.of(DomainStatus.DELETED, DomainStatus.RETIRED, DomainStatus.REJECTED));
     entitlementService.assertWithinLimit(companyId, DOMAINS, usage);
   }
 

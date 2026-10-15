@@ -1,3 +1,4 @@
+import FilterPopover from '../../components/ui/FilterPopover'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
@@ -23,10 +24,7 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAppSelector } from '../../store/hooks'
-import {
-  selectSelectedCompanyId,
-  selectWorkspaceEpoch,
-} from '../../store/workspace/workspaceSlice'
+import { selectSelectedCompanyId, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 
 export default function ContactsPage() {
@@ -186,120 +184,150 @@ export default function ContactsPage() {
           </div>
         )}
 
-        <div className="panel mt-6 p-4">
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <label className="text-xs font-semibold text-slate-700 lg:col-span-2">
-              <span className="mb-2 block">Search</span>
-              <input
-                className="form-input"
-                type="search"
-                placeholder="Name, email, phone or organization"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </label>
-            <label className="text-xs font-semibold text-slate-700">
-              <span className="mb-2 block">Tag</span>
-              <select
-                className="form-input"
-                value={query.tagId ?? ''}
-                onChange={(event) => {
-                  const next = new URLSearchParams(params)
-                  if (event.target.value) next.set('tagId', event.target.value)
-                  else next.delete('tagId')
-                  setParams(next)
-                }}
-              >
-                <option value="">All tags</option>
-                {tags.map((tag) => (
-                  <option key={tag.id} value={tag.id}>
-                    {tag.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-xs font-semibold text-slate-700">
-              <span className="mb-2 block">List</span>
-              <select
-                className="form-input"
-                value={query.listId ?? ''}
-                onChange={(event) => {
-                  const next = new URLSearchParams(params)
-                  if (event.target.value) next.set('listId', event.target.value)
-                  else next.delete('listId')
-                  setParams(next)
-                }}
-              >
-                <option value="">All Lists</option>
-                {lists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-xs font-semibold text-slate-700">
-              <span className="mb-2 block">Status</span>
-              <select
-                className="form-input"
-                value={query.status ?? ''}
-                onChange={(event) => {
-                  const next = new URLSearchParams(params)
-                  if (event.target.value) next.set('status', event.target.value)
-                  else next.delete('status')
-                  setParams(next)
-                }}
-              >
-                <option value="">All active contacts</option>
-                <option value="ACTIVE">Active</option>
-                <option value="MERGED">Merged</option>
-              </select>
-            </label>
-            <label className="text-xs font-semibold text-slate-700">
-              <span className="mb-2 block">Created after</span>
-              <input
-                className="form-input"
-                type="date"
-                value={query.createdAfter ?? ''}
-                onChange={(event) => {
-                  const next = new URLSearchParams(params)
-                  if (event.target.value) next.set('createdAfter', event.target.value)
-                  else next.delete('createdAfter')
-                  setParams(next)
-                }}
-              />
-            </label>
-            <label className="text-xs font-semibold text-slate-700">
-              <span className="mb-2 block">Created before</span>
-              <input
-                className="form-input"
-                type="date"
-                value={query.createdBefore ?? ''}
-                onChange={(event) => {
-                  const next = new URLSearchParams(params)
-                  if (event.target.value) next.set('createdBefore', event.target.value)
-                  else next.delete('createdBefore')
-                  setParams(next)
-                }}
-              />
-            </label>
-            <label className="text-xs font-semibold text-slate-700">
-              <span className="mb-2 block">Sort</span>
-              <select
-                className="form-input"
-                value={query.sort}
-                onChange={(event) => {
-                  const next = new URLSearchParams(params)
-                  next.set('sort', event.target.value)
-                  setParams(next)
-                }}
-              >
-                <option value="UPDATED_DESC">Recently updated</option>
-                <option value="CREATED_DESC">Recently created</option>
-                <option value="NAME_ASC">Name A–Z</option>
-              </select>
-            </label>
-          </div>
+        <div className="mt-6 flex flex-wrap items-end gap-3">
+          {' '}
+          <label className="min-w-0 flex-1 text-xs font-semibold text-slate-700 sm:max-w-sm">
+            <span className="mb-2 block">Search</span>
+            <input
+              className="form-input"
+              type="search"
+              placeholder="Name, email, phone or organization"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+          <FilterPopover
+            className="ml-auto"
+            wide
+            activeCount={
+              [
+                query.tagId,
+                query.listId,
+                query.status,
+                query.createdAfter,
+                query.createdBefore,
+                query.sort !== 'UPDATED_DESC',
+              ].filter(Boolean).length
+            }
+            onReset={() => {
+              const next = new URLSearchParams(params)
+              for (const key of [
+                'tagId',
+                'listId',
+                'status',
+                'createdAfter',
+                'createdBefore',
+                'sort',
+                'cursor',
+              ])
+                next.delete(key)
+              setParams(next)
+            }}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-semibold text-slate-700">
+                <span className="mb-2 block">Tag</span>
+                <select
+                  className="form-input"
+                  value={query.tagId ?? ''}
+                  onChange={(event) => {
+                    const next = new URLSearchParams(params)
+                    if (event.target.value) next.set('tagId', event.target.value)
+                    else next.delete('tagId')
+                    setParams(next)
+                  }}
+                >
+                  <option value="">All tags</option>
+                  {tags.map((tag) => (
+                    <option key={tag.id} value={tag.id}>
+                      {tag.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs font-semibold text-slate-700">
+                <span className="mb-2 block">List</span>
+                <select
+                  className="form-input"
+                  value={query.listId ?? ''}
+                  onChange={(event) => {
+                    const next = new URLSearchParams(params)
+                    if (event.target.value) next.set('listId', event.target.value)
+                    else next.delete('listId')
+                    setParams(next)
+                  }}
+                >
+                  <option value="">All Lists</option>
+                  {lists.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs font-semibold text-slate-700">
+                <span className="mb-2 block">Status</span>
+                <select
+                  className="form-input"
+                  value={query.status ?? ''}
+                  onChange={(event) => {
+                    const next = new URLSearchParams(params)
+                    if (event.target.value) next.set('status', event.target.value)
+                    else next.delete('status')
+                    setParams(next)
+                  }}
+                >
+                  <option value="">All active contacts</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="MERGED">Merged</option>
+                </select>
+              </label>
+              <label className="text-xs font-semibold text-slate-700">
+                <span className="mb-2 block">Created after</span>
+                <input
+                  className="form-input"
+                  type="date"
+                  value={query.createdAfter ?? ''}
+                  onChange={(event) => {
+                    const next = new URLSearchParams(params)
+                    if (event.target.value) next.set('createdAfter', event.target.value)
+                    else next.delete('createdAfter')
+                    setParams(next)
+                  }}
+                />
+              </label>
+              <label className="text-xs font-semibold text-slate-700">
+                <span className="mb-2 block">Created before</span>
+                <input
+                  className="form-input"
+                  type="date"
+                  value={query.createdBefore ?? ''}
+                  onChange={(event) => {
+                    const next = new URLSearchParams(params)
+                    if (event.target.value) next.set('createdBefore', event.target.value)
+                    else next.delete('createdBefore')
+                    setParams(next)
+                  }}
+                />
+              </label>
+              <label className="text-xs font-semibold text-slate-700">
+                <span className="mb-2 block">Sort</span>
+                <select
+                  className="form-input"
+                  value={query.sort}
+                  onChange={(event) => {
+                    const next = new URLSearchParams(params)
+                    next.set('sort', event.target.value)
+                    setParams(next)
+                  }}
+                >
+                  <option value="UPDATED_DESC">Recently updated</option>
+                  <option value="CREATED_DESC">Recently created</option>
+                  <option value="NAME_ASC">Name A–Z</option>
+                </select>
+              </label>
+            </div>
+          </FilterPopover>
         </div>
 
         {canBulk && (selected.size > 0 || allMatching) && companyId && (
@@ -465,6 +493,11 @@ export default function ContactsPage() {
             </div>
           )}
         </div>
+        {contacts.loadingMore && (
+          <div className="mt-4">
+            <TableSkeleton rows={2} columns={7} />
+          </div>
+        )}
         {contacts.hasMore && (
           <div className="mt-4 text-center">
             <button
@@ -486,13 +519,16 @@ export default function ContactsPage() {
           onClose={() => {
             setCreating(false)
             if (createFromInbox) {
-              setParams((current) => {
-                const next = new URLSearchParams(current)
-                next.delete('new')
-                next.delete('email')
-                next.delete('phone')
-                return next
-              }, { replace: true })
+              setParams(
+                (current) => {
+                  const next = new URLSearchParams(current)
+                  next.delete('new')
+                  next.delete('email')
+                  next.delete('phone')
+                  return next
+                },
+                { replace: true },
+              )
             }
           }}
           onSubmit={(draft, marketing) => {

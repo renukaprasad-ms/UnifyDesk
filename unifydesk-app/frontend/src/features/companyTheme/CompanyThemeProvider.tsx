@@ -7,13 +7,16 @@ import { applyCompanyTheme, DEFAULT_BRAND_COLOR, readStoredAppearanceMode } from
 export default function CompanyThemeProvider() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
   const user = useAppSelector(selectAuthUser)
-  const appearanceMode = user?.appearanceMode ?? readStoredAppearanceMode() ?? 'LIGHT'
+  const appearanceMode = user?.appearanceMode ?? readStoredAppearanceMode() ?? 'SYSTEM'
 
   useLayoutEffect(() => {
-    applyCompanyTheme(
-      selectedCompany?.brandColor ?? DEFAULT_BRAND_COLOR,
-      appearanceMode,
-    )
+    const apply = () =>
+      applyCompanyTheme(selectedCompany?.brandColor ?? DEFAULT_BRAND_COLOR, appearanceMode)
+    apply()
+    if (appearanceMode !== 'SYSTEM' || !window.matchMedia) return
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    media.addEventListener('change', apply)
+    return () => media.removeEventListener('change', apply)
   }, [appearanceMode, selectedCompany?.brandColor])
 
   return null

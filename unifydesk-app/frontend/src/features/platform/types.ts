@@ -110,3 +110,17 @@ export type ManagedSmsReviewItem = {
   version: number
   updatedAt: string
 }
+
+export type ManagedEmailDomainReviewItem = {
+  domainId: string
+  companyId: number
+  companyName: string
+  requestedSubdomain: string
+  displayDomain: string
+  status: string
+  requestedAt: string
+  requestedByUserId: number
+  userEmail?: string | null
+  rejectionReason?: string | null
+  adminAssignedAlternative: boolean
+}

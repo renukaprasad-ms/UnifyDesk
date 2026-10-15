@@ -179,15 +179,94 @@ export default function PlatformPlans() {
 
         {showCreate && (
           <form onSubmit={create} className="panel mt-6 p-5">
-            <div className="flex items-start gap-3">
-              <span className="security-icon">
-                <FiLayers />
-              </span>
-              <div>
-                <h2 className="text-base font-bold text-slate-950">Create plan version</h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  New plans start as drafts. Configure prices and limits before publishing.
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <span className="security-icon">
+                  <FiLayers />
+                </span>
+                <div>
+                  <h2 className="text-base font-bold text-slate-950">Create plan version</h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    New plans start as drafts. Configure prices and limits before publishing.
+                  </p>
+                </div>
+              </div>
+
+              {/* 1-Click Tier Templates */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-semibold text-slate-400 mr-1">Load Preset:</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      code: 'FREE',
+                      name: 'Free',
+                      description: 'Essential tools for solopreneurs & small teams starting out with CRM and communication',
+                      billingCycle: 'FREE',
+                      basePrice: 0,
+                      currency: 'INR',
+                      version: 1,
+                      visibility: 'PUBLIC',
+                    })
+                  }
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                >
+                  Free (₹0)
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      code: 'STARTER',
+                      name: 'Starter',
+                      description: 'Essential CRM, multi-channel messaging & automations for growing local businesses',
+                      billingCycle: 'MONTHLY',
+                      basePrice: 1499,
+                      currency: 'INR',
+                      version: 1,
+                      visibility: 'PUBLIC',
+                    })
+                  }
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors"
+                >
+                  Starter (₹1,499)
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      code: 'GROWTH',
+                      name: 'Growth',
+                      description: 'High-volume communications, team collaboration, and automation for scaling businesses',
+                      billingCycle: 'MONTHLY',
+                      basePrice: 3499,
+                      currency: 'INR',
+                      version: 1,
+                      visibility: 'PUBLIC',
+                    })
+                  }
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-50 hover:bg-purple-100 text-purple-700 transition-colors"
+                >
+                  Growth (₹3,499)
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      code: 'ENTERPRISE',
+                      name: 'Enterprise',
+                      description: 'Dedicated infrastructure, maximum limits, API integrations, and 24/7 priority support',
+                      billingCycle: 'MONTHLY',
+                      basePrice: 8999,
+                      currency: 'INR',
+                      version: 1,
+                      visibility: 'PUBLIC',
+                    })
+                  }
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors"
+                >
+                  Enterprise (₹8,999)
+                </button>
               </div>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">

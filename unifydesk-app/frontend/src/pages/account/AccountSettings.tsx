@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react'
-import { FiBell, FiChevronRight, FiKey, FiMoon, FiShield, FiSun, FiTrash2 } from 'react-icons/fi'
+import {
+  FiBell,
+  FiChevronRight,
+  FiKey,
+  FiMoon,
+  FiMonitor,
+  FiShield,
+  FiSun,
+  FiTrash2,
+} from 'react-icons/fi'
 import { useNavigate } from 'react-router'
 import { authApi } from '../../features/auth/authApi'
 import { userApi } from '../../features/user/userApi'
@@ -8,10 +17,7 @@ import { apiErrorMessage } from '../../lib/api/apiClient'
 import { selectAuthUser, sessionCleared, setAppearanceMode } from '../../store/auth/authSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
-import {
-  applyCompanyTheme,
-  DEFAULT_BRAND_COLOR,
-} from '../../features/companyTheme/companyTheme'
+import { applyCompanyTheme, DEFAULT_BRAND_COLOR } from '../../features/companyTheme/companyTheme'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { CardSkeleton } from '../../components/ui/Skeleton'
 
@@ -105,8 +111,8 @@ export default function AccountSettings() {
     }
   }
 
-  const updateAppearance = async (appearanceMode: 'LIGHT' | 'DARK') => {
-    const previousAppearance = authUser?.appearanceMode ?? 'LIGHT'
+  const updateAppearance = async (appearanceMode: 'LIGHT' | 'DARK' | 'SYSTEM') => {
+    const previousAppearance = authUser?.appearanceMode ?? 'SYSTEM'
     const brandColor = selectedCompany?.brandColor ?? DEFAULT_BRAND_COLOR
 
     setError('')
@@ -118,7 +124,9 @@ export default function AccountSettings() {
     dispatch(setAppearanceMode(appearanceMode))
 
     if (previousAppearance === appearanceMode) {
-      setNotice(`${appearanceMode === 'DARK' ? 'Dark' : 'Light'} mode applied.`)
+      setNotice(
+        `${appearanceMode === 'SYSTEM' ? 'Device' : appearanceMode === 'DARK' ? 'Dark' : 'Light'} mode applied.`,
+      )
       return
     }
 
@@ -188,206 +196,219 @@ export default function AccountSettings() {
             <CardSkeleton rows={2} />
           </div>
         ) : (
-        <div className="mt-7 space-y-4">
-          <div className="panel p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-base font-bold text-slate-950">Appearance</h2>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  This is your personal preference and follows your account across every workspace.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
-                <button
-                  type="button"
-                  className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
-                    (authUser?.appearanceMode ?? 'LIGHT') === 'LIGHT'
-                      ? 'bg-white text-slate-950 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                  disabled={saving}
-                  onClick={() => void updateAppearance('LIGHT')}
-                  aria-pressed={(authUser?.appearanceMode ?? 'LIGHT') === 'LIGHT'}
-                >
-                  <FiSun aria-hidden="true" />
-                  Light
-                </button>
-                <button
-                  type="button"
-                  className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
-                    authUser?.appearanceMode === 'DARK'
-                      ? 'bg-slate-900 text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                  disabled={saving}
-                  onClick={() => void updateAppearance('DARK')}
-                  aria-pressed={authUser?.appearanceMode === 'DARK'}
-                >
-                  <FiMoon aria-hidden="true" />
-                  Dark
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="panel flex w-full items-center gap-4 p-5 text-left transition hover:border-indigo-200 hover:shadow-sm"
-            onClick={() => navigate('/account/settings/password')}
-          >
-            <span className="security-icon shrink-0">
-              <FiKey aria-hidden="true" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-base font-bold text-slate-950">Password</span>
-              <span className="mt-1 block text-sm leading-6 text-slate-500">
-                Change your password and keep your account credentials secure.
-              </span>
-            </span>
-            <span className="hidden text-sm font-semibold text-indigo-600 sm:block">Change</span>
-            <FiChevronRight className="shrink-0 text-slate-400" aria-hidden="true" />
-          </button>
-
-          <div className="panel p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex min-w-0 items-start gap-4">
-                <span className="security-icon shrink-0">
-                  <FiShield aria-hidden="true" />
-                </span>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-base font-bold text-slate-950">
-                      Two-factor authentication
-                    </h2>
-                    {!loading && user && (
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          user.twoFactorEnabled
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        {user.twoFactorEnabled ? 'Enabled' : 'Disabled'}
-                      </span>
-                    )}
-                  </div>
+          <div className="mt-7 space-y-4">
+            <div className="panel p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-950">Appearance</h2>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
-                    Require an additional verification step when signing in.
+                    Device follows your system's light or dark setting automatically. Choose Light
+                    or Dark to override it across your workspaces.
                   </p>
                 </div>
+                <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-100 p-1">
+                  <button
+                    type="button"
+                    className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${(authUser?.appearanceMode ?? 'SYSTEM') === 'SYSTEM' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    disabled={saving}
+                    onClick={() => void updateAppearance('SYSTEM')}
+                    aria-pressed={(authUser?.appearanceMode ?? 'SYSTEM') === 'SYSTEM'}
+                  >
+                    <FiMonitor aria-hidden="true" />
+                    Device
+                  </button>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+                      (authUser?.appearanceMode ?? 'SYSTEM') === 'LIGHT'
+                        ? 'bg-white text-slate-950 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                    disabled={saving}
+                    onClick={() => void updateAppearance('LIGHT')}
+                    aria-pressed={(authUser?.appearanceMode ?? 'SYSTEM') === 'LIGHT'}
+                  >
+                    <FiSun aria-hidden="true" />
+                    Light
+                  </button>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+                      authUser?.appearanceMode === 'DARK'
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                    disabled={saving}
+                    onClick={() => void updateAppearance('DARK')}
+                    aria-pressed={authUser?.appearanceMode === 'DARK'}
+                  >
+                    <FiMoon aria-hidden="true" />
+                    Dark
+                  </button>
+                </div>
               </div>
-
-              <button
-                type="button"
-                className={`switch shrink-0 ${user?.twoFactorEnabled ? 'is-on' : ''}`}
-                onClick={startTwoFactorChange}
-                disabled={saving || loading || !user || twoFactorTarget !== null}
-                aria-label={
-                  user?.twoFactorEnabled
-                    ? 'Disable two-factor authentication'
-                    : 'Enable two-factor authentication'
-                }
-                aria-pressed={Boolean(user?.twoFactorEnabled)}
-              >
-                <span />
-              </button>
             </div>
 
-            {twoFactorTarget !== null && (
-              <div className="mt-5 border-t border-slate-100 pt-5">
-                <p className="text-sm font-semibold text-slate-800">
-                  {twoFactorTarget ? 'Enable' : 'Disable'} two-factor authentication
-                </p>
-                {!twoFactorChallenge ? (
-                  <div className="mt-3 space-y-3">
-                    <p className="text-xs leading-5 text-slate-500">
-                      Confirm your current password. We will then email a one-time verification code.
-                    </p>
-                    <input
-                      type="password"
-                      className="form-input"
-                      autoComplete="current-password"
-                      placeholder="Current password"
-                      value={twoFactorPassword}
-                      onChange={(event) => setTwoFactorPassword(event.target.value)}
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="primary-button"
-                        disabled={saving || !twoFactorPassword}
-                        onClick={() => void requestTwoFactorCode()}
-                      >
-                        {saving ? 'Sending…' : 'Send verification code'}
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        disabled={saving}
-                        onClick={cancelTwoFactorChange}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-3 space-y-3">
-                    <p className="text-xs leading-5 text-slate-500">
-                      Enter the 6-digit code sent to your email. Completing this change signs out all sessions.
-                    </p>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      className="form-input text-center tracking-[0.35em]"
-                      maxLength={6}
-                      value={twoFactorOtp}
-                      onChange={(event) =>
-                        setTwoFactorOtp(event.target.value.replace(/\D/g, '').slice(0, 6))
-                      }
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="primary-button"
-                        disabled={saving || twoFactorOtp.length !== 6}
-                        onClick={() => void completeTwoFactorChange()}
-                      >
-                        {saving ? 'Verifying…' : 'Confirm security change'}
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        disabled={saving}
-                        onClick={cancelTwoFactorChange}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            className="panel flex w-full items-center gap-4 p-5 text-left transition hover:border-indigo-200 hover:shadow-sm"
-            onClick={() => navigate('/account/settings/notifications')}
-          >
-            <span className="security-icon shrink-0">
-              <FiBell aria-hidden="true" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-base font-bold text-slate-950">Notifications</span>
-              <span className="mt-1 block text-sm leading-6 text-slate-500">
-                Manage email, browser notifications, quiet hours, and delivery preferences.
+            <button
+              type="button"
+              className="panel flex w-full items-center gap-4 p-5 text-left transition hover:border-indigo-200 hover:shadow-sm"
+              onClick={() => navigate('/account/settings/password')}
+            >
+              <span className="security-icon shrink-0">
+                <FiKey aria-hidden="true" />
               </span>
-            </span>
-            <span className="hidden text-sm font-semibold text-indigo-600 sm:block">Manage</span>
-            <FiChevronRight className="shrink-0 text-slate-400" aria-hidden="true" />
-          </button>
-        </div>
+              <span className="min-w-0 flex-1">
+                <span className="block text-base font-bold text-slate-950">Password</span>
+                <span className="mt-1 block text-sm leading-6 text-slate-500">
+                  Change your password and keep your account credentials secure.
+                </span>
+              </span>
+              <span className="hidden text-sm font-semibold text-indigo-600 sm:block">Change</span>
+              <FiChevronRight className="shrink-0 text-slate-400" aria-hidden="true" />
+            </button>
+
+            <div className="panel p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex min-w-0 items-start gap-4">
+                  <span className="security-icon shrink-0">
+                    <FiShield aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-base font-bold text-slate-950">
+                        Two-factor authentication
+                      </h2>
+                      {!loading && user && (
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            user.twoFactorEnabled
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {user.twoFactorEnabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      Require an additional verification step when signing in.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className={`switch shrink-0 ${user?.twoFactorEnabled ? 'is-on' : ''}`}
+                  onClick={startTwoFactorChange}
+                  disabled={saving || loading || !user || twoFactorTarget !== null}
+                  aria-label={
+                    user?.twoFactorEnabled
+                      ? 'Disable two-factor authentication'
+                      : 'Enable two-factor authentication'
+                  }
+                  aria-pressed={Boolean(user?.twoFactorEnabled)}
+                >
+                  <span />
+                </button>
+              </div>
+
+              {twoFactorTarget !== null && (
+                <div className="mt-5 border-t border-slate-100 pt-5">
+                  <p className="text-sm font-semibold text-slate-800">
+                    {twoFactorTarget ? 'Enable' : 'Disable'} two-factor authentication
+                  </p>
+                  {!twoFactorChallenge ? (
+                    <div className="mt-3 space-y-3">
+                      <p className="text-xs leading-5 text-slate-500">
+                        Confirm your current password. We will then email a one-time verification
+                        code.
+                      </p>
+                      <input
+                        type="password"
+                        className="form-input"
+                        autoComplete="current-password"
+                        placeholder="Current password"
+                        value={twoFactorPassword}
+                        onChange={(event) => setTwoFactorPassword(event.target.value)}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="primary-button"
+                          disabled={saving || !twoFactorPassword}
+                          onClick={() => void requestTwoFactorCode()}
+                        >
+                          {saving ? 'Sending…' : 'Send verification code'}
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          disabled={saving}
+                          onClick={cancelTwoFactorChange}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      <p className="text-xs leading-5 text-slate-500">
+                        Enter the 6-digit code sent to your email. Completing this change signs out
+                        all sessions.
+                      </p>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        className="form-input text-center tracking-[0.35em]"
+                        maxLength={6}
+                        value={twoFactorOtp}
+                        onChange={(event) =>
+                          setTwoFactorOtp(event.target.value.replace(/\D/g, '').slice(0, 6))
+                        }
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="primary-button"
+                          disabled={saving || twoFactorOtp.length !== 6}
+                          onClick={() => void completeTwoFactorChange()}
+                        >
+                          {saving ? 'Verifying…' : 'Confirm security change'}
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          disabled={saving}
+                          onClick={cancelTwoFactorChange}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="panel flex w-full items-center gap-4 p-5 text-left transition hover:border-indigo-200 hover:shadow-sm"
+              onClick={() => navigate('/account/settings/notifications')}
+            >
+              <span className="security-icon shrink-0">
+                <FiBell aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-base font-bold text-slate-950">Notifications</span>
+                <span className="mt-1 block text-sm leading-6 text-slate-500">
+                  Manage email, browser notifications, quiet hours, and delivery preferences.
+                </span>
+              </span>
+              <span className="hidden text-sm font-semibold text-indigo-600 sm:block">Manage</span>
+              <FiChevronRight className="shrink-0 text-slate-400" aria-hidden="true" />
+            </button>
+          </div>
         )}
 
         <div className="mt-10">
@@ -401,8 +422,8 @@ export default function AccountSettings() {
                 <div>
                   <h2 className="text-base font-bold text-slate-950">Delete account</h2>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
-                    Sign-in access ends immediately. Your account then enters the configured retention
-                    period before permanent purge.
+                    Sign-in access ends immediately. Your account then enters the configured
+                    retention period before permanent purge.
                   </p>
                 </div>
               </div>

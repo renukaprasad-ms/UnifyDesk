@@ -10,6 +10,11 @@ export default defineConfig(({ mode }) => {
 
     server: {
       port: Number(env.VITE_PORT),
+      strictPort: true,
+      allowedHosts: (env.VITE_ALLOWED_HOSTS ?? '')
+        .split(',')
+        .map((host) => host.trim())
+        .filter(Boolean),
     },
   }
 })

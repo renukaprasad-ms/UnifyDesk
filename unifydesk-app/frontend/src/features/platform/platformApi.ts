@@ -12,10 +12,31 @@ import type {
   PlatformWebhookCallback,
   ManagedProviderRoute,
   ManagedSmsReviewItem,
+  ManagedEmailDomainReviewItem,
   WebhookCallbackStatus,
 } from './types'
 
 export const platformApi = {
+  async managedEmailReviewQueue() {
+    const r = await apiClient.get<ApiResponse<ManagedEmailDomainReviewItem[]>>(
+      '/api/v1/platform/managed-email/review-queue',
+    )
+    return r.data.data ?? []
+  },
+  async decideManagedEmailDomain(
+    domainId: string,
+    input: {
+      action: 'APPROVE' | 'ASSIGN_ALTERNATIVE' | 'REJECT'
+      alternativeSubdomain?: string
+      reason?: string
+    },
+  ) {
+    const r = await apiClient.post<ApiResponse<unknown>>(
+      `/api/v1/platform/managed-email/requests/${domainId}/decision`,
+      input,
+    )
+    return r.data.data
+  },
   async managedSmsReviewQueue() {
     const r=await apiClient.get<ApiResponse<{items:ManagedSmsReviewItem[]}>>(
       '/api/v1/platform/managed-sms/review-queue')

@@ -71,5 +71,9 @@ public class CrmContactMergeExtension implements ContactMergeExtension {
         where company_id = ? and contact_id = ?
         """,
         targetContactId, companyId, sourceContactId);
+    jdbc.update("update crm_deals set contact_id=?,version=version+1,updated_at=now() where company_id=? and contact_id=?",
+        targetContactId,companyId,sourceContactId);
+    jdbc.update("update crm_notes set contact_id=? where company_id=? and contact_id=?",
+        targetContactId,companyId,sourceContactId);
   }
 }

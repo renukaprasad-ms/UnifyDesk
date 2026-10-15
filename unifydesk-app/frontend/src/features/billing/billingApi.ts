@@ -91,4 +91,79 @@ export const billingApi = {
     )
     return unwrap(response.data)
   },
+
+  async getWallet(companyId: string) {
+    const response = await apiClient.get<ApiResponse<import('./types').CompanyWallet>>(
+      `/api/v1/companies/${companyId}/billing/wallet`,
+    )
+    return unwrap(response.data)
+  },
+
+  async getTransactions(companyId: string, page = 0, size = 20) {
+    const response = await apiClient.get<ApiResponse<{ content: import('./types').WalletTransaction[]; totalElements: number }>>(
+      `/api/v1/companies/${companyId}/billing/wallet/transactions`,
+      { params: { page, size } },
+    )
+    return unwrap(response.data)
+  },
+
+  async createTopupOrder(
+    companyId: string,
+    input: { amount: number; currency?: string; customer?: import('./types').CheckoutCustomer },
+  ) {
+    const response = await apiClient.post<ApiResponse<import('./types').WalletTopupOrder>>(
+      `/api/v1/companies/${companyId}/billing/wallet/topup-order`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async confirmTopup(companyId: string, orderId: string) {
+    const response = await apiClient.post<ApiResponse<import('./types').CompanyWallet>>(
+      `/api/v1/companies/${companyId}/billing/wallet/topup-confirm`,
+      { orderId },
+    )
+    return unwrap(response.data)
+  },
+
+  async configureAutoRecharge(
+    companyId: string,
+    input: { enabled: boolean; threshold?: number; amount?: number },
+  ) {
+    const response = await apiClient.put<ApiResponse<import('./types').CompanyWallet>>(
+      `/api/v1/companies/${companyId}/billing/wallet/auto-recharge`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async getBillingProfile(companyId: string) {
+    const response = await apiClient.get<ApiResponse<import('./types').CompanyBillingProfile>>(
+      `/api/v1/companies/${companyId}/billing/profile`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateBillingProfile(companyId: string, input: import('./types').CompanyBillingProfile) {
+    const response = await apiClient.put<ApiResponse<import('./types').CompanyBillingProfile>>(
+      `/api/v1/companies/${companyId}/billing/profile`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async getInvoices(companyId: string) {
+    const response = await apiClient.get<ApiResponse<import('./types').Invoice[]>>(
+      `/api/v1/companies/${companyId}/billing/invoices`,
+    )
+    return unwrap(response.data)
+  },
+
+  async getUsage(companyId: string) {
+    const response = await apiClient.get<ApiResponse<import('./types').BillingUsageSummary>>(
+      `/api/v1/companies/${companyId}/billing/usage`,
+    )
+    return unwrap(response.data)
+  },
 }
+

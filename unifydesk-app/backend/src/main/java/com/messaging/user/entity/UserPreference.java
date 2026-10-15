@@ -26,7 +26,7 @@ public class UserPreference {
 
   @Enumerated(EnumType.STRING)
   @Column(name = "appearance_mode", nullable = false, length = 16)
-  private UserAppearanceMode appearanceMode = UserAppearanceMode.LIGHT;
+  private UserAppearanceMode appearanceMode = UserAppearanceMode.SYSTEM;
 
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;

@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { FiCheck, FiCreditCard, FiX } from 'react-icons/fi'
+import { FiCheckCircle, FiCreditCard, FiX } from 'react-icons/fi'
 import { Navigate, useNavigate, useParams } from 'react-router'
 import { billingApi } from '../../features/billing/billingApi'
 import {
-  activePlanPrices,
   customerVisiblePlans,
   defaultPlanPrice,
   money,
@@ -14,6 +13,7 @@ import { launchCashfreeCheckout } from '../../features/billing/cashfreeCheckout'
 import { savePendingBillingCheckout } from '../../features/billing/pendingCheckout'
 import type {
   CheckoutResponse,
+  CompanyBillingProfile,
   CompanyPlanDetails,
   Plan,
   PlanPrice,
@@ -26,80 +26,63 @@ import { CardSkeleton } from '../../components/ui/Skeleton'
 import { useAppDispatch } from '../../store/hooks'
 import { selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
 
-const COLLAPSED_ENTITLEMENT_COUNT = 7
 const idempotencyKey = () => `onboarding-upgrade:${crypto.randomUUID()}`
 
-const entitlementPriority = [
-  'MAX_WORKSPACE_USERS',
-  'CONTACT_LIMIT',
-  'CONTACT_LIST_LIMIT',
-  'CONTACT_IMPORT_ROWS_LIMIT',
-  'SEGMENT_LIMIT',
-  'STORAGE_GB',
-  'BROADCAST_BATCH_LIMIT',
-  'BROADCAST_RECIPIENTS_PER_MONTH',
-  'BROADCASTS_PER_MONTH',
-  'EMAIL_ACCOUNTS',
-  'WHATSAPP_NUMBERS',
-  'SMS_SENDER_IDS',
-  'EMAIL_TEMPLATE_LIMIT',
-  'WHATSAPP_TEMPLATE_LIMIT',
-  'SMS_TEMPLATE_LIMIT',
-  'MANAGED_EMAIL_ENABLED',
-  'MANAGED_EMAIL_DOMAINS',
-  'MANAGED_EMAIL_SENDERS',
-  'SCHEDULED_BROADCASTS_ENABLED',
-  'AUTO_REPLY_ENABLED',
-  'USER_SIGNATURE_ENABLED',
-  'API_ACCESS_ENABLED',
-]
-
-const pluralize = (value: string, singular: string, plural = `${singular}s`) =>
-  `${value} ${value === '1' ? singular : plural}`
-
-const entitlementLabel = (key: string, value: string) => {
-  const unlimited = value === '-1' || value.toLowerCase() === 'unlimited'
-  const labels: Record<string, string> = {
-    MAX_WORKSPACE_USERS: unlimited ? 'Unlimited workspace users' : pluralize(value, 'workspace user'),
-    CONTACT_LIMIT: unlimited ? 'Unlimited contacts' : pluralize(value, 'contact'),
-    CONTACT_LIST_LIMIT: unlimited ? 'Unlimited contact lists' : pluralize(value, 'contact list'),
-    CONTACT_IMPORT_ROWS_LIMIT: unlimited ? 'Unlimited rows per import' : `${value} rows per contact import`,
-    SEGMENT_LIMIT: unlimited ? 'Unlimited segments' : pluralize(value, 'segment'),
-    STORAGE_GB: unlimited ? 'Unlimited workspace storage' : `${value} GiB workspace storage`,
-    BROADCAST_BATCH_LIMIT: unlimited ? 'Unlimited recipients per broadcast' : `${value} recipients per broadcast`,
-    BROADCASTS_PER_DAY: unlimited ? 'Unlimited broadcasts per day' : `${value} broadcasts per day`,
-    BROADCASTS_PER_MONTH: unlimited ? 'Unlimited broadcasts per month' : `${value} broadcasts per month`,
-    BROADCAST_RECIPIENTS_PER_DAY: unlimited ? 'Unlimited broadcast recipients per day' : `${value} broadcast recipients per day`,
-    BROADCAST_RECIPIENTS_PER_MONTH: unlimited ? 'Unlimited broadcast recipients per month' : `${value} broadcast recipients per month`,
-    EMAIL_ACCOUNTS: unlimited ? 'Unlimited email connections' : pluralize(value, 'email connection'),
-    WHATSAPP_ACCOUNTS: unlimited ? 'Unlimited WhatsApp accounts' : pluralize(value, 'WhatsApp account'),
-    WHATSAPP_NUMBERS: unlimited ? 'Unlimited WhatsApp numbers' : pluralize(value, 'WhatsApp number'),
-    SMS_ACCOUNTS: unlimited ? 'Unlimited SMS connections' : pluralize(value, 'SMS connection'),
-    SMS_SENDER_IDS: unlimited ? 'Unlimited SMS sender IDs' : pluralize(value, 'SMS sender ID'),
-    EMAIL_TEMPLATE_LIMIT: unlimited ? 'Unlimited email templates' : pluralize(value, 'email template'),
-    WHATSAPP_TEMPLATE_LIMIT: unlimited ? 'Unlimited WhatsApp templates' : pluralize(value, 'WhatsApp template'),
-    SMS_TEMPLATE_LIMIT: unlimited ? 'Unlimited SMS templates' : pluralize(value, 'SMS template'),
-    MANAGED_EMAIL_DOMAINS: unlimited ? 'Unlimited Managed Email domains' : pluralize(value, 'Managed Email domain'),
-    MANAGED_EMAIL_SENDERS: unlimited ? 'Unlimited Managed Email senders' : pluralize(value, 'Managed Email sender'),
-    MANAGED_EMAIL_MESSAGES_MONTHLY: unlimited ? 'Unlimited Managed Email messages' : `${value} Managed Email messages/month`,
-    MANAGED_SMS_SEGMENTS_MONTHLY: unlimited ? 'Unlimited Managed SMS segments' : `${value} Managed SMS segments/month`,
-    SCHEDULED_BROADCASTS_ENABLED: value === 'true' ? 'Scheduled broadcasts included' : 'Scheduled broadcasts not included',
-    AUTO_REPLY_ENABLED: value === 'true' ? 'Auto reply included' : 'Auto reply not included',
-    USER_SIGNATURE_ENABLED: value === 'true' ? 'User signatures included' : 'User signatures not included',
-    API_ACCESS_ENABLED: value === 'true' ? 'API access included' : 'API access not included',
-    MANAGED_EMAIL_ENABLED: value === 'true' ? 'Managed Email available (usage billed separately)' : 'Managed Email not available',
+const getPlanHighlights = (plan: Plan): string[] => {
+  const code = (plan.code || '').toUpperCase()
+  if (code === 'FREE') {
+    return [
+      '1 Workspace user seat',
+      '500 CRM Contacts',
+      '250 Free Included Emails/mo',
+      '0 Free SMS (Pay-as-you-go)',
+      'Prepaid Wallet for WhatsApp & SMS',
+      '1 GB Workspace Storage',
+      'Audience Segments (up to 5)',
+    ]
   }
-  return labels[key] ?? `${key.replaceAll('_', ' ').toLowerCase()}: ${value}`
+  if (code === 'STARTER') {
+    return [
+      '3 Workspace user seats',
+      '5,000 CRM Contacts',
+      '3,000 Free Included Emails/mo',
+      '150 Free Included SMS/mo',
+      'Prepaid Wallet for WhatsApp & Overages',
+      '5 GB Workspace Storage',
+      'Scheduled Broadcasts & Auto-Reply',
+      '2 WhatsApp Numbers & Email Accounts',
+    ]
+  }
+  if (code === 'GROWTH') {
+    return [
+      '8 Workspace user seats',
+      '25,000 CRM Contacts',
+      '15,000 Free Included Emails/mo',
+      '750 Free Included SMS/mo',
+      'Prepaid Wallet for WhatsApp & Overages',
+      '25 GB Workspace Storage',
+      'Developer API Access & Webhooks',
+      '5 WhatsApp Numbers & Email Accounts',
+    ]
+  }
+  if (code === 'ENTERPRISE') {
+    return [
+      '25 Workspace user seats',
+      '100,000 CRM Contacts',
+      '50,000 Free Included Emails/mo',
+      '3,000 Free Included SMS/mo',
+      'Prepaid Wallet for WhatsApp & Overages',
+      '100 GB Workspace Storage',
+      'Dedicated Account Manager & 24/7 SLA',
+      '10 WhatsApp Numbers & 10 SMS Senders',
+    ]
+  }
+  return [
+    'Full Unified CRM & Kanban Task Board',
+    'Multi-inbox Email & WhatsApp channels',
+    'Zero debt prepaid communications protection',
+  ]
 }
-
-const orderedEntitlements = (plan: Plan) =>
-  [...plan.entitlements].sort((left, right) => {
-    const leftIndex = entitlementPriority.indexOf(left.key)
-    const rightIndex = entitlementPriority.indexOf(right.key)
-    const leftRank = leftIndex === -1 ? entitlementPriority.length : leftIndex
-    const rightRank = rightIndex === -1 ? entitlementPriority.length : rightIndex
-    return leftRank - rightRank
-  })
 
 export default function SelectPlan() {
   const { companyId } = useParams()
@@ -108,7 +91,7 @@ export default function SelectPlan() {
   const [company, setCompany] = useState<Company | null>(null)
   const [details, setDetails] = useState<CompanyPlanDetails | null>(null)
   const [plans, setPlans] = useState<Plan[]>([])
-  const [expandedPlans, setExpandedPlans] = useState<Record<string, boolean>>({})
+  const [billingInterval, setBillingInterval] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY')
   const [loading, setLoading] = useState(true)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [selectedPrice, setSelectedPrice] = useState<PlanPrice | null>(null)
@@ -117,6 +100,18 @@ export default function SelectPlan() {
   const [checkout, setCheckout] = useState<CheckoutResponse | null>(null)
   const [billingEmail, setBillingEmail] = useState('')
   const [billingPhone, setBillingPhone] = useState('')
+  const [billingProfile, setBillingProfile] = useState<CompanyBillingProfile>({
+    legalBusinessName: '',
+    taxIdOrGstin: '',
+    billingEmail: '',
+    billingPhone: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: 'India',
+  })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -128,14 +123,38 @@ export default function SelectPlan() {
       workspaceApi.list(),
       billingApi.eligiblePlans(companyId),
       billingApi.companyPlan(companyId),
+      billingApi.getBillingProfile(companyId).catch(() => null),
     ])
-      .then(([companies, eligible, planDetails]) => {
+      .then(([companies, eligible, planDetails, prof]) => {
         if (!active) return
         const currentCompany = companies.find((item) => item.companyId === companyId) ?? null
         setCompany(currentCompany)
         setDetails(planDetails)
         setPlans(customerVisiblePlans(eligible).filter((plan) => plan.status === 'PUBLISHED'))
-        setBillingEmail(currentCompany?.businessEmail ?? '')
+        const defaultEmail = prof?.billingEmail || currentCompany?.businessEmail || ''
+        const defaultPhone = prof?.billingPhone || ''
+        setBillingEmail(defaultEmail)
+        setBillingPhone(defaultPhone)
+        if (prof) {
+          setBillingProfile({
+            legalBusinessName: prof.legalBusinessName || currentCompany?.name || '',
+            taxIdOrGstin: prof.taxIdOrGstin || '',
+            billingEmail: defaultEmail,
+            billingPhone: defaultPhone,
+            addressLine1: prof.addressLine1 || '',
+            addressLine2: prof.addressLine2 || '',
+            city: prof.city || '',
+            state: prof.state || '',
+            postalCode: prof.postalCode || '',
+            country: prof.country || 'India',
+          })
+        } else {
+          setBillingProfile((prev) => ({
+            ...prev,
+            legalBusinessName: currentCompany?.name || '',
+            billingEmail: defaultEmail,
+          }))
+        }
         dispatch(setCompanies(companies))
         if (currentCompany) dispatch(selectCompany(companyId))
       })
@@ -162,8 +181,16 @@ export default function SelectPlan() {
     navigate('/workspace', { replace: true })
   }
 
-  const beginPaidSelection = (plan: Plan) => {
-    const price = defaultPlanPrice(plan)
+  const beginPaidSelection = (plan: Plan, preferredPrice?: PlanPrice | null) => {
+    let price: PlanPrice | null | undefined = preferredPrice
+    if (!price) {
+      price =
+        (billingInterval === 'YEARLY'
+          ? plan.prices?.find((p) => p.billingCycle === 'YEARLY' && p.status === 'ACTIVE')
+          : plan.prices?.find((p) => p.billingCycle === 'MONTHLY' && p.status === 'ACTIVE')) ??
+        defaultPlanPrice(plan)
+    }
+
     if (!price || Number(price.amount) <= 0) {
       setError('This plan does not have a currently effective paid price.')
       return
@@ -174,8 +201,8 @@ export default function SelectPlan() {
     setCommandKey(idempotencyKey())
     setQuote(null)
     setCheckout(null)
-    setBillingEmail(company?.businessEmail ?? '')
-    setBillingPhone('')
+    setBillingEmail(billingProfile.billingEmail || company?.businessEmail || '')
+    setBillingPhone(billingProfile.billingPhone || '')
   }
 
   const closeCheckout = () => {
@@ -214,13 +241,34 @@ export default function SelectPlan() {
       if (!currentQuote.quoteReference) {
         throw new Error('The backend upgrade quote did not include a quote reference.')
       }
+
+      const profileToSave: CompanyBillingProfile = {
+        ...billingProfile,
+        legalBusinessName: (billingProfile.legalBusinessName || company?.name || '').trim(),
+        billingEmail: (billingEmail || billingProfile.billingEmail || '').trim(),
+        billingPhone: (billingPhone || billingProfile.billingPhone || '').trim(),
+        taxIdOrGstin: (billingProfile.taxIdOrGstin || '').trim(),
+        addressLine1: (billingProfile.addressLine1 || '').trim(),
+        addressLine2: (billingProfile.addressLine2 || '').trim(),
+        city: (billingProfile.city || '').trim(),
+        state: (billingProfile.state || '').trim(),
+        postalCode: (billingProfile.postalCode || '').trim(),
+        country: billingProfile.country || 'India',
+      }
+      try {
+        await billingApi.updateBillingProfile(companyId, profileToSave)
+        setBillingProfile(profileToSave)
+      } catch (profError) {
+        console.warn('Could not save billing profile before checkout', profError)
+      }
+
       const prepared = await billingApi.upgradeCheckout(companyId, {
         changeId: currentQuote.changeId,
         quoteReference: currentQuote.quoteReference,
         customer: {
-          name: company?.name?.trim() || null,
-          email: billingEmail.trim(),
-          phone: billingPhone.trim(),
+          name: profileToSave.legalBusinessName || company?.name?.trim() || null,
+          email: profileToSave.billingEmail || billingEmail.trim(),
+          phone: profileToSave.billingPhone || billingPhone.trim(),
         },
       })
       if (!prepared.paymentSessionId) {
@@ -272,203 +320,392 @@ export default function SelectPlan() {
   }
 
   return (
-    <div className="min-h-dvh bg-white px-4 py-10 sm:px-6 sm:py-16">
-      <main className="mx-auto w-full max-w-[1080px]">
-        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">Workspace setup</p>
-        <h1 className="mt-2 text-[28px] font-bold leading-tight text-slate-950">Choose your plan</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-          Your workspace starts safely on Free while you choose. Paid plans activate only after
-          confirmed checkout. Managed Email and SMS provider usage is billed separately.
-        </p>
+    <div className="min-h-dvh bg-slate-950 text-slate-100 px-4 py-8 sm:px-8 sm:py-12 lg:px-12 w-full">
+      <main className="mx-auto w-full max-w-[1720px]">
+        {/* Header with Monthly / Annual Switcher */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Available Plans</h1>
+            <p className="mt-1 text-xs sm:text-sm text-slate-400">
+              Predictable platform subscriptions bundled with zero-debt prepaid wallet protections.
+            </p>
+          </div>
+
+          {/* Monthly / Annual Toggle */}
+          <div className="inline-flex items-center p-1 rounded-xl bg-slate-900/60 border border-slate-800/80 self-start sm:self-auto shadow-sm">
+            <button
+              type="button"
+              onClick={() => setBillingInterval('MONTHLY')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                billingInterval === 'MONTHLY'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              onClick={() => setBillingInterval('YEARLY')}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                billingInterval === 'YEARLY'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>Annual</span>
+              <span className="bg-emerald-500/20 text-emerald-400 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                Save 17%
+              </span>
+            </button>
+          </div>
+        </div>
 
         {loading && (
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
-            <CardSkeleton rows={5} />
-            <CardSkeleton rows={5} />
-            <CardSkeleton rows={5} />
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <CardSkeleton rows={6} />
+            <CardSkeleton rows={6} />
+            <CardSkeleton rows={6} />
+            <CardSkeleton rows={6} />
           </div>
         )}
+
         {error && (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+          <div className="mt-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm font-semibold text-rose-400">
             {error}
           </div>
         )}
 
         {!loading && availablePlans.length === 0 && (
-          <div className="mt-8 rounded-xl border border-slate-200 p-6 text-sm text-slate-600">
+          <div className="mt-8 rounded-2xl bg-slate-900/30 border border-slate-800/60 p-8 text-center text-sm text-slate-400">
             No customer-selectable plans are currently published.
           </div>
         )}
 
+        {/* 4-Tier Full-Screen Plan Cards */}
         {!loading && availablePlans.length > 0 && (
-          <div className="mt-8 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
             {availablePlans.map((plan) => {
-              const entitlements = orderedEntitlements(plan)
-              const expanded = Boolean(expandedPlans[plan.planId])
-              const visibleEntitlements = expanded
-                ? entitlements
-                : entitlements.slice(0, COLLAPSED_ENTITLEMENT_COUNT)
-              const hiddenCount = Math.max(entitlements.length - COLLAPSED_ENTITLEMENT_COUNT, 0)
               const current = details?.plan?.planId === plan.planId
-              const prices = activePlanPrices(plan)
-              const price = defaultPlanPrice(plan)
-              const paid = Boolean(price && Number(price.amount) > 0)
+              const isGrowth = plan.code?.toUpperCase() === 'GROWTH'
+              const isStarter = plan.code?.toUpperCase() === 'STARTER'
+              const isEnterprise = plan.code?.toUpperCase() === 'ENTERPRISE'
+
+              const matchedPrice =
+                (billingInterval === 'YEARLY'
+                  ? plan.prices?.find((p) => p.billingCycle === 'YEARLY' && p.status === 'ACTIVE')
+                  : plan.prices?.find((p) => p.billingCycle === 'MONTHLY' && p.status === 'ACTIVE')) ??
+                defaultPlanPrice(plan)
+
+              const priceAmount = matchedPrice ? matchedPrice.amount : plan.basePrice
+              const priceCurrency = matchedPrice ? matchedPrice.currency : plan.currency
+              const highlights = getPlanHighlights(plan)
 
               return (
-                <article
+                <div
                   key={plan.planId}
-                  className={`rounded-xl border p-5 ${current ? 'border-indigo-300 bg-indigo-50/40' : 'border-slate-200'}`}
+                  className={`rounded-2xl p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 relative ${
+                    current
+                      ? 'border-2 border-white/90 bg-slate-900/50 shadow-2xl ring-1 ring-white/20'
+                      : isGrowth
+                      ? 'border border-purple-500/30 bg-slate-900/35 hover:bg-slate-900/50 shadow-lg shadow-purple-500/5'
+                      : 'border border-slate-800/80 bg-slate-900/30 hover:bg-slate-900/45 shadow-sm'
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase text-indigo-500">{plan.code}</p>
-                      <h2 className="mt-2 text-xl font-bold text-slate-950">{plan.name}</h2>
+                  <div className="space-y-5">
+                    {/* Header Badges */}
+                    <div className="flex items-center justify-between min-h-[26px]">
+                      {current ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white border border-white/20">
+                          <FiCheckCircle className="text-xs" /> Active Plan
+                        </span>
+                      ) : isGrowth ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm">
+                          ⭐ Most Popular
+                        </span>
+                      ) : isStarter ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-400">
+                          ⚡ Best for Startups
+                        </span>
+                      ) : isEnterprise ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                          💎 Scale & SLAs
+                        </span>
+                      ) : (
+                        <span />
+                      )}
                     </div>
-                    {current && (
-                      <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-bold uppercase text-indigo-700">
-                        Current
-                      </span>
+
+                    {/* Plan Name & Description */}
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{plan.name}</h2>
+                      <p className="text-xs text-slate-400 mt-2 min-h-[36px] leading-relaxed">
+                        {plan.description || 'Essential tools for solopreneurs & small teams starting out with CRM and communication'}
+                      </p>
+                    </div>
+
+                    {/* Pricing */}
+                    <div>
+                      <div className="text-3xl font-extrabold text-white tracking-tight">
+                        {priceAmount === 0 ? '₹0.00' : money(priceAmount, priceCurrency)}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        {priceAmount === 0
+                          ? 'forever free'
+                          : billingInterval === 'YEARLY'
+                          ? `per year (billed annually · ₹${Math.round(priceAmount / 12).toLocaleString()}/mo)`
+                          : 'per month'}
+                      </div>
+                    </div>
+
+                    {/* Included Features List */}
+                    <div className="space-y-3 text-xs pt-2">
+                      <div className="font-bold text-slate-400 text-xs uppercase tracking-wider pb-1">
+                        INCLUDED IN PLAN:
+                      </div>
+                      {highlights.map((item, idx) => {
+                        const isMainComms =
+                          item.includes('Emails/mo') ||
+                          item.includes('SMS/mo') ||
+                          item.includes('WhatsApp')
+                        return (
+                          <div key={idx} className="flex items-start gap-2.5">
+                            <FiCheckCircle className="text-teal-400 shrink-0 text-sm mt-0.5" />
+                            <span
+                              className={`leading-tight text-xs ${
+                                isMainComms ? 'text-white font-semibold' : 'text-slate-200 font-medium'
+                              }`}
+                            >
+                              {item}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <div className="pt-6 mt-6">
+                    {current ? (
+                      <button
+                        type="button"
+                        className="w-full py-3 px-4 rounded-xl bg-slate-800/40 border border-slate-700/60 hover:bg-slate-800/60 text-slate-300 font-semibold text-sm text-center transition"
+                        onClick={continueToWorkspace}
+                      >
+                        Current Subscription
+                      </button>
+                    ) : isGrowth ? (
+                      <button
+                        type="button"
+                        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-semibold text-sm transition shadow-lg shadow-purple-600/25"
+                        onClick={() => beginPaidSelection(plan, matchedPrice)}
+                      >
+                        Choose Plan
+                      </button>
+                    ) : priceAmount === 0 ? (
+                      <button
+                        type="button"
+                        className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition shadow-lg shadow-blue-600/20"
+                        onClick={continueToWorkspace}
+                      >
+                        Select Free
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition shadow-lg shadow-blue-600/20"
+                        onClick={() => beginPaidSelection(plan, matchedPrice)}
+                      >
+                        Choose Plan
+                      </button>
                     )}
                   </div>
-                  <p className="mt-3 text-2xl font-bold text-slate-950">
-                    {!price || Number(price.amount) === 0
-                      ? 'Free'
-                      : `${money(price.amount, price.currency)}/${price.billingCycle.toLowerCase()}`}
-                  </p>
-                  {prices.length === 0 && (
-                    <p className="mt-2 text-xs text-amber-700">No currently effective price.</p>
-                  )}
-                  {plan.description && (
-                    <p className="mt-2 text-xs leading-5 text-slate-500">{plan.description}</p>
-                  )}
-
-                  <ul className="mt-5 space-y-2">
-                    {visibleEntitlements.map((entitlement) => (
-                      <li
-                        key={entitlement.entitlementId}
-                        className="flex gap-2 text-xs leading-5 text-slate-600"
-                      >
-                        <FiCheck aria-hidden="true" className="mt-0.5 shrink-0 text-indigo-500" />
-                        {entitlementLabel(entitlement.key, entitlement.value)}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {hiddenCount > 0 && (
-                    <button
-                      type="button"
-                      className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-                      onClick={() =>
-                        setExpandedPlans((currentExpanded) => ({
-                          ...currentExpanded,
-                          [plan.planId]: !currentExpanded[plan.planId],
-                        }))
-                      }
-                    >
-                      {expanded ? 'Show less' : `+ ${hiddenCount} more`}
-                    </button>
-                  )}
-
-                  {current ? (
-                    <button
-                      type="button"
-                      className="primary-button mt-6 w-full justify-center"
-                      onClick={continueToWorkspace}
-                    >
-                      Continue with {plan.name}
-                    </button>
-                  ) : paid ? (
-                    <button
-                      type="button"
-                      className="primary-button mt-6 w-full justify-center"
-                      disabled={!price}
-                      onClick={() => beginPaidSelection(plan)}
-                    >
-                      <FiCreditCard /> Choose {plan.name}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="secondary-button mt-6 w-full justify-center"
-                      disabled
-                    >
-                      Free-plan switching unavailable during setup
-                    </button>
-                  )}
-                </article>
+                </div>
               )
             })}
           </div>
         )}
 
+        {/* Modal for Checkout Confirmation */}
         {selectedPlan && selectedPrice && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-4 sm:items-center">
-            <div className="panel w-full max-w-xl p-6">
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/80 backdrop-blur-sm p-4 sm:items-center">
+            <div className="panel w-full max-w-xl p-6 sm:p-7 bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase text-indigo-500">Plan checkout</p>
-                  <h2 className="mt-1 text-xl font-bold">Choose {selectedPlan.name}</h2>
-                  <p className="mt-2 text-sm text-slate-500">
-                    {money(selectedPrice.amount, selectedPrice.currency)} · {selectedPrice.billingCycle}
+                  <p className="text-xs font-bold uppercase tracking-wider text-primary">Plan checkout</p>
+                  <h2 className="mt-1 text-2xl font-black text-white">Choose {selectedPlan.name}</h2>
+                  <p className="mt-2 text-sm text-slate-400">
+                    {money(selectedPrice.amount, selectedPrice.currency)} · {selectedPrice.billingCycle.toLowerCase()}
                   </p>
                 </div>
                 <button
                   type="button"
-                  className="secondary-button"
+                  className="secondary-button p-2 text-slate-400 hover:text-white"
                   aria-label="Close checkout"
                   disabled={submitting}
                   onClick={closeCheckout}
                 >
-                  <FiX />
+                  <FiX className="text-lg" />
                 </button>
               </div>
 
-              <form className="mt-5 space-y-3" onSubmit={preparePaidSelection}>
-                <input
-                  required
-                  type="email"
-                  className="form-input"
-                  placeholder="Billing email"
-                  value={billingEmail}
-                  onChange={(event) => setBillingEmail(event.target.value)}
-                />
-                <input
-                  required
-                  className="form-input"
-                  placeholder="Billing phone"
-                  value={billingPhone}
-                  onChange={(event) => setBillingPhone(event.target.value)}
-                />
+              <form className="mt-6 space-y-4 max-h-[75vh] overflow-y-auto pr-1" onSubmit={preparePaidSelection}>
+                <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 space-y-3.5">
+                  <div className="text-xs font-bold uppercase tracking-wider text-primary">
+                    Billing & Tax Details
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300">Legal Business Name</label>
+                      <input
+                        required
+                        type="text"
+                        className="form-input mt-1 w-full bg-slate-950 border-slate-800 text-white text-xs py-2 rounded-xl"
+                        placeholder="Acme Corp Pvt Ltd"
+                        value={billingProfile.legalBusinessName || ''}
+                        onChange={(event) =>
+                          setBillingProfile({ ...billingProfile, legalBusinessName: event.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300">
+                        GSTIN / Tax ID <span className="text-slate-500 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input mt-1 w-full bg-slate-950 border-slate-800 text-white text-xs py-2 rounded-xl uppercase font-mono"
+                        placeholder="29AAAAA0000A1Z5"
+                        value={billingProfile.taxIdOrGstin || ''}
+                        onChange={(event) =>
+                          setBillingProfile({ ...billingProfile, taxIdOrGstin: event.target.value.toUpperCase() })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300">Billing Email</label>
+                      <input
+                        required
+                        type="email"
+                        className="form-input mt-1 w-full bg-slate-950 border-slate-800 text-white text-xs py-2 rounded-xl"
+                        placeholder="billing@company.com"
+                        value={billingEmail}
+                        onChange={(event) => {
+                          setBillingEmail(event.target.value)
+                          setBillingProfile({ ...billingProfile, billingEmail: event.target.value })
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300">Billing Phone</label>
+                      <input
+                        required
+                        type="tel"
+                        className="form-input mt-1 w-full bg-slate-950 border-slate-800 text-white text-xs py-2 rounded-xl font-mono"
+                        placeholder="9876543210"
+                        value={billingPhone}
+                        onChange={(event) => {
+                          setBillingPhone(event.target.value)
+                          setBillingProfile({ ...billingProfile, billingPhone: event.target.value })
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Street Address</label>
+                    <input
+                      required
+                      type="text"
+                      className="form-input mt-1 w-full bg-slate-950 border-slate-800 text-white text-xs py-2 rounded-xl"
+                      placeholder="123 Tech Park, 4th Floor"
+                      value={billingProfile.addressLine1 || ''}
+                      onChange={(event) =>
+                        setBillingProfile({ ...billingProfile, addressLine1: event.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300">City</label>
+                      <input
+                        required
+                        type="text"
+                        className="form-input mt-1 w-full bg-slate-950 border-slate-800 text-white text-xs py-2 rounded-xl"
+                        placeholder="Bengaluru"
+                        value={billingProfile.city || ''}
+                        onChange={(event) =>
+                          setBillingProfile({ ...billingProfile, city: event.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300">State</label>
+                      <input
+                        required
+                        type="text"
+                        className="form-input mt-1 w-full bg-slate-950 border-slate-800 text-white text-xs py-2 rounded-xl"
+                        placeholder="Karnataka"
+                        value={billingProfile.state || ''}
+                        onChange={(event) =>
+                          setBillingProfile({ ...billingProfile, state: event.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300">PIN Code</label>
+                      <input
+                        required
+                        type="text"
+                        className="form-input mt-1 w-full bg-slate-950 border-slate-800 text-white text-xs py-2 rounded-xl font-mono"
+                        placeholder="560001"
+                        value={billingProfile.postalCode || ''}
+                        onChange={(event) =>
+                          setBillingProfile({ ...billingProfile, postalCode: event.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Saved to your company profile for GST tax invoices and future recurring payments.
+                  </p>
+                </div>
 
                 {quote && (
-                  <div className="rounded-xl bg-slate-50 p-4">
+                  <div className="rounded-xl bg-slate-950/60 border border-slate-800/80 p-4 space-y-2">
                     {upgradeQuoteRows(quote).map(([label, value]) => (
                       <div key={label} className="flex justify-between gap-4 py-1 text-sm">
-                        <span>{label}</span>
-                        <strong>{money(value, quote.currency ?? selectedPrice.currency)}</strong>
+                        <span className="text-slate-400">{label}</span>
+                        <strong className="text-white font-mono">{money(value, quote.currency ?? selectedPrice.currency)}</strong>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {checkout ? (
-                  <button
-                    type="button"
-                    className="primary-button w-full justify-center"
-                    disabled={submitting}
-                    onClick={() => void pay()}
-                  >
-                    Continue to Cashfree · {money(checkout.amount, checkout.currency)}
-                  </button>
-                ) : (
-                  <button className="primary-button w-full justify-center" disabled={submitting}>
-                    {submitting
-                      ? 'Opening Cashfree…'
-                      : quote
+                <div className="pt-2">
+                  {checkout ? (
+                    <button
+                      type="button"
+                      className="primary-button w-full justify-center text-sm py-3 rounded-xl shadow-lg"
+                      disabled={submitting}
+                      onClick={() => void pay()}
+                    >
+                      <FiCreditCard className="mr-2" /> Continue to Cashfree · {money(checkout.amount, checkout.currency)}
+                    </button>
+                  ) : (
+                    <button className="primary-button w-full justify-center text-sm py-3 rounded-xl shadow-lg font-semibold" disabled={submitting}>
+                      {submitting
+                        ? 'Opening Cashfree…'
+                        : quote
                         ? `Continue to Cashfree · ${money(quote.amountDue, quote.currency ?? selectedPrice.currency)}`
                         : 'Review upgrade amount'}
-                  </button>
-                )}
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
           </div>

@@ -20,18 +20,23 @@ public class LeadController {
   private final CompanyAuthorizationService authorization;
   private final CurrentUserService currentUser;
 
-  public record EnrollRequest(@NotBlank String contactId) {}
+  public record EnrollRequest(
+      @NotBlank String contactId,
+      java.util.Map<String, Object> customFields) {}
+  public record UpdateCustomFieldsRequest(java.util.Map<String, Object> customFields) {}
   public record MoveRequest(@NotNull LeadService.Stage stage, @NotNull Long version) {}
 
   @GetMapping
   public ResponseEntity<ApiResponse<LeadService.LeadPage>> list(
       @PathVariable long companyId,
       @RequestParam(required = false) LeadService.Stage stage,
+      @RequestParam(required = false) String temperature,
       @RequestParam(required = false) Long before,
       @RequestParam(defaultValue = "50") int size) {
     require(companyId, CompanyPermissionKeys.CRM_LEAD_READ);
     require(companyId, CompanyPermissionKeys.CONTACT_READ);
-    return ResponseEntity.ok(ApiResponse.success(200, service.list(companyId, stage, before, size), "Leads fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(200, service.list(companyId, stage, temperature, before, size), "Leads fetched"));
   }
 
   @GetMapping("/summary")
@@ -63,8 +68,26 @@ public class LeadController {
     long actor = require(companyId, CompanyPermissionKeys.CRM_LEAD_MODIFY);
     require(companyId, CompanyPermissionKeys.CONTACT_READ);
     long contactId = parseId(request.contactId());
+    java.util.Map<String, Object> fields =
+        request.customFields() != null ? request.customFields() : java.util.Map.of();
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ApiResponse.success(201, service.enroll(companyId, contactId, actor), "Lead created"));
+        .body(ApiResponse.success(201, service.enroll(companyId, contactId, fields, actor), "Lead created"));
+  }
+
+  @PatchMapping("/{contactId}/custom-fields")
+  public ResponseEntity<ApiResponse<LeadService.Lead>> updateCustomFields(
+      @PathVariable long companyId,
+      @PathVariable long contactId,
+      @RequestBody UpdateCustomFieldsRequest request) {
+    long actor = require(companyId, CompanyPermissionKeys.CRM_LEAD_MODIFY);
+    require(companyId, CompanyPermissionKeys.CONTACT_READ);
+    java.util.Map<String, Object> fields =
+        request.customFields() != null ? request.customFields() : java.util.Map.of();
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            service.updateCustomFields(companyId, contactId, fields, actor),
+            "Lead custom fields updated"));
   }
 
   @PatchMapping("/{contactId}/stage")

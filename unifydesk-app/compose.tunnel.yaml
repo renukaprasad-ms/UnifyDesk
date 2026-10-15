@@ -1,0 +1,11 @@
+services:
+  backend:
+    env_file:
+      - .env.tunnel
+  kafka:
+    ports: !override
+      - "127.0.0.1:9001:9001"
+    environment:
+      KAFKA_LISTENERS: PLAINTEXT://:9002,EXTERNAL://:9001,CONTROLLER://:9003
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9002,EXTERNAL://localhost:9001
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT

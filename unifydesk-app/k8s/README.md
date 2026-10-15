@@ -1,5 +1,38 @@
 # Backend Snowflake Test
 
+From Windows Terminal, select a PowerShell tab and run the WSL launcher from
+`unifydesk-app`:
+
+```powershell
+.\k8s.ps1 start
+.\k8s.ps1 port-forward
+.\k8s.ps1 logs backend 200
+.\k8s.ps1 restart backend
+.\k8s.ps1 stop-forward
+.\k8s.ps1 stop
+```
+
+The launcher supports every `k8s.sh` command, including `describe`, `top`, `delete`,
+and the confirmed `clear-db` command. It requires WSL with Bash, kubectl, Docker,
+and the existing k3s or k3d cluster configured **inside the same distribution**.
+Docker Desktop users should enable Docker's WSL integration for that distribution.
+The app's `.env` must exist alongside the scripts. This launcher uses WSL Kubernetes;
+it does not target Windows-native Docker Desktop Kubernetes.
+
+For a non-default distribution, use `.\k8s.ps1 -Distro Ubuntu start`. A repository
+opened through `\\wsl.localhost\Ubuntu\...` or `\\wsl$\Ubuntu\...` automatically uses
+that distribution. Windows drive paths and paths containing spaces are supported.
+If PowerShell blocks scripts, use a one-time invocation:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\k8s.ps1 start
+```
+
+`start` also starts port forwarding. Open `http://localhost:5173` for the frontend
+and `http://localhost:8000` for the backend. `port-forward` starts them again, while
+`stop-forward` and `stop` stop them. Forwarding logs are in
+`/tmp/k8s-fe-port-forward.log` and `/tmp/k8s-be-port-forward.log` inside WSL.
+
 You can run the local k3s flow from the root helper:
 
 ```sh
