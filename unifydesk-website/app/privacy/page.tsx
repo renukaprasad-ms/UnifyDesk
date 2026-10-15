@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: "Privacy Policy",
   description: "Draft India Early Access Privacy Policy for UnifyDesk",
   alternates: { canonical: "/privacy" },
-  robots: { index: false, follow: false },
+  robots: { index: true, follow: true },
 };
 const sections = [
   {

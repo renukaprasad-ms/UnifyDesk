@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: "Terms of Service",
   description: "Draft India Early Access Terms of Service for UnifyDesk",
   alternates: { canonical: "/terms" },
-  robots: { index: false, follow: false },
+  robots: { index: true, follow: true },
 };
 const sections = [
   {

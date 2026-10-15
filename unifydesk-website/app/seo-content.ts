@@ -22,6 +22,40 @@ export type ChannelGuide = {
 
 export const channelGuides: ChannelGuide[] = [
   {
+    path: "/best-omnichannel-broadcast-india",
+    label: "Omnichannel broadcast India",
+    title: "Best WhatsApp, SMS & Email Broadcast Platform in India",
+    description: "Discover the best WhatsApp, SMS & email broadcast platform in India. UnifyDesk combines official Meta WhatsApp API, TRAI DLT-compliant SMS & high-delivery email in one workspace.",
+    heading: "The best WhatsApp, SMS & email broadcast platform in India.",
+    intro: "Consolidate your customer outreach with India's premier multi-channel broadcast platform. Run official Meta-approved WhatsApp broadcasts, TRAI DLT-compliant SMS campaigns via MSG91, and high-deliverability email marketing from a single dashboard with built-in CRM and INR billing.",
+    purpose: "For Indian marketing, sales, and operations teams who need to send personalized multi-channel campaigns without juggling separate platforms. Manage contact consent, audience segments, approved templates, and live customer replies in one connected system.",
+    workflowTitle: "Audience segmentation, multi-channel broadcast, and reply management.",
+    steps: [
+      { title: "Segment Your Indian Audience with Consent", body: "Import customer contacts and filter by channel consent, tags, or custom attributes. Ensure TRAI DLT consent for SMS and explicit opt-in for WhatsApp campaigns, automatically filtering duplicate or unverified numbers." },
+      { title: "Select & Personalize Approved Templates", body: "Choose your Meta-approved WhatsApp template with interactive buttons, DLT-registered SMS template with Header/Entity IDs, or custom HTML email. Preview variables and delivery rates before launch." },
+      { title: "Broadcast Simultaneously & Capture Replies", body: "Launch campaigns across WhatsApp, SMS, and Email simultaneously. All incoming customer replies flow directly into UnifyDesk's shared team inbox so your team can close deals and answer queries immediately." },
+    ],
+    features: [
+      { title: "TRAI DLT Compliant for Indian Telecom", body: "Native support for Indian telecommunications regulations. Configure your Principal Entity ID, Telemarketer ID, approved Sender Headers, and Registered Content Template IDs to ensure 99.9% SMS delivery without operator rejection." },
+      { title: "Official Meta WhatsApp Business API", body: "Direct Cloud API connectivity with zero risk of number bans. Leverage interactive CTA buttons, quick replies, rich media catalogs, and transparent per-conversation pricing." },
+      { title: "Unified Team Inbox & Built-In CRM", body: "Every broadcast recipient connects to a central customer profile and deals pipeline. When customers reply to your WhatsApp or email broadcast, agents can assign conversations, tag leads, and track deals in real time." },
+    ],
+    useCases: [
+      { title: "Festive & E-Commerce Flash Sales", body: "Drive massive conversion surges during festive sales by triggering coordinated WhatsApp catalogs, SMS flash deals, and email newsletters to opted-in shoppers across India." },
+      { title: "Lead Generation & High-Ticket Nurturing", body: "Engage high-intent prospects across India with personalized WhatsApp follow-ups, instantaneous SMS reminders, and structured email nurture sequences from one unified CRM." },
+    ],
+    providerTitle: "Tier-1 gateways: Meta Cloud API, MSG91 & Amazon SES.",
+    providerBody: "UnifyDesk connects directly with official tier-1 gateways: official WhatsApp Cloud API from Meta for messaging, MSG91 for high-throughput Indian SMS with automated DLT routing, and Amazon SES for scalable email delivery. Enjoy straightforward INR billing with GST invoices and local Indian payment support.",
+    preparation: ["A registered business with TRAI DLT Entity ID and approved SMS sender headers", "An official Meta WhatsApp Business Account with verified phone number", "A permission-based customer audience segmented by channel preference"],
+    faqs: [
+      { title: "Why is UnifyDesk the best choice for multi-channel broadcasts in India?", body: "Unlike standalone tools that only do WhatsApp (like Interakt or AiSensy) or only do email (like Mailchimp), UnifyDesk connects WhatsApp Business API, TRAI DLT-compliant SMS, and Email in a single dashboard with a shared team inbox and CRM at Indian INR pricing." },
+      { title: "How does UnifyDesk handle TRAI DLT compliance for SMS?", body: "UnifyDesk integrates with enterprise SMS gateways like MSG91 to match your registered DLT Principal Entity ID, Sender Headers, and Content Template IDs. Every broadcast validates message templates against DLT rules before submission to prevent carrier blocking." },
+      { title: "Can our team respond to customer replies from broadcasts?", body: "Yes! That is UnifyDesk's key advantage. When recipients reply to a WhatsApp broadcast or email campaign, their messages automatically appear in your UnifyDesk Omnichannel Shared Inbox where your agents can immediately chat, assign tickets, and close deals." },
+      { title: "What are the pricing and payment options for Indian businesses?", body: "UnifyDesk offers transparent pricing in Indian Rupees (INR) with full GST tax invoicing. We support all major Indian payment methods including UPI (Google Pay, PhonePe, Paytm), Netbanking, and Credit/Debit cards via Razorpay." },
+    ],
+    related: ["/whatsapp-broadcast", "/sms-marketing", "/email-campaigns", "/omnichannel-inbox"],
+  },
+  {
     path: "/whatsapp-shared-inbox",
     label: "WhatsApp shared inbox",
     title: "WhatsApp Shared Inbox for Customer Support Teams",

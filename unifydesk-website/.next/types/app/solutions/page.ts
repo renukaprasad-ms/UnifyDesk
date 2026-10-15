@@ -1,4 +1,4 @@
-// File: /home/renuka/messaging/unifydesk-website/app/solutions/page.tsx
+// File: C:\Users\renuk\projects\UnifyDesk\unifydesk-website\app\solutions\page.tsx
 import * as entry from '../../../../app/solutions/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

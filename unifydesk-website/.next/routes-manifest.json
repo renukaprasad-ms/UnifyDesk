@@ -39,10 +39,70 @@
       "namedRegex": "^/about(?:/)?$"
     },
     {
+      "page": "/acceptable-use",
+      "regex": "^/acceptable\\-use(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/acceptable\\-use(?:/)?$"
+    },
+    {
+      "page": "/best-omnichannel-broadcast-india",
+      "regex": "^/best\\-omnichannel\\-broadcast\\-india(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/best\\-omnichannel\\-broadcast\\-india(?:/)?$"
+    },
+    {
       "page": "/contact",
       "regex": "^/contact(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/contact(?:/)?$"
+    },
+    {
+      "page": "/cookies",
+      "regex": "^/cookies(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/cookies(?:/)?$"
+    },
+    {
+      "page": "/data-deletion",
+      "regex": "^/data\\-deletion(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/data\\-deletion(?:/)?$"
+    },
+    {
+      "page": "/dpa",
+      "regex": "^/dpa(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dpa(?:/)?$"
+    },
+    {
+      "page": "/email-campaigns",
+      "regex": "^/email\\-campaigns(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/email\\-campaigns(?:/)?$"
+    },
+    {
+      "page": "/guides",
+      "regex": "^/guides(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/guides(?:/)?$"
+    },
+    {
+      "page": "/guides/bulk-sms-dlt-india",
+      "regex": "^/guides/bulk\\-sms\\-dlt\\-india(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/guides/bulk\\-sms\\-dlt\\-india(?:/)?$"
+    },
+    {
+      "page": "/guides/email-broadcast-vs-email-marketing",
+      "regex": "^/guides/email\\-broadcast\\-vs\\-email\\-marketing(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/guides/email\\-broadcast\\-vs\\-email\\-marketing(?:/)?$"
+    },
+    {
+      "page": "/guides/whatsapp-broadcast-india",
+      "regex": "^/guides/whatsapp\\-broadcast\\-india(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/guides/whatsapp\\-broadcast\\-india(?:/)?$"
     },
     {
       "page": "/icon.svg",
@@ -61,6 +121,12 @@
       "regex": "^/manifest\\.webmanifest(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/manifest\\.webmanifest(?:/)?$"
+    },
+    {
+      "page": "/omnichannel-inbox",
+      "regex": "^/omnichannel\\-inbox(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/omnichannel\\-inbox(?:/)?$"
     },
     {
       "page": "/opengraph-image",
@@ -87,6 +153,12 @@
       "namedRegex": "^/product(?:/)?$"
     },
     {
+      "page": "/refund-policy",
+      "regex": "^/refund\\-policy(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/refund\\-policy(?:/)?$"
+    },
+    {
       "page": "/robots.txt",
       "regex": "^/robots\\.txt(?:/)?$",
       "routeKeys": {},
@@ -105,10 +177,22 @@
       "namedRegex": "^/sitemap\\.xml(?:/)?$"
     },
     {
+      "page": "/sms-marketing",
+      "regex": "^/sms\\-marketing(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/sms\\-marketing(?:/)?$"
+    },
+    {
       "page": "/solutions",
       "regex": "^/solutions(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/solutions(?:/)?$"
+    },
+    {
+      "page": "/subprocessors",
+      "regex": "^/subprocessors(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/subprocessors(?:/)?$"
     },
     {
       "page": "/terms",
@@ -121,6 +205,18 @@
       "regex": "^/twitter\\-image(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/twitter\\-image(?:/)?$"
+    },
+    {
+      "page": "/whatsapp-broadcast",
+      "regex": "^/whatsapp\\-broadcast(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/whatsapp\\-broadcast(?:/)?$"
+    },
+    {
+      "page": "/whatsapp-shared-inbox",
+      "regex": "^/whatsapp\\-shared\\-inbox(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/whatsapp\\-shared\\-inbox(?:/)?$"
     }
   ],
   "dataRoutes": [],
