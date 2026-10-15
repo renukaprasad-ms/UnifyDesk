@@ -50,6 +50,137 @@ export const PLATFORM_RATE_USAGE_UNITS: UsageUnit[] = [
 export const defaultUsageUnitForChannel = (channel: ChannelType): UsageUnit =>
   channel === 'SMS' ? 'SEGMENT' : 'MESSAGE'
 
+export const PLAN_TIER_DEFAULTS: Record<string, Record<string, string>> = {
+  FREE: {
+    MAX_WORKSPACE_USERS: '1',
+    CONTACT_LIMIT: '500',
+    SEGMENT_LIMIT: '5',
+    BROADCAST_GROUP_LIMIT: '5',
+    EMAIL_ACCOUNTS: '1',
+    WHATSAPP_ACCOUNTS: '1',
+    WHATSAPP_NUMBERS: '1',
+    SMS_ACCOUNTS: '1',
+    SMS_SENDER_IDS: '1',
+    BROADCAST_BATCH_LIMIT: '100',
+    BROADCASTS_PER_DAY: '5',
+    BROADCASTS_PER_MONTH: '50',
+    BROADCAST_RECIPIENTS_PER_DAY: '250',
+    BROADCAST_RECIPIENTS_PER_MONTH: '2500',
+    SCHEDULED_BROADCASTS_ENABLED: 'false',
+    EMAIL_TEMPLATE_LIMIT: '10',
+    WHATSAPP_TEMPLATE_LIMIT: '10',
+    SMS_TEMPLATE_LIMIT: '10',
+    STORAGE_GB: '1',
+    AUTO_REPLY_ENABLED: 'false',
+    USER_SIGNATURE_ENABLED: 'true',
+    API_ACCESS_ENABLED: 'false',
+    MANAGED_EMAIL_ENABLED: 'true',
+    MANAGED_EMAIL_DOMAINS: '1',
+    MANAGED_EMAIL_SENDERS: '1',
+    MANAGED_EMAIL_MESSAGES_MONTHLY: '250',
+    MANAGED_SMS_SEGMENTS_MONTHLY: '0',
+    CONTACT_CUSTOM_FIELD_LIMIT: '10',
+    CONTACT_LIST_LIMIT: '5',
+    CONTACT_IMPORT_ROWS_LIMIT: '500',
+  },
+  STARTER: {
+    MAX_WORKSPACE_USERS: '3',
+    CONTACT_LIMIT: '5000',
+    SEGMENT_LIMIT: '25',
+    BROADCAST_GROUP_LIMIT: '25',
+    EMAIL_ACCOUNTS: '2',
+    WHATSAPP_ACCOUNTS: '2',
+    WHATSAPP_NUMBERS: '2',
+    SMS_ACCOUNTS: '2',
+    SMS_SENDER_IDS: '2',
+    BROADCAST_BATCH_LIMIT: '1000',
+    BROADCASTS_PER_DAY: '25',
+    BROADCASTS_PER_MONTH: '500',
+    BROADCAST_RECIPIENTS_PER_DAY: '5000',
+    BROADCAST_RECIPIENTS_PER_MONTH: '50000',
+    SCHEDULED_BROADCASTS_ENABLED: 'true',
+    EMAIL_TEMPLATE_LIMIT: '50',
+    WHATSAPP_TEMPLATE_LIMIT: '50',
+    SMS_TEMPLATE_LIMIT: '50',
+    STORAGE_GB: '5',
+    AUTO_REPLY_ENABLED: 'true',
+    USER_SIGNATURE_ENABLED: 'true',
+    API_ACCESS_ENABLED: 'false',
+    MANAGED_EMAIL_ENABLED: 'true',
+    MANAGED_EMAIL_DOMAINS: '3',
+    MANAGED_EMAIL_SENDERS: '5',
+    MANAGED_EMAIL_MESSAGES_MONTHLY: '3000',
+    MANAGED_SMS_SEGMENTS_MONTHLY: '150',
+    CONTACT_CUSTOM_FIELD_LIMIT: '50',
+    CONTACT_LIST_LIMIT: '50',
+    CONTACT_IMPORT_ROWS_LIMIT: '10000',
+  },
+  GROWTH: {
+    MAX_WORKSPACE_USERS: '8',
+    CONTACT_LIMIT: '25000',
+    SEGMENT_LIMIT: '100',
+    BROADCAST_GROUP_LIMIT: '100',
+    EMAIL_ACCOUNTS: '5',
+    WHATSAPP_ACCOUNTS: '5',
+    WHATSAPP_NUMBERS: '5',
+    SMS_ACCOUNTS: '5',
+    SMS_SENDER_IDS: '5',
+    BROADCAST_BATCH_LIMIT: '5000',
+    BROADCASTS_PER_DAY: '100',
+    BROADCASTS_PER_MONTH: '2000',
+    BROADCAST_RECIPIENTS_PER_DAY: '25000',
+    BROADCAST_RECIPIENTS_PER_MONTH: '250000',
+    SCHEDULED_BROADCASTS_ENABLED: 'true',
+    EMAIL_TEMPLATE_LIMIT: '200',
+    WHATSAPP_TEMPLATE_LIMIT: '200',
+    SMS_TEMPLATE_LIMIT: '200',
+    STORAGE_GB: '25',
+    AUTO_REPLY_ENABLED: 'true',
+    USER_SIGNATURE_ENABLED: 'true',
+    API_ACCESS_ENABLED: 'true',
+    MANAGED_EMAIL_ENABLED: 'true',
+    MANAGED_EMAIL_DOMAINS: '10',
+    MANAGED_EMAIL_SENDERS: '15',
+    MANAGED_EMAIL_MESSAGES_MONTHLY: '15000',
+    MANAGED_SMS_SEGMENTS_MONTHLY: '750',
+    CONTACT_CUSTOM_FIELD_LIMIT: '100',
+    CONTACT_LIST_LIMIT: '200',
+    CONTACT_IMPORT_ROWS_LIMIT: '50000',
+  },
+  ENTERPRISE: {
+    MAX_WORKSPACE_USERS: '25',
+    CONTACT_LIMIT: '100000',
+    SEGMENT_LIMIT: '500',
+    BROADCAST_GROUP_LIMIT: '500',
+    EMAIL_ACCOUNTS: '10',
+    WHATSAPP_ACCOUNTS: '10',
+    WHATSAPP_NUMBERS: '10',
+    SMS_ACCOUNTS: '10',
+    SMS_SENDER_IDS: '10',
+    BROADCAST_BATCH_LIMIT: '20000',
+    BROADCASTS_PER_DAY: '500',
+    BROADCASTS_PER_MONTH: '10000',
+    BROADCAST_RECIPIENTS_PER_DAY: '100000',
+    BROADCAST_RECIPIENTS_PER_MONTH: '1000000',
+    SCHEDULED_BROADCASTS_ENABLED: 'true',
+    EMAIL_TEMPLATE_LIMIT: '1000',
+    WHATSAPP_TEMPLATE_LIMIT: '1000',
+    SMS_TEMPLATE_LIMIT: '1000',
+    STORAGE_GB: '100',
+    AUTO_REPLY_ENABLED: 'true',
+    USER_SIGNATURE_ENABLED: 'true',
+    API_ACCESS_ENABLED: 'true',
+    MANAGED_EMAIL_ENABLED: 'true',
+    MANAGED_EMAIL_DOMAINS: '25',
+    MANAGED_EMAIL_SENDERS: '50',
+    MANAGED_EMAIL_MESSAGES_MONTHLY: '50000',
+    MANAGED_SMS_SEGMENTS_MONTHLY: '3000',
+    CONTACT_CUSTOM_FIELD_LIMIT: '500',
+    CONTACT_LIST_LIMIT: '1000',
+    CONTACT_IMPORT_ROWS_LIMIT: '250000',
+  },
+}
+
 const blankPrice = {
   billingCycle: 'MONTHLY' as BillingCycle,
   amount: 0,
@@ -543,12 +674,30 @@ export default function PlatformPlanDetails() {
                 <h2 className="text-lg font-bold">Limits & features</h2>
                 <p className="text-xs text-slate-500">
                   {mutable
-                    ? 'Edit multiple limits and feature switches, then save the complete set of changes.'
+                    ? 'Edit multiple limits and feature switches, or load standard model defaults, then save all changes.'
                     : 'This published plan version is read-only.'}
                 </p>
               </div>
               {mutable && (
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-400 mr-1">Apply Defaults:</span>
+                  {(['FREE', 'STARTER', 'GROWTH', 'ENTERPRISE'] as const).map((tier) => (
+                    <button
+                      key={tier}
+                      type="button"
+                      onClick={() => {
+                        const defaults = PLAN_TIER_DEFAULTS[tier]
+                        if (defaults) {
+                          setEntitlementValues((prev) => ({ ...prev, ...defaults }))
+                          setNotice(`Applied standard ${tier} entitlement defaults. Click 'Save all' to persist.`)
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                    >
+                      {tier}
+                    </button>
+                  ))}
+                  <span className="text-xs text-slate-400 mx-1">|</span>
                   <span className="text-xs text-slate-500">
                     {dirtyEntitlementKeys.length === 0
                       ? 'No unsaved changes'

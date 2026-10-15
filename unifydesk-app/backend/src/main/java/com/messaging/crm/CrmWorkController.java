@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class CrmWorkController {
   private final CrmWorkService service;
+  private final CrmSubtaskService subtaskService;
+  private final CrmTaskAttachmentService attachmentService;
   private final CompanyAuthorizationService authorization;
   private final CurrentUserService currentUser;
 
@@ -40,6 +42,8 @@ public class CrmWorkController {
       Long assigneeUserId,
       Long contactId,
       Long accountId,
+      Long dealId,
+      Integer estimatedMinutes,
       String columnKey,
       String taskType) {}
 
@@ -64,15 +68,40 @@ public class CrmWorkController {
       @NotNull Long assigneeUserId,
       Long contactId,
       Long accountId,
+      Long dealId,
+      Integer estimatedMinutes,
+      Integer loggedMinutes,
       @NotNull Long version,
       String taskType) {}
 
   public record SetStatus(@NotBlank String status, @NotNull Long version) {}
 
+  public record LogTimeRequest(@NotNull Integer minutes, @NotNull Long version) {}
+
   private long require(long companyId, String permission) {
     long actor = currentUser.currentUserId();
     authorization.requirePermission(actor, companyId, permission);
     return actor;
+  }
+
+  private long requireAny(long companyId, String... permissionKeys) {
+    long actor = currentUser.currentUserId();
+    for (String key : permissionKeys) {
+      if (authorization.hasPermission(actor, companyId, key)) {
+        return actor;
+      }
+    }
+    throw new com.messaging.common.exception.ForbiddenException(
+        "Company permission denied: " + String.join(" or ", permissionKeys));
+  }
+
+  private boolean canModifyTask(long actor, long companyId, CrmWorkService.Task task, String requiredPermission) {
+    if (authorization.hasPermission(actor, companyId, requiredPermission)
+        || authorization.hasPermission(actor, companyId, CompanyPermissionKeys.CRM_TASK_MODIFY)) {
+      return true;
+    }
+    String actorStr = String.valueOf(actor);
+    return actorStr.equals(task.assigneeUserId()) || actorStr.equals(task.reporterUserId());
   }
 
   @GetMapping("/contacts/{contactId}/overview")
@@ -190,18 +219,22 @@ public class CrmWorkController {
       @RequestParam(required = false) Long before,
       @RequestParam(defaultValue = "50") int size,
       @RequestParam(required = false) Long assigneeUserId,
-      @RequestParam(required = false) String status) {
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) Long reporterUserId,
+      @RequestParam(required = false) Long dealId) {
     require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
     require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(
         ApiResponse.success(
-            200, service.tasks(companyId, before, size, assigneeUserId, status), "Tasks fetched"));
+            200,
+            service.tasks(companyId, before, size, assigneeUserId, status, reporterUserId, dealId),
+            "Tasks fetched"));
   }
 
   @PostMapping("/tasks")
   public ResponseEntity<ApiResponse<CrmWorkService.Task>> createTask(
       @PathVariable long companyId, @Valid @RequestBody CreateTask request) {
-    long actor = require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    long actor = requireAny(companyId, CompanyPermissionKeys.CRM_TASK_CREATE, CompanyPermissionKeys.CRM_TASK_MODIFY);
     if (request.contactId() != null) require(companyId, CompanyPermissionKeys.CONTACT_READ);
     if (request.accountId() != null) require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
     long assignee = request.assigneeUserId() == null ? actor : request.assigneeUserId();
@@ -218,6 +251,8 @@ public class CrmWorkController {
                     assignee,
                     request.contactId(),
                     request.accountId(),
+                    request.dealId(),
+                    request.estimatedMinutes(),
                     actor,
                     request.columnKey(),
                     request.taskType()),
@@ -229,7 +264,12 @@ public class CrmWorkController {
       @PathVariable long companyId,
       @PathVariable long taskId,
       @Valid @RequestBody UpdateTask request) {
-    long actor = require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    long actor = currentUser.currentUserId();
+    CrmWorkService.Task existing = service.getTask(companyId, taskId);
+    if (!canModifyTask(actor, companyId, existing, CompanyPermissionKeys.CRM_TASK_EDIT)) {
+      throw new com.messaging.common.exception.ForbiddenException(
+          "You do not have permission to edit this task");
+    }
     if (request.contactId() != null) require(companyId, CompanyPermissionKeys.CONTACT_READ);
     if (request.accountId() != null) require(companyId, CompanyPermissionKeys.CRM_ACCOUNT_READ);
     return ResponseEntity.ok(
@@ -246,6 +286,9 @@ public class CrmWorkController {
                 request.assigneeUserId(),
                 request.contactId(),
                 request.accountId(),
+                request.dealId(),
+                request.estimatedMinutes(),
+                request.loggedMinutes(),
                 actor,
                 request.taskType()),
             "Task updated"));
@@ -256,12 +299,35 @@ public class CrmWorkController {
       @PathVariable long companyId,
       @PathVariable long taskId,
       @Valid @RequestBody SetStatus request) {
-    long actor = require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    long actor = currentUser.currentUserId();
+    CrmWorkService.Task existing = service.getTask(companyId, taskId);
+    if (!canModifyTask(actor, companyId, existing, CompanyPermissionKeys.CRM_TASK_STATUS)) {
+      throw new com.messaging.common.exception.ForbiddenException(
+          "You do not have permission to change the status of this task");
+    }
     return ResponseEntity.ok(
         ApiResponse.success(
             200,
             service.changeTaskStatus(companyId, taskId, request.version(), request.status(), actor),
             "Task updated"));
+  }
+
+  @PostMapping("/tasks/{taskId}/log-time")
+  public ResponseEntity<ApiResponse<CrmWorkService.Task>> logTime(
+      @PathVariable long companyId,
+      @PathVariable long taskId,
+      @Valid @RequestBody LogTimeRequest request) {
+    long actor = currentUser.currentUserId();
+    CrmWorkService.Task existing = service.getTask(companyId, taskId);
+    if (!canModifyTask(actor, companyId, existing, CompanyPermissionKeys.CRM_TASK_EDIT)) {
+      throw new com.messaging.common.exception.ForbiddenException(
+          "You do not have permission to log time on this task");
+    }
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            service.logTime(companyId, taskId, request.version(), request.minutes(), actor),
+            "Time logged"));
   }
 
   @GetMapping("/tasks/{taskId}")
@@ -276,7 +342,16 @@ public class CrmWorkController {
   @DeleteMapping("/tasks/{taskId}")
   public ResponseEntity<ApiResponse<Void>> deleteTask(
       @PathVariable long companyId, @PathVariable long taskId) {
-    long actor = require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    long actor = currentUser.currentUserId();
+    CrmWorkService.Task existing = service.getTask(companyId, taskId);
+    boolean hasGlobalDelete =
+        authorization.hasPermission(actor, companyId, CompanyPermissionKeys.CRM_TASK_DELETE)
+            || authorization.hasPermission(actor, companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    boolean isReporter = String.valueOf(actor).equals(existing.reporterUserId());
+    if (!hasGlobalDelete && !isReporter) {
+      throw new com.messaging.common.exception.ForbiddenException(
+          "Only managers or the task reporter can delete this task");
+    }
     service.deleteTask(companyId, taskId, actor);
     return ResponseEntity.ok(ApiResponse.success(200, null, "Task deleted"));
   }
@@ -288,5 +363,144 @@ public class CrmWorkController {
     require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(
         ApiResponse.success(200, service.taskHistory(companyId, taskId), "Task history fetched"));
+  }
+
+  // --- Subtasks / Checklists ---
+  @GetMapping("/tasks/{taskId}/subtasks")
+  public ResponseEntity<ApiResponse<java.util.List<CrmSubtaskService.Subtask>>> getSubtasks(
+      @PathVariable long companyId, @PathVariable long taskId) {
+    require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(200, subtaskService.list(companyId, taskId), "Subtasks fetched"));
+  }
+
+  @PostMapping("/tasks/{taskId}/subtasks")
+  public ResponseEntity<ApiResponse<CrmSubtaskService.Subtask>> createSubtask(
+      @PathVariable long companyId,
+      @PathVariable long taskId,
+      @Valid @RequestBody CrmSubtaskService.CreateSubtaskInput input) {
+    long actor = currentUser.currentUserId();
+    CrmWorkService.Task existing = service.getTask(companyId, taskId);
+    if (!canModifyTask(actor, companyId, existing, CompanyPermissionKeys.CRM_TASK_EDIT)) {
+      throw new com.messaging.common.exception.ForbiddenException(
+          "You do not have permission to add subtasks to this task");
+    }
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                subtaskService.create(companyId, taskId, input.title(), actor),
+                "Subtask created"));
+  }
+
+  @PatchMapping("/tasks/{taskId}/subtasks/{subtaskId}/toggle")
+  public ResponseEntity<ApiResponse<CrmSubtaskService.Subtask>> toggleSubtask(
+      @PathVariable long companyId,
+      @PathVariable long taskId,
+      @PathVariable long subtaskId,
+      @Valid @RequestBody CrmSubtaskService.ToggleSubtaskInput input) {
+    long actor = currentUser.currentUserId();
+    CrmWorkService.Task existing = service.getTask(companyId, taskId);
+    if (!canModifyTask(actor, companyId, existing, CompanyPermissionKeys.CRM_TASK_STATUS)) {
+      throw new com.messaging.common.exception.ForbiddenException(
+          "You do not have permission to toggle subtasks on this task");
+    }
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            subtaskService.toggle(companyId, taskId, subtaskId, input.completed(), actor),
+            "Subtask toggled"));
+  }
+
+  @PatchMapping("/tasks/{taskId}/subtasks/{subtaskId}")
+  public ResponseEntity<ApiResponse<CrmSubtaskService.Subtask>> updateSubtask(
+      @PathVariable long companyId,
+      @PathVariable long taskId,
+      @PathVariable long subtaskId,
+      @Valid @RequestBody CrmSubtaskService.UpdateSubtaskInput input) {
+    long actor = currentUser.currentUserId();
+    CrmWorkService.Task existing = service.getTask(companyId, taskId);
+    if (!canModifyTask(actor, companyId, existing, CompanyPermissionKeys.CRM_TASK_EDIT)) {
+      throw new com.messaging.common.exception.ForbiddenException(
+          "You do not have permission to update subtasks on this task");
+    }
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            subtaskService.update(companyId, taskId, subtaskId, input.title(), actor),
+            "Subtask updated"));
+  }
+
+  @DeleteMapping("/tasks/{taskId}/subtasks/{subtaskId}")
+  public ResponseEntity<ApiResponse<Void>> deleteSubtask(
+      @PathVariable long companyId,
+      @PathVariable long taskId,
+      @PathVariable long subtaskId) {
+    long actor = currentUser.currentUserId();
+    CrmWorkService.Task existing = service.getTask(companyId, taskId);
+    if (!canModifyTask(actor, companyId, existing, CompanyPermissionKeys.CRM_TASK_EDIT)) {
+      throw new com.messaging.common.exception.ForbiddenException(
+          "You do not have permission to delete subtasks on this task");
+    }
+    subtaskService.delete(companyId, taskId, subtaskId, actor);
+    return ResponseEntity.ok(ApiResponse.success(200, null, "Subtask deleted"));
+  }
+
+  @PostMapping("/tasks/{taskId}/subtasks/reorder")
+  public ResponseEntity<ApiResponse<Void>> reorderSubtasks(
+      @PathVariable long companyId,
+      @PathVariable long taskId,
+      @Valid @RequestBody CrmSubtaskService.ReorderSubtasksInput input) {
+    long actor = currentUser.currentUserId();
+    CrmWorkService.Task existing = service.getTask(companyId, taskId);
+    if (!canModifyTask(actor, companyId, existing, CompanyPermissionKeys.CRM_TASK_EDIT)) {
+      throw new com.messaging.common.exception.ForbiddenException(
+          "You do not have permission to reorder subtasks on this task");
+    }
+    subtaskService.reorder(companyId, taskId, input.subtaskIds(), actor);
+    return ResponseEntity.ok(ApiResponse.success(200, null, "Subtasks reordered"));
+  }
+
+  // --- Task Attachments ---
+  @GetMapping("/tasks/{taskId}/attachments")
+  public ResponseEntity<ApiResponse<java.util.List<CrmTaskAttachmentService.TaskAttachmentDto>>> getTaskAttachments(
+      @PathVariable long companyId, @PathVariable long taskId) {
+    require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(200, attachmentService.list(companyId, taskId), "Attachments fetched"));
+  }
+
+  @PostMapping("/tasks/{taskId}/attachments")
+  public ResponseEntity<ApiResponse<CrmTaskAttachmentService.TaskAttachmentDto>> addTaskAttachment(
+      @PathVariable long companyId,
+      @PathVariable long taskId,
+      @Valid @RequestBody CrmTaskAttachmentService.AttachInput input) {
+    long actor = currentUser.currentUserId();
+    CrmWorkService.Task existing = service.getTask(companyId, taskId);
+    if (!canModifyTask(actor, companyId, existing, CompanyPermissionKeys.CRM_TASK_EDIT)) {
+      throw new com.messaging.common.exception.ForbiddenException(
+          "You do not have permission to upload attachments to this task");
+    }
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                attachmentService.attach(companyId, taskId, input, actor),
+                "Attachment uploaded"));
+  }
+
+  @DeleteMapping("/tasks/{taskId}/attachments/{attachmentId}")
+  public ResponseEntity<ApiResponse<Void>> deleteTaskAttachment(
+      @PathVariable long companyId,
+      @PathVariable long taskId,
+      @PathVariable long attachmentId) {
+    long actor = currentUser.currentUserId();
+    CrmWorkService.Task existing = service.getTask(companyId, taskId);
+    if (!canModifyTask(actor, companyId, existing, CompanyPermissionKeys.CRM_TASK_EDIT)) {
+      throw new com.messaging.common.exception.ForbiddenException(
+          "You do not have permission to delete attachments on this task");
+    }
+    attachmentService.delete(companyId, taskId, attachmentId, actor);
+    return ResponseEntity.ok(ApiResponse.success(200, null, "Attachment deleted"));
   }
 }

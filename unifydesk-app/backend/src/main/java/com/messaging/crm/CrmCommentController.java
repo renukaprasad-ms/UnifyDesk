@@ -34,7 +34,7 @@ public class CrmCommentController {
       @PathVariable long companyId,
       @PathVariable long taskId,
       @Valid @RequestBody CrmCommentService.AddCommentInput input) {
-    long actor = require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    long actor = requireAny(companyId, CompanyPermissionKeys.CRM_TASK_COMMENT, CompanyPermissionKeys.CRM_TASK_MODIFY);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResponse.success(
@@ -46,7 +46,7 @@ public class CrmCommentController {
   @DeleteMapping("/tasks/{taskId}/comments/{commentId}")
   public ResponseEntity<ApiResponse<Void>> deleteTaskComment(
       @PathVariable long companyId, @PathVariable long taskId, @PathVariable long commentId) {
-    long actor = require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    long actor = requireAny(companyId, CompanyPermissionKeys.CRM_TASK_COMMENT, CompanyPermissionKeys.CRM_TASK_MODIFY);
     commentService.deleteComment(companyId, commentId, actor);
     return ResponseEntity.ok(ApiResponse.success(200, null, "Comment deleted"));
   }
@@ -65,7 +65,7 @@ public class CrmCommentController {
       @PathVariable long companyId,
       @PathVariable long dealId,
       @Valid @RequestBody CrmCommentService.AddCommentInput input) {
-    long actor = require(companyId, CompanyPermissionKeys.CRM_DEAL_MODIFY);
+    long actor = requireAny(companyId, CompanyPermissionKeys.CRM_DEAL_EDIT, CompanyPermissionKeys.CRM_DEAL_CREATE, CompanyPermissionKeys.CRM_DEAL_MODIFY);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResponse.success(
@@ -77,7 +77,7 @@ public class CrmCommentController {
   @DeleteMapping("/deals/{dealId}/comments/{commentId}")
   public ResponseEntity<ApiResponse<Void>> deleteDealComment(
       @PathVariable long companyId, @PathVariable long dealId, @PathVariable long commentId) {
-    long actor = require(companyId, CompanyPermissionKeys.CRM_DEAL_MODIFY);
+    long actor = requireAny(companyId, CompanyPermissionKeys.CRM_DEAL_EDIT, CompanyPermissionKeys.CRM_DEAL_MODIFY);
     commentService.deleteComment(companyId, commentId, actor);
     return ResponseEntity.ok(ApiResponse.success(200, null, "Comment deleted"));
   }
@@ -86,5 +86,16 @@ public class CrmCommentController {
     long actor = currentUser.currentUserId();
     authorization.requirePermission(actor, companyId, permission);
     return actor;
+  }
+
+  private long requireAny(long companyId, String... permissionKeys) {
+    long actor = currentUser.currentUserId();
+    for (String key : permissionKeys) {
+      if (authorization.hasPermission(actor, companyId, key)) {
+        return actor;
+      }
+    }
+    throw new com.messaging.common.exception.ForbiddenException(
+        "Company permission denied: " + String.join(" or ", permissionKeys));
   }
 }

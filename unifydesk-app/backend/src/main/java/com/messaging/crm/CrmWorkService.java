@@ -82,7 +82,15 @@ public class CrmWorkService {
       String taskType,
       String contactName,
       String accountName,
-      String assigneeName) {
+      String assigneeName,
+      String dealId,
+      String dealTitle,
+      String reporterUserId,
+      String reporterName,
+      Integer estimatedMinutes,
+      int loggedMinutes,
+      int subtaskCount,
+      int subtasksCompletedCount) {
     public Task(
         String id,
         String title,
@@ -114,7 +122,61 @@ public class CrmWorkService {
           "TODO",
           null,
           null,
-          null);
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          0,
+          0,
+          0);
+    }
+
+    public Task(
+        String id,
+        String title,
+        String details,
+        String status,
+        String priority,
+        Instant dueAt,
+        String assigneeUserId,
+        String contactId,
+        String accountId,
+        long version,
+        Instant createdAt,
+        Instant updatedAt,
+        String columnKey,
+        String taskType,
+        String contactName,
+        String accountName,
+        String assigneeName) {
+      this(
+          id,
+          title,
+          details,
+          status,
+          priority,
+          dueAt,
+          assigneeUserId,
+          contactId,
+          accountId,
+          version,
+          createdAt,
+          updatedAt,
+          columnKey,
+          taskType,
+          contactName,
+          accountName,
+          assigneeName,
+          null,
+          null,
+          null,
+          null,
+          null,
+          0,
+          0,
+          0);
     }
   }
 
@@ -177,6 +239,23 @@ public class CrmWorkService {
         rs.getTimestamp("created_at").toInstant());
   }
 
+  private static Integer getInteger(ResultSet rs, String name) {
+    try {
+      Object obj = rs.getObject(name);
+      return obj == null ? null : ((Number) obj).intValue();
+    } catch (SQLException ignored) {
+      return null;
+    }
+  }
+
+  private static int getInt(ResultSet rs, String name) {
+    try {
+      return rs.getInt(name);
+    } catch (SQLException ignored) {
+      return 0;
+    }
+  }
+
   private static Task task(ResultSet rs, int row) throws SQLException {
     var due = rs.getTimestamp("due_at");
     String type = col(rs, "task_type");
@@ -197,7 +276,15 @@ public class CrmWorkService {
         type == null || type.isBlank() ? "TODO" : type,
         col(rs, "contact_name"),
         col(rs, "account_name"),
-        col(rs, "assignee_name"));
+        col(rs, "assignee_name"),
+        id(rs, "deal_id"),
+        col(rs, "deal_title"),
+        id(rs, "created_by_user_id"),
+        col(rs, "reporter_name"),
+        getInteger(rs, "estimated_minutes"),
+        getInt(rs, "logged_minutes"),
+        getInt(rs, "subtask_count"),
+        getInt(rs, "subtasks_completed_count"));
   }
 
   private static String trimmed(String value, int max) {
@@ -504,6 +591,18 @@ public class CrmWorkService {
   @Transactional(readOnly = true)
   public Page<Task> tasks(
       long companyId, Long before, int requestedSize, Long assignee, String status) {
+    return tasks(companyId, before, requestedSize, assignee, status, null, null);
+  }
+
+  @Transactional(readOnly = true)
+  public Page<Task> tasks(
+      long companyId,
+      Long before,
+      int requestedSize,
+      Long assignee,
+      String status,
+      Long reporter,
+      Long dealId) {
     int size = Math.max(1, Math.min(100, requestedSize));
     if (status != null && !List.of("OPEN", "IN_PROGRESS", "DONE", "CANCELLED").contains(status)) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_STATUS_INVALID");
@@ -517,17 +616,34 @@ public class CrmWorkService {
         select t.*,
                c.display_name as contact_name,
                a.name as account_name,
-               u.name as assignee_name
+               u.name as assignee_name,
+               d.title as deal_title,
+               rep.name as reporter_name,
+               coalesce(st.total, 0) as subtask_count,
+               coalesce(st.done, 0) as subtasks_completed_count
         from crm_tasks t
         left join contacts c on c.company_id = t.company_id and c.id = t.contact_id
         left join crm_accounts a on a.company_id = t.company_id and a.id = t.account_id
+        left join crm_deals d on d.company_id = t.company_id and d.id = t.deal_id
         left join users u on u.id = t.assignee_user_id
+        left join users rep on rep.id = t.created_by_user_id
+        left join (
+          select task_id,
+                 count(*) as total,
+                 count(*) filter (where completed = true) as done
+          from crm_subtasks
+          where company_id = ?
+          group by task_id
+        ) st on st.task_id = t.id
         where t.company_id = ? and (cast(? as bigint) is null or t.id < ?)
           and (cast(? as bigint) is null or t.assignee_user_id = ?)
           and (cast(? as varchar) is null or t.status = ?)
+          and (cast(? as bigint) is null or t.created_by_user_id = ?)
+          and (cast(? as bigint) is null or t.deal_id = ?)
         order by t.id desc limit ?
         """,
             CrmWorkService::task,
+            companyId,
             companyId,
             before,
             before,
@@ -535,10 +651,27 @@ public class CrmWorkService {
             assignee,
             status,
             status,
+            reporter,
+            reporter,
+            dealId,
+            dealId,
             size + 1);
     boolean more = results.size() > size;
     List<Task> page = more ? results.subList(0, size) : results;
     return new Page<>(page, more ? page.getLast().id() : null, more);
+  }
+
+  private void requireDeal(long companyId, Long dealId) {
+    if (dealId == null) return;
+    Boolean exists =
+        jdbc.queryForObject(
+            "select exists(select 1 from crm_deals where company_id = ? and id = ?)",
+            Boolean.class,
+            companyId,
+            dealId);
+    if (!Boolean.TRUE.equals(exists)) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_DEAL_NOT_FOUND");
+    }
   }
 
   @Transactional
@@ -553,7 +686,7 @@ public class CrmWorkService {
       Long accountId,
       long actor) {
     return createTask(
-        companyId, title, details, priority, dueAt, assignee, contactId, accountId, actor, "OPEN", "TODO");
+        companyId, title, details, priority, dueAt, assignee, contactId, accountId, null, null, actor, "OPEN", "TODO");
   }
 
   @Transactional
@@ -569,7 +702,7 @@ public class CrmWorkService {
       long actor,
       String columnKey) {
     return createTask(
-        companyId, title, details, priority, dueAt, assignee, contactId, accountId, actor, columnKey, "TODO");
+        companyId, title, details, priority, dueAt, assignee, contactId, accountId, null, null, actor, columnKey, "TODO");
   }
 
   @Transactional
@@ -585,6 +718,25 @@ public class CrmWorkService {
       long actor,
       String columnKey,
       String taskType) {
+    return createTask(
+        companyId, title, details, priority, dueAt, assignee, contactId, accountId, null, null, actor, columnKey, taskType);
+  }
+
+  @Transactional
+  public Task createTask(
+      long companyId,
+      String title,
+      String details,
+      String priority,
+      Instant dueAt,
+      long assignee,
+      Long contactId,
+      Long accountId,
+      Long dealId,
+      Integer estimatedMinutes,
+      long actor,
+      String columnKey,
+      String taskType) {
     String safeTitle = trimmed(title, 240);
     if (safeTitle == null)
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_TITLE_REQUIRED");
@@ -595,14 +747,16 @@ public class CrmWorkService {
     activeMember(companyId, assignee);
     requireContact(companyId, contactId);
     requireAccount(companyId, accountId);
+    requireDeal(companyId, dealId);
     var column =
         CrmTaskBoardService.target(jdbc, companyId, columnKey == null ? "OPEN" : columnKey);
     long key = IdGenerator.nextId();
     jdbc.update(
         """
         insert into crm_tasks(id,company_id,title,details,priority,due_at,
-                              assignee_user_id,contact_id,account_id,created_by_user_id,column_key,status,completed_at,task_type)
-        values(?,?,?,?,?,?,?,?,?,?,?,?,case when ?='DONE' then now() else null end,?)
+                              assignee_user_id,contact_id,account_id,deal_id,estimated_minutes,
+                              created_by_user_id,column_key,status,completed_at,task_type)
+        values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,case when ?='DONE' then now() else null end,?)
         """,
         key,
         companyId,
@@ -613,6 +767,8 @@ public class CrmWorkService {
         assignee,
         contactId,
         accountId,
+        dealId,
+        estimatedMinutes,
         actor,
         column.key(),
         column.statusGroup(),
@@ -637,7 +793,7 @@ public class CrmWorkService {
       Long accountId,
       long actor) {
     return updateTask(
-        companyId, taskId, version, title, details, priority, dueAt, assignee, contactId, accountId, actor, null);
+        companyId, taskId, version, title, details, priority, dueAt, assignee, contactId, accountId, null, null, null, actor, null);
   }
 
   @Transactional
@@ -654,6 +810,27 @@ public class CrmWorkService {
       Long accountId,
       long actor,
       String taskType) {
+    return updateTask(
+        companyId, taskId, version, title, details, priority, dueAt, assignee, contactId, accountId, null, null, null, actor, taskType);
+  }
+
+  @Transactional
+  public Task updateTask(
+      long companyId,
+      long taskId,
+      long version,
+      String title,
+      String details,
+      String priority,
+      Instant dueAt,
+      long assignee,
+      Long contactId,
+      Long accountId,
+      Long dealId,
+      Integer estimatedMinutes,
+      Integer loggedMinutes,
+      long actor,
+      String taskType) {
     Task previous = getTask(companyId, taskId);
     String safeTitle = trimmed(title, 240);
     if (safeTitle == null || version < 0) {
@@ -666,12 +843,15 @@ public class CrmWorkService {
     activeMember(companyId, assignee);
     requireContact(companyId, contactId);
     requireAccount(companyId, accountId);
+    requireDeal(companyId, dealId);
+    int newLogged = loggedMinutes != null ? loggedMinutes : previous.loggedMinutes();
     int updated =
         jdbc.update(
             """
         update crm_tasks
            set title = ?, details = ?, priority = ?, due_at = ?,
-               assignee_user_id = ?, contact_id = ?, account_id = ?, task_type = ?,
+               assignee_user_id = ?, contact_id = ?, account_id = ?, deal_id = ?,
+               estimated_minutes = ?, logged_minutes = ?, task_type = ?,
                reminder_generation = reminder_generation
                  + case when assignee_user_id <> ?
                    or due_at is distinct from cast(? as timestamptz)
@@ -686,6 +866,9 @@ public class CrmWorkService {
             assignee,
             contactId,
             accountId,
+            dealId,
+            estimatedMinutes,
+            newLogged,
             safeType,
             assignee,
             dueAt == null ? null : Timestamp.from(dueAt),
@@ -703,7 +886,10 @@ public class CrmWorkService {
       changed.add("Assignee");
     if (!Objects.equals(previous.contactId(), result.contactId())) changed.add("Contact");
     if (!Objects.equals(previous.accountId(), result.accountId())) changed.add("Company");
+    if (!Objects.equals(previous.dealId(), result.dealId())) changed.add("Deal");
     if (!Objects.equals(previous.taskType(), result.taskType())) changed.add("Type");
+    if (!Objects.equals(previous.estimatedMinutes(), result.estimatedMinutes())) changed.add("Estimate");
+    if (previous.loggedMinutes() != result.loggedMinutes()) changed.add("Logged time");
     if (!changed.isEmpty())
       appendTaskEvent(
           companyId,
@@ -716,6 +902,36 @@ public class CrmWorkService {
     return result;
   }
 
+  @Transactional
+  public Task logTime(long companyId, long taskId, long version, int minutesToLog, long actor) {
+    if (minutesToLog <= 0) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_INVALID_LOGGED_MINUTES");
+    }
+    int updated =
+        jdbc.update(
+            """
+            update crm_tasks
+               set logged_minutes = logged_minutes + ?,
+                   version = version + 1,
+                   updated_at = now()
+             where company_id = ? and id = ? and version = ?
+            """,
+            minutesToLog,
+            companyId,
+            taskId,
+            version);
+    if (updated == 0) throw new ApiException(HttpStatus.CONFLICT, "CRM_TASK_VERSION_CONFLICT");
+    appendTaskEvent(
+        companyId,
+        taskId,
+        "UPDATED",
+        null,
+        null,
+        "Logged " + minutesToLog + " minutes",
+        actor);
+    return getTask(companyId, taskId);
+  }
+
   @Transactional(readOnly = true)
   public Task getTask(long companyId, long taskId) {
     List<Task> rows =
@@ -724,14 +940,30 @@ public class CrmWorkService {
             select t.*,
                    c.display_name as contact_name,
                    a.name as account_name,
-                   u.name as assignee_name
+                   u.name as assignee_name,
+                   d.title as deal_title,
+                   rep.name as reporter_name,
+                   coalesce(st.total, 0) as subtask_count,
+                   coalesce(st.done, 0) as subtasks_completed_count
             from crm_tasks t
             left join contacts c on c.company_id = t.company_id and c.id = t.contact_id
             left join crm_accounts a on a.company_id = t.company_id and a.id = t.account_id
+            left join crm_deals d on d.company_id = t.company_id and d.id = t.deal_id
             left join users u on u.id = t.assignee_user_id
+            left join users rep on rep.id = t.created_by_user_id
+            left join (
+              select task_id,
+                     count(*) as total,
+                     count(*) filter (where completed = true) as done
+              from crm_subtasks
+              where company_id = ? and task_id = ?
+              group by task_id
+            ) st on st.task_id = t.id
             where t.company_id = ? and t.id = ?
             """,
             CrmWorkService::task,
+            companyId,
+            taskId,
             companyId,
             taskId);
     if (rows.isEmpty()) throw new ApiException(HttpStatus.NOT_FOUND, "CRM_TASK_NOT_FOUND");

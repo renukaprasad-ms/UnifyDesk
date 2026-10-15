@@ -1,8 +1,17 @@
 import { useState } from 'react'
-import { FiPlus, FiClock, FiUser, FiMove } from 'react-icons/fi'
+import { FiPlus, FiClock, FiUser, FiMove, FiCheckSquare } from 'react-icons/fi'
 import type { CrmTask, CrmTaskColumn } from '../../features/contacts/crmWorkApi'
 import { taskLabel, taskStatusClass } from '../../features/contacts/taskPresentation'
 import { taskTypeConfig } from '../../pages/contacts/CrmTaskDetailPage'
+
+function formatMins(mins?: number | null) {
+  if (!mins || mins <= 0) return '0m'
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (h > 0 && m > 0) return `${h}h ${m}m`
+  if (h > 0) return `${h}h`
+  return `${m}m`
+}
 
 export default function TaskBoard({
   tasks,
@@ -118,9 +127,12 @@ export default function TaskBoard({
                     onClick={() => onOpen(task)}
                     className={`group cursor-pointer rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 ${canMove ? 'cursor-grab active:cursor-grabbing' : ''} ${dragged === task.id ? 'opacity-40' : ''}`}
                   >
-                    {/* Header tags: Priority + Task Type */}
+                    {/* Header tags: Key + Priority + Task Type */}
                     <div className="mb-2.5 flex items-center justify-between gap-1.5">
                       <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-mono text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                          TSK-{task.id.slice(-6)}
+                        </span>
                         <span
                           className={`rounded px-1.5 py-0.5 text-[10px] font-semibold border ${typeInfo.color}`}
                         >
@@ -154,29 +166,58 @@ export default function TaskBoard({
                       </p>
                     )}
 
-                    {/* Linked Lead / Company badges */}
-                    {(task.contactName || task.accountName) && (
-                      <div className="mt-2.5 flex flex-wrap gap-1.5">
-                        {task.contactName && (
-                          <span
-                            className="inline-flex items-center gap-1 rounded bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-300"
-                            title={`Linked Lead: ${task.contactName}`}
-                          >
-                            <span className="text-[10px]">👤</span>
-                            <span className="truncate max-w-[130px]">{task.contactName}</span>
+                    {/* Jira Badges: Deal, Lead, Company, Subtasks & Work Log */}
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      {task.dealTitle && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                          title={`Linked Deal: ${task.dealTitle}`}
+                        >
+                          <span className="text-[10px]">🏷️</span>
+                          <span className="truncate max-w-[130px]">{task.dealTitle}</span>
+                        </span>
+                      )}
+                      {task.contactName && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-300"
+                          title={`Linked Lead: ${task.contactName}`}
+                        >
+                          <span className="text-[10px]">👤</span>
+                          <span className="truncate max-w-[130px]">{task.contactName}</span>
+                        </span>
+                      )}
+                      {task.accountName && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
+                          title={`Linked Company: ${task.accountName}`}
+                        >
+                          <span className="text-[10px]">🏢</span>
+                          <span className="truncate max-w-[130px]">{task.accountName}</span>
+                        </span>
+                      )}
+                      {(task.subtaskCount || 0) > 0 && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                          title="Checklist Subtasks completed"
+                        >
+                          <FiCheckSquare className="h-3 w-3 text-indigo-500" />
+                          <span>
+                            {task.subtasksCompletedCount || 0}/{task.subtaskCount}
                           </span>
-                        )}
-                        {task.accountName && (
-                          <span
-                            className="inline-flex items-center gap-1 rounded bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
-                            title={`Linked Company: ${task.accountName}`}
-                          >
-                            <span className="text-[10px]">🏢</span>
-                            <span className="truncate max-w-[130px]">{task.accountName}</span>
+                        </span>
+                      )}
+                      {((task.estimatedMinutes || 0) > 0 || (task.loggedMinutes || 0) > 0) && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                          title="Time tracking"
+                        >
+                          <FiClock className="h-3 w-3" />
+                          <span>
+                            {formatMins(task.loggedMinutes)} / {formatMins(task.estimatedMinutes)}
                           </span>
-                        )}
-                      </div>
-                    )}
+                        </span>
+                      )}
+                    </div>
 
                     {/* Due Date & Assignee row */}
                     <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">

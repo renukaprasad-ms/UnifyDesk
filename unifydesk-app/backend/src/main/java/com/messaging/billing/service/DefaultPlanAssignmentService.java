@@ -30,9 +30,12 @@ public class DefaultPlanAssignmentService {
   private final CompanySubscriptionRepository subscriptionRepository;
   private final SystemBillingBootstrapService billingBootstrapService;
   private final SubscriptionLifecycleService subscriptionLifecycleService;
+  private final WalletService walletService;
 
   @Transactional
   public void assignToNewCompany(Company company) {
+    walletService.getOrCreateWallet(company.getId());
+
     if (hasEffectiveSubscription(company.getId())) {
       return;
     }

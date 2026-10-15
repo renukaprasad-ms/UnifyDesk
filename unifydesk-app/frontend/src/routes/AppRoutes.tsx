@@ -33,7 +33,7 @@ import PaymentReturnPage from '../pages/billing/PaymentReturnPage'
 import BroadcastWorkspace from '../pages/broadcast/BroadcastWorkspace'
 import CompanyConnections from '../pages/company/CompanyConnections'
 import CompanyDetails from '../pages/company/CompanyDetails'
-import CompanyPlan from '../pages/company/CompanyPlan'
+import BillingPage from '../pages/billing/BillingPage'
 import CompanyRoles from '../pages/company/CompanyRoles'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import ContactDetailPage from '../pages/contacts/ContactDetailPage'
@@ -479,12 +479,20 @@ const AppRoutes = () => (
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.ROLE_READ]} />}>
               <Route path="company/roles" element={<CompanyRoles />} />
             </Route>
-            <Route element={<PermissionRoute anyOf={[PERMISSIONS.BILLING_READ]} />}>
+            <Route element={<PermissionRoute anyOf={[PERMISSIONS.BILLING_READ, PERMISSIONS.BILLING_BALANCE_READ]} />}>
+              <Route
+                path="billing"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <BillingPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
               <Route
                 path="company/plan"
                 element={
                   <WorkspaceEpochBoundary>
-                    <CompanyPlan />
+                    <BillingPage />
                   </WorkspaceEpochBoundary>
                 }
               />

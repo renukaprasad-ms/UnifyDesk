@@ -63,14 +63,38 @@ public final class CompanyPermissionKeys {
   public static final String CONTACT_CONSENT_MODIFY = "contact.consent.modify";
 
   public static final String CRM_LEAD_READ = "crm.lead.read";
+  public static final String CRM_LEAD_CREATE = "crm.lead.create";
+  public static final String CRM_LEAD_EDIT = "crm.lead.edit";
+  public static final String CRM_LEAD_STAGE = "crm.lead.stage_change";
+  public static final String CRM_LEAD_ASSIGN = "crm.lead.assign";
+  public static final String CRM_LEAD_DELETE = "crm.lead.delete";
   public static final String CRM_LEAD_MODIFY = "crm.lead.modify";
+
   public static final String CRM_ACCOUNT_READ = "crm.account.read";
+  public static final String CRM_ACCOUNT_CREATE = "crm.account.create";
+  public static final String CRM_ACCOUNT_EDIT = "crm.account.edit";
+  public static final String CRM_ACCOUNT_DELETE = "crm.account.delete";
   public static final String CRM_ACCOUNT_MODIFY = "crm.account.modify";
+
   public static final String CRM_TASK_READ = "crm.task.read";
+  public static final String CRM_TASK_CREATE = "crm.task.create";
+  public static final String CRM_TASK_EDIT = "crm.task.edit";
+  public static final String CRM_TASK_STATUS = "crm.task.status_change";
+  public static final String CRM_TASK_ASSIGN = "crm.task.assign";
+  public static final String CRM_TASK_DELETE = "crm.task.delete";
+  public static final String CRM_TASK_COMMENT = "crm.task.comment";
   public static final String CRM_TASK_MODIFY = "crm.task.modify";
   public static final String CRM_TASK_WORKFLOW_MODIFY = "crm.task.workflow.modify";
+
   public static final String CRM_DEAL_READ = "crm.deal.read";
+  public static final String CRM_DEAL_CREATE = "crm.deal.create";
+  public static final String CRM_DEAL_EDIT = "crm.deal.edit";
+  public static final String CRM_DEAL_STAGE = "crm.deal.stage_change";
+  public static final String CRM_DEAL_ASSIGN = "crm.deal.assign";
+  public static final String CRM_DEAL_DELETE = "crm.deal.delete";
+  public static final String CRM_DEAL_PIPELINE_MODIFY = "crm.deal.pipeline.modify";
   public static final String CRM_DEAL_MODIFY = "crm.deal.modify";
+
   public static final String CRM_ACTIVITY_READ = "crm.activity.read";
   public static final String CRM_ACTIVITY_MODIFY = "crm.activity.modify";
   public static final String CRM_REPORT_READ = "crm.report.read";
@@ -149,13 +173,33 @@ public final class CompanyPermissionKeys {
           CONTACT_CONSENT_READ,
           CONTACT_CONSENT_MODIFY,
           CRM_LEAD_READ,
+          CRM_LEAD_CREATE,
+          CRM_LEAD_EDIT,
+          CRM_LEAD_STAGE,
+          CRM_LEAD_ASSIGN,
+          CRM_LEAD_DELETE,
           CRM_LEAD_MODIFY,
           CRM_ACCOUNT_READ,
+          CRM_ACCOUNT_CREATE,
+          CRM_ACCOUNT_EDIT,
+          CRM_ACCOUNT_DELETE,
           CRM_ACCOUNT_MODIFY,
           CRM_TASK_READ,
+          CRM_TASK_CREATE,
+          CRM_TASK_EDIT,
+          CRM_TASK_STATUS,
+          CRM_TASK_ASSIGN,
+          CRM_TASK_DELETE,
+          CRM_TASK_COMMENT,
           CRM_TASK_MODIFY,
           CRM_TASK_WORKFLOW_MODIFY,
           CRM_DEAL_READ,
+          CRM_DEAL_CREATE,
+          CRM_DEAL_EDIT,
+          CRM_DEAL_STAGE,
+          CRM_DEAL_ASSIGN,
+          CRM_DEAL_DELETE,
+          CRM_DEAL_PIPELINE_MODIFY,
           CRM_DEAL_MODIFY,
           CRM_ACTIVITY_READ,
           CRM_ACTIVITY_MODIFY,
@@ -189,10 +233,18 @@ public final class CompanyPermissionKeys {
           CONTACT_READ,
           CONTACT_CONSENT_READ,
           CRM_LEAD_READ,
+          CRM_LEAD_CREATE,
+          CRM_LEAD_STAGE,
           CRM_ACCOUNT_READ,
+          CRM_ACCOUNT_CREATE,
           CRM_TASK_READ,
+          CRM_TASK_CREATE,
+          CRM_TASK_STATUS,
+          CRM_TASK_COMMENT,
           TEMPLATE_READ,
           CRM_DEAL_READ,
+          CRM_DEAL_CREATE,
+          CRM_DEAL_STAGE,
           CRM_ACTIVITY_READ,
           CRM_REPORT_READ,
           CRM_FIELD_READ,

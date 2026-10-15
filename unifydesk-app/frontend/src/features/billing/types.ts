@@ -129,3 +129,82 @@ export type CheckoutResponse = {
   recurringAuthorizationSessionId?: string | null
   recurringAuthorizationActionUrl?: string | null
 }
+
+export type CompanyWallet = {
+  companyId: string
+  balance: number
+  currency: string
+  autoRechargeEnabled: boolean
+  autoRechargeThreshold: number
+  autoRechargeAmount: number
+  updatedAt: string
+}
+
+export type WalletTransaction = {
+  id: string
+  companyId: string
+  type: string
+  amount: number
+  balanceAfter: number
+  currency: string
+  referenceId?: string | null
+  description: string
+  actorUserId?: number | null
+  createdAt: string
+}
+
+export type CompanyBillingProfile = {
+  legalBusinessName?: string | null
+  taxIdOrGstin?: string | null
+  billingEmail?: string | null
+  billingPhone?: string | null
+  addressLine1?: string | null
+  addressLine2?: string | null
+  city?: string | null
+  state?: string | null
+  postalCode?: string | null
+  country?: string | null
+}
+
+export type BillingUsageSummary = {
+  seatsUsed: number
+  seatsLimit: number
+  contactsUsed: number
+  contactsLimit: number
+  emailMonthlyUsed: number
+  emailMonthlyLimit: number
+  smsMonthlyUsed: number
+  smsMonthlyLimit: number
+  walletBalance: number
+  walletCurrency: string
+}
+
+export type Invoice = {
+  invoiceId: string
+  companyId: string
+  billingPeriodId?: string | null
+  invoiceNumber: string
+  status: string
+  currency: string
+  subtotal: number
+  discountAmount: number
+  creditAmount: number
+  adjustmentAmount: number
+  taxAmount: number
+  total: number
+  amountDue: number
+  servicePeriodStart?: string | null
+  servicePeriodEnd?: string | null
+  finalizedAt?: string | null
+  dueAt?: string | null
+  paidAt?: string | null
+}
+
+export type WalletTopupOrder = {
+  orderId: string
+  paymentSessionId?: string | null
+  amount: number
+  currency: string
+  status: string
+}
+

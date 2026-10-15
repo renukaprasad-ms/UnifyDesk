@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
   FiArrowLeft,
@@ -10,17 +10,27 @@ import {
   FiSend,
   FiTrash2,
   FiX,
+  FiCheckSquare,
+  FiSquare,
+  FiPaperclip,
+  FiUploadCloud,
+  FiDownload,
+  FiPlus,
+  FiFileText,
 } from 'react-icons/fi'
 import { companyApi } from '../../features/company/companyApi'
 import {
   crmWorkApi,
   type CrmAccount,
   type CrmComment,
+  type CrmSubtask,
   type CrmTask,
+  type CrmTaskAttachment,
   type CrmTaskColumn,
   type CrmTaskEvent,
 } from '../../features/contacts/crmWorkApi'
 import { crmLeadsApi, type Lead } from '../../features/contacts/crmLeadsApi'
+import { crmSalesApi, type Deal } from '../../features/contacts/crmSalesApi'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
@@ -48,6 +58,22 @@ export function taskTypeConfig(type?: string) {
   }
 }
 
+function formatMinutes(mins?: number | null) {
+  if (!mins || mins <= 0) return '0m'
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (h > 0 && m > 0) return `${h}h ${m}m`
+  if (h > 0) return `${h}h`
+  return `${m}m`
+}
+
+function formatFileSize(bytes?: number) {
+  if (!bytes || bytes <= 0) return '0 B'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export default function CrmTaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>()
   const navigate = useNavigate()
@@ -61,8 +87,11 @@ export default function CrmTaskDetailPage() {
   const [members, setMembers] = useState<Array<{ userId: string; name: string }>>([])
   const [accounts, setAccounts] = useState<CrmAccount[]>([])
   const [leads, setLeads] = useState<Lead[]>([])
+  const [deals, setDeals] = useState<Deal[]>([])
   const [comments, setComments] = useState<CrmComment[]>([])
   const [events, setEvents] = useState<CrmTaskEvent[]>([])
+  const [subtasks, setSubtasks] = useState<CrmSubtask[]>([])
+  const [attachments, setAttachments] = useState<CrmTaskAttachment[]>([])
 
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -70,13 +99,48 @@ export default function CrmTaskDetailPage() {
   const [activeTab, setActiveTab] = useState<'comments' | 'history'>('comments')
   const [newComment, setNewComment] = useState('')
   const [postingComment, setPostingComment] = useState(false)
+
+  // Title & Details Inline Editing
   const [editingTitle, setEditingTitle] = useState(false)
   const [editTitleVal, setEditTitleVal] = useState('')
   const [editingDetails, setEditingDetails] = useState(false)
   const [editDetailsVal, setEditDetailsVal] = useState('')
+
+  // Subtask creation
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
+  const [newSubtaskAssignee, setNewSubtaskAssignee] = useState('')
+  const [addingSubtask, setAddingSubtask] = useState(false)
+
+  // Attachments
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
+
+  // Time logging modal
+  const [showLogTimeModal, setShowLogTimeModal] = useState(false)
+  const [logMinutesInput, setLogMinutesInput] = useState('30')
+  const [loggingTime, setLoggingTime] = useState(false)
+
+  // Estimate inline edit
+  const [editingEstimate, setEditingEstimate] = useState(false)
+  const [estimateInput, setEstimateInput] = useState('120')
+
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
-  const canEdit = can(PERMISSIONS.CRM_TASK_MODIFY)
+  // Granular permissions with umbrella fallback
+  const canEdit =
+    can(PERMISSIONS.CRM_TASK_EDIT) ||
+    can(PERMISSIONS.CRM_TASK_MODIFY)
+  const canStatusChange =
+    can(PERMISSIONS.CRM_TASK_STATUS) ||
+    can(PERMISSIONS.CRM_TASK_MODIFY) ||
+    canEdit
+  const canDelete =
+    can(PERMISSIONS.CRM_TASK_DELETE) ||
+    can(PERMISSIONS.CRM_TASK_MODIFY)
+  const canComment =
+    can(PERMISSIONS.CRM_TASK_COMMENT) ||
+    can(PERMISSIONS.CRM_TASK_MODIFY) ||
+    canEdit
 
   const loadData = useCallback(async () => {
     if (!companyId || !taskId) return
@@ -84,11 +148,13 @@ export default function CrmTaskDetailPage() {
     setLoading(true)
     setError('')
     try {
-      const [fetchedTask, cols, history, comms] = await Promise.all([
+      const [fetchedTask, cols, history, comms, subs, atts] = await Promise.all([
         crmWorkApi.task(companyId, taskId),
         crmWorkApi.taskColumns(companyId).catch(() => []),
         crmWorkApi.taskHistory(companyId, taskId).catch(() => []),
         crmWorkApi.taskComments(companyId, taskId).catch(() => []),
+        crmWorkApi.subtasks(companyId, taskId).catch(() => []),
+        crmWorkApi.taskAttachments(companyId, taskId).catch(() => []),
       ])
 
       if (isCurrent(scope)) {
@@ -96,8 +162,11 @@ export default function CrmTaskDetailPage() {
         setColumns(cols)
         setEvents(history)
         setComments(comms)
+        setSubtasks(subs)
+        setAttachments(atts)
         setEditTitleVal(fetchedTask.title)
         setEditDetailsVal(fetchedTask.details || '')
+        setEstimateInput(String(fetchedTask.estimatedMinutes || 60))
       }
 
       // Load supporting directories in background
@@ -124,6 +193,12 @@ export default function CrmTaskDetailPage() {
           if (isCurrent(scope)) setLeads(leadPage.items)
         }).catch(() => {})
       }
+
+      if (can(PERMISSIONS.CRM_DEAL_READ)) {
+        crmSalesApi.deals(companyId).then((dealsPage) => {
+          if (isCurrent(scope)) setDeals(dealsPage.items)
+        }).catch(() => {})
+      }
     } catch (err) {
       if (isCurrent(scope)) setError(apiErrorMessage(err, 'Failed to load task details'))
     } finally {
@@ -143,6 +218,8 @@ export default function CrmTaskDetailPage() {
     assigneeUserId: string
     contactId: string | null
     accountId: string | null
+    dealId: string | null
+    estimatedMinutes: number | null
     taskType: string
   }>) => {
     if (!companyId || !task || busy) return
@@ -156,6 +233,8 @@ export default function CrmTaskDetailPage() {
         assigneeUserId: patch.assigneeUserId !== undefined ? patch.assigneeUserId : task.assigneeUserId,
         contactId: patch.contactId !== undefined ? patch.contactId : task.contactId,
         accountId: patch.accountId !== undefined ? patch.accountId : task.accountId,
+        dealId: patch.dealId !== undefined ? patch.dealId : task.dealId,
+        estimatedMinutes: patch.estimatedMinutes !== undefined ? patch.estimatedMinutes : task.estimatedMinutes,
         taskType: patch.taskType !== undefined ? patch.taskType : task.taskType,
       })
       setTask(updated)
@@ -163,6 +242,7 @@ export default function CrmTaskDetailPage() {
       setEditDetailsVal(updated.details || '')
       setEditingTitle(false)
       setEditingDetails(false)
+      setEditingEstimate(false)
       // refresh history
       const history = await crmWorkApi.taskHistory(companyId, task.id).catch(() => [])
       setEvents(history)
@@ -200,6 +280,101 @@ export default function CrmTaskDetailPage() {
     }
   }
 
+  // Subtask handlers
+  const handleToggleSubtask = async (subtaskId: string) => {
+    if (!companyId || !task) return
+    // Optimistic toggle
+    setSubtasks((prev) =>
+      prev.map((s) => (s.id === subtaskId ? { ...s, completed: !s.completed } : s)),
+    )
+    try {
+      const updated = await crmWorkApi.toggleSubtask(companyId, task.id, subtaskId)
+      setSubtasks((prev) => prev.map((s) => (s.id === subtaskId ? updated : s)))
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to toggle subtask'))
+      // rollback
+      const subs = await crmWorkApi.subtasks(companyId, task.id).catch(() => [])
+      setSubtasks(subs)
+    }
+  }
+
+  const handleAddSubtask = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!companyId || !task || !newSubtaskTitle.trim() || addingSubtask) return
+    setAddingSubtask(true)
+    try {
+      const created = await crmWorkApi.createSubtask(
+        companyId,
+        task.id,
+        newSubtaskTitle.trim(),
+        newSubtaskAssignee || null,
+      )
+      setSubtasks((prev) => [...prev, created])
+      setNewSubtaskTitle('')
+      setNewSubtaskAssignee('')
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to add subtask'))
+    } finally {
+      setAddingSubtask(false)
+    }
+  }
+
+  const handleDeleteSubtask = async (subtaskId: string) => {
+    if (!companyId || !task) return
+    try {
+      await crmWorkApi.deleteSubtask(companyId, task.id, subtaskId)
+      setSubtasks((prev) => prev.filter((s) => s.id !== subtaskId))
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to delete subtask'))
+    }
+  }
+
+  // Attachment handlers
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !companyId || !task) return
+    setUploadingAttachment(true)
+    try {
+      const attached = await crmWorkApi.attachTaskFile(companyId, task.id, file)
+      setAttachments((prev) => [attached, ...prev])
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to attach file'))
+    } finally {
+      setUploadingAttachment(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!companyId || !task) return
+    try {
+      await crmWorkApi.deleteTaskAttachment(companyId, task.id, attachmentId)
+      setAttachments((prev) => prev.filter((a) => a.id !== attachmentId))
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to delete attachment'))
+    }
+  }
+
+  // Time logging handlers
+  const handleLogWork = async () => {
+    const mins = parseInt(logMinutesInput, 10)
+    if (isNaN(mins) || mins <= 0 || !companyId || !task || loggingTime) return
+    setLoggingTime(true)
+    try {
+      const updated = await crmWorkApi.logTime(companyId, task.id, mins)
+      setTask(updated)
+      setShowLogTimeModal(false)
+      setLogMinutesInput('30')
+      const history = await crmWorkApi.taskHistory(companyId, task.id).catch(() => [])
+      setEvents(history)
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to log time'))
+    } finally {
+      setLoggingTime(false)
+    }
+  }
+
+  // Comment handlers
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!companyId || !task || !newComment.trim() || postingComment) return
@@ -257,6 +432,16 @@ export default function CrmTaskDetailPage() {
 
   const linkedContact = leads.find((l) => l.contactId === task.contactId)
   const linkedAccount = accounts.find((a) => a.id === task.accountId)
+  const linkedDeal = deals.find((d) => d.id === task.dealId)
+
+  const completedSubtasks = subtasks.filter((s) => s.completed).length
+  const totalSubtasks = subtasks.length
+  const subtaskProgress = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0
+
+  const estimateMinutes = task.estimatedMinutes || 0
+  const loggedMinutes = task.loggedMinutes || 0
+  const timeProgress =
+    estimateMinutes > 0 ? Math.min(100, Math.round((loggedMinutes / estimateMinutes) * 100)) : 0
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-72px-2*var(--app-page-gutter-y,1.5rem))] min-h-[500px] max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -276,11 +461,23 @@ export default function CrmTaskDetailPage() {
             <span>{typeInfo.icon}</span>
             <span>{typeInfo.label}</span>
           </span>
-          <span className="text-xs text-slate-400">TASK-{task.id.slice(-6)}</span>
+          <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">
+            TSK-{task.id.slice(-6)}
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
           {canEdit && (
+            <button
+              type="button"
+              onClick={() => setShowLogTimeModal(true)}
+              className="secondary-button gap-1.5 px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+            >
+              <FiClock className="h-3.5 w-3.5" />
+              <span>Log Work</span>
+            </button>
+          )}
+          {canDelete && (
             <button
               type="button"
               onClick={() => setShowDeleteModal(true)}
@@ -410,22 +607,260 @@ export default function CrmTaskDetailPage() {
             )}
           </div>
 
-          {/* Associated Entity Section (Lead or Company) */}
+          {/* Jira-grade Subtasks / Checklist Card */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <FiCheckSquare className="h-4 w-4 text-indigo-500" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Subtasks & Checklist
+                </h2>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  {completedSubtasks}/{totalSubtasks}
+                </span>
+              </div>
+              {totalSubtasks > 0 && (
+                <span className="text-xs font-bold text-slate-500">
+                  {subtaskProgress}% done
+                </span>
+              )}
+            </div>
+
+            {/* Progress bar */}
+            {totalSubtasks > 0 && (
+              <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                  style={{ width: `${subtaskProgress}%` }}
+                />
+              </div>
+            )}
+
+            {/* Subtask list */}
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {subtasks.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-400">
+                  No subtasks yet. Break this task down into manageable checklist items below.
+                </p>
+              ) : (
+                subtasks.map((st) => (
+                  <div
+                    key={st.id}
+                    className="group flex items-center justify-between py-2.5 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <button
+                        type="button"
+                        disabled={!canEdit}
+                        onClick={() => handleToggleSubtask(st.id)}
+                        className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        title={st.completed ? 'Mark uncompleted' : 'Mark completed'}
+                      >
+                        {st.completed ? (
+                          <FiCheckSquare className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        ) : (
+                          <FiSquare className="h-4 w-4" />
+                        )}
+                      </button>
+                      <span
+                        className={`text-sm break-words ${
+                          st.completed
+                            ? 'line-through text-slate-400 dark:text-slate-500'
+                            : 'text-slate-800 dark:text-slate-200'
+                        }`}
+                      >
+                        {st.title}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 pl-2">
+                      {st.assigneeName && (
+                        <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          {st.assigneeName}
+                        </span>
+                      )}
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSubtask(st.id)}
+                          className="opacity-0 transition-opacity group-hover:opacity-100 text-slate-400 hover:text-rose-600"
+                          title="Delete subtask"
+                        >
+                          <FiTrash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Add Subtask input */}
+            {canEdit && (
+              <form onSubmit={handleAddSubtask} className="mt-4 flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Add a subtask or checklist item..."
+                  value={newSubtaskTitle}
+                  onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                  className="form-input flex-1 text-xs"
+                />
+                {members.length > 0 && (
+                  <select
+                    value={newSubtaskAssignee}
+                    onChange={(e) => setNewSubtaskAssignee(e.target.value)}
+                    className="form-input text-xs w-36"
+                  >
+                    <option value="">No assignee</option>
+                    {members.map((m) => (
+                      <option key={m.userId} value={m.userId}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <button
+                  type="submit"
+                  disabled={addingSubtask || !newSubtaskTitle.trim()}
+                  className="primary-button gap-1 px-3 py-1.5 text-xs"
+                >
+                  <FiPlus /> Add
+                </button>
+              </form>
+            )}
+          </div>
+
+          {/* Jira-grade Attachments Section */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FiPaperclip className="h-4 w-4 text-indigo-500" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Attachments & Files
+                </h2>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  {attachments.length}
+                </span>
+              </div>
+              {canEdit && (
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <button
+                    type="button"
+                    disabled={uploadingAttachment}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="secondary-button gap-1.5 px-3 py-1.5 text-xs"
+                  >
+                    <FiUploadCloud className="h-3.5 w-3.5" />
+                    <span>{uploadingAttachment ? 'Uploading...' : 'Attach File'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {attachments.length === 0 ? (
+              <div
+                onClick={() => canEdit && fileInputRef.current?.click()}
+                className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 p-6 text-center dark:border-slate-800 ${
+                  canEdit ? 'cursor-pointer hover:border-indigo-400 hover:bg-slate-50/50 dark:hover:bg-slate-800/30' : ''
+                }`}
+              >
+                <FiPaperclip className="h-6 w-6 text-slate-400" />
+                <p className="mt-2 text-xs text-slate-500">
+                  No attachments yet. Drop documents, images, or files here to link with this task.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/60 p-3 transition-colors hover:border-indigo-300 dark:border-slate-800 dark:bg-slate-800/40"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 dark:bg-indigo-900/60 dark:text-indigo-400">
+                        <FiFileText className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-200" title={att.fileName}>
+                          {att.fileName}
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          {formatFileSize(att.fileSize)} • {att.uploadedByName || 'Teammate'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 pl-2">
+                      <a
+                        href={`/api/v1/companies/${companyId}/media/${att.mediaId}/download`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded p-1.5 text-slate-500 hover:bg-slate-200 hover:text-slate-800 dark:hover:bg-slate-700"
+                        title="Download file"
+                      >
+                        <FiDownload className="h-3.5 w-3.5" />
+                      </a>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAttachment(att.id)}
+                          className="rounded p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
+                          title="Delete attachment"
+                        >
+                          <FiTrash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Associated Entities Section (Lead, Company, Deal) */}
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
-              Linked CRM Entity
+              Linked CRM Entities
             </h2>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {/* Linked Deal */}
+              <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500">🏷️ Related Deal</span>
+                  {task.dealId && (
+                    <Link
+                      to={`/crm/deals`}
+                      className="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                    >
+                      View Deals →
+                    </Link>
+                  )}
+                </div>
+                <p className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">
+                  {task.dealTitle || linkedDeal?.title || (task.dealId ? `Deal #${task.dealId}` : 'None linked')}
+                </p>
+                {linkedDeal && (
+                  <p className="text-xs text-slate-500">
+                    {linkedDeal.stage} • ${linkedDeal.amount}
+                  </p>
+                )}
+              </div>
+
               {/* Linked Lead / Contact */}
               <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/40">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500">🎯 Related Lead / Contact</span>
+                  <span className="text-xs font-semibold text-slate-500">👤 Related Lead</span>
                   {task.contactId && (
                     <Link
                       to={`/contacts?contactId=${task.contactId}`}
                       className="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
                     >
-                      View Profile →
+                      Profile →
                     </Link>
                   )}
                 </div>
@@ -446,7 +881,7 @@ export default function CrmTaskDetailPage() {
                       to={`/crm/companies/${task.accountId}`}
                       className="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
                     >
-                      View Company →
+                      Company →
                     </Link>
                   )}
                 </div>
@@ -493,25 +928,27 @@ export default function CrmTaskDetailPage() {
             {activeTab === 'comments' && (
               <div className="mt-4 flex flex-col gap-4">
                 {/* Comment Input */}
-                <form onSubmit={handleAddComment} className="flex flex-col gap-2">
-                  <textarea
-                    rows={3}
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Add an update or note on this task..."
-                    className="form-input w-full text-sm leading-relaxed"
-                  />
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={postingComment || !newComment.trim()}
-                      className="primary-button gap-1.5 px-4 py-1.5 text-xs font-semibold"
-                    >
-                      <FiSend className="h-3 w-3" />
-                      {postingComment ? 'Posting...' : 'Post Comment'}
-                    </button>
-                  </div>
-                </form>
+                {canComment && (
+                  <form onSubmit={handleAddComment} className="flex flex-col gap-2">
+                    <textarea
+                      rows={3}
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Add an update or note on this task..."
+                      className="form-input w-full text-sm leading-relaxed"
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={postingComment || !newComment.trim()}
+                        className="primary-button gap-1.5 px-4 py-1.5 text-xs font-semibold"
+                      >
+                        <FiSend className="h-3 w-3" />
+                        {postingComment ? 'Posting...' : 'Post Comment'}
+                      </button>
+                    </div>
+                  </form>
+                )}
 
                 {/* Comments List */}
                 <div className="mt-2 divide-y divide-slate-100 dark:divide-slate-800">
@@ -613,7 +1050,7 @@ export default function CrmTaskDetailPage() {
                   Current Step
                 </label>
                 <select
-                  disabled={!canEdit || busy}
+                  disabled={!canStatusChange || busy}
                   value={task.columnKey || task.status}
                   onChange={(e) => handleMoveStep(e.target.value)}
                   className="form-input mt-1.5 w-full text-xs font-semibold"
@@ -666,6 +1103,99 @@ export default function CrmTaskDetailPage() {
             </div>
           </div>
 
+          {/* Time Tracking (Jira-style) */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Time Tracking & Estimates
+              </h3>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setShowLogTimeModal(true)}
+                  className="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+                >
+                  + Log Time
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500">Original Estimate:</span>
+                {editingEstimate ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      step="15"
+                      value={estimateInput}
+                      onChange={(e) => setEstimateInput(e.target.value)}
+                      className="form-input w-20 py-0.5 text-xs text-right"
+                    />
+                    <span className="text-[10px] text-slate-400">min</span>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdate({ estimatedMinutes: parseInt(estimateInput, 10) || 0 })}
+                      className="text-emerald-600 hover:text-emerald-700"
+                    >
+                      <FiCheck className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingEstimate(false)}
+                      className="text-slate-400"
+                    >
+                      <FiX className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
+                    <span>{formatMinutes(task.estimatedMinutes)}</span>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEstimateInput(String(task.estimatedMinutes || 60))
+                          setEditingEstimate(true)
+                        }}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        title="Edit estimate"
+                      >
+                        <FiEdit2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500">Time Logged:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  {formatMinutes(task.loggedMinutes)}
+                </span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    loggedMinutes > estimateMinutes && estimateMinutes > 0
+                      ? 'bg-amber-500'
+                      : 'bg-indigo-600'
+                  }`}
+                  style={{ width: `${timeProgress}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-slate-400">
+                <span>{timeProgress}% logged</span>
+                {estimateMinutes > 0 && loggedMinutes > estimateMinutes && (
+                  <span className="font-semibold text-amber-500">Over estimate</span>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Assignment & People Card */}
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -673,6 +1203,21 @@ export default function CrmTaskDetailPage() {
             </h3>
 
             <div className="space-y-4">
+              {/* Reporter (Jira-style) */}
+              <div>
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  Reporter
+                </label>
+                <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-800/40">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-200 text-[10px] font-bold text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+                    {task.reporterName ? task.reporterName.charAt(0).toUpperCase() : 'R'}
+                  </div>
+                  <span className="font-medium text-slate-800 dark:text-slate-200">
+                    {task.reporterName || 'Creator'}
+                  </span>
+                </div>
+              </div>
+
               {/* Assignee */}
               <div>
                 <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
@@ -718,6 +1263,26 @@ export default function CrmTaskDetailPage() {
                     ⚠️ Task is past its due date!
                   </p>
                 )}
+              </div>
+
+              {/* Link to Deal */}
+              <div>
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  Link to Deal
+                </label>
+                <select
+                  disabled={!canEdit || busy}
+                  value={task.dealId || ''}
+                  onChange={(e) => handleUpdate({ dealId: e.target.value || null })}
+                  className="form-input mt-1.5 w-full text-xs"
+                >
+                  <option value="">None (Unlinked)</option>
+                  {deals.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.title} (${d.amount})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Link to Lead */}
@@ -771,6 +1336,67 @@ export default function CrmTaskDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Log Work Modal */}
+      {showLogTimeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="panel w-full max-w-sm p-6 shadow-xl">
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Log Work Time</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Record time spent working on this task.
+            </p>
+
+            <div className="mt-4">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Duration (minutes)
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="5"
+                value={logMinutesInput}
+                onChange={(e) => setLogMinutesInput(e.target.value)}
+                className="form-input mt-1 w-full text-sm font-bold"
+                autoFocus
+              />
+              <div className="mt-2 flex gap-1.5">
+                {['15', '30', '45', '60', '120'].map((mins) => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => setLogMinutesInput(mins)}
+                    className={`rounded border px-2 py-1 text-xs font-semibold transition-colors ${
+                      logMinutesInput === mins
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400'
+                    }`}
+                  >
+                    +{mins}m
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowLogTimeModal(false)}
+                className="secondary-button text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={loggingTime || !parseInt(logMinutesInput, 10)}
+                onClick={handleLogWork}
+                className="primary-button text-xs"
+              >
+                {loggingTime ? 'Logging...' : 'Save Work Log'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (

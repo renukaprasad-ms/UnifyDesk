@@ -12,6 +12,7 @@ import { taskStatusClass } from '../../features/contacts/taskPresentation'
 import { companyApi } from '../../features/company/companyApi'
 import { crmWorkApi, type CrmTaskColumn, type CrmTask } from '../../features/contacts/crmWorkApi'
 import { crmLeadsApi } from '../../features/contacts/crmLeadsApi'
+import { crmSalesApi } from '../../features/contacts/crmSalesApi'
 import { taskTypeConfig } from './CrmTaskDetailPage'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -49,6 +50,14 @@ export default function CrmTasksPage() {
   const { capture, isCurrent } = useWorkspaceEpochScope(companyId, epoch)
   const { can } = useIam()
   const navigate = useNavigate()
+
+  const canCreate = can(PERMISSIONS.CRM_TASK_CREATE) || can(PERMISSIONS.CRM_TASK_MODIFY)
+  const canEdit = can(PERMISSIONS.CRM_TASK_EDIT) || can(PERMISSIONS.CRM_TASK_MODIFY)
+  const canMove =
+    can(PERMISSIONS.CRM_TASK_STATUS) ||
+    can(PERMISSIONS.CRM_TASK_MODIFY) ||
+    canEdit
+
   const [view, setView] = useState<'board' | 'list'>('board')
   const [columns, setColumns] = useState<CrmTaskColumn[]>([])
   const [manageSteps, setManageSteps] = useState(false)
@@ -58,6 +67,7 @@ export default function CrmTasksPage() {
   const [members, setMembers] = useState<Array<{ userId: string; name: string }>>([])
   const [accounts, setAccounts] = useState<Array<{ id: string; name: string }>>([])
   const [leads, setLeads] = useState<Array<{ id: string; name: string }>>([])
+  const [deals, setDeals] = useState<Array<{ id: string; title: string }>>([])
   const [statusFilter, setStatusFilter] = useState<CrmTask['status'] | ''>('')
   const [assigneeFilter, setAssigneeFilter] = useState('')
   const [title, setTitle] = useState('')
@@ -68,6 +78,8 @@ export default function CrmTasksPage() {
   const [assignee, setAssignee] = useState('')
   const [contactId, setContactId] = useState('')
   const [accountId, setAccountId] = useState('')
+  const [dealId, setDealId] = useState('')
+  const [estimatedMinutes, setEstimatedMinutes] = useState('')
   const [assigning, setAssigning] = useState<CrmTask | null>(null)
   const [editing, setEditing] = useState<CrmTask | null>(null)
   const [editTitle, setEditTitle] = useState('')
@@ -179,6 +191,22 @@ export default function CrmTasksPage() {
           /* Leads list optional */
         })
     }
+    if (can(PERMISSIONS.CRM_DEAL_READ) && typeof crmSalesApi?.deals === 'function') {
+      void crmSalesApi
+        .deals(companyId)
+        .then((page) => {
+          if (active && isCurrent(scope))
+            setDeals(
+              (page?.items || []).map((deal) => ({
+                id: deal.id,
+                title: deal.title,
+              })),
+            )
+        })
+        .catch(() => {
+          /* Deals list optional */
+        })
+    }
     return () => {
       active = false
     }
@@ -282,6 +310,8 @@ export default function CrmTasksPage() {
         assigneeUserId: assignee || undefined,
         contactId: contactId || undefined,
         accountId: accountId || undefined,
+        dealId: dealId || undefined,
+        estimatedMinutes: estimatedMinutes ? parseInt(estimatedMinutes, 10) : undefined,
       })
       if (!isCurrent(scope)) return
       setTitle('')
@@ -292,6 +322,8 @@ export default function CrmTasksPage() {
       setAssignee('')
       setContactId('')
       setAccountId('')
+      setDealId('')
+      setEstimatedMinutes('')
       setShowCreate(false)
     })
   }
@@ -368,7 +400,7 @@ export default function CrmTasksPage() {
             <FiRefreshCw />
             Refresh
           </button>
-          {can(PERMISSIONS.CRM_TASK_MODIFY) && (
+          {canCreate && (
             <button
               type="button"
               className="primary-button gap-2"
@@ -417,7 +449,7 @@ export default function CrmTasksPage() {
           />
         </WorkspaceDialog>
       )}
-      {showCreate && can(PERMISSIONS.CRM_TASK_MODIFY) && (
+      {showCreate && canCreate && (
         <WorkspaceDialog
           title="New task"
           busy={busy}
@@ -547,6 +579,35 @@ export default function CrmTasksPage() {
                   </select>
                 </label>
               )}
+              {can(PERMISSIONS.CRM_DEAL_READ) && (
+                <label className="text-sm">
+                  Connected deal
+                  <select
+                    className="form-input mt-1 w-full"
+                    value={dealId}
+                    onChange={(event) => setDealId(event.target.value)}
+                  >
+                    <option value="">No deal</option>
+                    {deals.map((deal) => (
+                      <option key={deal.id} value={deal.id}>
+                        {deal.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label className="text-sm">
+                Estimated time (minutes)
+                <input
+                  type="number"
+                  min="0"
+                  step="15"
+                  placeholder="e.g. 120"
+                  className="form-input mt-1 w-full"
+                  value={estimatedMinutes}
+                  onChange={(event) => setEstimatedMinutes(event.target.value)}
+                />
+              </label>
               <label className="text-sm sm:col-span-2">
                 Details
                 <textarea
@@ -642,7 +703,7 @@ export default function CrmTasksPage() {
               columns={columns}
               busy={busy}
               pendingIds={pendingIds}
-              canMove={can(PERMISSIONS.CRM_TASK_MODIFY)}
+              canMove={canMove}
               assigneeName={assigneeName}
               onMove={moveTask}
               onOpen={openTask}

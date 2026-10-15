@@ -37,6 +37,19 @@ public class CrmSalesController {
     return actor;
   }
 
+  private long requireAny(long company, String... permissions) {
+    long actor = currentUser.currentUserId();
+    for (String permission : permissions) {
+      if (authorization.hasPermission(actor, company, permission)) {
+        return actor;
+      }
+    }
+    if (permissions.length > 0) {
+      authorization.requirePermission(actor, company, permissions[0]);
+    }
+    return actor;
+  }
+
   private long dealRead(long company) {
     return require(
         company,
@@ -79,7 +92,11 @@ public class CrmSalesController {
   public ResponseEntity<ApiResponse<CrmDealsService.Deal>> create(
       @PathVariable long companyId, @RequestBody CrmDealsService.Input input) {
     dealRead(companyId);
-    long actor = require(companyId, CompanyPermissionKeys.CRM_DEAL_MODIFY);
+    long actor =
+        requireAny(
+            companyId,
+            CompanyPermissionKeys.CRM_DEAL_CREATE,
+            CompanyPermissionKeys.CRM_DEAL_MODIFY);
     return ResponseEntity.status(201)
         .body(ApiResponse.success(201, deals.create(companyId, input, actor), "Deal created"));
   }
@@ -88,7 +105,11 @@ public class CrmSalesController {
   public ResponseEntity<ApiResponse<CrmDealsService.Deal>> edit(
       @PathVariable long companyId, @PathVariable long dealId, @Valid @RequestBody Edit input) {
     dealRead(companyId);
-    long actor = require(companyId, CompanyPermissionKeys.CRM_DEAL_MODIFY);
+    long actor =
+        requireAny(
+            companyId,
+            CompanyPermissionKeys.CRM_DEAL_EDIT,
+            CompanyPermissionKeys.CRM_DEAL_MODIFY);
     return ResponseEntity.ok(
         ApiResponse.success(
             200,
@@ -100,7 +121,11 @@ public class CrmSalesController {
   public ResponseEntity<ApiResponse<CrmDealsService.Deal>> move(
       @PathVariable long companyId, @PathVariable long dealId, @Valid @RequestBody Move input) {
     dealRead(companyId);
-    long actor = require(companyId, CompanyPermissionKeys.CRM_DEAL_MODIFY);
+    long actor =
+        requireAny(
+            companyId,
+            CompanyPermissionKeys.CRM_DEAL_STAGE,
+            CompanyPermissionKeys.CRM_DEAL_MODIFY);
     return ResponseEntity.ok(
         ApiResponse.success(
             200,
@@ -112,7 +137,11 @@ public class CrmSalesController {
   public ResponseEntity<ApiResponse<Void>> delete(
       @PathVariable long companyId, @PathVariable long dealId) {
     dealRead(companyId);
-    long actor = require(companyId, CompanyPermissionKeys.CRM_DEAL_MODIFY);
+    long actor =
+        requireAny(
+            companyId,
+            CompanyPermissionKeys.CRM_DEAL_DELETE,
+            CompanyPermissionKeys.CRM_DEAL_MODIFY);
     deals.delete(companyId, dealId, actor);
     return ResponseEntity.ok(ApiResponse.success(200, null, "Deal deleted"));
   }

@@ -25,6 +25,31 @@ export type CrmComment = {
   updatedAt: string
 }
 
+export type CrmSubtask = {
+  id: string
+  taskId: string
+  title: string
+  completed: boolean
+  position: number
+  assigneeUserId: string | null
+  assigneeName: string | null
+  completedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type CrmTaskAttachment = {
+  id: string
+  taskId: string
+  mediaId: string
+  fileName: string
+  fileSize: number
+  contentType: string
+  uploadedByUserId: string | null
+  uploadedByName: string | null
+  createdAt: string
+}
+
 export type CrmTask = {
   id: string
   title: string
@@ -35,6 +60,14 @@ export type CrmTask = {
   assigneeUserId: string
   contactId: string | null
   accountId: string | null
+  dealId?: string | null
+  dealTitle?: string | null
+  reporterUserId?: string | null
+  reporterName?: string | null
+  estimatedMinutes?: number | null
+  loggedMinutes?: number | null
+  subtaskCount?: number
+  subtasksCompletedCount?: number
   version: number
   createdAt?: string
   columnKey?: string
@@ -257,7 +290,12 @@ export const crmWorkApi = {
   async tasks(
     companyId: string,
     before?: string | null,
-    filters?: { status?: CrmTask['status']; assigneeUserId?: string },
+    filters?: {
+      status?: CrmTask['status']
+      assigneeUserId?: string
+      reporterUserId?: string
+      dealId?: string
+    },
   ) {
     const result = await apiClient.get<ApiResponse<Page<CrmTask>>>(root(companyId) + '/tasks', {
       params: { before: before || undefined, ...filters },
@@ -277,6 +315,8 @@ export const crmWorkApi = {
       assigneeUserId?: string
       contactId?: string
       accountId?: string
+      dealId?: string
+      estimatedMinutes?: number
     },
   ) {
     const result = await apiClient.post<ApiResponse<CrmTask>>(root(companyId) + '/tasks', {
@@ -299,6 +339,8 @@ export const crmWorkApi = {
       assigneeUserId: string
       contactId: string | null
       accountId: string | null
+      dealId?: string | null
+      estimatedMinutes?: number | null
     },
   ) {
     const response = await apiClient.patch<ApiResponse<CrmTask>>(
@@ -318,6 +360,123 @@ export const crmWorkApi = {
 
   async deleteTask(companyId: string, taskId: string): Promise<void> {
     await apiClient.delete(root(companyId) + '/tasks/' + encodeURIComponent(taskId))
+  },
+
+  async logTime(companyId: string, taskId: string, minutes: number): Promise<CrmTask> {
+    const result = await apiClient.post<ApiResponse<CrmTask>>(
+      root(companyId) + '/tasks/' + encodeURIComponent(taskId) + '/log-time',
+      { minutes },
+    )
+    return unwrap(result.data)
+  },
+
+  async subtasks(companyId: string, taskId: string): Promise<CrmSubtask[]> {
+    const result = await apiClient.get<ApiResponse<CrmSubtask[]>>(
+      root(companyId) + '/tasks/' + encodeURIComponent(taskId) + '/subtasks',
+    )
+    return unwrap(result.data)
+  },
+
+  async createSubtask(
+    companyId: string,
+    taskId: string,
+    title: string,
+    assigneeUserId?: string | null,
+  ): Promise<CrmSubtask> {
+    const result = await apiClient.post<ApiResponse<CrmSubtask>>(
+      root(companyId) + '/tasks/' + encodeURIComponent(taskId) + '/subtasks',
+      { title, assigneeUserId: assigneeUserId || null },
+    )
+    return unwrap(result.data)
+  },
+
+  async toggleSubtask(companyId: string, taskId: string, subtaskId: string): Promise<CrmSubtask> {
+    const result = await apiClient.patch<ApiResponse<CrmSubtask>>(
+      root(companyId) +
+        '/tasks/' +
+        encodeURIComponent(taskId) +
+        '/subtasks/' +
+        encodeURIComponent(subtaskId) +
+        '/toggle',
+    )
+    return unwrap(result.data)
+  },
+
+  async updateSubtask(
+    companyId: string,
+    taskId: string,
+    subtaskId: string,
+    input: { title?: string; assigneeUserId?: string | null },
+  ): Promise<CrmSubtask> {
+    const result = await apiClient.patch<ApiResponse<CrmSubtask>>(
+      root(companyId) +
+        '/tasks/' +
+        encodeURIComponent(taskId) +
+        '/subtasks/' +
+        encodeURIComponent(subtaskId),
+      input,
+    )
+    return unwrap(result.data)
+  },
+
+  async deleteSubtask(companyId: string, taskId: string, subtaskId: string): Promise<void> {
+    await apiClient.delete(
+      root(companyId) +
+        '/tasks/' +
+        encodeURIComponent(taskId) +
+        '/subtasks/' +
+        encodeURIComponent(subtaskId),
+    )
+  },
+
+  async reorderSubtasks(
+    companyId: string,
+    taskId: string,
+    subtaskIds: string[],
+  ): Promise<CrmSubtask[]> {
+    const result = await apiClient.put<ApiResponse<CrmSubtask[]>>(
+      root(companyId) + '/tasks/' + encodeURIComponent(taskId) + '/subtasks/reorder',
+      { subtaskIds },
+    )
+    return unwrap(result.data)
+  },
+
+  async taskAttachments(companyId: string, taskId: string): Promise<CrmTaskAttachment[]> {
+    const result = await apiClient.get<ApiResponse<CrmTaskAttachment[]>>(
+      root(companyId) + '/tasks/' + encodeURIComponent(taskId) + '/attachments',
+    )
+    return unwrap(result.data)
+  },
+
+  async attachTaskFile(
+    companyId: string,
+    taskId: string,
+    file: File,
+  ): Promise<CrmTaskAttachment> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const result = await apiClient.post<ApiResponse<CrmTaskAttachment>>(
+      root(companyId) + '/tasks/' + encodeURIComponent(taskId) + '/attachments',
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    )
+    return unwrap(result.data)
+  },
+
+  async deleteTaskAttachment(
+    companyId: string,
+    taskId: string,
+    attachmentId: string,
+  ): Promise<void> {
+    await apiClient.delete(
+      root(companyId) +
+        '/tasks/' +
+        encodeURIComponent(taskId) +
+        '/attachments/' +
+        encodeURIComponent(attachmentId),
+    )
   },
 
   async taskComments(companyId: string, taskId: string): Promise<CrmComment[]> {

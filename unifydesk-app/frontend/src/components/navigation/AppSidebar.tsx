@@ -102,8 +102,8 @@ const companyLinks: WorkspaceLink[] = [
     ],
   },
   {
-    label: 'Plan details',
-    to: '/company/plan',
+    label: 'Billing & Wallet',
+    to: '/billing',
     icon: <FiCreditCard />,
     permission: PERMISSIONS.BILLING_READ,
   },
