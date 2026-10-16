@@ -26,6 +26,7 @@ import {
 import { launchCashfreeCheckout } from '../../features/billing/cashfreeCheckout'
 import { savePendingBillingCheckout } from '../../features/billing/pendingCheckout'
 import type {
+  AutoPayDetails,
   BillingUsageSummary,
   CheckoutCustomer,
   CompanyBillingProfile,
@@ -36,11 +37,13 @@ import type {
   PlanPrice,
   WalletTransaction,
 } from '../../features/billing/types'
+import { autoPayStatusLabel } from '../../features/billing/types'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
 import { PageSkeleton } from '../../components/ui/Skeleton'
+import AutoPayModal from '../../components/billing/AutoPayModal'
 
 type TabKey = 'subscription' | 'wallet' | 'usage' | 'invoices'
 
@@ -265,6 +268,8 @@ export default function BillingPage() {
   const [autoAmount, setAutoAmount] = useState<number>(2000)
 
   // Smart AutoPay state
+  const [autoPayDetails, setAutoPayDetails] = useState<AutoPayDetails | null>(null)
+  const [autoPaySetupModalOpen, setAutoPaySetupModalOpen] = useState(false)
   const [autopayModalOpen, setAutopayModalOpen] = useState(false)
   const [autopayBannerDismissed, setAutopayBannerDismissed] = useState(false)
   const [autopayRenewPlan, setAutopayRenewPlan] = useState(true)
@@ -306,7 +311,7 @@ export default function BillingPage() {
     setError('')
 
     try {
-      const [planDetails, eligiblePlans, walletData, txData, usageData, invoicesData, profileData] =
+      const [planDetails, eligiblePlans, walletData, txData, usageData, invoicesData, profileData, autoPayData] =
         await Promise.all([
           billingApi.companyPlan(companyId).catch(() => ({ subscription: null, plan: null })),
           billingApi.eligiblePlans(companyId).catch(() => []),
@@ -328,12 +333,16 @@ export default function BillingPage() {
             postalCode: '',
             country: 'India',
           })),
+          billingApi.getAutoPayDetails(companyId).catch(() => null),
         ])
 
       if (requestRef.current !== requestId || !scopeIsCurrent(scope)) return
 
       setDetails(planDetails)
       setPlans(customerVisiblePlans(eligiblePlans))
+      if (autoPayData) {
+        setAutoPayDetails(autoPayData)
+      }
       if (walletData) {
         setWallet(walletData)
         setAutoRechargeEnabled(walletData.autoRechargeEnabled)
@@ -434,6 +443,12 @@ export default function BillingPage() {
   // Unified Smart AutoPay save handler
   const handleSaveAutopay = async (enabled: boolean) => {
     if (!companyId) return
+    if (enabled && autoPayDetails?.status !== 'ACTIVE') {
+      setAutopayModalOpen(false)
+      setAutoPaySetupModalOpen(true)
+      return
+    }
+
     setAutoRechargeSaving(true)
     setError('')
     try {
@@ -450,6 +465,23 @@ export default function BillingPage() {
       setAutopayModalOpen(false)
     } catch (cause) {
       setError(apiErrorMessage(cause, 'Failed to update AutoPay settings.'))
+    } finally {
+      setAutoRechargeSaving(false)
+    }
+  }
+
+  const handleCancelAutoPay = async () => {
+    if (!companyId) return
+    setAutoRechargeSaving(true)
+    setError('')
+    try {
+      await billingApi.cancelAutoPay(companyId)
+      await billingApi.configureAutoRecharge(companyId, { enabled: false })
+      setAutoPayDetails({ status: 'CANCELLED', maxAmount: 0, currency: 'INR' })
+      setAutoRechargeEnabled(false)
+      setNotice('AutoPay mandate has been cancelled.')
+    } catch (cause) {
+      setError(apiErrorMessage(cause, 'Failed to cancel AutoPay.'))
     } finally {
       setAutoRechargeSaving(false)
     }
@@ -1127,31 +1159,60 @@ export default function BillingPage() {
                 </p>
               </div>
 
-              {autoRechargeEnabled ? (
+              {autoPayDetails?.status === 'ACTIVE' ? (
                 <div className="rounded-xl p-3.5 bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-emerald-400 flex items-center gap-1.5">
-                      <FiCheckCircle className="text-sm" /> AutoPay Active
+                      <FiCheckCircle className="text-sm" /> Mandate Active
                     </span>
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-md">
-                      ● Active
+                      ● UPI AutoPay / e-Mandate
                     </span>
                   </div>
                   <div className="space-y-1.5 text-slate-300 text-[11px] pt-1">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Wallet Rule:</span>
+                      <span className="text-muted-foreground">Mandate Limit:</span>
+                      <span className="font-semibold text-foreground">Up to ₹15,000 / month</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Auto-Recharge:</span>
                       <span className="font-semibold text-foreground">
-                        When &lt; ₹{autoThreshold}, adds ₹{autoAmount}
+                        {autoRechargeEnabled
+                          ? `When < ₹${autoThreshold}, adds ₹${autoAmount}`
+                          : 'Disabled'}
                       </span>
                     </div>
+                    {wallet?.autoRechargePaused && (
+                      <div className="p-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px]">
+                        ⚠️ Auto-recharge paused after 3 failed attempts. Check payment method.
+                      </div>
+                    )}
                     {currentSubscription && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Plan Renewal:</span>
                         <span className="font-semibold text-foreground">
-                          Renews on {dateFmt(currentSubscription.currentPeriodEnd)}
+                          Auto-renews on {dateFmt(currentSubscription.currentPeriodEnd)}
                         </span>
                       </div>
                     )}
+                  </div>
+
+                  <div className="pt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAutopayModalOpen(true)}
+                      className="flex-1 secondary-button text-xs py-1.5 justify-center"
+                    >
+                      Configure Rules
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleCancelAutoPay()}
+                      disabled={autoRechargeSaving}
+                      className="text-[11px] text-rose-400 hover:text-rose-300 underline px-2 py-1"
+                    >
+                      Cancel Mandate
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -1159,7 +1220,9 @@ export default function BillingPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground font-medium">Status:</span>
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700">
-                      Not Configured
+                      {autoPayDetails?.status
+                        ? (autoPayStatusLabel[autoPayDetails.status] ?? autoPayDetails.status)
+                        : 'Not Configured'}
                     </span>
                   </div>
                   <div className="space-y-1.5 text-[11px] text-muted-foreground leading-relaxed">
@@ -1175,22 +1238,24 @@ export default function BillingPage() {
                         <strong>Next-Cycle Renewal:</strong> Renews subscription plan automatically.
                       </span>
                     </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-indigo-400 font-bold">✓</span>
+                      <span>
+                        <strong>RBI Tokenized:</strong> Zero card/bank credentials stored on UnifyDesk.
+                      </span>
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setAutoPaySetupModalOpen(true)}
+                    className="w-full justify-center text-xs py-2.5 rounded-xl font-semibold inline-flex items-center gap-2 transition-all shadow-md bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-indigo-600/20 mt-1"
+                  >
+                    <FiZap className="text-amber-400" />
+                    <span>Set Up AutoPay with Cashfree</span>
+                  </button>
                 </div>
               )}
-
-              <button
-                type="button"
-                onClick={() => setAutopayModalOpen(true)}
-                className={`w-full justify-center text-xs py-2.5 rounded-xl font-semibold inline-flex items-center gap-2 transition-all shadow-md ${
-                  autoRechargeEnabled
-                    ? 'secondary-button'
-                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-indigo-600/20'
-                }`}
-              >
-                <FiZap className={autoRechargeEnabled ? 'text-amber-400' : ''} />
-                {autoRechargeEnabled ? 'Manage AutoPay Rules' : 'Set Up Smart AutoPay'}
-              </button>
             </div>
           </div>
 
@@ -2196,6 +2261,23 @@ export default function BillingPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {companyId && (
+        <AutoPayModal
+          isOpen={autoPaySetupModalOpen}
+          companyId={companyId}
+          companyName={selectedCompany?.name || ''}
+          initialEmail={profile.billingEmail || selectedCompany?.businessEmail || ''}
+          initialPhone={profile.billingPhone || ''}
+          onClose={() => setAutoPaySetupModalOpen(false)}
+          onSuccess={(details) => {
+            setAutoPayDetails(details)
+            if (details.status === 'ACTIVE') {
+              setNotice('AutoPay mandate successfully activated!')
+            }
+          }}
+        />
       )}
     </div>
   )

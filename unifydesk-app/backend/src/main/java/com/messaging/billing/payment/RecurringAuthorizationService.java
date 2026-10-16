@@ -63,6 +63,44 @@ public class RecurringAuthorizationService {
     }
   }
 
+  public AuthorizationResult prepareCompanyAutopay(
+      Long companyId,
+      BigDecimal maxAmount,
+      String currency,
+      PaymentProviderGateway.Customer customer) {
+    BigDecimal limit = maxAmount != null ? maxAmount : new BigDecimal("15000.00");
+    String curr = currency != null && !currency.isBlank() ? currency : "INR";
+    return resolve(store.prepareCompanyAutopay(companyId, limit, curr), customer);
+  }
+
+  public AuthorizationResult getActiveCompanyAutopay(Long companyId) {
+    RecurringAuthorizationStore.Prepared prepared = store.findActiveCompanyAutopay(companyId);
+    if (prepared == null) {
+      return null;
+    }
+    return result(prepared, null);
+  }
+
+  public AuthorizationResult verifyAndRefreshCompanyAutopay(Long companyId) {
+    RecurringAuthorizationStore.Prepared prepared = store.findActiveCompanyAutopay(companyId);
+    if (prepared == null) {
+      return null;
+    }
+    try {
+      PaymentProviderGateway.RecurringAuthorization remote =
+          gateway.fetchRecurringAuthorization(prepared.providerSubscriptionId());
+      prepared = store.applySubscription(prepared.id(), remote);
+      return result(prepared, null);
+    } catch (RuntimeException exception) {
+      store.markAmbiguous(prepared.id());
+      throw exception;
+    }
+  }
+
+  public boolean cancelCompanyAutopay(Long companyId) {
+    return store.cancelCompanyAutopay(companyId);
+  }
+
   public void bindInitialActivation(
       Long companyId, Long checkoutIntentId, Long subscriptionId) {
     store.bindInitialActivation(companyId, checkoutIntentId, subscriptionId);
@@ -111,7 +149,7 @@ public class RecurringAuthorizationService {
     try {
       return gateway.fetchRecurringAuthorization(prepared.providerSubscriptionId());
     } catch (RestClientResponseException exception) {
-      if (exception.getStatusCode().value() != 404) {
+      if (!isAbsent(exception, "subscription_not_found")) {
         throw exception;
       }
       return createSubscription(prepared, customer);
@@ -136,11 +174,28 @@ public class RecurringAuthorizationService {
       return gateway.fetchSubscriptionPayment(
           prepared.providerSubscriptionId(), prepared.authorizationPaymentId());
     } catch (RestClientResponseException exception) {
-      if (exception.getStatusCode().value() != 404) {
+      if (!isAbsent(exception, "payment_id_not_found", "payment_not_found")) {
         throw exception;
       }
       return submitAuthorization(prepared);
     }
+  }
+
+  private boolean isAbsent(RestClientResponseException exception, String... errorCodes) {
+    if (exception.getStatusCode().value() == 404) {
+      return true;
+    }
+    if (exception.getStatusCode().value() == 400) {
+      String body = exception.getResponseBodyAsString();
+      if (body != null) {
+        for (String code : errorCodes) {
+          if (body.contains(code)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   private PaymentProviderGateway.RemoteSubscriptionPayment submitAuthorization(

@@ -26,6 +26,7 @@ class AutomaticRenewalServiceTests {
   private PaymentConfirmationService confirmationService;
   private SubscriptionLifecycleService lifecycleService;
   private CashfreeProperties properties;
+  private com.messaging.billing.service.BillingNotificationService notificationService;
   private AutomaticRenewalService service;
 
   @BeforeEach
@@ -39,6 +40,7 @@ class AutomaticRenewalServiceTests {
     lifecycleService = mock(SubscriptionLifecycleService.class);
     properties = new CashfreeProperties();
     properties.setAutomaticRenewalClaimSeconds(120L);
+    notificationService = mock(com.messaging.billing.service.BillingNotificationService.class);
     service =
         new AutomaticRenewalService(
             store,
@@ -48,7 +50,8 @@ class AutomaticRenewalServiceTests {
             chargeService,
             confirmationService,
             lifecycleService,
-            properties);
+            properties,
+            notificationService);
   }
 
   @Test

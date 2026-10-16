@@ -14,17 +14,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class CashfreePaymentGateway implements PaymentProviderGateway {
 
   private final CashfreeProperties properties;
   private final ObjectMapper objectMapper;
+  private final java.util.Set<String> verifiedPlans = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
   @Override
   public Checkout createOrder(
@@ -51,7 +54,19 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
 
   @Override
   public Checkout fetchOrder(String orderId) {
-    return checkout(paymentsGet("/pg/orders/" + encode(orderId)), orderId);
+    try {
+      return checkout(paymentsGet("/pg/orders/" + encode(orderId)), orderId);
+    } catch (RestClientResponseException ex) {
+      if (isAbsentResource(ex, "order_not_found", "order_does_not_exist")) {
+        throw org.springframework.web.client.HttpClientErrorException.create(
+            org.springframework.http.HttpStatus.NOT_FOUND,
+            "Order not found",
+            ex.getResponseHeaders(),
+            ex.getResponseBodyAsByteArray(),
+            null);
+      }
+      throw ex;
+    }
   }
 
   @Override
@@ -94,6 +109,41 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
         refundId);
   }
 
+  private void ensurePlanExists(String planId, BigDecimal maxAmount, String currency) {
+    if (verifiedPlans.contains(planId)) {
+      return;
+    }
+    try {
+      subscriptionsGet("/pg/plans/" + encode(planId));
+      verifiedPlans.add(planId);
+    } catch (RestClientResponseException ex) {
+      boolean isNotFound = ex.getStatusCode().value() == 404
+          || (ex.getStatusCode().value() == 400 && ex.getResponseBodyAsString().contains("plan_not_found"));
+      if (isNotFound) {
+        log.info("Plan {} not found in Cashfree, provisioning plan...", planId);
+        Map<String, Object> planBody = new LinkedHashMap<>();
+        planBody.put("plan_id", planId);
+        planBody.put("plan_name", "UnifyDesk AutoPay " + currency + " " + maxAmount.intValue());
+        planBody.put("plan_type", "ON_DEMAND");
+        planBody.put("plan_currency", currency);
+        planBody.put("plan_max_amount", cashfreeMoney(maxAmount));
+        planBody.put("plan_note", "UnifyDesk on demand billing mandate");
+        try {
+          subscriptionsPost("/pg/plans", planBody, ProviderIdempotency.key("plan", planId));
+        } catch (RestClientResponseException postEx) {
+          if (postEx.getResponseBodyAsString().contains("plan_already_exists")) {
+            log.info("Plan {} already exists in Cashfree", planId);
+          } else {
+            throw postEx;
+          }
+        }
+        verifiedPlans.add(planId);
+      } else {
+        throw ex;
+      }
+    }
+  }
+
   @Override
   public RecurringAuthorization createRecurringAuthorization(
       String subscriptionId,
@@ -102,21 +152,16 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
       Customer customer,
       String returnUrl,
       String idempotencyKey) {
-    Map<String, Object> plan = new LinkedHashMap<>();
-    plan.put("plan_name", "UnifyDesk recurring invoice authorization");
-    plan.put("plan_type", "ON_DEMAND");
-    plan.put("plan_currency", currency);
-    plan.put("plan_amount", cashfreeMoney(BigDecimal.ONE));
-    plan.put("plan_max_amount", cashfreeMoney(maxAmount));
-    plan.put("plan_max_cycles", 0);
-    plan.put("plan_note", "UnifyDesk on-demand billing mandate");
+    String planId = "PLAN_ON_DEMAND_" + maxAmount.intValue() + "_" + currency;
+    ensurePlanExists(planId, maxAmount, currency);
+
     JsonNode json =
         subscriptionsPost(
             "/pg/subscriptions",
             Map.of(
                 "subscription_id", subscriptionId,
                 "customer_details", customer(customer),
-                "plan_details", plan,
+                "plan_details", Map.of("plan_id", planId),
                 "authorization_details", Map.of("authorization_amount", cashfreeMoney(BigDecimal.ONE)),
                 "subscription_meta", Map.of("return_url", returnUrl)),
             idempotencyKey);
@@ -125,8 +170,20 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
 
   @Override
   public RecurringAuthorization fetchRecurringAuthorization(String subscriptionId) {
-    return authorization(
-        subscriptionsGet("/pg/subscriptions/" + encode(subscriptionId)), subscriptionId);
+    try {
+      return authorization(
+          subscriptionsGet("/pg/subscriptions/" + encode(subscriptionId)), subscriptionId);
+    } catch (RestClientResponseException ex) {
+      if (isAbsentResource(ex, "subscription_not_found")) {
+        throw org.springframework.web.client.HttpClientErrorException.create(
+            org.springframework.http.HttpStatus.NOT_FOUND,
+            "Subscription not found",
+            ex.getResponseHeaders(),
+            ex.getResponseBodyAsByteArray(),
+            null);
+      }
+      throw ex;
+    }
   }
 
   @Override
@@ -144,7 +201,7 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
     body.put("payment_id", paymentId);
     body.put("payment_type", "AUTH");
     body.put("subscription_session_id", subscriptionSessionId);
-    body.put("payment_method", Map.of("UPI", Map.of("channel", "link")));
+    body.put("payment_method", Map.of("upi", Map.of("channel", "link")));
     return subscriptionPayment(
         subscriptionsPost("/pg/subscriptions/pay", body, idempotencyKey), paymentId);
   }
@@ -173,13 +230,42 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
   @Override
   public RemoteSubscriptionPayment fetchSubscriptionPayment(
       String subscriptionId, String paymentId) {
-    return subscriptionPayment(
-        subscriptionsGet(
-            "/pg/subscriptions/"
-                + encode(subscriptionId)
-                + "/payments/"
-                + encode(paymentId)),
-        paymentId);
+    try {
+      return subscriptionPayment(
+          subscriptionsGet(
+              "/pg/subscriptions/"
+                  + encode(subscriptionId)
+                  + "/payments/"
+                  + encode(paymentId)),
+          paymentId);
+    } catch (RestClientResponseException ex) {
+      if (isAbsentResource(ex, "payment_id_not_found", "payment_not_found")) {
+        throw org.springframework.web.client.HttpClientErrorException.create(
+            org.springframework.http.HttpStatus.NOT_FOUND,
+            "Payment not found",
+            ex.getResponseHeaders(),
+            ex.getResponseBodyAsByteArray(),
+            null);
+      }
+      throw ex;
+    }
+  }
+
+  private boolean isAbsentResource(RestClientResponseException ex, String... errorCodes) {
+    if (ex.getStatusCode().value() == 404) {
+      return true;
+    }
+    if (ex.getStatusCode().value() == 400) {
+      String body = ex.getResponseBodyAsString();
+      if (body != null) {
+        for (String code : errorCodes) {
+          if (body.contains(code)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   private Checkout checkout(JsonNode json, String fallbackOrderId) {
@@ -212,6 +298,16 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
   private RemoteSubscriptionPayment subscriptionPayment(JsonNode json, String fallbackPaymentId) {
     JsonNode failure = json.path("failure_details");
     JsonNode data = json.path("data");
+    String actionUrl = text(data, "url");
+    if (blank(actionUrl)) actionUrl = text(json, "url");
+    if (blank(actionUrl)) actionUrl = text(json, "payment_url");
+    if (blank(actionUrl)) actionUrl = text(data, "payment_url");
+    if (blank(actionUrl)) actionUrl = text(data, "link");
+    if (blank(actionUrl) && data.has("payload")) {
+      JsonNode payload = data.path("payload");
+      actionUrl = text(payload, "default");
+      if (blank(actionUrl)) actionUrl = text(payload, "url");
+    }
     return new RemoteSubscriptionPayment(
         json.path("payment_id").asText(fallbackPaymentId),
         text(json, "cf_payment_id"),
@@ -219,7 +315,7 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
         decimal(json, "payment_amount"),
         text(json, "payment_currency"),
         instant(text(json, "payment_initiated_date")),
-        text(data, "url"),
+        actionUrl,
         text(failure, "failure_reason"));
   }
 
@@ -240,31 +336,57 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
   }
 
   private JsonNode paymentsPost(String path, Object body, String idempotencyKey) {
-    return post(path, body, idempotencyKey, properties.getPaymentsApiVersion());
+    return post(
+        path,
+        body,
+        idempotencyKey,
+        properties.getPaymentsApiVersion(),
+        properties.getClientId(),
+        properties.getClientSecret());
   }
 
   private JsonNode subscriptionsPost(String path, Object body, String idempotencyKey) {
-    return post(path, body, idempotencyKey, properties.getSubscriptionsApiVersion());
+    return post(
+        path,
+        body,
+        idempotencyKey,
+        properties.getSubscriptionsApiVersion(),
+        properties.getEffectiveSubscriptionsClientId(),
+        properties.getEffectiveSubscriptionsClientSecret());
   }
 
   private JsonNode paymentsGet(String path) {
-    return get(path, properties.getPaymentsApiVersion());
+    return get(
+        path,
+        properties.getPaymentsApiVersion(),
+        properties.getClientId(),
+        properties.getClientSecret());
   }
 
   private JsonNode subscriptionsGet(String path) {
-    return get(path, properties.getSubscriptionsApiVersion());
+    return get(
+        path,
+        properties.getSubscriptionsApiVersion(),
+        properties.getEffectiveSubscriptionsClientId(),
+        properties.getEffectiveSubscriptionsClientSecret());
   }
 
-  private JsonNode post(String path, Object body, String idempotencyKey, String apiVersion) {
-    assertConfigured(apiVersion);
+  private JsonNode post(
+      String path,
+      Object body,
+      String idempotencyKey,
+      String apiVersion,
+      String clientId,
+      String clientSecret) {
+    assertConfigured(apiVersion, clientId, clientSecret);
     try {
       String response =
           client()
               .post()
               .uri(path)
               .contentType(MediaType.APPLICATION_JSON)
-              .header("x-client-id", properties.getClientId())
-              .header("x-client-secret", properties.getClientSecret())
+              .header("x-client-id", clientId)
+              .header("x-client-secret", clientSecret)
               .header("x-api-version", apiVersion)
               .header("x-idempotency-key", idempotencyKey)
               .body(body)
@@ -272,34 +394,54 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
               .body(String.class);
       return read(response);
     } catch (RestClientResponseException exception) {
-      throw new ServiceUnavailableException(
-          "Cashfree rejected the payment request. Please retry or check provider configuration.",
-          exception);
+      String responseBody = exception.getResponseBodyAsString();
+      log.error("Cashfree API POST {} failed: status={}, response={}", path, exception.getStatusCode(), responseBody);
+      String detail = null;
+      try {
+        JsonNode errJson = objectMapper.readTree(responseBody);
+        if (errJson.hasNonNull("message")) {
+          detail = errJson.path("message").asText();
+        }
+      } catch (Exception ignored) {
+      }
+      String msg = detail != null && !detail.isBlank()
+          ? "Cashfree rejected the payment request: " + detail
+          : "Cashfree rejected the payment request. Please retry or check provider configuration.";
+      throw new ServiceUnavailableException(msg, exception);
     }
   }
 
-  private JsonNode get(String path, String apiVersion) {
-    assertConfigured(apiVersion);
-    String response =
-        client()
-            .get()
-            .uri(path)
-            .header("x-client-id", properties.getClientId())
-            .header("x-client-secret", properties.getClientSecret())
-            .header("x-api-version", apiVersion)
-            .retrieve()
-            .body(String.class);
-    return read(response);
+  private JsonNode get(
+      String path,
+      String apiVersion,
+      String clientId,
+      String clientSecret) {
+    assertConfigured(apiVersion, clientId, clientSecret);
+    try {
+      String response =
+          client()
+              .get()
+              .uri(path)
+              .header("x-client-id", clientId)
+              .header("x-client-secret", clientSecret)
+              .header("x-api-version", apiVersion)
+              .retrieve()
+              .body(String.class);
+      return read(response);
+    } catch (RestClientResponseException exception) {
+      log.debug("Cashfree API GET {} returned status={}", path, exception.getStatusCode());
+      throw exception;
+    }
   }
 
   private RestClient client() {
     return RestClient.builder().baseUrl(properties.getBaseUrl()).build();
   }
 
-  private void assertConfigured(String apiVersion) {
+  private void assertConfigured(String apiVersion, String clientId, String clientSecret) {
     if (!properties.isEnabled()
-        || blank(properties.getClientId())
-        || blank(properties.getClientSecret())) {
+        || blank(clientId)
+        || blank(clientSecret)) {
       throw new ConflictException("Cashfree provider is not configured");
     }
     if (blank(apiVersion)) {

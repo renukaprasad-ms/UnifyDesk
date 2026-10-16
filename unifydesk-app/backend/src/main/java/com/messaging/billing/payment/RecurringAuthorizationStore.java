@@ -72,6 +72,61 @@ class RecurringAuthorizationStore {
   }
 
   @Transactional
+  Prepared prepareCompanyAutopay(Long companyId, BigDecimal maxAmount, String currency) {
+    List<Prepared> existing =
+        queryForUpdate(
+            """
+            select id, company_id, subscription_id, checkout_intent_id,
+                   provider_subscription_id, provider_subscription_session_id,
+                   authorization_payment_id, authorization_status, max_amount, currency,
+                   provider_authorization_payment_id
+              from payment_provider_authorizations
+             where company_id = ? and is_company_autopay = true and provider = 'CASHFREE'
+             for update
+            """,
+            companyId);
+    if (!existing.isEmpty()) {
+      return existing.getFirst();
+    }
+    return insertCompanyAutopay(
+        companyId,
+        "UDS-AP-" + companyId + "-" + IdGenerator.nextId(),
+        maxAmount,
+        currency);
+  }
+
+  @Transactional(readOnly = true)
+  Prepared findActiveCompanyAutopay(Long companyId) {
+    List<Prepared> rows =
+        query(
+            """
+            select id, company_id, subscription_id, checkout_intent_id,
+                   provider_subscription_id, provider_subscription_session_id,
+                   authorization_payment_id, authorization_status, max_amount, currency,
+                   provider_authorization_payment_id
+              from payment_provider_authorizations
+             where company_id = ? and is_company_autopay = true and provider = 'CASHFREE'
+             order by case when authorization_status = 'ACTIVE' then 0 else 1 end, id desc
+            """,
+            companyId);
+    return rows.isEmpty() ? null : rows.getFirst();
+  }
+
+  @Transactional
+  boolean cancelCompanyAutopay(Long companyId) {
+    int updated =
+        jdbcTemplate.update(
+            """
+            update payment_provider_authorizations
+               set authorization_status = 'CANCELLED',
+                   updated_at = now()
+             where company_id = ? and is_company_autopay = true
+            """,
+            companyId);
+    return updated > 0;
+  }
+
+  @Transactional
   Prepared applySubscription(long id, PaymentProviderGateway.RecurringAuthorization remote) {
     Prepared local = requireForUpdate(id);
     if (!local.providerSubscriptionId().equals(remote.subscriptionId())) {
@@ -259,7 +314,46 @@ class RecurringAuthorizationStore {
             """,
             companyId,
             subscriptionId);
-    return rows.isEmpty() ? null : rows.getFirst();
+    if (!rows.isEmpty()) {
+      return rows.getFirst();
+    }
+    return findActiveCompanyAutopay(companyId);
+  }
+
+  private Prepared insertCompanyAutopay(
+      Long companyId,
+      String providerSubscriptionId,
+      BigDecimal maxAmount,
+      String currency) {
+    long id = IdGenerator.nextId();
+    String authorizationPaymentId = "UDA-" + id;
+    jdbcTemplate.update(
+        """
+        insert into payment_provider_authorizations (
+          id, company_id, subscription_id, checkout_intent_id, is_company_autopay, provider,
+          provider_subscription_id, authorization_payment_id,
+          authorization_status, max_amount, currency, expires_at, created_at, updated_at
+        ) values (?, ?, null, null, true, 'CASHFREE', ?, ?, 'CREATE_PENDING', ?, ?, now() + interval '20 years', now(), now())
+        """,
+        id,
+        companyId,
+        providerSubscriptionId,
+        authorizationPaymentId,
+        maxAmount,
+        currency);
+    return new Prepared(
+        id,
+        companyId,
+        null,
+        null,
+        providerSubscriptionId,
+        null,
+        authorizationPaymentId,
+        null,
+        "CREATE_PENDING",
+        maxAmount,
+        currency,
+        true);
   }
 
   private Prepared insert(

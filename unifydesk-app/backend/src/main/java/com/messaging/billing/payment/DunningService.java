@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class DunningService {
 
-  private static final Duration GRACE = Duration.ofDays(7);
+  private static final Duration GRACE = Duration.ofDays(3);
   private static final Duration OBSERVATION_DELAY = Duration.ofHours(1);
 
   static final String DUE_FAILED = "DUE_FAILED";
@@ -30,6 +30,7 @@ public class DunningService {
   private final RecurringChargeService recurringChargeService;
   private final SubscriptionLifecycleService lifecycleService;
   private final CashfreeProperties properties;
+  private final com.messaging.billing.service.BillingNotificationService billingNotificationService;
 
   public void schedule(
       Long companyId, Long subscriptionId, Long invoiceId, Long paymentId, Instant dueBoundary) {
@@ -47,8 +48,9 @@ public class DunningService {
         subscriptionId,
         invoiceId,
         paymentId,
-        Timestamp.from(base.plus(Duration.ofDays(2))),
+        Timestamp.from(base.plus(Duration.ofDays(1))),
         Timestamp.from(base.plus(GRACE)));
+    billingNotificationService.sendRenewalFailureEmail(companyId, subscriptionId, 1);
   }
 
   @Scheduled(
@@ -84,12 +86,13 @@ public class DunningService {
                updated_at = now()
           from due
          where j.id = due.id
-        returning j.id, j.subscription_id, j.payment_id, j.attempt_count,
+        returning j.id, j.company_id, j.subscription_id, j.payment_id, j.attempt_count,
                   j.dunning_stage, j.grace_ends_at, j.claim_token
         """,
         (rs, rowNum) ->
             new Job(
                 rs.getLong("id"),
+                rs.getLong("company_id"),
                 rs.getLong("subscription_id"),
                 rs.getLong("payment_id"),
                 rs.getInt("attempt_count"),
@@ -105,6 +108,7 @@ public class DunningService {
     if (!now.isBefore(job.graceEndsAt())) {
       lifecycleService.applyDueLifecycle(now);
       finish(job, "EXHAUSTED", null, job.attemptCount(), GRACE_EXHAUSTED);
+      billingNotificationService.sendCompanyFrozenEmail(job.companyId(), job.subscriptionId());
       return;
     }
 
@@ -217,21 +221,21 @@ public class DunningService {
     Instant next = nextBoundaryAfterFailure(job.stage(), job.graceEndsAt());
     int count = attemptCountForStage(nextStage);
     release(job, next, count, nextStage);
+    billingNotificationService.sendRenewalFailureEmail(job.companyId(), job.subscriptionId(), count);
   }
 
   static String nextStageAfterFailure(String currentStage) {
     return switch (currentStage) {
       case DUE_FAILED -> D2_FAILED;
-      case D2_FAILED -> D5_FAILED;
-      case D5_FAILED -> D5_FAILED;
+      case D2_FAILED, D5_FAILED -> D5_FAILED;
       default -> throw new IllegalStateException("Unknown dunning stage: " + currentStage);
     };
   }
 
   static Instant nextBoundaryAfterFailure(String currentStage, Instant graceEndsAt) {
     return switch (currentStage) {
-      case DUE_FAILED -> graceEndsAt.minus(Duration.ofDays(2)); // D+5
-      case D2_FAILED, D5_FAILED -> graceEndsAt; // D+7
+      case DUE_FAILED -> graceEndsAt.minus(Duration.ofDays(1)); // Day 2 retry
+      case D2_FAILED, D5_FAILED -> graceEndsAt; // Day 3 freeze
       default -> throw new IllegalStateException("Unknown dunning stage: " + currentStage);
     };
   }
@@ -305,6 +309,7 @@ public class DunningService {
 
   record Job(
       Long id,
+      Long companyId,
       Long subscriptionId,
       Long paymentId,
       int attemptCount,

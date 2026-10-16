@@ -10,6 +10,8 @@ public class CashfreeProperties {
   private String baseUrl = "https://sandbox.cashfree.com";
   private String clientId;
   private String clientSecret;
+  private String subscriptionsClientId;
+  private String subscriptionsClientSecret;
   private String paymentsApiVersion = "2025-01-01";
   private String subscriptionsApiVersion = "2025-01-01";
   private String returnUrl = "https://app.unifydesk.in/billing/payment-return";
@@ -30,6 +32,16 @@ public class CashfreeProperties {
   public void setClientId(String clientId) { this.clientId = clientId; }
   public String getClientSecret() { return clientSecret; }
   public void setClientSecret(String clientSecret) { this.clientSecret = clientSecret; }
+  public String getSubscriptionsClientId() { return subscriptionsClientId; }
+  public void setSubscriptionsClientId(String subscriptionsClientId) { this.subscriptionsClientId = subscriptionsClientId; }
+  public String getSubscriptionsClientSecret() { return subscriptionsClientSecret; }
+  public void setSubscriptionsClientSecret(String subscriptionsClientSecret) { this.subscriptionsClientSecret = subscriptionsClientSecret; }
+  public String getEffectiveSubscriptionsClientId() {
+    return subscriptionsClientId != null && !subscriptionsClientId.isBlank() ? subscriptionsClientId : clientId;
+  }
+  public String getEffectiveSubscriptionsClientSecret() {
+    return subscriptionsClientSecret != null && !subscriptionsClientSecret.isBlank() ? subscriptionsClientSecret : clientSecret;
+  }
   public String getPaymentsApiVersion() { return paymentsApiVersion; }
   public void setPaymentsApiVersion(String paymentsApiVersion) { this.paymentsApiVersion = paymentsApiVersion; }
   public String getSubscriptionsApiVersion() { return subscriptionsApiVersion; }

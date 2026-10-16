@@ -42,18 +42,9 @@ public class BillingPaymentOrchestrator {
             null,
             customer);
 
-    // The initial one-time payment and the future mandate are distinct provider actions.
-    // Pre-bind the mandate to the durable B1 checkout intent; activation binds it to the
-    // resulting CompanySubscription only after provider-confirmed initial payment truth.
-    var authorization =
-        recurringAuthorizationService.prepareForInitialCheckout(
-            companyId,
-            Long.valueOf(intent.intentId()),
-            intent.invoice().amountDue(),
-            intent.invoice().currency(),
-            customer);
-    return checkout.withRecurringAuthorization(
-        authorization.subscriptionSessionId(), authorization.actionUrl());
+    // Initial checkout is pure one-time order payment.
+    // Company AutoPay is completely optional and setup separately after payment confirmation.
+    return checkout;
   }
 
   public PaymentCollectionService.CheckoutResult upgrade(

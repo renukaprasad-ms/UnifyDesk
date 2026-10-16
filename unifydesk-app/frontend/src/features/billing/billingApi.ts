@@ -165,5 +165,34 @@ export const billingApi = {
     )
     return unwrap(response.data)
   },
+
+  async getAutoPayDetails(companyId: string) {
+    const response = await apiClient.get<ApiResponse<import('./types').AutoPayDetails>>(
+      `/api/v1/companies/${companyId}/billing/autopay`,
+    )
+    return unwrap(response.data)
+  },
+
+  async setupAutoPay(companyId: string, input?: import('./types').AutoPaySetupInput) {
+    const response = await apiClient.post<ApiResponse<import('./types').AutoPayDetails>>(
+      `/api/v1/companies/${companyId}/billing/autopay/setup`,
+      input ?? {},
+    )
+    return unwrap(response.data)
+  },
+
+  async verifyAutoPay(companyId: string) {
+    const response = await apiClient.post<ApiResponse<import('./types').AutoPayDetails>>(
+      `/api/v1/companies/${companyId}/billing/autopay/verify`,
+    )
+    return unwrap(response.data)
+  },
+
+  async cancelAutoPay(companyId: string) {
+    const response = await apiClient.delete<ApiResponse<void>>(
+      `/api/v1/companies/${companyId}/billing/autopay`,
+    )
+    return unwrap(response.data)
+  },
 }
 

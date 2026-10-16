@@ -40,6 +40,15 @@ public class CompanyWallet implements Persistable<Long> {
   @Column(name = "auto_recharge_amount", precision = 19, scale = 4)
   private BigDecimal autoRechargeAmount = new BigDecimal("2000.0000");
 
+  @Column(name = "auto_recharge_failed_attempts", nullable = false)
+  private int autoRechargeFailedAttempts = 0;
+
+  @Column(name = "auto_recharge_last_attempt_at")
+  private Instant autoRechargeLastAttemptAt;
+
+  @Column(name = "auto_recharge_paused", nullable = false)
+  private boolean autoRechargePaused = false;
+
   @Version
   private Long version;
 

@@ -110,7 +110,11 @@ public class RecurringChargeService {
       return gateway.fetchSubscriptionPayment(
           prepared.providerSubscriptionId(), prepared.providerCommandId());
     } catch (RestClientResponseException exception) {
-      if (exception.getStatusCode().value() != 404) throw exception;
+      boolean isAbsent = exception.getStatusCode().value() == 404
+          || (exception.getStatusCode().value() == 400
+              && (exception.getResponseBodyAsString().contains("payment_id_not_found")
+                  || exception.getResponseBodyAsString().contains("payment_not_found")));
+      if (!isAbsent) throw exception;
       return submit(prepared, scheduledAt);
     }
   }

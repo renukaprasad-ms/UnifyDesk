@@ -27,20 +27,22 @@ class DunningServiceTests {
     recurringCharges = mock(RecurringChargeService.class);
     lifecycle = mock(SubscriptionLifecycleService.class);
     CashfreeProperties properties = new CashfreeProperties();
-    service = new DunningService(jdbc, reconciliation, recurringCharges, lifecycle, properties);
+    com.messaging.billing.service.BillingNotificationService notificationService =
+        mock(com.messaging.billing.service.BillingNotificationService.class);
+    service = new DunningService(jdbc, reconciliation, recurringCharges, lifecycle, properties, notificationService);
   }
 
   @Test
   void retryProgressionIsExactlyD0D2D5D7() {
-    Instant d7 = Instant.parse("2026-10-17T00:00:00Z");
+    Instant graceEndsAt = Instant.parse("2026-10-17T00:00:00Z");
 
     assertEquals(DunningService.D2_FAILED, DunningService.nextStageAfterFailure(DunningService.DUE_FAILED));
-    assertEquals(d7.minus(Duration.ofDays(2)),
-        DunningService.nextBoundaryAfterFailure(DunningService.DUE_FAILED, d7));
+    assertEquals(graceEndsAt.minus(Duration.ofDays(1)),
+        DunningService.nextBoundaryAfterFailure(DunningService.DUE_FAILED, graceEndsAt));
 
     assertEquals(DunningService.D5_FAILED, DunningService.nextStageAfterFailure(DunningService.D2_FAILED));
-    assertEquals(d7,
-        DunningService.nextBoundaryAfterFailure(DunningService.D2_FAILED, d7));
+    assertEquals(graceEndsAt,
+        DunningService.nextBoundaryAfterFailure(DunningService.D2_FAILED, graceEndsAt));
 
     assertEquals(1, DunningService.attemptCountForStage(DunningService.DUE_FAILED));
     assertEquals(2, DunningService.attemptCountForStage(DunningService.D2_FAILED));
@@ -52,7 +54,7 @@ class DunningServiceTests {
     Instant grace = Instant.now().plus(Duration.ofDays(5));
     var job =
         new DunningService.Job(
-            1L, 77L, 30L, 1, DunningService.DUE_FAILED, grace, "claim-1");
+            1L, 10L, 77L, 30L, 1, DunningService.DUE_FAILED, grace, "claim-1");
 
     when(jdbc.queryForList(contains("provider_order_id"), eq(String.class), eq(30L)))
         .thenReturn(List.of());
@@ -83,6 +85,7 @@ class DunningServiceTests {
     var job =
         new DunningService.Job(
             1L,
+            10L,
             77L,
             30L,
             3,

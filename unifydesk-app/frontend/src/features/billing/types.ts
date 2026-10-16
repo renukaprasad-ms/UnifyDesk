@@ -130,6 +130,34 @@ export type CheckoutResponse = {
   recurringAuthorizationActionUrl?: string | null
 }
 
+export type AutoPayDetails = {
+  authorizationId?: string | null
+  status: 'ACTIVE' | 'PENDING_AUTH' | 'CANCELLED' | 'FAILED' | 'NOT_CONFIGURED'
+  maxAmount: number
+  currency: string
+  providerSubscriptionId?: string | null
+  subscriptionSessionId?: string | null
+  paymentMethodType?: string | null
+  actionUrl?: string | null
+}
+
+/** Maps raw AutoPay status codes to user-friendly labels */
+export const autoPayStatusLabel: Record<AutoPayDetails['status'], string> = {
+  ACTIVE: 'Active',
+  PENDING_AUTH: 'Pending Approval',
+  CANCELLED: 'Cancelled',
+  FAILED: 'Failed',
+  NOT_CONFIGURED: 'Not Configured',
+}
+
+export type AutoPaySetupInput = {
+  name?: string | null
+  email?: string | null
+  phone?: string | null
+  returnUrl?: string | null
+  maxAmount?: number | null
+}
+
 export type CompanyWallet = {
   companyId: string
   balance: number
@@ -137,6 +165,8 @@ export type CompanyWallet = {
   autoRechargeEnabled: boolean
   autoRechargeThreshold: number
   autoRechargeAmount: number
+  autoRechargeFailedAttempts?: number
+  autoRechargePaused?: boolean
   updatedAt: string
 }
 

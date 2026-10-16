@@ -34,6 +34,7 @@ public class AutomaticRenewalService {
   private final PaymentConfirmationService confirmationService;
   private final SubscriptionLifecycleService lifecycleService;
   private final CashfreeProperties properties;
+  private final com.messaging.billing.service.BillingNotificationService billingNotificationService;
 
   @Scheduled(
       fixedDelayString = "${app.billing.cashfree.automatic-renewal-interval-ms:60000}",
@@ -124,6 +125,7 @@ public class AutomaticRenewalService {
       if (payment.status() == PaymentStatus.SUCCEEDED) {
         confirmationService.applyDeferredRenewal(paymentId, now);
         store.finish(job, "RECOVERED", invoiceId, paymentId, null);
+        billingNotificationService.sendRenewalInvoiceEmail(job.companyId(), invoiceId);
         return;
       }
 
@@ -147,6 +149,7 @@ public class AutomaticRenewalService {
       if (after == PaymentStatus.SUCCEEDED) {
         confirmationService.applyDeferredRenewal(paymentId, now);
         store.finish(job, "RECOVERED", invoiceId, paymentId, null);
+        billingNotificationService.sendRenewalInvoiceEmail(job.companyId(), invoiceId);
         return;
       }
       if (store.latestUnresolvedRecurringAttempt(paymentId) != null) {

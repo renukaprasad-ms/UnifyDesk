@@ -40,6 +40,7 @@ public class WalletService {
   private final CompanyBillingProfileRepository billingProfileRepository;
   private final PaymentProviderGateway paymentProviderGateway;
   private final CashfreeProperties cashfreeProperties;
+  private final WalletAutoRechargeService walletAutoRechargeService;
 
   @Transactional
   public CompanyWallet getOrCreateWallet(Long companyId) {
@@ -227,6 +228,12 @@ public class WalletService {
     tx.setCreatedAt(Instant.now());
     transactionRepository.saveAndFlush(tx);
 
+    if (wallet.isAutoRechargeEnabled()
+        && !wallet.isAutoRechargePaused()
+        && updatedBalance.compareTo(wallet.getAutoRechargeThreshold()) <= 0) {
+      walletAutoRechargeService.triggerAutoRechargeIfEligibleAsync(companyId);
+    }
+
     return true;
   }
 
@@ -239,6 +246,10 @@ public class WalletService {
             .orElseGet(() -> getOrCreateWallet(companyId));
 
     wallet.setAutoRechargeEnabled(request.enabled());
+    if (request.enabled()) {
+      wallet.setAutoRechargePaused(false);
+      wallet.setAutoRechargeFailedAttempts(0);
+    }
     if (request.threshold() != null && request.threshold().compareTo(BigDecimal.ZERO) > 0) {
       wallet.setAutoRechargeThreshold(request.threshold().setScale(4, RoundingMode.HALF_UP));
     }
@@ -322,6 +333,8 @@ public class WalletService {
         wallet.isAutoRechargeEnabled(),
         wallet.getAutoRechargeThreshold(),
         wallet.getAutoRechargeAmount(),
+        wallet.getAutoRechargeFailedAttempts(),
+        wallet.isAutoRechargePaused(),
         wallet.getUpdatedAt());
   }
 
