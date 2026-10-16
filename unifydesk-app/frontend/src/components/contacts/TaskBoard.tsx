@@ -30,7 +30,7 @@ export default function TaskBoard({
   columns: CrmTaskColumn[]
   pendingIds?: Set<string>
   busy: boolean
-  canMove: boolean
+  canMove: boolean | ((task: CrmTask) => boolean)
   onMove: (task: CrmTask, key: string) => void
   onOpen: (task: CrmTask) => void
   onEdit?: (task: CrmTask) => void
@@ -40,6 +40,14 @@ export default function TaskBoard({
 }) {
   const [dragged, setDragged] = useState<string | null>(null)
   const [over, setOver] = useState<string | null>(null)
+
+  const checkCanMove = (t?: CrmTask | null) => {
+    if (typeof canMove === 'function') {
+      return t ? canMove(t) : false
+    }
+    return Boolean(canMove)
+  }
+
   return (
     <div
       className="flex h-full min-h-0 items-stretch gap-4 overflow-x-auto pb-2"
@@ -53,10 +61,13 @@ export default function TaskBoard({
             aria-label={column.name + ' column'}
             className={`flex h-full min-h-0 w-72 min-w-72 flex-1 flex-col overflow-hidden rounded-xl border bg-slate-50 p-3 transition-colors dark:bg-slate-900/60 ${over === column.key ? 'border-indigo-400 ring-2 ring-indigo-100 dark:border-indigo-500 dark:ring-indigo-900/30' : 'border-slate-200 dark:border-slate-800'}`}
             onDragOver={(e) => {
-              if (canMove && !busy && dragged) {
-                e.preventDefault()
-                e.dataTransfer.dropEffect = 'move'
-                setOver(column.key)
+              if (!busy && dragged) {
+                const draggingTask = tasks.find((t) => t.id === dragged)
+                if (checkCanMove(draggingTask)) {
+                  e.preventDefault()
+                  e.dataTransfer.dropEffect = 'move'
+                  setOver(column.key)
+                }
               }
             }}
             onDragLeave={(e) => {
@@ -67,7 +78,7 @@ export default function TaskBoard({
               const id = e.dataTransfer.getData('text/plain')
               const task = tasks.find((t) => t.id === id)
               if (
-                canMove &&
+                checkCanMove(task) &&
                 !busy &&
                 task &&
                 !pendingIds.has(task.id) &&
@@ -104,6 +115,7 @@ export default function TaskBoard({
             </header>
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
               {items.map((task) => {
+                const itemCanMove = checkCanMove(task)
                 const overdue =
                   task.dueAt &&
                   new Date(task.dueAt).getTime() < Date.now() &&
@@ -112,7 +124,7 @@ export default function TaskBoard({
                 return (
                   <article
                     key={task.id}
-                    draggable={canMove && !busy && !pendingIds.has(task.id)}
+                    draggable={itemCanMove && !busy && !pendingIds.has(task.id)}
                     aria-label={task.title}
                     aria-busy={pendingIds.has(task.id)}
                     onDragStart={(e) => {
@@ -125,7 +137,7 @@ export default function TaskBoard({
                       setOver(null)
                     }}
                     onClick={() => onOpen(task)}
-                    className={`group cursor-pointer rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 ${canMove ? 'cursor-grab active:cursor-grabbing' : ''} ${dragged === task.id ? 'opacity-40' : ''}`}
+                    className={`group cursor-pointer rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 ${itemCanMove ? 'cursor-grab active:cursor-grabbing' : ''} ${dragged === task.id ? 'opacity-40' : ''}`}
                   >
                     {/* Header tags: Key + Priority + Task Type */}
                     <div className="mb-2.5 flex items-center justify-between gap-1.5">
@@ -206,6 +218,18 @@ export default function TaskBoard({
                           </span>
                         </span>
                       )}
+                      {task.status === 'IN_PROGRESS' && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
+                          title="In progress work cycle"
+                        >
+                          <span className="relative flex h-1.5 w-1.5">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75"></span>
+                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-indigo-600"></span>
+                          </span>
+                          <span>In progress</span>
+                        </span>
+                      )}
                       {((task.estimatedMinutes || 0) > 0 || (task.loggedMinutes || 0) > 0) && (
                         <span
                           className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
@@ -238,7 +262,7 @@ export default function TaskBoard({
                     </div>
 
                     {/* Quick Move Status Selector */}
-                    {canMove && (
+                    {itemCanMove && (
                       <div
                         className="mt-2.5"
                         onClick={(e) => e.stopPropagation()}

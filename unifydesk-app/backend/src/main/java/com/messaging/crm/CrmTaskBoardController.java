@@ -72,12 +72,26 @@ public class CrmTaskBoardController {
     return ApiResponse.success(200, board.remove(companyId, key, version), "Step removed");
   }
 
+  private boolean canMoveTask(long actor, long companyId, CrmWorkService.Task task) {
+    if (authorization.hasPermission(actor, companyId, CompanyPermissionKeys.CRM_TASK_STATUS)
+        || authorization.hasPermission(actor, companyId, CompanyPermissionKeys.CRM_TASK_MODIFY)) {
+      return true;
+    }
+    String actorStr = String.valueOf(actor);
+    return actorStr.equals(task.assigneeUserId()) || actorStr.equals(task.reporterUserId());
+  }
+
   @PatchMapping("/tasks/{taskId}/column")
   public ApiResponse<CrmWorkService.Task> move(
       @PathVariable long companyId,
       @PathVariable long taskId,
       @Valid @RequestBody SetColumn request) {
-    long actor = require(companyId, CompanyPermissionKeys.CRM_TASK_MODIFY);
+    long actor = currentUser.currentUserId();
+    CrmWorkService.Task existing = work.getTask(companyId, taskId);
+    if (!canMoveTask(actor, companyId, existing)) {
+      throw new com.messaging.common.exception.ForbiddenException(
+          "You do not have permission to move this task");
+    }
     return ApiResponse.success(
         200,
         work.changeTaskColumn(companyId, taskId, request.version(), request.columnKey(), actor),

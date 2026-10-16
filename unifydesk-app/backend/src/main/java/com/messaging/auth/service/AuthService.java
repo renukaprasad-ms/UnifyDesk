@@ -326,9 +326,6 @@ public class AuthService {
 
     boolean enabled = authOtpService.verifyTwoFactorSettingsOtp(challengeId, request.otp());
     userService.setTwoFactorEnabled(userId, enabled);
-    userSessionService.revokeAllForUser(userId);
-    realtimeConnectionRegistry.closeForUser(userId);
-    authTokenService.clearTokenCookies(headers);
   }
 
   public void logout(HttpServletRequest servletRequest, HttpHeaders headers) {

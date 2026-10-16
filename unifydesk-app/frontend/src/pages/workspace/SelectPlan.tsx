@@ -23,6 +23,7 @@ import type { Company } from '../../features/company/types'
 import { workspaceApi } from '../../features/workspace/workspaceApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { CardSkeleton } from '../../components/ui/Skeleton'
+import CitySelect from '../../components/ui/CitySelect'
 import { useAppDispatch } from '../../store/hooks'
 import { selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
 
@@ -313,7 +314,9 @@ export default function SelectPlan() {
       })
       await launchCashfreeCheckout(checkout.paymentSessionId)
     } catch (paymentError) {
-      setError(paymentError instanceof Error ? paymentError.message : 'Unable to open Cashfree checkout')
+      setError(
+        paymentError instanceof Error ? paymentError.message : 'Unable to open Cashfree checkout',
+      )
     } finally {
       setSubmitting(false)
     }
@@ -325,7 +328,9 @@ export default function SelectPlan() {
         {/* Header with Monthly / Annual Switcher */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Available Plans</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Available Plans
+            </h1>
             <p className="mt-1 text-xs sm:text-sm text-slate-400">
               Predictable platform subscriptions bundled with zero-debt prepaid wallet protections.
             </p>
@@ -394,8 +399,9 @@ export default function SelectPlan() {
               const matchedPrice =
                 (billingInterval === 'YEARLY'
                   ? plan.prices?.find((p) => p.billingCycle === 'YEARLY' && p.status === 'ACTIVE')
-                  : plan.prices?.find((p) => p.billingCycle === 'MONTHLY' && p.status === 'ACTIVE')) ??
-                defaultPlanPrice(plan)
+                  : plan.prices?.find(
+                      (p) => p.billingCycle === 'MONTHLY' && p.status === 'ACTIVE',
+                    )) ?? defaultPlanPrice(plan)
 
               const priceAmount = matchedPrice ? matchedPrice.amount : plan.basePrice
               const priceCurrency = matchedPrice ? matchedPrice.currency : plan.currency
@@ -408,8 +414,8 @@ export default function SelectPlan() {
                     current
                       ? 'border-2 border-white/90 bg-slate-900/50 shadow-2xl ring-1 ring-white/20'
                       : isGrowth
-                      ? 'border border-purple-500/30 bg-slate-900/35 hover:bg-slate-900/50 shadow-lg shadow-purple-500/5'
-                      : 'border border-slate-800/80 bg-slate-900/30 hover:bg-slate-900/45 shadow-sm'
+                        ? 'border border-purple-500/30 bg-slate-900/35 hover:bg-slate-900/50 shadow-lg shadow-purple-500/5'
+                        : 'border border-slate-800/80 bg-slate-900/30 hover:bg-slate-900/45 shadow-sm'
                   }`}
                 >
                   <div className="space-y-5">
@@ -438,9 +444,12 @@ export default function SelectPlan() {
 
                     {/* Plan Name & Description */}
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{plan.name}</h2>
+                      <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                        {plan.name}
+                      </h2>
                       <p className="text-xs text-slate-400 mt-2 min-h-[36px] leading-relaxed">
-                        {plan.description || 'Essential tools for solopreneurs & small teams starting out with CRM and communication'}
+                        {plan.description ||
+                          'Essential tools for solopreneurs & small teams starting out with CRM and communication'}
                       </p>
                     </div>
 
@@ -453,8 +462,8 @@ export default function SelectPlan() {
                         {priceAmount === 0
                           ? 'forever free'
                           : billingInterval === 'YEARLY'
-                          ? `per year (billed annually · ₹${Math.round(priceAmount / 12).toLocaleString()}/mo)`
-                          : 'per month'}
+                            ? `per year (billed annually · ₹${Math.round(priceAmount / 12).toLocaleString()}/mo)`
+                            : 'per month'}
                       </div>
                     </div>
 
@@ -473,7 +482,9 @@ export default function SelectPlan() {
                             <FiCheckCircle className="text-teal-400 shrink-0 text-sm mt-0.5" />
                             <span
                               className={`leading-tight text-xs ${
-                                isMainComms ? 'text-white font-semibold' : 'text-slate-200 font-medium'
+                                isMainComms
+                                  ? 'text-white font-semibold'
+                                  : 'text-slate-200 font-medium'
                               }`}
                             >
                               {item}
@@ -532,10 +543,15 @@ export default function SelectPlan() {
             <div className="panel w-full max-w-xl p-6 sm:p-7 bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-primary">Plan checkout</p>
-                  <h2 className="mt-1 text-2xl font-black text-white">Choose {selectedPlan.name}</h2>
+                  <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                    Plan checkout
+                  </p>
+                  <h2 className="mt-1 text-2xl font-black text-white">
+                    Choose {selectedPlan.name}
+                  </h2>
                   <p className="mt-2 text-sm text-slate-400">
-                    {money(selectedPrice.amount, selectedPrice.currency)} · {selectedPrice.billingCycle.toLowerCase()}
+                    {money(selectedPrice.amount, selectedPrice.currency)} ·{' '}
+                    {selectedPrice.billingCycle.toLowerCase()}
                   </p>
                 </div>
                 <button
@@ -549,14 +565,19 @@ export default function SelectPlan() {
                 </button>
               </div>
 
-              <form className="mt-6 space-y-4 max-h-[75vh] overflow-y-auto pr-1" onSubmit={preparePaidSelection}>
+              <form
+                className="mt-6 space-y-4 max-h-[75vh] overflow-y-auto pr-1"
+                onSubmit={preparePaidSelection}
+              >
                 <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 space-y-3.5">
                   <div className="text-xs font-bold uppercase tracking-wider text-primary">
                     Billing & Tax Details
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-semibold text-slate-300">Legal Business Name</label>
+                      <label className="text-xs font-semibold text-slate-300">
+                        Legal Business Name
+                      </label>
                       <input
                         required
                         type="text"
@@ -564,13 +585,17 @@ export default function SelectPlan() {
                         placeholder="Acme Corp Pvt Ltd"
                         value={billingProfile.legalBusinessName || ''}
                         onChange={(event) =>
-                          setBillingProfile({ ...billingProfile, legalBusinessName: event.target.value })
+                          setBillingProfile({
+                            ...billingProfile,
+                            legalBusinessName: event.target.value,
+                          })
                         }
                       />
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-slate-300">
-                        GSTIN / Tax ID <span className="text-slate-500 font-normal">(Optional)</span>
+                        GSTIN / Tax ID{' '}
+                        <span className="text-slate-500 font-normal">(Optional)</span>
                       </label>
                       <input
                         type="text"
@@ -578,7 +603,10 @@ export default function SelectPlan() {
                         placeholder="29AAAAA0000A1Z5"
                         value={billingProfile.taxIdOrGstin || ''}
                         onChange={(event) =>
-                          setBillingProfile({ ...billingProfile, taxIdOrGstin: event.target.value.toUpperCase() })
+                          setBillingProfile({
+                            ...billingProfile,
+                            taxIdOrGstin: event.target.value.toUpperCase(),
+                          })
                         }
                       />
                     </div>
@@ -632,15 +660,13 @@ export default function SelectPlan() {
                   <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     <div>
                       <label className="text-xs font-semibold text-slate-300">City</label>
-                      <input
-                        required
-                        type="text"
-                        className="form-input mt-1 w-full bg-slate-950 border-slate-800 text-white text-xs py-2 rounded-xl"
-                        placeholder="Bengaluru"
+                      <CitySelect
+                        country={billingProfile.country || 'India'}
                         value={billingProfile.city || ''}
-                        onChange={(event) =>
-                          setBillingProfile({ ...billingProfile, city: event.target.value })
-                        }
+                        onChange={(city) => setBillingProfile({ ...billingProfile, city })}
+                        placeholder="Bengaluru"
+                        className="mt-1 w-full !bg-slate-950 !border-slate-800 !text-white text-xs py-2 rounded-xl"
+                        required
                       />
                     </div>
                     <div>
@@ -671,7 +697,8 @@ export default function SelectPlan() {
                     </div>
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    Saved to your company profile for GST tax invoices and future recurring payments.
+                    Saved to your company profile for GST tax invoices and future recurring
+                    payments.
                   </p>
                 </div>
 
@@ -680,7 +707,9 @@ export default function SelectPlan() {
                     {upgradeQuoteRows(quote).map(([label, value]) => (
                       <div key={label} className="flex justify-between gap-4 py-1 text-sm">
                         <span className="text-slate-400">{label}</span>
-                        <strong className="text-white font-mono">{money(value, quote.currency ?? selectedPrice.currency)}</strong>
+                        <strong className="text-white font-mono">
+                          {money(value, quote.currency ?? selectedPrice.currency)}
+                        </strong>
                       </div>
                     ))}
                   </div>
@@ -694,15 +723,19 @@ export default function SelectPlan() {
                       disabled={submitting}
                       onClick={() => void pay()}
                     >
-                      <FiCreditCard className="mr-2" /> Continue to Cashfree · {money(checkout.amount, checkout.currency)}
+                      <FiCreditCard className="mr-2" /> Continue to Cashfree ·{' '}
+                      {money(checkout.amount, checkout.currency)}
                     </button>
                   ) : (
-                    <button className="primary-button w-full justify-center text-sm py-3 rounded-xl shadow-lg font-semibold" disabled={submitting}>
+                    <button
+                      className="primary-button w-full justify-center text-sm py-3 rounded-xl shadow-lg font-semibold"
+                      disabled={submitting}
+                    >
                       {submitting
                         ? 'Opening Cashfree…'
                         : quote
-                        ? `Continue to Cashfree · ${money(quote.amountDue, quote.currency ?? selectedPrice.currency)}`
-                        : 'Review upgrade amount'}
+                          ? `Continue to Cashfree · ${money(quote.amountDue, quote.currency ?? selectedPrice.currency)}`
+                          : 'Review upgrade amount'}
                     </button>
                   )}
                 </div>

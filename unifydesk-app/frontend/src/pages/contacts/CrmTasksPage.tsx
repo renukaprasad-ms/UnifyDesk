@@ -18,6 +18,7 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { selectAuthUser } from '../../store/auth/authSlice'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
 
@@ -47,16 +48,26 @@ const asInstant = (value: string) => (value ? new Date(value).toISOString() : nu
 export default function CrmTasksPage() {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const epoch = useAppSelector(selectWorkspaceEpoch)
+  const currentUser = useAppSelector(selectAuthUser)
+  const currentUserId = currentUser ? String(currentUser.userId) : null
   const { capture, isCurrent } = useWorkspaceEpochScope(companyId, epoch)
   const { can } = useIam()
   const navigate = useNavigate()
 
   const canCreate = can(PERMISSIONS.CRM_TASK_CREATE) || can(PERMISSIONS.CRM_TASK_MODIFY)
   const canEdit = can(PERMISSIONS.CRM_TASK_EDIT) || can(PERMISSIONS.CRM_TASK_MODIFY)
-  const canMove =
+  const canMoveAny =
     can(PERMISSIONS.CRM_TASK_STATUS) ||
     can(PERMISSIONS.CRM_TASK_MODIFY) ||
     canEdit
+
+  const canMoveTask = useCallback(
+    (task: CrmTask) =>
+      canMoveAny ||
+      (currentUserId !== null &&
+        (task.assigneeUserId === currentUserId || task.reporterUserId === currentUserId)),
+    [canMoveAny, currentUserId],
+  )
 
   const [view, setView] = useState<'board' | 'list'>('board')
   const [columns, setColumns] = useState<CrmTaskColumn[]>([])
@@ -703,7 +714,7 @@ export default function CrmTasksPage() {
               columns={columns}
               busy={busy}
               pendingIds={pendingIds}
-              canMove={canMove}
+              canMove={canMoveTask}
               assigneeName={assigneeName}
               onMove={moveTask}
               onOpen={openTask}

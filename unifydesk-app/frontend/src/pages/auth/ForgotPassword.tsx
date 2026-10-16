@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { FiArrowLeft, FiMail } from 'react-icons/fi'
 import { Link, useNavigate } from 'react-router'
 import { authApi } from '../../features/auth/authApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import OtpBoxInput from '../../components/ui/OtpBoxInput'
 
 export default function ForgotPassword() {
   const navigate = useNavigate()
@@ -11,7 +12,6 @@ export default function ForgotPassword() {
   const [otp, setOtp] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const otpRefs = useRef<Array<HTMLInputElement | null>>([])
 
   const requestReset = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -54,50 +54,18 @@ export default function ForgotPassword() {
         </p>
 
         <form className="mt-6 space-y-4" onSubmit={verifyOtp}>
-          <div className="flex gap-2" role="group" aria-label="6-digit password reset code">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <input
-                key={index}
-                ref={(element) => {
-                  otpRefs.current[index] = element
-                }}
-                className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white text-center text-lg font-semibold text-slate-950 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                type="text"
-                inputMode="numeric"
-                autoComplete={index === 0 ? 'one-time-code' : 'off'}
-                maxLength={1}
-                value={otp[index] ?? ''}
-                aria-label={`Reset code digit ${index + 1}`}
-                onChange={(event) => {
-                  const digit = event.target.value.replace(/\D/g, '').slice(-1)
-                  const digits = otp.split('')
-                  digits[index] = digit
-                  const nextOtp = Array.from(
-                    { length: 6 },
-                    (_, digitIndex) => digits[digitIndex] ?? '',
-                  ).join('')
-                  setOtp(nextOtp)
-                  setError('')
-                  if (digit && index < 5) otpRefs.current[index + 1]?.focus()
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Backspace' && !otp[index] && index > 0) {
-                    otpRefs.current[index - 1]?.focus()
-                  }
-                  if (event.key === 'ArrowLeft' && index > 0) otpRefs.current[index - 1]?.focus()
-                  if (event.key === 'ArrowRight' && index < 5) otpRefs.current[index + 1]?.focus()
-                }}
-                onPaste={(event) => {
-                  event.preventDefault()
-                  const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
-                  if (!pasted) return
-                  setOtp(pasted)
-                  setError('')
-                  otpRefs.current[Math.min(pasted.length, 6) - 1]?.focus()
-                }}
-                required
-              />
-            ))}
+          <div className="py-2">
+            <OtpBoxInput
+              length={6}
+              value={otp}
+              onChange={(val) => {
+                setOtp(val)
+                if (error) setError('')
+              }}
+              autoFocus
+              disabled={submitting}
+              error={Boolean(error)}
+            />
           </div>
 
           {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}

@@ -276,7 +276,7 @@ const AppRoutes = () => (
             </Route>
             <Route
               element={
-                <PermissionRoute allOf={[PERMISSIONS.CRM_TASK_READ, PERMISSIONS.CONTACT_READ]} />
+                <PermissionRoute allOf={[PERMISSIONS.CRM_TASK_READ]} />
               }
             >
               <Route

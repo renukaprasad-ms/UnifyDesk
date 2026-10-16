@@ -15,6 +15,8 @@ import {
   FiZap,
 } from 'react-icons/fi'
 import { billingApi } from '../../features/billing/billingApi'
+import CountrySelect from '../../components/ui/CountrySelect'
+import CitySelect from '../../components/ui/CitySelect'
 import {
   customerVisiblePlans,
   defaultPlanPrice,
@@ -148,11 +150,15 @@ function DonutChart({
           return (
             <div key={slice.label} className="flex items-center justify-between text-xs">
               <span className="flex items-center gap-2 text-muted-foreground">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }} />
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: slice.color }}
+                />
                 {slice.label}
               </span>
               <span className="font-semibold text-foreground font-mono">
-                {slice.value.toLocaleString()} <span className="text-muted-foreground font-normal">({pct}%)</span>
+                {slice.value.toLocaleString()}{' '}
+                <span className="text-muted-foreground font-normal">({pct}%)</span>
               </span>
             </div>
           )
@@ -263,7 +269,9 @@ export default function BillingPage() {
   const [autopayBannerDismissed, setAutopayBannerDismissed] = useState(false)
   const [autopayRenewPlan, setAutopayRenewPlan] = useState(true)
   const [autopayReplenishWallet, setAutopayReplenishWallet] = useState(true)
-  const [autopayPaymentMethod, setAutopayPaymentMethod] = useState<'UPI' | 'CARD' | 'NETBANKING'>('UPI')
+  const [autopayPaymentMethod, setAutopayPaymentMethod] = useState<'UPI' | 'CARD' | 'NETBANKING'>(
+    'UPI',
+  )
 
   // Usage state
   const [usage, setUsage] = useState<BillingUsageSummary | null>(null)
@@ -298,34 +306,29 @@ export default function BillingPage() {
     setError('')
 
     try {
-      const [
-        planDetails,
-        eligiblePlans,
-        walletData,
-        txData,
-        usageData,
-        invoicesData,
-        profileData,
-      ] = await Promise.all([
-        billingApi.companyPlan(companyId).catch(() => ({ subscription: null, plan: null })),
-        billingApi.eligiblePlans(companyId).catch(() => []),
-        billingApi.getWallet(companyId).catch(() => null),
-        billingApi.getTransactions(companyId, 0, 20).catch(() => ({ content: [], totalElements: 0 })),
-        billingApi.getUsage(companyId).catch(() => null),
-        billingApi.getInvoices(companyId).catch(() => []),
-        billingApi.getBillingProfile(companyId).catch(() => ({
-          legalBusinessName: selectedCompany?.name ?? '',
-          taxIdOrGstin: '',
-          billingEmail: selectedCompany?.businessEmail ?? '',
-          billingPhone: '',
-          addressLine1: '',
-          addressLine2: '',
-          city: '',
-          state: '',
-          postalCode: '',
-          country: 'India',
-        })),
-      ])
+      const [planDetails, eligiblePlans, walletData, txData, usageData, invoicesData, profileData] =
+        await Promise.all([
+          billingApi.companyPlan(companyId).catch(() => ({ subscription: null, plan: null })),
+          billingApi.eligiblePlans(companyId).catch(() => []),
+          billingApi.getWallet(companyId).catch(() => null),
+          billingApi
+            .getTransactions(companyId, 0, 20)
+            .catch(() => ({ content: [], totalElements: 0 })),
+          billingApi.getUsage(companyId).catch(() => null),
+          billingApi.getInvoices(companyId).catch(() => []),
+          billingApi.getBillingProfile(companyId).catch(() => ({
+            legalBusinessName: selectedCompany?.name ?? '',
+            taxIdOrGstin: '',
+            billingEmail: selectedCompany?.businessEmail ?? '',
+            billingPhone: '',
+            addressLine1: '',
+            addressLine2: '',
+            city: '',
+            state: '',
+            postalCode: '',
+            country: 'India',
+          })),
+        ])
 
       if (requestRef.current !== requestId || !scopeIsCurrent(scope)) return
 
@@ -344,7 +347,8 @@ export default function BillingPage() {
       if (profileData) {
         setProfile(profileData)
         setCustomer((curr) => ({
-          name: profileData.legalBusinessName || curr.name || selectedCompany?.name || 'Company Admin',
+          name:
+            profileData.legalBusinessName || curr.name || selectedCompany?.name || 'Company Admin',
           email: profileData.billingEmail || curr.email || selectedCompany?.businessEmail || '',
           phone: profileData.billingPhone || curr.phone || '',
         }))
@@ -441,9 +445,7 @@ export default function BillingPage() {
       setWallet(updated)
       setAutoRechargeEnabled(updated.autoRechargeEnabled)
       setNotice(
-        enabled
-          ? 'Smart AutoPay rules successfully activated!'
-          : 'Smart AutoPay has been paused.'
+        enabled ? 'Smart AutoPay rules successfully activated!' : 'Smart AutoPay has been paused.',
       )
       setAutopayModalOpen(false)
     } catch (cause) {
@@ -473,7 +475,12 @@ export default function BillingPage() {
   // Plan actions
   const beginInitialSelection = (plan: Plan, price: PlanPrice) => {
     const mode = currentSubscription ? 'UPGRADE' : 'INITIAL'
-    setDraft({ plan, price, mode, commandKey: idempotencyKey(mode === 'UPGRADE' ? 'sub-upg' : 'sub-init') })
+    setDraft({
+      plan,
+      price,
+      mode,
+      commandKey: idempotencyKey(mode === 'UPGRADE' ? 'sub-upg' : 'sub-init'),
+    })
     setCustomer({
       name: profile.legalBusinessName || selectedCompany?.name || 'Company Admin',
       email: profile.billingEmail || selectedCompany?.businessEmail || '',
@@ -510,8 +517,13 @@ export default function BillingPage() {
       }
 
       const checkoutCustomer = {
-        name: profile.legalBusinessName || customer.name || selectedCompany?.name || 'Company Admin',
-        email: customer.email || profile.billingEmail || selectedCompany?.businessEmail || 'billing@company.local',
+        name:
+          profile.legalBusinessName || customer.name || selectedCompany?.name || 'Company Admin',
+        email:
+          customer.email ||
+          profile.billingEmail ||
+          selectedCompany?.businessEmail ||
+          'billing@company.local',
         phone: resolvedPhone,
       }
 
@@ -552,7 +564,7 @@ export default function BillingPage() {
             idempotencyKey: draft.commandKey,
           })
           setNotice(
-            `Downgrade scheduled${change.effectiveAt ? ` for ${dateFmt(change.effectiveAt)}` : ' for the next billing cycle'}.`
+            `Downgrade scheduled${change.effectiveAt ? ` for ${dateFmt(change.effectiveAt)}` : ' for the next billing cycle'}.`,
           )
           setDraft(null)
           await loadAll(true)
@@ -630,7 +642,9 @@ export default function BillingPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Billing & Plans</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
+              Billing & Plans
+            </h1>
             {currentSubscription && (
               <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
@@ -644,7 +658,8 @@ export default function BillingPage() {
             )}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage your subscription, prepaid communications wallet, live usage quotas, and tax invoices.
+            Manage your subscription, prepaid communications wallet, live usage quotas, and tax
+            invoices.
           </p>
         </div>
 
@@ -702,7 +717,8 @@ export default function BillingPage() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
-                  Avoid disruption by setting up hands-free plan renewals and auto-refilling your communication wallet when balance runs low.
+                  Avoid disruption by setting up hands-free plan renewals and auto-refilling your
+                  communication wallet when balance runs low.
                 </p>
               </div>
             </div>
@@ -749,9 +765,7 @@ export default function BillingPage() {
         >
           <FiDollarSign className="text-base" />
           Communications Wallet
-          {wallet && wallet.balance < 100 && (
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
-          )}
+          {wallet && wallet.balance < 100 && <span className="w-2 h-2 rounded-full bg-amber-400" />}
         </button>
 
         <button
@@ -805,7 +819,7 @@ export default function BillingPage() {
                       ? `${dateFmt(currentSubscription.currentPeriodStart)} – ${dateFmt(
                           currentSubscription.currentPeriodEnd,
                         )}`
-                      : currentPlan?.billingCycle ?? 'MONTHLY'}
+                      : (currentPlan?.billingCycle ?? 'MONTHLY')}
                   </div>
                   <div>
                     <span className="font-medium text-foreground">Next Renewal:</span>{' '}
@@ -826,8 +840,8 @@ export default function BillingPage() {
                   {currentPrice
                     ? money(currentPrice.amount, currentPrice.currency)
                     : currentPlan
-                    ? money(currentPlan.basePrice, currentPlan.currency)
-                    : '₹0'}
+                      ? money(currentPlan.basePrice, currentPlan.currency)
+                      : '₹0'}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {currentPrice?.billingCycle === 'YEARLY' ? '/ year' : '/ month'}
@@ -850,9 +864,12 @@ export default function BillingPage() {
           <div className="space-y-5 pt-2">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-xl font-extrabold text-foreground tracking-tight">Available Plans</h3>
+                <h3 className="text-xl font-extrabold text-foreground tracking-tight">
+                  Available Plans
+                </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Predictable platform subscriptions bundled with zero-debt prepaid wallet protections.
+                  Predictable platform subscriptions bundled with zero-debt prepaid wallet
+                  protections.
                 </p>
               </div>
 
@@ -896,8 +913,9 @@ export default function BillingPage() {
                 const matchedPrice =
                   (billingInterval === 'YEARLY'
                     ? plan.prices?.find((p) => p.billingCycle === 'YEARLY' && p.status === 'ACTIVE')
-                    : plan.prices?.find((p) => p.billingCycle === 'MONTHLY' && p.status === 'ACTIVE')) ??
-                  defaultPlanPrice(plan)
+                    : plan.prices?.find(
+                        (p) => p.billingCycle === 'MONTHLY' && p.status === 'ACTIVE',
+                      )) ?? defaultPlanPrice(plan)
 
                 const priceAmount = matchedPrice ? matchedPrice.amount : plan.basePrice
                 const priceCurrency = matchedPrice ? matchedPrice.currency : plan.currency
@@ -910,8 +928,8 @@ export default function BillingPage() {
                       isCurrent
                         ? 'bg-gradient-to-b from-primary/15 via-slate-900/40 to-slate-900/60 ring-2 ring-primary/50 shadow-lg shadow-primary/10'
                         : isGrowth
-                        ? 'bg-slate-900/35 dark:bg-slate-950/35 ring-1 ring-purple-500/30 hover:bg-slate-900/50 shadow-md'
-                        : 'bg-slate-900/25 dark:bg-slate-950/25 hover:bg-slate-900/45 shadow-sm'
+                          ? 'bg-slate-900/35 dark:bg-slate-950/35 ring-1 ring-purple-500/30 hover:bg-slate-900/50 shadow-md'
+                          : 'bg-slate-900/25 dark:bg-slate-950/25 hover:bg-slate-900/45 shadow-sm'
                     }`}
                   >
                     <div className="space-y-5">
@@ -940,7 +958,8 @@ export default function BillingPage() {
                       <div>
                         <h4 className="text-xl font-extrabold text-foreground">{plan.name}</h4>
                         <p className="text-xs text-muted-foreground mt-1.5 min-h-[36px] leading-relaxed">
-                          {plan.description || 'Comprehensive workspace suite with channels and CRM.'}
+                          {plan.description ||
+                            'Comprehensive workspace suite with channels and CRM.'}
                         </p>
                       </div>
 
@@ -952,8 +971,8 @@ export default function BillingPage() {
                           {priceAmount === 0
                             ? 'forever free'
                             : billingInterval === 'YEARLY'
-                            ? `per year (billed annually · ₹${Math.round(priceAmount / 12).toLocaleString()}/mo)`
-                            : 'per month'}
+                              ? `per year (billed annually · ₹${Math.round(priceAmount / 12).toLocaleString()}/mo)`
+                              : 'per month'}
                         </div>
                       </div>
 
@@ -1032,7 +1051,9 @@ export default function BillingPage() {
                   >
                     <span
                       className={`w-2 h-2 rounded-full ${
-                        (wallet?.balance ?? 0) >= 100 ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'
+                        (wallet?.balance ?? 0) >= 100
+                          ? 'bg-emerald-400'
+                          : 'bg-amber-400 animate-pulse'
                       }`}
                     />
                     {(wallet?.balance ?? 0) >= 100 ? 'Healthy Balance' : 'Low Balance'}
@@ -1049,14 +1070,16 @@ export default function BillingPage() {
                 </div>
 
                 <p className="text-xs text-muted-foreground mt-2.5 max-w-lg leading-relaxed">
-                  Used for variable SMS, WhatsApp messaging, and email overages once your monthly plan allowance is
-                  exhausted. Zero carrier debt risk.
+                  Used for variable SMS, WhatsApp messaging, and email overages once your monthly
+                  plan allowance is exhausted. Zero carrier debt risk.
                 </p>
               </div>
 
               {/* Fast Top-Up Chips */}
               <div className="space-y-3 pt-4">
-                <div className="text-xs font-semibold text-muted-foreground">Quick Top-Up Options:</div>
+                <div className="text-xs font-semibold text-muted-foreground">
+                  Quick Top-Up Options:
+                </div>
                 <div className="flex flex-wrap items-center gap-3">
                   {[500, 1000, 2000, 5000].map((amt) => (
                     <button
@@ -1099,7 +1122,8 @@ export default function BillingPage() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Automate wallet replenishment and next-cycle subscription renewals with a single saved payment method.
+                  Automate wallet replenishment and next-cycle subscription renewals with a single
+                  saved payment method.
                 </p>
               </div>
 
@@ -1116,12 +1140,16 @@ export default function BillingPage() {
                   <div className="space-y-1.5 text-slate-300 text-[11px] pt-1">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Wallet Rule:</span>
-                      <span className="font-semibold text-foreground">When &lt; ₹{autoThreshold}, adds ₹{autoAmount}</span>
+                      <span className="font-semibold text-foreground">
+                        When &lt; ₹{autoThreshold}, adds ₹{autoAmount}
+                      </span>
                     </div>
                     {currentSubscription && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Plan Renewal:</span>
-                        <span className="font-semibold text-foreground">Renews on {dateFmt(currentSubscription.currentPeriodEnd)}</span>
+                        <span className="font-semibold text-foreground">
+                          Renews on {dateFmt(currentSubscription.currentPeriodEnd)}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -1137,11 +1165,15 @@ export default function BillingPage() {
                   <div className="space-y-1.5 text-[11px] text-muted-foreground leading-relaxed">
                     <div className="flex items-center gap-1.5">
                       <span className="text-emerald-400 font-bold">✓</span>
-                      <span><strong>Zero Delivery Interruptions:</strong> Auto-tops up wallet buffer.</span>
+                      <span>
+                        <strong>Zero Delivery Interruptions:</strong> Auto-tops up wallet buffer.
+                      </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-indigo-400 font-bold">✓</span>
-                      <span><strong>Next-Cycle Renewal:</strong> Renews subscription plan automatically.</span>
+                      <span>
+                        <strong>Next-Cycle Renewal:</strong> Renews subscription plan automatically.
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1191,7 +1223,8 @@ export default function BillingPage() {
                   {transactions.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
-                        No transactions recorded yet. Top up your wallet to start sending variable communications.
+                        No transactions recorded yet. Top up your wallet to start sending variable
+                        communications.
                       </td>
                     </tr>
                   ) : (
@@ -1208,8 +1241,8 @@ export default function BillingPage() {
                                 tx.type === 'TOPUP'
                                   ? 'bg-emerald-500/15 text-emerald-400'
                                   : tx.type === 'COMMUNICATION_CHARGE'
-                                  ? 'bg-blue-500/15 text-blue-400'
-                                  : 'bg-amber-500/15 text-amber-400'
+                                    ? 'bg-blue-500/15 text-blue-400'
+                                    : 'bg-amber-500/15 text-amber-400'
                               }`}
                             >
                               {tx.type}
@@ -1228,7 +1261,9 @@ export default function BillingPage() {
                               isCredit ? 'text-emerald-400' : 'text-foreground'
                             }`}
                           >
-                            {isCredit ? `+${money(tx.amount, tx.currency)}` : money(tx.amount, tx.currency)}
+                            {isCredit
+                              ? `+${money(tx.amount, tx.currency)}`
+                              : money(tx.amount, tx.currency)}
                           </td>
                           <td className="py-3.5 px-5 text-right text-xs font-mono text-muted-foreground">
                             {money(tx.balanceAfter, tx.currency)}
@@ -1253,8 +1288,9 @@ export default function BillingPage() {
             <div className="text-sm">
               <h4 className="font-bold text-foreground">Zero Debt & Guaranteed Message Delivery</h4>
               <p className="text-muted-foreground text-xs mt-0.5 leading-relaxed">
-                Your workspace includes plan-specific allowances for team seats, CRM contact storage, and monthly communications.
-                Usage beyond free quotas is automatically deducted from your prepaid Communications Wallet with zero surprise debt.
+                Your workspace includes plan-specific allowances for team seats, CRM contact
+                storage, and monthly communications. Usage beyond free quotas is automatically
+                deducted from your prepaid Communications Wallet with zero surprise debt.
               </p>
             </div>
           </div>
@@ -1367,7 +1403,8 @@ export default function BillingPage() {
               <div>
                 <h3 className="text-base font-bold text-foreground">Legal & Tax Profile</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Provide your registered business details and GSTIN so official tax invoices can be generated.
+                  Provide your registered business details and GSTIN so official tax invoices can be
+                  generated.
                 </p>
               </div>
             </div>
@@ -1394,7 +1431,9 @@ export default function BillingPage() {
                   <input
                     type="text"
                     value={profile.taxIdOrGstin || ''}
-                    onChange={(e) => setProfile({ ...profile, taxIdOrGstin: e.target.value.toUpperCase() })}
+                    onChange={(e) =>
+                      setProfile({ ...profile, taxIdOrGstin: e.target.value.toUpperCase() })
+                    }
                     placeholder="e.g. 29ABCDE1234F1Z5"
                     className="input-field w-full text-sm py-2 uppercase font-mono rounded-xl bg-slate-800/40"
                   />
@@ -1441,12 +1480,13 @@ export default function BillingPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1">City</label>
-                  <input
-                    type="text"
+                  <CitySelect
+                    country={profile.country}
                     value={profile.city || ''}
-                    onChange={(e) => setProfile({ ...profile, city: e.target.value })}
-                    placeholder="Bengaluru"
+                    onChange={(city) => setProfile({ ...profile, city })}
+                    placeholder="Select or enter city"
                     className="input-field w-full text-sm py-2 rounded-xl bg-slate-800/40"
+                    showIcon
                   />
                 </div>
 
@@ -1462,7 +1502,9 @@ export default function BillingPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">Postal Code</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1">
+                    Postal Code
+                  </label>
                   <input
                     type="text"
                     value={profile.postalCode || ''}
@@ -1473,12 +1515,15 @@ export default function BillingPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">Country</label>
-                  <input
-                    type="text"
+                  <label className="block text-xs font-semibold text-foreground mb-1">
+                    Country
+                  </label>
+                  <CountrySelect
                     value={profile.country || 'India'}
-                    onChange={(e) => setProfile({ ...profile, country: e.target.value })}
+                    valueType="name"
+                    onChange={(country) => setProfile({ ...profile, country })}
                     className="input-field w-full text-sm py-2 rounded-xl bg-slate-800/40"
+                    showIcon
                   />
                 </div>
               </div>
@@ -1522,7 +1567,8 @@ export default function BillingPage() {
                   {invoices.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
-                        No invoices generated yet. Invoices appear here automatically after subscription renewals or checkout.
+                        No invoices generated yet. Invoices appear here automatically after
+                        subscription renewals or checkout.
                       </td>
                     </tr>
                   ) : (
@@ -1624,7 +1670,9 @@ export default function BillingPage() {
                   Or Enter Custom Amount (INR):
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-2.5 text-muted-foreground font-bold">₹</span>
+                  <span className="absolute left-3.5 top-2.5 text-muted-foreground font-bold">
+                    ₹
+                  </span>
                   <input
                     type="number"
                     min="10"
@@ -1670,9 +1718,7 @@ export default function BillingPage() {
                 <div className="flex justify-between pt-1.5 text-primary font-bold">
                   <span>Balance After Recharge:</span>
                   <span>
-                    ₹{(
-                      (wallet?.balance ?? 0) + parseFloat(customTopupInput || '0')
-                    ).toFixed(2)}
+                    ₹{((wallet?.balance ?? 0) + parseFloat(customTopupInput || '0')).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -1712,10 +1758,11 @@ export default function BillingPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-5">
             <div className="flex items-center justify-between pb-3">
-              <h3 className="text-lg font-bold text-foreground">
-                Confirm Plan: {draft.plan.name}
-              </h3>
-              <button onClick={() => setDraft(null)} className="text-muted-foreground hover:text-foreground text-sm">
+              <h3 className="text-lg font-bold text-foreground">Confirm Plan: {draft.plan.name}</h3>
+              <button
+                onClick={() => setDraft(null)}
+                className="text-muted-foreground hover:text-foreground text-sm"
+              >
                 ✕
               </button>
             </div>
@@ -1724,19 +1771,25 @@ export default function BillingPage() {
               <div className="flex justify-between text-base font-semibold">
                 <span>Plan Price:</span>
                 <span className="text-primary font-extrabold">
-                  {money(draft.price.amount, draft.price.currency)} / {draft.price.billingCycle.toLowerCase()}
+                  {money(draft.price.amount, draft.price.currency)} /{' '}
+                  {draft.price.billingCycle.toLowerCase()}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Your company workspace will be activated with all plan entitlements including full CRM, unified pipelines,
-                connected messaging channels, and monthly communication allowances.
+                Your company workspace will be activated with all plan entitlements including full
+                CRM, unified pipelines, connected messaging channels, and monthly communication
+                allowances.
               </p>
 
               {draft.price.amount > 0 && (
                 <div className="space-y-3 pt-3 border-t border-slate-800">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-foreground">Billing & Tax Details:</span>
-                    <span className="text-[10px] text-muted-foreground">Saved for invoices & future payments</span>
+                    <span className="text-xs font-semibold text-foreground">
+                      Billing & Tax Details:
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Saved for invoices & future payments
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1758,12 +1811,15 @@ export default function BillingPage() {
                     </div>
                     <div>
                       <label className="block text-[11px] text-muted-foreground mb-1">
-                        GSTIN / Tax ID <span className="text-slate-500 font-normal">(Optional)</span>
+                        GSTIN / Tax ID{' '}
+                        <span className="text-slate-500 font-normal">(Optional)</span>
                       </label>
                       <input
                         type="text"
                         value={profile.taxIdOrGstin || ''}
-                        onChange={(e) => setProfile({ ...profile, taxIdOrGstin: e.target.value.toUpperCase() })}
+                        onChange={(e) =>
+                          setProfile({ ...profile, taxIdOrGstin: e.target.value.toUpperCase() })
+                        }
                         placeholder="29ABCDE1234F1Z5"
                         className="input-field w-full text-xs py-2 uppercase font-mono rounded-xl bg-slate-800/40"
                       />
@@ -1821,10 +1877,10 @@ export default function BillingPage() {
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="block text-[11px] text-muted-foreground mb-1">City</label>
-                      <input
-                        type="text"
+                      <CitySelect
+                        country={profile.country}
                         value={profile.city || ''}
-                        onChange={(e) => setProfile({ ...profile, city: e.target.value })}
+                        onChange={(city) => setProfile({ ...profile, city })}
                         placeholder="Bengaluru"
                         className="input-field w-full text-xs py-2 rounded-xl bg-slate-800/40"
                       />
@@ -1892,8 +1948,8 @@ export default function BillingPage() {
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Your subscription will remain active until the end of the current billing cycle (
-              {dateFmt(currentSubscription?.currentPeriodEnd)}). After this date, workspace privileges will revert to
-              the Free tier.
+              {dateFmt(currentSubscription?.currentPeriodEnd)}). After this date, workspace
+              privileges will revert to the Free tier.
             </p>
             <div className="flex justify-end gap-3 pt-2">
               <button
@@ -1964,15 +2020,20 @@ export default function BillingPage() {
                   </label>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Automatically adds funds so WhatsApp, SMS, and high-volume email overages never pause midway.
+                  Automatically adds funds so WhatsApp, SMS, and high-volume email overages never
+                  pause midway.
                 </p>
 
                 {autopayReplenishWallet && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     <div>
-                      <label className="block text-muted-foreground mb-1 font-medium">When balance falls below:</label>
+                      <label className="block text-muted-foreground mb-1 font-medium">
+                        When balance falls below:
+                      </label>
                       <div className="relative">
-                        <span className="absolute left-3 top-2 text-muted-foreground font-semibold">₹</span>
+                        <span className="absolute left-3 top-2 text-muted-foreground font-semibold">
+                          ₹
+                        </span>
                         <input
                           type="number"
                           min={100}
@@ -1984,9 +2045,13 @@ export default function BillingPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-muted-foreground mb-1 font-medium">Automatically add:</label>
+                      <label className="block text-muted-foreground mb-1 font-medium">
+                        Automatically add:
+                      </label>
                       <div className="relative">
-                        <span className="absolute left-3 top-2 text-muted-foreground font-semibold">₹</span>
+                        <span className="absolute left-3 top-2 text-muted-foreground font-semibold">
+                          ₹
+                        </span>
                         <input
                           type="number"
                           min={500}
@@ -2019,7 +2084,12 @@ export default function BillingPage() {
                   </label>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Seamlessly bills your next cycle {currentPrice ? `(${money(currentPrice.amount, currentPrice.currency)}/${currentPrice.billingCycle.toLowerCase()})` : ''} at period end ({dateFmt(currentSubscription?.currentPeriodEnd)}) to prevent tier lockouts.
+                  Seamlessly bills your next cycle{' '}
+                  {currentPrice
+                    ? `(${money(currentPrice.amount, currentPrice.currency)}/${currentPrice.billingCycle.toLowerCase()})`
+                    : ''}{' '}
+                  at period end ({dateFmt(currentSubscription?.currentPeriodEnd)}) to prevent tier
+                  lockouts.
                 </p>
               </div>
 
@@ -2034,7 +2104,8 @@ export default function BillingPage() {
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  In compliance with RBI regulations, automated charges require a one-time recurring mandate (e-Mandate / UPI AutoPay) authorization from your bank.
+                  In compliance with RBI regulations, automated charges require a one-time recurring
+                  mandate (e-Mandate / UPI AutoPay) authorization from your bank.
                 </p>
 
                 <div className="grid grid-cols-3 gap-2 pt-1">

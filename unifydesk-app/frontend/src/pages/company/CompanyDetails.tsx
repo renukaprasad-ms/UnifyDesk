@@ -12,12 +12,10 @@ import {
 } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import CountrySelect from '../../components/ui/CountrySelect'
 import { companyApi } from '../../features/company/companyApi'
 import type { Company } from '../../features/company/types'
-import {
-  brandContrastColor,
-  DEFAULT_BRAND_COLOR,
-} from '../../features/companyTheme/companyTheme'
+import { brandContrastColor, DEFAULT_BRAND_COLOR } from '../../features/companyTheme/companyTheme'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { mediaApi } from '../../features/media/mediaApi'
@@ -52,9 +50,7 @@ export default function CompanyDetails() {
   const [businessEmail, setBusinessEmail] = useState(selectedCompany?.businessEmail ?? '')
   const [country, setCountry] = useState(selectedCompany?.country ?? '')
   const [timezone, setTimezone] = useState(selectedCompany?.timezone ?? '')
-  const [brandColor, setBrandColor] = useState(
-    selectedCompany?.brandColor ?? DEFAULT_BRAND_COLOR,
-  )
+  const [brandColor, setBrandColor] = useState(selectedCompany?.brandColor ?? DEFAULT_BRAND_COLOR)
   const [logoUrl, setLogoUrl] = useState('')
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreviewUrl, setLogoPreviewUrl] = useState('')
@@ -238,9 +234,14 @@ export default function CompanyDetails() {
       await companyApi.leave(company.companyId)
       const remaining = await workspaceApi.list().catch(() => [])
       dispatch(setCompanies(remaining))
-      navigate(remaining.some((item) => item.status === 'ACTIVE') ? '/select-workspace' : '/create-workspace', {
-        replace: true,
-      })
+      navigate(
+        remaining.some((item) => item.status === 'ACTIVE')
+          ? '/select-workspace'
+          : '/create-workspace',
+        {
+          replace: true,
+        },
+      )
     } catch (leaveError) {
       setError(apiErrorMessage(leaveError, 'Unable to leave workspace'))
     } finally {
@@ -252,7 +253,7 @@ export default function CompanyDetails() {
   const visibleLogo = logoPreviewUrl || (!removeLogo ? logoUrl : '')
   const previewBrandColor = isHexColor(brandColor)
     ? brandColor.toUpperCase()
-    : company?.brandColor ?? DEFAULT_BRAND_COLOR
+    : (company?.brandColor ?? DEFAULT_BRAND_COLOR)
   const previewBrandContrast = brandContrastColor(previewBrandColor)
   const canModifyCompany = can(PERMISSIONS.COMPANY_MODIFY)
   const canDeleteCompany = can(PERMISSIONS.COMPANY_DELETE)
@@ -419,13 +420,11 @@ export default function CompanyDetails() {
                   <FiMapPin aria-hidden="true" />
                   Country
                 </span>
-                <input
-                  className="form-input"
+                <CountrySelect
                   value={country}
-                  maxLength={80}
+                  valueType="code"
                   disabled={!editing}
-                  onChange={(event) => setCountry(event.target.value)}
-                  placeholder="IN"
+                  onChange={setCountry}
                 />
               </label>
 
@@ -584,7 +583,12 @@ export default function CompanyDetails() {
 
           {editing && (
             <div className="flex justify-end gap-2">
-              <button type="button" className="secondary-button" onClick={cancelEdit} disabled={saving}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={cancelEdit}
+                disabled={saving}
+              >
                 <FiX className="mr-1 inline" aria-hidden="true" />
                 Cancel
               </button>
@@ -601,7 +605,9 @@ export default function CompanyDetails() {
 
         {(canDeleteCompany || canLeaveCompany) && (
           <div className="mt-10">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-500">Danger zone</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-500">
+              Danger zone
+            </p>
             {canDeleteCompany ? (
               <div className="panel mt-3 border-red-200 p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

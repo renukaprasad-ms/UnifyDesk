@@ -116,7 +116,7 @@ public class AuthController {
         .body(
             ApiResponse.success(
                 HttpStatus.OK.value(),
-                "Two-factor authentication updated. Please sign in again."));
+                "Two-factor authentication updated successfully."));
   }
 
   @PostMapping("/password-reset/request")

@@ -76,6 +76,7 @@ export type CrmTask = {
   contactName?: string | null
   accountName?: string | null
   assigneeName?: string | null
+  inProgressStartedAt?: string | null
 }
 
 export type CrmTaskEvent = {

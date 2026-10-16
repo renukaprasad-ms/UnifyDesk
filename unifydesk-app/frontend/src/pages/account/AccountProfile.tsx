@@ -18,6 +18,8 @@ import type { User } from '../../features/user/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { sessionCleared, setAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch } from '../../store/hooks'
+import OtpBoxInput from '../../components/ui/OtpBoxInput'
+import PasswordInput from '../../components/ui/PasswordInput'
 
 const initialsFor = (name: string) =>
   name
@@ -382,7 +384,8 @@ export default function AccountProfile() {
                   </button>
                 </div>
                 <span className="mt-2 block text-[11px] font-normal text-slate-400">
-                  Changing email requires your current password and a verification code sent to the new address.
+                  Changing email requires your current password and a verification code sent to the
+                  new address.
                 </span>
               </div>
             </div>
@@ -458,7 +461,8 @@ export default function AccountProfile() {
                 {!emailChallengeId ? (
                   <div className="space-y-4">
                     <p className="text-sm leading-6 text-slate-500">
-                      Re-enter your current password. We will send a one-time code to the new email address before changing your account.
+                      Re-enter your current password. We will send a one-time code to the new email
+                      address before changing your account.
                     </p>
                     <label className="block text-xs font-semibold text-slate-700">
                       New email
@@ -473,13 +477,14 @@ export default function AccountProfile() {
                     </label>
                     <label className="block text-xs font-semibold text-slate-700">
                       Current password
-                      <input
-                        type="password"
-                        className="form-input mt-1.5"
+                      <PasswordInput
+                        className="mt-1.5"
                         autoComplete="current-password"
                         value={emailCurrentPassword}
                         onChange={(event) => setEmailCurrentPassword(event.target.value)}
+                        placeholder="Enter your current password"
                         required
+                        showLeftIcon
                       />
                     </label>
                     <button
@@ -494,19 +499,18 @@ export default function AccountProfile() {
                 ) : (
                   <div className="space-y-4">
                     <p className="text-sm leading-6 text-slate-500">
-                      Enter the 6-digit code sent to <strong>{newEmail}</strong>. Completing this change signs out all sessions.
+                      Enter the 6-digit code sent to <strong>{newEmail}</strong>. Completing this
+                      change signs out all sessions.
                     </p>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      className="form-input text-center tracking-[0.35em]"
-                      maxLength={6}
-                      value={emailOtp}
-                      onChange={(event) =>
-                        setEmailOtp(event.target.value.replace(/\D/g, '').slice(0, 6))
-                      }
-                    />
+                    <div className="py-2">
+                      <OtpBoxInput
+                        length={6}
+                        value={emailOtp}
+                        onChange={(val) => setEmailOtp(val)}
+                        autoFocus
+                        disabled={saving}
+                      />
+                    </div>
                     <button
                       type="button"
                       className="primary-button w-full justify-center"

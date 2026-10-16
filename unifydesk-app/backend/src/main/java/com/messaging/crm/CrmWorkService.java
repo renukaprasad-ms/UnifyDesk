@@ -90,7 +90,8 @@ public class CrmWorkService {
       Integer estimatedMinutes,
       int loggedMinutes,
       int subtaskCount,
-      int subtasksCompletedCount) {
+      int subtasksCompletedCount,
+      Instant inProgressStartedAt) {
     public Task(
         String id,
         String title,
@@ -130,7 +131,8 @@ public class CrmWorkService {
           null,
           0,
           0,
-          0);
+          0,
+          null);
     }
 
     public Task(
@@ -176,7 +178,63 @@ public class CrmWorkService {
           null,
           0,
           0,
-          0);
+          0,
+          null);
+    }
+
+    public Task(
+        String id,
+        String title,
+        String details,
+        String status,
+        String priority,
+        Instant dueAt,
+        String assigneeUserId,
+        String contactId,
+        String accountId,
+        long version,
+        Instant createdAt,
+        Instant updatedAt,
+        String columnKey,
+        String taskType,
+        String contactName,
+        String accountName,
+        String assigneeName,
+        String dealId,
+        String dealTitle,
+        String reporterUserId,
+        String reporterName,
+        Integer estimatedMinutes,
+        int loggedMinutes,
+        int subtaskCount,
+        int subtasksCompletedCount) {
+      this(
+          id,
+          title,
+          details,
+          status,
+          priority,
+          dueAt,
+          assigneeUserId,
+          contactId,
+          accountId,
+          version,
+          createdAt,
+          updatedAt,
+          columnKey,
+          taskType,
+          contactName,
+          accountName,
+          assigneeName,
+          dealId,
+          dealTitle,
+          reporterUserId,
+          reporterName,
+          estimatedMinutes,
+          loggedMinutes,
+          subtaskCount,
+          subtasksCompletedCount,
+          null);
     }
   }
 
@@ -256,6 +314,15 @@ public class CrmWorkService {
     }
   }
 
+  private static Instant getInstant(ResultSet rs, String name) {
+    try {
+      var ts = rs.getTimestamp(name);
+      return ts == null ? null : ts.toInstant();
+    } catch (SQLException ignored) {
+      return null;
+    }
+  }
+
   private static Task task(ResultSet rs, int row) throws SQLException {
     var due = rs.getTimestamp("due_at");
     String type = col(rs, "task_type");
@@ -284,7 +351,8 @@ public class CrmWorkService {
         getInteger(rs, "estimated_minutes"),
         getInt(rs, "logged_minutes"),
         getInt(rs, "subtask_count"),
-        getInt(rs, "subtasks_completed_count"));
+        getInt(rs, "subtasks_completed_count"),
+        getInstant(rs, "in_progress_started_at"));
   }
 
   private static String trimmed(String value, int max) {
@@ -755,8 +823,8 @@ public class CrmWorkService {
         """
         insert into crm_tasks(id,company_id,title,details,priority,due_at,
                               assignee_user_id,contact_id,account_id,deal_id,estimated_minutes,
-                              created_by_user_id,column_key,status,completed_at,task_type)
-        values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,case when ?='DONE' then now() else null end,?)
+                              created_by_user_id,column_key,status,completed_at,task_type,in_progress_started_at)
+        values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,case when ?='DONE' then now() else null end,?,case when ?='IN_PROGRESS' then now() else null end)
         """,
         key,
         companyId,
@@ -773,7 +841,8 @@ public class CrmWorkService {
         column.key(),
         column.statusGroup(),
         column.statusGroup(),
-        safeType);
+        safeType,
+        column.statusGroup());
     appendTaskEvent(
         companyId, key, "CREATED", null, column.statusGroup(), null, actor, null, column.name());
     return getTask(companyId, key);
@@ -995,18 +1064,51 @@ public class CrmWorkService {
     if (previous.version() != version)
       throw new ApiException(HttpStatus.CONFLICT, "CRM_TASK_VERSION_CONFLICT");
     if (previous.columnKey().equals(columnKey)) return previous;
+
+    boolean wasInProgress = "IN_PROGRESS".equals(previous.status());
+    boolean willBeInProgress = "IN_PROGRESS".equals(status);
+    int autoMinutes = 0;
+    Timestamp newInProgressStartedAt = null;
+
+    if (wasInProgress && !willBeInProgress) {
+      if (previous.inProgressStartedAt() != null) {
+        long seconds =
+            Math.max(
+                0,
+                java.time.Duration.between(previous.inProgressStartedAt(), Instant.now())
+                    .getSeconds());
+        autoMinutes = (int) Math.max(1, Math.round(seconds / 60.0));
+      }
+      newInProgressStartedAt = null;
+    } else if (!wasInProgress && willBeInProgress) {
+      newInProgressStartedAt = Timestamp.from(Instant.now());
+    } else if (wasInProgress && willBeInProgress) {
+      newInProgressStartedAt =
+          previous.inProgressStartedAt() != null
+              ? Timestamp.from(previous.inProgressStartedAt())
+              : Timestamp.from(Instant.now());
+    }
+
     int updated =
         jdbc.update(
             """
-        update crm_tasks set status = ?, completed_at = case when ? = 'DONE' then coalesce(completed_at,now()) else null end,
-          reminder_generation = reminder_generation + case
-            when status in ('DONE', 'CANCELLED') and ? in ('OPEN', 'IN_PROGRESS')
-            then 1 else 0 end,
-          column_key=?,updated_at = now(), version = version + 1
-        where company_id = ? and id = ? and version = ?
+        update crm_tasks
+           set status = ?,
+               completed_at = case when ? = 'DONE' then coalesce(completed_at, now()) else null end,
+               in_progress_started_at = ?,
+               logged_minutes = logged_minutes + ?,
+               reminder_generation = reminder_generation + case
+                 when status in ('DONE', 'CANCELLED') and ? in ('OPEN', 'IN_PROGRESS')
+                 then 1 else 0 end,
+               column_key = ?,
+               updated_at = now(),
+               version = version + 1
+         where company_id = ? and id = ? and version = ?
         """,
             status,
             status,
+            newInProgressStartedAt,
+            autoMinutes,
             status,
             columnKey,
             companyId,
@@ -1019,7 +1121,7 @@ public class CrmWorkService {
         previous.status().equals(status) ? "STEP_CHANGED" : "STATUS_CHANGED",
         previous.status(),
         status,
-        "Step",
+        autoMinutes > 0 ? "Step (" + autoMinutes + "m auto-logged)" : "Step",
         actor,
         before.name(),
         target.name());

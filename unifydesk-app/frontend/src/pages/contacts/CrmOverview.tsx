@@ -113,7 +113,7 @@ export default function CrmOverview() {
   const tasksReady = taskState?.scope === scopeKey && !taskState.failed
 
   const canReadLeads = can(PERMISSIONS.CRM_LEAD_READ) && can(PERMISSIONS.CONTACT_READ)
-  const canReadTasks = can(PERMISSIONS.CRM_TASK_READ) && can(PERMISSIONS.CONTACT_READ)
+  const canReadTasks = can(PERMISSIONS.CRM_TASK_READ)
   useEffect(() => {
     if (!companyId) return
     let active = true
@@ -265,7 +265,6 @@ export default function CrmOverview() {
             (item) =>
               can(item.permission) &&
               (item.to !== '/crm/leads' || can(PERMISSIONS.CONTACT_READ)) &&
-              (item.to !== '/crm/tasks' || can(PERMISSIONS.CONTACT_READ)) &&
               (item.to !== '/crm/deals' ||
                 (can(PERMISSIONS.CONTACT_READ) && can(PERMISSIONS.CRM_ACCOUNT_READ))) &&
               (item.to !== '/crm/activities' || can(PERMISSIONS.CONTACT_READ)) &&

@@ -1,10 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useEffect, useState } from 'react'
+import { FiMail } from 'react-icons/fi'
 import { authApi } from '../../features/auth/authApi'
 import { resolvePostAuthRedirect } from '../../features/company/invitationContinuation'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { selectAuthUser, setAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import OtpBoxInput from '../../components/ui/OtpBoxInput'
 
 const RESEND_COOLDOWN_SECONDS = 60
 
@@ -81,34 +83,50 @@ const VerifyOtp = () => {
           {routeState.profilePictureWarning}. You can update it later.
         </p>
       )}
-      <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold text-slate-700">OTP</span>
-          <input
-            className="form-input text-center tracking-[0.35em]"
-            inputMode="numeric"
-            maxLength={6}
-            pattern="\d{6}"
+      <div className="flex items-center gap-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 p-3.5 text-xs text-indigo-700 dark:text-indigo-300">
+        <FiMail className="size-5 shrink-0" aria-hidden="true" />
+        <span>
+          A 6-digit verification code has been sent to your inbox. Check your spam folder if it
+          doesn't appear shortly.
+        </span>
+      </div>
+
+      <form className="mt-6 space-y-5" onSubmit={onSubmit}>
+        <div>
+          <span className="mb-2 block text-center text-xs font-semibold text-slate-700 dark:text-slate-300">
+            Enter 6-digit verification code
+          </span>
+          <OtpBoxInput
+            length={6}
             value={otp}
-            onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
-            autoComplete="one-time-code"
-            required
+            onChange={(val) => {
+              setOtp(val)
+              if (error) setError('')
+            }}
+            autoFocus
+            disabled={submitting}
+            error={Boolean(error)}
           />
-        </label>
-        {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
+        </div>
+
+        {error && (
+          <p className="rounded-lg bg-rose-50 p-3 text-center text-sm text-rose-600">{error}</p>
+        )}
         {notice && (
-          <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</p>
+          <p className="rounded-lg bg-emerald-50 p-3 text-center text-sm text-emerald-700">
+            {notice}
+          </p>
         )}
         <button
           type="submit"
-          className="primary-button flex w-full"
+          className="primary-button flex w-full justify-center"
           disabled={submitting || otp.length !== 6}
         >
           {submitting ? 'Verifying...' : 'Verify OTP'}
         </button>
         <button
           type="button"
-          className="secondary-button flex w-full"
+          className="secondary-button flex w-full justify-center"
           disabled={resending || resendCooldown > 0}
           onClick={() => void resend()}
         >
