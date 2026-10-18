@@ -23,6 +23,7 @@ public class BillingAutoPayService {
   private final RecurringAuthorizationService recurringAuthorizationService;
   private final CompanyBillingProfileRepository billingProfileRepository;
   private final CompanyRepository companyRepository;
+  private final com.messaging.billing.payment.RazorpayProperties razorpayProperties;
 
   @Transactional
   public AutoPayDetailsResponse setup(Long companyId, AutoPaySetupRequest request) {
@@ -48,7 +49,8 @@ public class BillingAutoPayService {
         result.providerSubscriptionId(),
         result.subscriptionSessionId(),
         "UPI_AUTOPAY",
-        result.actionUrl());
+        result.actionUrl(),
+        razorpayProperties.getKeyId());
   }
 
   public AutoPayDetailsResponse get(Long companyId) {
@@ -64,7 +66,8 @@ public class BillingAutoPayService {
         result.providerSubscriptionId(),
         result.subscriptionSessionId(),
         "UPI_AUTOPAY",
-        result.actionUrl());
+        result.actionUrl(),
+        razorpayProperties.getKeyId());
   }
 
   @Transactional
@@ -81,7 +84,8 @@ public class BillingAutoPayService {
         result.providerSubscriptionId(),
         result.subscriptionSessionId(),
         "UPI_AUTOPAY",
-        result.actionUrl());
+        result.actionUrl(),
+        razorpayProperties.getKeyId());
   }
 
   @Transactional

@@ -118,7 +118,7 @@ class PaymentCollectionStore {
     payment.setAmount(invoice.getAmountDue());
     payment.setCurrency(invoice.getCurrency());
     payment.setIdempotencyKey(idempotencyKey);
-    payment.setProvider("CASHFREE");
+    payment.setProvider("RAZORPAY");
     if (createProviderOrder) {
       payment.setProviderOrderId("UD-" + payment.getId());
       payment.setProviderOrderState("CREATE_PENDING");

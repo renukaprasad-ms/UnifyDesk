@@ -102,7 +102,7 @@ const companyLinks: WorkspaceLink[] = [
     ],
   },
   {
-    label: 'Billing & Wallet',
+    label: 'Billing & Finance',
     to: '/billing',
     icon: <FiCreditCard />,
     permission: PERMISSIONS.BILLING_READ,
@@ -260,6 +260,17 @@ export default function AppSidebar({
           >
             <FiFileText className="sidebar-icon" aria-hidden="true" />
             <span className="sidebar-copy">Templates</span>
+          </NavLink>
+        )}
+        {hasWorkspacePermission(PERMISSIONS.BILLING_READ) && (
+          <NavLink
+            to="/billing"
+            className={linkClass}
+            onClick={onNavigate}
+            title={compact ? 'Billing & Finance' : undefined}
+          >
+            <FiCreditCard className="sidebar-icon" aria-hidden="true" />
+            <span className="sidebar-copy">Billing &amp; Finance</span>
           </NavLink>
         )}
         {renderSection('company', 'Company', <FiBriefcase aria-hidden="true" />, companyLinks)}

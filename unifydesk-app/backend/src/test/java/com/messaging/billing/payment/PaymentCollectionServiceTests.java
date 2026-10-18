@@ -17,7 +17,7 @@ class PaymentCollectionServiceTests {
   void durableIntentIsPreparedBeforeProviderCallAndSessionIsPersisted() {
     PaymentCollectionStore store = mock(PaymentCollectionStore.class);
     PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
-    CashfreeProperties properties = properties();
+    RazorpayProperties properties = properties();
     PaymentCollectionService service = new PaymentCollectionService(store, gateway, properties);
 
     var prepared = prepared(true, null, "CREATE_PENDING");
@@ -125,10 +125,10 @@ class PaymentCollectionServiceTests {
     verifyNoInteractions(gateway);
   }
 
-  private CashfreeProperties properties() {
-    CashfreeProperties properties = new CashfreeProperties();
+  private RazorpayProperties properties() {
+    RazorpayProperties properties = new RazorpayProperties();
     properties.setReturnUrl("https://app.unifydesk.in/return");
-    properties.setNotifyUrl("https://api.unifydesk.in/api/v1/webhooks/cashfree");
+    properties.setNotifyUrl("https://api.unifydesk.in/api/v1/webhooks/razorpay");
     return properties;
   }
 

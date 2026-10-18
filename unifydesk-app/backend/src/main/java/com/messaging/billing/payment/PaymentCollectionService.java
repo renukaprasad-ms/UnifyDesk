@@ -14,7 +14,7 @@ public class PaymentCollectionService {
 
   private final PaymentCollectionStore store;
   private final PaymentProviderGateway gateway;
-  private final CashfreeProperties cashfreeProperties;
+  private final RazorpayProperties razorpayProperties;
 
   /**
    * Durable orchestration boundary:
@@ -88,8 +88,8 @@ public class PaymentCollectionService {
         prepared.amount(),
         prepared.currency(),
         customer,
-        cashfreeProperties.getReturnUrl(),
-        cashfreeProperties.getNotifyUrl(),
+        razorpayProperties.getReturnUrl(),
+        razorpayProperties.getNotifyUrl(),
         ProviderIdempotency.key("order", prepared.paymentId()));
   }
 

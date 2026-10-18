@@ -12,7 +12,7 @@ public class RecurringAuthorizationService {
 
   private final RecurringAuthorizationStore store;
   private final PaymentProviderGateway gateway;
-  private final CashfreeProperties properties;
+  private final RazorpayProperties properties;
 
   public AuthorizationResult prepareOrResolve(
       Long companyId,

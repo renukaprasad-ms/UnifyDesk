@@ -7,8 +7,8 @@ import com.messaging.billing.dto.WalletTopupOrderResponse;
 import com.messaging.billing.dto.WalletTransactionResponse;
 import com.messaging.billing.entity.CompanyWallet;
 import com.messaging.billing.entity.WalletTransaction;
-import com.messaging.billing.payment.CashfreeProperties;
 import com.messaging.billing.payment.PaymentProviderGateway;
+import com.messaging.billing.payment.RazorpayProperties;
 import com.messaging.billing.entity.CompanyBillingProfile;
 import com.messaging.billing.repository.CompanyBillingProfileRepository;
 import com.messaging.billing.repository.CompanyWalletRepository;
@@ -39,7 +39,7 @@ public class WalletService {
   private final CompanyRepository companyRepository;
   private final CompanyBillingProfileRepository billingProfileRepository;
   private final PaymentProviderGateway paymentProviderGateway;
-  private final CashfreeProperties cashfreeProperties;
+  private final RazorpayProperties razorpayProperties;
   private final WalletAutoRechargeService walletAutoRechargeService;
 
   @Transactional
@@ -97,14 +97,14 @@ public class WalletService {
         : "INR";
     String orderId = "TOPUP-" + companyId + "-" + IdGenerator.nextId();
 
-    boolean hasCashfreeKeys =
-        cashfreeProperties.isEnabled()
-            && cashfreeProperties.getClientId() != null
-            && !cashfreeProperties.getClientId().isBlank()
-            && cashfreeProperties.getClientSecret() != null
-            && !cashfreeProperties.getClientSecret().isBlank();
+    boolean hasRazorpayKeys =
+        razorpayProperties.isEnabled()
+            && razorpayProperties.getKeyId() != null
+            && !razorpayProperties.getKeyId().isBlank()
+            && razorpayProperties.getKeySecret() != null
+            && !razorpayProperties.getKeySecret().isBlank();
 
-    if (hasCashfreeKeys) {
+    if (hasRazorpayKeys) {
       String resolvedPhone = resolveCustomerPhone(companyId, request.customer());
       String resolvedEmail = resolveCustomerEmail(companyId, request.customer());
       String resolvedName = resolveCustomerName(companyId, request.customer());
@@ -116,8 +116,8 @@ public class WalletService {
               resolvedEmail,
               resolvedPhone);
 
-      String returnUrl = cashfreeProperties.getReturnUrl();
-      String notifyUrl = cashfreeProperties.getNotifyUrl();
+      String returnUrl = razorpayProperties.getReturnUrl();
+      String notifyUrl = razorpayProperties.getNotifyUrl();
 
       PaymentProviderGateway.Checkout checkout =
           paymentProviderGateway.createOrder(
@@ -129,26 +129,42 @@ public class WalletService {
               notifyUrl,
               orderId);
 
+      String rzpOrderId = checkout.paymentSessionId() != null && checkout.paymentSessionId().startsWith("order_")
+          ? checkout.paymentSessionId()
+          : null;
+
       return new WalletTopupOrderResponse(
           checkout.orderId(),
           checkout.paymentSessionId(),
           roundedAmount,
           currency,
-          checkout.status());
+          checkout.status(),
+          rzpOrderId,
+          razorpayProperties.getKeyId(),
+          roundedAmount.multiply(BigDecimal.valueOf(100)).longValue());
     }
 
-    // Fallback/Simulated checkout for environments without live Cashfree keys
+    // Fallback/Simulated checkout for environments without live Razorpay keys
     return new WalletTopupOrderResponse(
         orderId,
         "simulated_session_" + orderId,
         roundedAmount,
         currency,
-        "ACTIVE");
+        "ACTIVE",
+        null,
+        razorpayProperties.getKeyId(),
+        roundedAmount.multiply(BigDecimal.valueOf(100)).longValue());
   }
 
   @Transactional
   public CompanyWalletResponse confirmTopup(
       Long companyId, String orderId, Long actorUserId) {
+    return confirmTopup(companyId, orderId, null, actorUserId);
+  }
+
+  @Transactional
+  public CompanyWalletResponse confirmTopup(
+      Long companyId, String orderId, BigDecimal clientAmount, Long actorUserId) {
     if (orderId == null || orderId.isBlank()) {
       throw new BadRequestException("Order ID is required to confirm top-up");
     }
@@ -165,7 +181,9 @@ public class WalletService {
       return toWalletResponse(wallet);
     }
 
-    BigDecimal amount = extractAmountOrQueryGateway(orderId);
+    BigDecimal amount = clientAmount != null && clientAmount.compareTo(BigDecimal.ZERO) > 0
+        ? clientAmount.setScale(4, RoundingMode.HALF_UP)
+        : extractAmountOrQueryGateway(orderId);
 
     BigDecimal updatedBalance = wallet.getBalance().add(amount);
     wallet.setBalance(updatedBalance);
@@ -208,6 +226,10 @@ public class WalletService {
     if (wallet.getBalance().compareTo(amount) < 0) {
       log.warn("Insufficient wallet balance for company {}: required {}, available {}",
           companyId, amount, wallet.getBalance());
+      if (wallet.isAutoRechargeEnabled() && !wallet.isAutoRechargePaused()) {
+        log.info("Triggering auto-recharge due to zero/insufficient balance during debit for company {}", companyId);
+        walletAutoRechargeService.triggerAutoRechargeIfEligibleAsync(companyId);
+      }
       return false;
     }
 
@@ -249,6 +271,7 @@ public class WalletService {
     if (request.enabled()) {
       wallet.setAutoRechargePaused(false);
       wallet.setAutoRechargeFailedAttempts(0);
+      wallet.setAutoRechargeLastAttemptAt(null);
     }
     if (request.threshold() != null && request.threshold().compareTo(BigDecimal.ZERO) > 0) {
       wallet.setAutoRechargeThreshold(request.threshold().setScale(4, RoundingMode.HALF_UP));
@@ -258,18 +281,45 @@ public class WalletService {
     }
 
     wallet = walletRepository.saveAndFlush(wallet);
+
+    if (wallet.isAutoRechargeEnabled()
+        && !wallet.isAutoRechargePaused()
+        && wallet.getBalance().compareTo(wallet.getAutoRechargeThreshold()) <= 0) {
+      log.info("Wallet balance {} is below or equal to threshold {} after configuring auto-recharge for company {}. Triggering immediate auto-recharge.",
+          wallet.getBalance(), wallet.getAutoRechargeThreshold(), companyId);
+      walletAutoRechargeService.triggerAutoRechargeIfEligibleAsync(companyId);
+    }
+
+    return toWalletResponse(wallet);
+  }
+
+  @Transactional
+  public CompanyWalletResponse triggerAutoRecharge(Long companyId) {
+    CompanyWallet wallet =
+        walletRepository
+            .findByCompanyIdForUpdate(companyId)
+            .orElseGet(() -> getOrCreateWallet(companyId));
+
+    wallet.setAutoRechargeEnabled(true);
+    wallet.setAutoRechargePaused(false);
+    wallet.setAutoRechargeFailedAttempts(0);
+    wallet.setAutoRechargeLastAttemptAt(null);
+    wallet = walletRepository.saveAndFlush(wallet);
+
+    log.info("Manual/On-demand wallet auto-recharge triggered for company {}", companyId);
+    walletAutoRechargeService.triggerAutoRechargeIfEligibleAsync(companyId);
     return toWalletResponse(wallet);
   }
 
   private BigDecimal extractAmountOrQueryGateway(String orderId) {
-    boolean hasCashfreeKeys =
-        cashfreeProperties.isEnabled()
-            && cashfreeProperties.getClientId() != null
-            && !cashfreeProperties.getClientId().isBlank()
-            && cashfreeProperties.getClientSecret() != null
-            && !cashfreeProperties.getClientSecret().isBlank();
+    boolean hasRazorpayKeys =
+        razorpayProperties.isEnabled()
+            && razorpayProperties.getKeyId() != null
+            && !razorpayProperties.getKeyId().isBlank()
+            && razorpayProperties.getKeySecret() != null
+            && !razorpayProperties.getKeySecret().isBlank();
 
-    if (hasCashfreeKeys) {
+    if (hasRazorpayKeys && orderId != null && orderId.startsWith("order_")) {
       try {
         List<PaymentProviderGateway.RemotePayment> payments =
             paymentProviderGateway.fetchOrderPayments(orderId);
@@ -279,7 +329,7 @@ public class WalletService {
           }
         }
       } catch (Exception e) {
-        log.warn("Could not query Cashfree for order {}: {}", orderId, e.getMessage());
+        log.warn("Could not query Razorpay for order {}: {}", orderId, e.getMessage());
       }
     }
 

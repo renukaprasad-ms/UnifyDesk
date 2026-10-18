@@ -21,7 +21,6 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class CashfreePaymentGateway implements PaymentProviderGateway {
 

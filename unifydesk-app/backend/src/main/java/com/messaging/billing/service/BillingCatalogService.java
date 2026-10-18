@@ -485,9 +485,10 @@ public class BillingCatalogService {
   @Transactional
   public CompanySubscriptionResponse grantSubscription(
       Long companyId, Long actorUserId, AdminGrantSubscriptionRequest request) {
-    if (request.paymentPolicy() == PaymentPolicy.CASHFREE) {
+    if (request.paymentPolicy() == PaymentPolicy.RAZORPAY
+        || request.paymentPolicy() == PaymentPolicy.CASHFREE) {
       throw new BadRequestException(
-          "CASHFREE activation requires provider-confirmed payment truth");
+          "Payment gateway activation requires provider-confirmed payment truth");
     }
 
     Instant now = Instant.now();

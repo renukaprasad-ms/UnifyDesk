@@ -12,7 +12,7 @@ import {
   FiZap,
 } from 'react-icons/fi'
 import { billingApi } from '../../features/billing/billingApi'
-import { launchCashfreeSubscriptionCheckout } from '../../features/billing/cashfreeCheckout'
+import { launchRazorpayMandateCheckout } from '../../features/billing/razorpayCheckout'
 import type { AutoPayDetails, AutoPaySetupInput } from '../../features/billing/types'
 import { autoPayStatusLabel } from '../../features/billing/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -59,7 +59,7 @@ export default function AutoPayModal({
         name: name.trim() || companyName,
         email: email.trim(),
         phone: phone.trim(),
-        returnUrl: `${window.location.origin}/company/billing`,
+        returnUrl: `${window.location.origin}/billing/autopay`,
         maxAmount: 15000,
       }
 
@@ -67,16 +67,22 @@ export default function AutoPayModal({
       setMandateResult(result)
       onSuccess(result)
 
-      if (result.subscriptionSessionId) {
+      if (result.keyId || result.subscriptionSessionId || result.actionUrl) {
         try {
-          // Opens Cashfree mandate authorization in a new tab.
-          // _blank resolves immediately, so user verifies manually after completing in the new tab.
-          await launchCashfreeSubscriptionCheckout(result.subscriptionSessionId)
+          await launchRazorpayMandateCheckout({
+            key: result.keyId || '',
+            subscriptionId: result.providerSubscriptionId || undefined,
+            orderId: result.subscriptionSessionId || undefined,
+            customer: {
+              name: name.trim() || companyName,
+              email: email.trim(),
+              phone: phone.trim(),
+            },
+          })
+          await handleVerifyInner()
         } catch (checkoutErr) {
-          console.warn('Cashfree mandate tab could not be opened:', checkoutErr)
+          console.warn('Razorpay mandate popup dismissed or error:', checkoutErr)
         }
-      } else if (result.actionUrl && !result.actionUrl.includes('simulator')) {
-        window.open(result.actionUrl, '_blank', 'noopener,noreferrer')
       }
     } catch (err) {
       setError(apiErrorMessage(err, 'Failed to prepare AutoPay mandate setup.'))
@@ -108,6 +114,29 @@ export default function AutoPayModal({
     }
   }
 
+  const openMandatePopup = async () => {
+    if (!mandateResult) return
+    setSubmitting(true)
+    setError('')
+    try {
+      await launchRazorpayMandateCheckout({
+        key: mandateResult.keyId || '',
+        subscriptionId: mandateResult.providerSubscriptionId || undefined,
+        orderId: mandateResult.subscriptionSessionId || undefined,
+        customer: {
+          name: name.trim() || companyName,
+          email: email.trim(),
+          phone: phone.trim(),
+        },
+      })
+      await handleVerifyInner()
+    } catch (checkoutErr) {
+      setError(checkoutErr instanceof Error ? checkoutErr.message : 'Mandate popup dismissed.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
       <div className="relative w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 p-6 sm:p-8 shadow-2xl text-slate-100">
@@ -116,7 +145,7 @@ export default function AutoPayModal({
           type="button"
           onClick={onClose}
           disabled={submitting}
-          className="absolute top-4 right-4 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+          className="absolute top-4 right-4 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
           aria-label="Close modal"
         >
           <FiX className="size-5" />
@@ -124,7 +153,7 @@ export default function AutoPayModal({
 
         {/* Modal Header */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="flex items-center justify-center size-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 text-white shadow-lg shadow-indigo-500/25">
+          <div className="flex items-center justify-center size-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 text-white shadow-lg shadow-indigo-500/25">
             <FiZap className="size-6" />
           </div>
           <div>
@@ -156,7 +185,7 @@ export default function AutoPayModal({
           <FiShield className="size-5 text-indigo-400 shrink-0 mt-0.5" />
           <div className="text-xs leading-relaxed text-indigo-200">
             <strong className="text-white block mb-0.5">RBI Compliant &amp; Bank-Grade Security</strong>
-            No card or bank details are stored on UnifyDesk servers. All recurring mandates are tokenized directly via Cashfree Payments with a monthly approval cap of ₹15,000.
+            No card or bank details are stored on UnifyDesk servers. All recurring mandates are tokenized directly via Razorpay Payments with a 20-year span and authorization cap up to ₹15,000.
           </div>
         </div>
 
@@ -174,36 +203,25 @@ export default function AutoPayModal({
               <FiCheckCircle className="size-8 text-emerald-400 mx-auto mb-2" />
               <h3 className="font-bold text-white text-sm">Mandate Checkout Ready</h3>
               <p className="text-xs text-slate-400 mt-1">
-                Complete your recurring AutoPay authorization with Cashfree (supports UPI AutoPay, NetBanking, and Cards up to ₹15,000/month).
+                Complete your recurring AutoPay authorization with Razorpay SDK popup (supports UPI AutoPay, NetBanking, and Cards up to ₹15,000).
               </p>
             </div>
 
-            {mandateResult.subscriptionSessionId ? (
-              <button
-                type="button"
-                onClick={() => void launchCashfreeSubscriptionCheckout(mandateResult.subscriptionSessionId!)}
-                className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-indigo-600/30"
-              >
-                <span>Authorize Mandate with Cashfree</span>
-                <FiExternalLink className="size-4" />
-              </button>
-            ) : mandateResult.actionUrl && !mandateResult.actionUrl.includes('simulator') ? (
-              <a
-                href={mandateResult.actionUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-indigo-600/30"
-              >
-                <span>Open Cashfree Authorization Portal</span>
-                <FiExternalLink className="size-4" />
-              </a>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => void openMandatePopup()}
+              disabled={submitting}
+              className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-indigo-600/30 cursor-pointer"
+            >
+              <span>Authorize Mandate (Razorpay Popup)</span>
+              <FiExternalLink className="size-4" />
+            </button>
 
             <button
               type="button"
               onClick={() => void handleVerify()}
               disabled={submitting}
-              className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs transition border border-slate-700"
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs transition border border-slate-700 cursor-pointer"
             >
               {submitting ? 'Verifying status…' : 'I have approved, check mandate status'}
             </button>

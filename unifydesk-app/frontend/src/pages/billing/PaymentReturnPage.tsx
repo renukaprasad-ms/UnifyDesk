@@ -139,7 +139,7 @@ export default function PaymentReturnPage() {
                           className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition shadow-sm inline-flex items-center gap-1.5"
                         >
                           <FiZap className="size-3.5" />
-                          <span>Set Up AutoPay with Cashfree</span>
+                          <span>Set Up AutoPay (Razorpay)</span>
                         </button>
                       </div>
                     </div>

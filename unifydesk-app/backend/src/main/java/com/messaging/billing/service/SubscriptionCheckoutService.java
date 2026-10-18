@@ -196,7 +196,7 @@ public class SubscriptionCheckoutService {
     subscription.setCurrentPeriodStart(intent.getServicePeriodStart());
     subscription.setCurrentPeriodEnd(intent.getServicePeriodEnd());
     subscription.setBillingAnchor(intent.getServicePeriodStart());
-    subscription.setPaymentPolicy(PaymentPolicy.CASHFREE);
+    subscription.setPaymentPolicy(PaymentPolicy.RAZORPAY);
     CompanySubscription saved = subscriptionRepository.saveAndFlush(subscription);
 
     billingPeriodService.bindPlatformPeriodToSubscription(period.getId(), saved);

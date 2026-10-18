@@ -9,7 +9,8 @@ import {
   upgradeQuoteRows,
   upgradeRequiresCheckout,
 } from '../../features/billing/billingModel'
-import { launchCashfreeCheckout } from '../../features/billing/cashfreeCheckout'
+import { launchRazorpayCheckout, type RazorpayPaymentSuccess } from '../../features/billing/razorpayCheckout'
+import PaymentVerificationAndAutoPayModal from '../../components/billing/PaymentVerificationAndAutoPayModal'
 import { savePendingBillingCheckout } from '../../features/billing/pendingCheckout'
 import type {
   CheckoutResponse,
@@ -115,6 +116,8 @@ export default function SelectPlan() {
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [verificationResult, setVerificationResult] = useState<RazorpayPaymentSuccess | null>(null)
+  const [verificationOpen, setVerificationOpen] = useState(false)
 
   useEffect(() => {
     if (!companyId) return
@@ -272,8 +275,8 @@ export default function SelectPlan() {
           phone: profileToSave.billingPhone || billingPhone.trim(),
         },
       })
-      if (!prepared.paymentSessionId) {
-        throw new Error('Backend checkout did not include a payment session.')
+      if (!prepared.paymentSessionId && !prepared.razorpayOrderId) {
+        throw new Error('Backend checkout did not include an order session.')
       }
       savePendingBillingCheckout({
         companyId,
@@ -286,7 +289,19 @@ export default function SelectPlan() {
         createdAt: new Date().toISOString(),
       })
       setCheckout(prepared)
-      await launchCashfreeCheckout(prepared.paymentSessionId)
+      const res = await launchRazorpayCheckout({
+        key: prepared.keyId || '',
+        orderId: prepared.razorpayOrderId || prepared.paymentSessionId || prepared.providerOrderId || '',
+        amount: prepared.amount,
+        amountInPaise: prepared.amountInPaise,
+        customer: {
+          name: profileToSave.legalBusinessName || company?.name?.trim() || undefined,
+          email: profileToSave.billingEmail || billingEmail.trim(),
+          phone: profileToSave.billingPhone || billingPhone.trim(),
+        },
+      })
+      setVerificationResult(res)
+      setVerificationOpen(true)
     } catch (selectionError) {
       setError(apiErrorMessage(selectionError, 'Unable to prepare plan checkout'))
     } finally {
@@ -299,9 +314,6 @@ export default function SelectPlan() {
     setSubmitting(true)
     setError('')
     try {
-      if (!checkout.paymentSessionId) {
-        throw new Error('Backend checkout did not include a payment session.')
-      }
       savePendingBillingCheckout({
         companyId,
         targetPlanId: selectedPlan.planId,
@@ -312,10 +324,22 @@ export default function SelectPlan() {
         previousSubscriptionId: details.subscription.subscriptionId,
         createdAt: new Date().toISOString(),
       })
-      await launchCashfreeCheckout(checkout.paymentSessionId)
+      const res = await launchRazorpayCheckout({
+        key: checkout.keyId || '',
+        orderId: checkout.razorpayOrderId || checkout.paymentSessionId || checkout.providerOrderId || '',
+        amount: checkout.amount,
+        amountInPaise: checkout.amountInPaise,
+        customer: {
+          name: billingProfile.legalBusinessName || company?.name?.trim() || undefined,
+          email: billingProfile.billingEmail || billingEmail.trim(),
+          phone: billingProfile.billingPhone || billingPhone.trim(),
+        },
+      })
+      setVerificationResult(res)
+      setVerificationOpen(true)
     } catch (paymentError) {
       setError(
-        paymentError instanceof Error ? paymentError.message : 'Unable to open Cashfree checkout',
+        paymentError instanceof Error ? paymentError.message : 'Unable to open Razorpay checkout',
       )
     } finally {
       setSubmitting(false)
@@ -719,22 +743,22 @@ export default function SelectPlan() {
                   {checkout ? (
                     <button
                       type="button"
-                      className="primary-button w-full justify-center text-sm py-3 rounded-xl shadow-lg"
+                      className="primary-button w-full justify-center text-sm py-3 rounded-xl shadow-lg cursor-pointer"
                       disabled={submitting}
                       onClick={() => void pay()}
                     >
-                      <FiCreditCard className="mr-2" /> Continue to Cashfree ·{' '}
+                      <FiCreditCard className="mr-2" /> Pay with Razorpay ·{' '}
                       {money(checkout.amount, checkout.currency)}
                     </button>
                   ) : (
                     <button
-                      className="primary-button w-full justify-center text-sm py-3 rounded-xl shadow-lg font-semibold"
+                      className="primary-button w-full justify-center text-sm py-3 rounded-xl shadow-lg font-semibold cursor-pointer"
                       disabled={submitting}
                     >
                       {submitting
-                        ? 'Opening Cashfree…'
+                        ? 'Opening Razorpay…'
                         : quote
-                          ? `Continue to Cashfree · ${money(quote.amountDue, quote.currency ?? selectedPrice.currency)}`
+                          ? `Pay with Razorpay · ${money(quote.amountDue, quote.currency ?? selectedPrice.currency)}`
                           : 'Review upgrade amount'}
                     </button>
                   )}
@@ -742,6 +766,21 @@ export default function SelectPlan() {
               </form>
             </div>
           </div>
+        )}
+
+        {companyId && (
+          <PaymentVerificationAndAutoPayModal
+            isOpen={verificationOpen}
+            companyId={companyId}
+            companyName={company?.name || billingProfile.legalBusinessName || ''}
+            paymentResult={verificationResult}
+            customerEmail={billingProfile.billingEmail || billingEmail}
+            customerPhone={billingProfile.billingPhone || billingPhone}
+            onDone={() => {
+              setVerificationOpen(false)
+              navigate('/workspace')
+            }}
+          />
         )}
       </main>
     </div>

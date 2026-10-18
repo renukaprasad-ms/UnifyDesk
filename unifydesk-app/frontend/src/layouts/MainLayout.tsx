@@ -6,6 +6,7 @@ import ChannelContextSidebar from '../components/navigation/ChannelContextSideba
 import GlobalSyncProgress from '../components/inbox/GlobalSyncProgress'
 import AdCenterSidebar from '../components/navigation/AdCenterSidebar'
 import CrmSidebar from '../components/navigation/CrmSidebar'
+import BillingSidebar from '../components/navigation/BillingSidebar'
 import AppSidebar from '../components/navigation/AppSidebar'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import { authApi } from '../features/auth/authApi'
@@ -42,12 +43,13 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   const broadcastMode = location.pathname.startsWith('/broadcast/')
   const adCenterMode = location.pathname.startsWith('/ad-center')
   const crmMode = location.pathname.startsWith('/crm/') || location.pathname === '/contacts' || location.pathname.startsWith('/contacts/')
+  const billingMode = location.pathname.startsWith('/billing')
   const selectedBroadcastGroupId = new URLSearchParams(location.search).get('groupId')
   const selectedBroadcastGroup = useAppSelector((state) =>
     state.broadcast.groups.find((group) => group.id === selectedBroadcastGroupId),
   )
   const channelContextMode = inboxMode || broadcastMode
-  const workspaceContextMode = channelContextMode || adCenterMode || crmMode
+  const workspaceContextMode = channelContextMode || adCenterMode || crmMode || billingMode
   const selectedEmailFolder =
     new URLSearchParams(location.search).get('folder') === 'SENT' ? 'Sent' : 'Inbox'
   const channelContextLabel = inboxMode
@@ -243,6 +245,8 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
               <AdCenterSidebar onNavigate={closeContext} />
             ) : crmMode ? (
               <CrmSidebar onNavigate={closeContext} />
+            ) : billingMode ? (
+              <BillingSidebar onNavigate={closeContext} />
             ) : (
               <ChannelContextSidebar
                 mode={inboxMode ? 'inbox' : 'broadcast'}
@@ -275,7 +279,15 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
             }}
             contextAvailable={!platform && workspaceContextMode}
             contextOpen={contextOpen}
-            contextLabel={crmMode ? 'CRM' : adCenterMode ? 'Ad Center' : channelContextLabel}
+            contextLabel={
+              crmMode
+                ? 'CRM'
+                : adCenterMode
+                  ? 'Ad Center'
+                  : billingMode
+                    ? 'Billing & Finance'
+                    : channelContextLabel
+            }
             onToggleContext={() => {
               setMenuOpen(false)
               setRailHovered(false)

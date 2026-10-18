@@ -2,7 +2,7 @@ package com.messaging.billing.service;
 
 import com.messaging.billing.entity.CompanyWallet;
 import com.messaging.billing.entity.WalletTransaction;
-import com.messaging.billing.payment.CashfreeProperties;
+import com.messaging.billing.payment.RazorpayProperties;
 import com.messaging.billing.payment.PaymentProviderGateway;
 import com.messaging.billing.payment.RecurringAuthorizationService;
 import com.messaging.billing.repository.CompanyWalletRepository;
@@ -31,7 +31,7 @@ public class WalletAutoRechargeService {
   private final RecurringAuthorizationService recurringAuthorizationService;
   private final PaymentProviderGateway paymentProviderGateway;
   private final BillingNotificationService notificationService;
-  private final CashfreeProperties cashfreeProperties;
+  private final com.messaging.billing.payment.RazorpayProperties razorpayProperties;
 
   /**
    * Asynchronously checks whether the wallet requires auto-recharge and executes the charge
@@ -48,7 +48,7 @@ public class WalletAutoRechargeService {
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void executeAutoRecharge(Long companyId) {
-    if (!cashfreeProperties.isEnabled()) {
+    if (!razorpayProperties.isEnabled()) {
       return;
     }
 

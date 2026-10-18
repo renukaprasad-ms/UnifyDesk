@@ -62,7 +62,8 @@ class PaymentConfirmationServiceTests {
             changes,
             lifecycle,
             recurringAuthorizations,
-            jdbc);
+            jdbc,
+            mock(com.messaging.realtime.service.RealtimeService.class));
     when(attempts.findByPaymentIdOrderByAttemptNoAsc(anyLong())).thenReturn(List.of());
     when(attempts.saveAndFlush(any(PaymentAttempt.class))).thenAnswer(i -> i.getArgument(0));
     when(payments.saveAndFlush(any(Payment.class))).thenAnswer(i -> i.getArgument(0));

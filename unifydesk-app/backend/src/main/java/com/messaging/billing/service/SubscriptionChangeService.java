@@ -201,7 +201,8 @@ public class SubscriptionChangeService {
         changeRepository.save(change);
         continue;
       }
-      if (subscription.getPaymentPolicy() == PaymentPolicy.CASHFREE) continue;
+      if (subscription.getPaymentPolicy() == PaymentPolicy.RAZORPAY
+          || subscription.getPaymentPolicy() == PaymentPolicy.CASHFREE) continue;
       Plan fromPlan = subscription.getPlan();
       PlanPrice targetPrice = change.getToPlanPrice();
       subscription.setPlan(change.getToPlan());
@@ -222,7 +223,8 @@ public class SubscriptionChangeService {
 
   private DowngradeScheduleSource resolveDowngradeScheduleSource(CompanySubscription current, Instant requestedAt) {
     Instant boundary = current.getCurrentPeriodEnd();
-    if (current.getPaymentPolicy() != PaymentPolicy.CASHFREE) {
+    if (current.getPaymentPolicy() != PaymentPolicy.RAZORPAY
+        && current.getPaymentPolicy() != PaymentPolicy.CASHFREE) {
       if (!requestedAt.isBefore(boundary)) throw new ConflictException("Downgrade request must precede its effective boundary");
       return new DowngradeScheduleSource(current.getPlan(), current.getPlanPrice(), current.getCurrentPeriodStart(), boundary, boundary);
     }
