@@ -433,6 +433,7 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
       if (customer.phone() != null && !customer.phone().isBlank()) {
         body.put("contact", customer.phone().trim());
       }
+      body.put("fail_existing", "0");
       body.put("notes", Map.of("internal_id", customer.id() != null ? customer.id() : ""));
 
       JsonNode json = post("/customers", body);
@@ -474,6 +475,10 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
       throw new ConflictException("Recurring command is bound to another provider token");
     }
     String providerOrderId = (String) row.get("provider_order_id");
+    if (providerOrderId == null || !providerOrderId.startsWith("order_")) {
+      throw new ConflictException(
+          "Recurring order creation is ambiguous; provider reconciliation is required");
+    }
     BigDecimal expectedAmount = (BigDecimal) row.get("amount");
     String expectedCurrency = (String) row.get("currency");
     String knownPaymentId = (String) row.get("provider_payment_id");
