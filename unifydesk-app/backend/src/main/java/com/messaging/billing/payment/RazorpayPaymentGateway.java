@@ -173,48 +173,34 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
 
   @Override
   public RecurringAuthorization createRecurringAuthorization(
-      String subscriptionId,
-      BigDecimal maxAmount,
-      String currency,
-      Customer customer,
-      String returnUrl,
-      String idempotencyKey) {
-    String customerId = getOrCreateRazorpayCustomer(customer);
-
-    try {
-      String curr = currency != null && !currency.isBlank() ? currency.toUpperCase() : "INR";
-      Map<String, Object> orderBody = new LinkedHashMap<>();
-      orderBody.put("amount", 100); // 100 paise = ₹1.00 authorization charge
-      orderBody.put("currency", curr);
-      orderBody.put("receipt", "mandate-" + sanitizeReceipt(subscriptionId));
-      orderBody.put("payment_capture", 1);
-      if (customerId != null && !customerId.isBlank()) {
-        orderBody.put("customer_id", customerId);
-      }
-      Map<String, String> notes = new LinkedHashMap<>();
-      notes.put("type", "MANDATE_AUTH");
-      notes.put("subscription_id", subscriptionId);
-      if (customerId != null) {
-        notes.put("customer_id", customerId);
-      }
-      orderBody.put("notes", notes);
-
-      JsonNode json = post("/orders", orderBody);
-      String rzpOrderId = text(json, "id");
-
-      return new RecurringAuthorization(
-          subscriptionId,
-          rzpOrderId != null ? rzpOrderId : "sim_order_" + subscriptionId,
-          "PENDING_AUTH",
-          customerId != null ? customerId : "");
-    } catch (Exception orderEx) {
-      log.warn("Could not create remote mandate order: {}", orderEx.getMessage());
-      return new RecurringAuthorization(
-          subscriptionId,
-          "sim_mandate_" + subscriptionId,
-          "PENDING_AUTH",
-          customerId != null ? customerId : "");
+      String subscriptionId, BigDecimal maxAmount, String currency,
+      Customer customer, String returnUrl, String idempotencyKey) {
+    assertRecurringEnabled();
+    if (customer == null || customer.email() == null || customer.phone() == null
+        || !"INR".equalsIgnoreCase(currency) || maxAmount == null
+        || maxAmount.signum() <= 0 || maxAmount.compareTo(new BigDecimal("15000")) > 0) {
+      throw new ConflictException("Valid INR mandate amount and billing contact are required");
     }
+    String customerId = getOrCreateRazorpayCustomer(customer);
+    if (customerId == null || !customerId.startsWith("cust_")) {
+      throw new ConflictException("Razorpay customer registration is incomplete");
+    }
+    Map<String, Object> orderBody = new LinkedHashMap<>();
+    orderBody.put("amount", 100L);
+    orderBody.put("currency", "INR");
+    orderBody.put("method", "upi");
+    orderBody.put("customer_id", customerId);
+    orderBody.put("receipt", "mandate-" + sanitizeReceipt(subscriptionId));
+    orderBody.put("token", Map.of(
+        "max_amount", toPaise(maxAmount),
+        "expire_at", Instant.now().plus(java.time.Duration.ofDays(365 * 3)).getEpochSecond(),
+        "frequency", "as_presented"));
+    orderBody.put("notes", Map.of("type", "MANDATE_AUTH", "mandate_id", subscriptionId));
+    String orderId = text(post("/orders", orderBody), "id");
+    if (orderId == null || !orderId.startsWith("order_")) {
+      throw new ConflictException("Razorpay did not return an authorization order");
+    }
+    return new RecurringAuthorization(subscriptionId, orderId, "PENDING_AUTH", customerId);
   }
 
   @Override
