@@ -21,16 +21,16 @@ public class PaymentReconciliationService {
   private final PaymentConfirmationService confirmationService;
 
   @Scheduled(
-      fixedDelayString = "${app.billing.cashfree.reconciliation-interval-ms:300000}",
-      initialDelayString = "${app.billing.cashfree.reconciliation-initial-delay-ms:60000}")
+      fixedDelayString = "${app.billing.razorpay.reconciliation-interval-ms:300000}",
+      initialDelayString = "${app.billing.razorpay.reconciliation-initial-delay-ms:60000}")
   public void reconcileAmbiguousPayments() {
     List<Long> ids =
         jdbcTemplate.queryForList(
             """
             select id from payments
-             where provider = 'CASHFREE'
+             where provider = 'RAZORPAY'
                and status in ('CREATED', 'PENDING', 'FAILED')
-               and provider_order_id is not null
+               and provider_checkout_session_id like 'order_%'
              order by updated_at asc
              limit 100
             """,
@@ -48,15 +48,23 @@ public class PaymentReconciliationService {
     Payment payment = paymentRepository.findById(paymentId).orElse(null);
     if (payment == null || payment.getStatus() == PaymentStatus.SUCCEEDED) return;
 
-    if (payment.getProviderCheckoutSessionId() == null
-        || "AMBIGUOUS".equals(payment.getProviderOrderState())
-        || "CREATE_PENDING".equals(payment.getProviderOrderState())) {
-      var order = gateway.fetchOrder(payment.getProviderOrderId());
-      collectionStore.acceptProviderOrder(paymentId, order);
-      payment = paymentRepository.findById(paymentId).orElse(payment);
+    String providerOrderId = payment.getProviderCheckoutSessionId();
+    if (providerOrderId == null || !providerOrderId.startsWith("order_")) return;
+    var order = gateway.fetchOrder(providerOrderId);
+    if (!providerOrderId.equals(order.paymentSessionId())) return;
+    var remote = gateway.fetchOrderPayments(providerOrderId);
+    if ("paid".equalsIgnoreCase(order.status())) {
+      for (var captured : remote) {
+        if ("SUCCESS".equalsIgnoreCase(captured.status())
+            && captured.amount().compareTo(payment.getAmount()) == 0
+            && payment.getCurrency().equalsIgnoreCase(captured.currency())) {
+          confirmationService.confirmSuccessByPaymentId(
+              payment.getId(), captured.providerPaymentId(), captured.amount(),
+              captured.currency(), captured.providerCreatedAt());
+          return;
+        }
+      }
     }
-
-    var remote = gateway.fetchOrderPayments(payment.getProviderOrderId());
     for (var attempt : remote) {
       if ("SUCCESS".equalsIgnoreCase(attempt.status())) {
         confirmationService.confirmSuccess(
