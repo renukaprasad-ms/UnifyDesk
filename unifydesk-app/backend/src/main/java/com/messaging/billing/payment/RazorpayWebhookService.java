@@ -229,8 +229,9 @@ public class RazorpayWebhookService {
     String rzpPaymentId = paymentEntity.path("id").asText(null);
     String errorCode = paymentEntity.path("error_code").asText("PAYMENT_FAILED");
 
-    Optional<Payment> match = Optional.empty();
-    if (rzpOrderId != null) {
+    Optional<Payment> match = rzpOrderId == null ? Optional.empty()
+        : paymentRepository.findByProviderAndProviderCheckoutSessionId("RAZORPAY", rzpOrderId);
+    if (match.isEmpty() && rzpOrderId != null) {
       match = paymentRepository.findByProviderAndProviderOrderId("RAZORPAY", rzpOrderId);
     }
 
