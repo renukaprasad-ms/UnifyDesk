@@ -84,7 +84,7 @@ for (const [route, html] of documents) {
 for (const route of draftLegalRoutes) {
   const html = documents.get(route);
   if (!html) continue;
-  const metas = [...html.matchAll(/<meta\\b[^>]*>/g)].map(([tag]) => attributes(tag));
+  const metas = [...html.matchAll(/<meta\b[^>]*>/g)].map(([tag]) => attributes(tag));
   const robotsMeta = metas.find(meta => meta.name === "robots")?.content ?? "";
   if (!/noindex/i.test(robotsMeta)) fail(route, "unapproved legal draft must be noindex");
   if (sitemap.includes(`<loc>${origin}${route}</loc>`)) fail(route, "draft legal page must not appear in sitemap");
