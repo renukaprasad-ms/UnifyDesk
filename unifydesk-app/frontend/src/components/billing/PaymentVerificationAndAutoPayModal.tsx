@@ -52,11 +52,20 @@ export default function PaymentVerificationAndAutoPayModal({
   const [countdown, setCountdown] = useState<number>(7)
   const [autoPayDetails, setAutoPayDetails] = useState<AutoPayDetails | null>(null)
   const [isSettingUpAutoPay, setIsSettingUpAutoPay] = useState(false)
+  const [billingEmail, setBillingEmail] = useState(customerEmail)
+  const [billingPhone, setBillingPhone] = useState(customerPhone)
   const [threshold, setThreshold] = useState<number>(500)
   const [rechargeAmount, setRechargeAmount] = useState<number>(2000)
   const [autoRechargeEnabled, setAutoRechargeEnabled] = useState<boolean>(true)
   const [savingTopupRule, setSavingTopupRule] = useState<boolean>(false)
   const wsReceivedRef = useRef(false)
+
+  useEffect(() => {
+    if (isOpen) {
+      setBillingEmail(customerEmail)
+      setBillingPhone(customerPhone)
+    }
+  }, [isOpen, customerEmail, customerPhone])
 
   useEffect(() => {
     if (!isOpen || !paymentResult) return
@@ -138,61 +147,46 @@ export default function PaymentVerificationAndAutoPayModal({
   if (!isOpen) return null
 
   const handleAuthorizeAutoPay = async () => {
+    const email = billingEmail.trim()
+    const phone = billingPhone.replace(/\\D/g, '').replace(/^91(?=\\d{10}$)/, '')
+    if (!email.includes('@') || !/^[6-9]\\d{9}$/.test(phone)) {
+      setError('Enter your billing email and a valid 10-digit Indian mobile number to authorize AutoPay.')
+      return
+    }
+
     setIsSettingUpAutoPay(true)
     setError('')
     try {
-      // 1. Prepare 20-year mandate with up to ₹15,000 monthly limit
       const setup = await billingApi.setupAutoPay(companyId, {
         name: companyName || 'Company Admin',
-        email: customerEmail || undefined,
-        phone: customerPhone || undefined,
+        email,
+        phone,
         maxAmount: 15000,
       })
-      setAutoPayDetails(setup)
-
-      // 2. Open Razorpay recurring mandate popup (never redirect)
-      if (setup.keyId || setup.subscriptionSessionId || setup.actionUrl) {
-        try {
-          const mandateRes = await launchRazorpayMandateCheckout({
-            key: setup.keyId || '',
-            subscriptionId: setup.providerSubscriptionId || undefined,
-            orderId: setup.subscriptionSessionId || undefined,
-            customerId: setup.customerId || undefined,
-            customer: {
-              name: companyName,
-              email: customerEmail,
-              phone: customerPhone,
-            },
-          })
-
-          // 3. Verify AutoPay status with signature and payment confirmation
-          const verified = await billingApi.verifyAutoPay(companyId, {
-            paymentId: mandateRes.razorpay_payment_id,
-            orderId: mandateRes.razorpay_order_id,
-            signature: mandateRes.razorpay_signature,
-          })
-          setAutoPayDetails(verified)
-          setStep('AUTOTOPUP_SETUP')
-        } catch (popupErr) {
-          // If popup is closed or test simulation fallback
-          const verified = await billingApi.verifyAutoPay(companyId)
-          if (verified.status === 'ACTIVE') {
-            setAutoPayDetails(verified)
-            setStep('AUTOTOPUP_SETUP')
-          } else {
-            setError(
-              popupErr instanceof Error
-                ? popupErr.message
-                : 'Mandate authorization modal was dismissed. You can configure AutoPay anytime in Billing & Finance.',
-            )
-          }
-        }
-      } else {
-        // Fallback for simulated local environment
-        const verified = await billingApi.verifyAutoPay(companyId)
-        setAutoPayDetails(verified)
-        setStep('AUTOTOPUP_SETUP')
+      // A local mandate reference cannot be used for Razorpay Checkout.
+      if (!setup.keyId?.startsWith('rzp_')
+        || !setup.subscriptionSessionId?.startsWith('order_')
+        || !setup.customerId?.startsWith('cust_')) {
+        throw new Error('Razorpay has not provided a valid authorization order and customer. Please retry setup.')
       }
+      setAutoPayDetails(setup)
+      const mandateRes = await launchRazorpayMandateCheckout({
+        key: setup.keyId,
+        orderId: setup.subscriptionSessionId,
+        customerId: setup.customerId,
+        customer: { name: companyName, email, phone },
+      })
+      const verified = await billingApi.verifyAutoPay(companyId, {
+        paymentId: mandateRes.razorpay_payment_id,
+        orderId: mandateRes.razorpay_order_id,
+        signature: mandateRes.razorpay_signature,
+      })
+      setAutoPayDetails(verified)
+      if (verified.status !== 'ACTIVE') {
+        setError('Razorpay mandate is still awaiting confirmation. Check its status in Billing before enabling automatic top-ups.')
+        return
+      }
+      setStep('AUTOTOPUP_SETUP')
     } catch (err) {
       setError(apiErrorMessage(err, 'Could not initialize AutoPay setup.'))
     } finally {
@@ -302,15 +296,34 @@ export default function PaymentVerificationAndAutoPayModal({
               <div className="flex items-start gap-2.5">
                 <FiShield className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold text-slate-100">Zero immediate charge:</span> Mandate authorization only activates automated billing when an invoice or low-balance trigger occurs.
+                  <span className="font-semibold text-slate-100">₹1 authorization payment:</span> Razorpay uses a small authorization payment for mandate registration. Future debits require an active, approved mandate.
                 </div>
               </div>
               <div className="flex items-start gap-2.5">
                 <FiCreditCard className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold text-slate-100">20-Year Long Term Mandate:</span> Max authorization limit capped at <strong className="text-indigo-300">₹15,000</strong> for total security.
+                  <span className="font-semibold text-slate-100">Mandate terms:</span> Requested validity is up to 3 years, with a <strong className="text-indigo-300">₹15,000</strong> maximum per debit, subject to your bank and Razorpay.
                 </div>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              <label className="text-xs text-slate-300">
+                Billing email
+                <input type="email" required value={billingEmail}
+                  onChange={(event) => setBillingEmail(event.target.value)}
+                  placeholder="billing@company.com"
+                  className="mt-1 w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white"
+                />
+              </label>
+              <label className="text-xs text-slate-300">
+                Billing mobile number
+                <input type="tel" required value={billingPhone}
+                  onChange={(event) => setBillingPhone(event.target.value)}
+                  placeholder="10-digit mobile number"
+                  className="mt-1 w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white"
+                />
+              </label>
             </div>
 
             {error && (
