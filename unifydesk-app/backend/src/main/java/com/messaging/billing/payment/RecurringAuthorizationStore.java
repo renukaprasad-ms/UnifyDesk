@@ -169,7 +169,15 @@ class RecurringAuthorizationStore {
   Prepared activateCompanyAutopay(
       long id, String tokenId, String paymentId, String customerId) {
     Prepared local = requireForUpdate(id);
-    String effectiveSubId = (tokenId != null && !tokenId.isBlank()) ? tokenId : local.providerSubscriptionId();
+    if (tokenId == null || !tokenId.startsWith("token_")
+        || paymentId == null || !paymentId.startsWith("pay_")
+        || customerId == null || !customerId.startsWith("cust_")
+        || "CANCELLED".equalsIgnoreCase(local.status())
+        || local.subscriptionSessionId() == null
+        || !local.subscriptionSessionId().startsWith("order_")) {
+      throw new ConflictException("Cannot activate a missing, cancelled or unverified Razorpay mandate");
+    }
+    String effectiveSubId = tokenId;
     jdbcTemplate.update(
         """
         update payment_provider_authorizations
