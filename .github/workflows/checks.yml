@@ -58,7 +58,7 @@ jobs:
         working-directory: unifydesk-app/backend
         run: |
           chmod +x mvnw
-          ./mvnw -B -Dtest=AutomaticRenewalServiceTests,DunningServiceTests,RecurringChargeServiceTests,RecurringAuthorizationServiceTests,PaymentCollectionServiceTests,PlatformMigrationHardeningTests test
+          ./mvnw -B -Dtest=AutomaticRenewalServiceTests,DunningServiceTests,RecurringChargeServiceTests,RecurringAuthorizationServiceTests,RecurringAuthorizationStoreTests,PaymentCollectionServiceTests,PlatformMigrationHardeningTests test
       - name: Stop PostgreSQL and Redis
         if: always()
         run: docker compose -f unifydesk-app/compose.test.yml down -v
