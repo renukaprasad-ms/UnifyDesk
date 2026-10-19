@@ -312,174 +312,103 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
 
   @Override
   public RemoteSubscriptionPayment chargeAuthorizedSubscription(
-      String subscriptionId,
-      String paymentId,
-      BigDecimal amount,
-      Instant scheduledAt,
-      String idempotencyKey) {
-    log.info("Executing real Razorpay mandate charge for payment {} amount {} (mandateRef={})", paymentId, amount, subscriptionId);
-
-    // 1. Resolve Mandate metadata from local DB
-    String customerId = null;
-    String tokenId = null;
-    String email = null;
-    String phone = null;
-
-    if (jdbcTemplate != null) {
-      try {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-            """
-            select ppa.provider_subscription_id, ppa.provider_authorization_payment_id,
-                   ppa.payment_method_type, ppa.company_id,
-                   cbp.billing_email, cbp.billing_phone, c.business_email
-              from payment_provider_authorizations ppa
-              left join company_billing_profiles cbp on cbp.company_id = ppa.company_id
-              left join companies c on c.id = ppa.company_id
-             where ppa.provider_subscription_id = ?
-                or ppa.provider_authorization_payment_id = ?
-                or ppa.provider_subscription_session_id = ?
-             order by case when ppa.authorization_status = 'ACTIVE' then 0 else 1 end, ppa.id desc
-             limit 1
-            """,
-            subscriptionId, subscriptionId, subscriptionId);
-
-        if (!rows.isEmpty()) {
-          Map<String, Object> row = rows.getFirst();
-          String methodType = (String) row.get("payment_method_type");
-          if (methodType != null && methodType.startsWith("cust_")) {
-            customerId = methodType;
-          }
-          String subId = (String) row.get("provider_subscription_id");
-          if (subId != null && subId.startsWith("token_")) {
-            tokenId = subId;
-          }
-          String authPayId = (String) row.get("provider_authorization_payment_id");
-          if (tokenId == null && authPayId != null && authPayId.startsWith("token_")) {
-            tokenId = authPayId;
-          }
-
-          email = (String) row.get("billing_email");
-          if (email == null || email.isBlank()) {
-            email = (String) row.get("business_email");
-          }
-          phone = (String) row.get("billing_phone");
-        }
-      } catch (Exception dbEx) {
-        log.warn("Could not query authorization row for mandate {}: {}", subscriptionId, dbEx.getMessage());
-      }
+      String tokenReference, String commandId, BigDecimal amount,
+      Instant scheduledAt, String idempotencyKey) {
+    assertRecurringEnabled();
+    if (tokenReference == null || !tokenReference.startsWith("token_")
+        || commandId == null || commandId.isBlank()
+        || amount == null || amount.signum() <= 0
+        || amount.compareTo(new BigDecimal("15000")) > 0) {
+      throw new ConflictException("Invalid recurring debit command, token, or amount");
+    }
+    List<Map<String, Object>> existing = jdbcTemplate.queryForList(
+        "select provider_order_id from razorpay_recurring_charge_intents where command_id = ?",
+        commandId);
+    if (!existing.isEmpty()) {
+      // A command can have at most one provider order. Never submit it a second time.
+      return fetchSubscriptionPayment(tokenReference, commandId);
+    }
+    List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+        """
+        select a.payment_method_type, cbp.billing_email, cbp.billing_phone,
+               c.business_email
+          from payment_provider_authorizations a
+          left join company_billing_profiles cbp on cbp.company_id = a.company_id
+          left join companies c on c.id = a.company_id
+         where a.provider = 'RAZORPAY'
+           and a.authorization_status = 'ACTIVE'
+           and a.provider_subscription_id = ?
+         limit 1
+        """,
+        tokenReference);
+    if (rows.size() != 1) {
+      throw new ConflictException("No active Razorpay mandate matches the requested debit");
+    }
+    Map<String, Object> row = rows.getFirst();
+    String customerId = (String) row.get("payment_method_type");
+    String email = (String) row.get("billing_email");
+    if (email == null || email.isBlank()) email = (String) row.get("business_email");
+    String phone = (String) row.get("billing_phone");
+    if (customerId == null || !customerId.startsWith("cust_")
+        || email == null || email.isBlank() || phone == null || phone.isBlank()) {
+      throw new ConflictException("Mandate customer and actual billing contact are required");
+    }
+    if (!"ACTIVE".equals(fetchRecurringAuthorization(tokenReference).authorizationStatus())) {
+      throw new ConflictException("Razorpay has not confirmed the mandate token");
     }
 
-    if (subscriptionId != null && subscriptionId.startsWith("token_")) {
-      tokenId = subscriptionId;
+    Map<String, Object> orderRequest = new LinkedHashMap<>();
+    orderRequest.put("amount", toPaise(amount));
+    orderRequest.put("currency", "INR");
+    orderRequest.put("receipt", sanitizeReceipt(commandId));
+    orderRequest.put("payment_capture", true);
+    orderRequest.put("customer_id", customerId);
+    orderRequest.put("notes", Map.of("type", "RECURRING_DEBIT", "command_id", commandId));
+    String providerOrderId = text(post("/orders", orderRequest), "id");
+    if (providerOrderId == null || !providerOrderId.startsWith("order_")) {
+      throw new ServiceUnavailableException("Razorpay did not create a recurring charge order");
     }
+    jdbcTemplate.update(
+        "insert into razorpay_recurring_charge_intents "
+            + "(command_id, provider_order_id, provider_token_id, amount, currency) "
+            + "values (?, ?, ?, ?, 'INR')",
+        commandId, providerOrderId, tokenReference, amount);
 
-    // If tokenId is missing but we have customerId, query customer tokens on Razorpay
-    if (tokenId == null && customerId != null) {
-      try {
-        JsonNode tokensJson = get("/customers/" + encode(customerId) + "/tokens");
-        JsonNode items = tokensJson.path("items");
-        if (items.isArray() && !items.isEmpty()) {
-          tokenId = text(items.get(items.size() - 1), "id");
-          log.info("Resolved token {} from Razorpay customer tokens for {}", tokenId, customerId);
-        }
-      } catch (Exception ex) {
-        log.warn("Could not fetch customer tokens: {}", ex.getMessage());
-      }
-    }
-
-    if (email == null || email.isBlank()) {
-      email = "billing@unifydesk.in";
-    }
-    if (phone == null || phone.isBlank()) {
-      phone = "9999999999";
-    }
-
-    // 2. Create Charge Order on Razorpay
-    String rzpOrderId = null;
     try {
-      Map<String, Object> orderBody = new LinkedHashMap<>();
-      orderBody.put("amount", toPaise(amount));
-      orderBody.put("currency", "INR");
-      orderBody.put("receipt", sanitizeReceipt(paymentId));
-      orderBody.put("payment_capture", 1);
-      if (customerId != null) {
-        orderBody.put("customer_id", customerId);
+      Map<String, Object> charge = new LinkedHashMap<>();
+      charge.put("email", email);
+      charge.put("contact", phone);
+      charge.put("amount", toPaise(amount));
+      charge.put("currency", "INR");
+      charge.put("order_id", providerOrderId);
+      charge.put("customer_id", customerId);
+      charge.put("token", tokenReference);
+      charge.put("recurring", true);
+      charge.put("description", "UnifyDesk authorized recurring payment");
+      JsonNode response = post("/payments/create/recurring", charge);
+      String providerPaymentId = text(response, "id");
+      if (providerPaymentId != null) {
+        jdbcTemplate.update(
+            "update razorpay_recurring_charge_intents "
+                + "set provider_payment_id = ?, updated_at = now() where command_id = ?",
+            providerPaymentId, commandId);
       }
-      orderBody.put("notes", Map.of(
-          "type", "WALLET_AUTO_RECHARGE",
-          "internal_payment_id", paymentId
-      ));
-
-      JsonNode orderJson = post("/orders", orderBody);
-      rzpOrderId = text(orderJson, "id");
-    } catch (Exception orderEx) {
-      log.error("Failed to create Razorpay charge order for payment {}: {}", paymentId, orderEx.getMessage());
+      String status = text(response, "status");
+      if ("captured".equalsIgnoreCase(status)
+          && (response.path("amount").asLong(-1) != toPaise(amount)
+              || !providerOrderId.equals(text(response, "order_id")))) {
+        throw new ConflictException("Recurring provider capture does not match its order");
+      }
       return new RemoteSubscriptionPayment(
-          paymentId,
-          null,
-          "FAILED",
-          amount,
-          "INR",
-          Instant.now(),
-          null,
-          "Order creation failed: " + orderEx.getMessage());
-    }
-
-    // 3. Trigger Recurring Payment against the saved token
-    try {
-      Map<String, Object> recurringBody = new LinkedHashMap<>();
-      recurringBody.put("email", email);
-      recurringBody.put("contact", phone);
-      recurringBody.put("amount", toPaise(amount));
-      recurringBody.put("currency", "INR");
-      recurringBody.put("order_id", rzpOrderId);
-      if (customerId != null) {
-        recurringBody.put("customer_id", customerId);
-      }
-      if (tokenId != null) {
-        recurringBody.put("token", tokenId);
-      }
-      recurringBody.put("recurring", true);
-      recurringBody.put("description", "UnifyDesk wallet reload");
-
-      JsonNode chargeJson = post("/payments/create/recurring", recurringBody);
-      String rzpPaymentId = text(chargeJson, "id");
-      String status = text(chargeJson, "status");
-      log.info("Razorpay recurring charge response for payment {}: id={}, status={}", paymentId, rzpPaymentId, status);
-
-      if ("captured".equalsIgnoreCase(status)) {
-        return new RemoteSubscriptionPayment(
-            paymentId,
-            rzpPaymentId,
-            "SUCCESS",
-            amount,
-            "INR",
-            Instant.now(),
-            null,
-            null);
-      } else {
-        String errDesc = text(chargeJson.path("error"), "description");
-        return new RemoteSubscriptionPayment(
-            paymentId,
-            rzpPaymentId,
-            "FAILED",
-            amount,
-            "INR",
-            Instant.now(),
-            null,
-            errDesc != null ? errDesc : "Payment status: " + status);
-      }
-    } catch (Exception chargeEx) {
-      log.error("Razorpay recurring payment outcome uncertain for command {}", paymentId);
+          commandId, providerPaymentId, mapPaymentStatus(status), amount, "INR",
+          Instant.now(), null, text(response, "error_code"));
+    } catch (RuntimeException ex) {
+      // A timeout after provider submission is ambiguous. Poll the persisted provider
+      // order for capture; never create a new order or debit for the same command.
+      log.warn("Recurring debit {} has an uncertain provider outcome", commandId);
       return new RemoteSubscriptionPayment(
-          paymentId,
-          null,
-          "FAILED",
-          amount,
-          "INR",
-          Instant.now(),
-          null,
-          "Razorpay outcome unknown; provider reconciliation required");
+          commandId, null, "PENDING", amount, "INR", Instant.now(), null,
+          "PROVIDER_OUTCOME_UNCERTAIN");
     }
   }
 
