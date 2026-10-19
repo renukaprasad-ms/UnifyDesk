@@ -110,7 +110,7 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
         }
       }
     } catch (Exception e) {
-      log.warn("Could not fetch payments for Razorpay order {}: {}", orderId, e.getMessage());
+      throw new ServiceUnavailableException("Could not verify Razorpay order payments", e);
     }
     return result;
   }
@@ -422,7 +422,7 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
       if (tokenId != null) {
         recurringBody.put("token", tokenId);
       }
-      recurringBody.put("recurring", "1");
+      recurringBody.put("recurring", true);
       recurringBody.put("description", "UnifyDesk wallet reload");
 
       JsonNode chargeJson = post("/payments/create/recurring", recurringBody);
@@ -430,7 +430,7 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
       String status = text(chargeJson, "status");
       log.info("Razorpay recurring charge response for payment {}: id={}, status={}", paymentId, rzpPaymentId, status);
 
-      if ("captured".equalsIgnoreCase(status) || "authorized".equalsIgnoreCase(status)) {
+      if ("captured".equalsIgnoreCase(status)) {
         return new RemoteSubscriptionPayment(
             paymentId,
             rzpPaymentId,
@@ -453,7 +453,7 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
             errDesc != null ? errDesc : "Payment status: " + status);
       }
     } catch (Exception chargeEx) {
-      log.error("Razorpay recurring payment failed for payment {}: {}", paymentId, chargeEx.getMessage());
+      log.error("Razorpay recurring payment outcome uncertain for command {}", paymentId);
       return new RemoteSubscriptionPayment(
           paymentId,
           null,
@@ -462,7 +462,7 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
           "INR",
           Instant.now(),
           null,
-          chargeEx.getMessage());
+          "Razorpay outcome unknown; provider reconciliation required");
     }
   }
 
@@ -491,8 +491,7 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
       log.info("Created Razorpay customer {} for {}", custId, customer.email());
       return custId;
     } catch (Exception ex) {
-      log.warn("Could not create customer in Razorpay: {}", ex.getMessage());
-      return null;
+      throw new ServiceUnavailableException("Unable to register Razorpay billing customer", ex);
     }
   }
 
@@ -522,8 +521,7 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
           null,
           null);
     } catch (Exception ex) {
-      return new RemoteSubscriptionPayment(
-          paymentId, null, "PENDING", BigDecimal.ZERO, "INR", Instant.now(), null, null);
+      throw new ServiceUnavailableException("Provider payment status could not be verified", ex);
     }
   }
 
