@@ -42,10 +42,12 @@ public class BillingAutoPayController {
   }
 
   @PostMapping("/verify")
-  public ResponseEntity<ApiResponse<AutoPayDetailsResponse>> verify(@PathVariable Long companyId) {
+  public ResponseEntity<ApiResponse<AutoPayDetailsResponse>> verify(
+      @PathVariable Long companyId,
+      @RequestBody(required = false) com.messaging.billing.dto.AutoPayVerifyRequest request) {
     requireBillingModify(companyId);
     return ResponseEntity.ok(
-        ApiResponse.success(HttpStatus.OK.value(), autoPayService.verify(companyId), "AutoPay mandate verified"));
+        ApiResponse.success(HttpStatus.OK.value(), autoPayService.verify(companyId, request), "AutoPay mandate verified"));
   }
 
   @DeleteMapping

@@ -156,6 +156,7 @@ export const launchRazorpayMandateCheckout = async (params: {
   key: string
   subscriptionId?: string
   orderId?: string
+  customerId?: string
   customer?: { name?: string; email?: string; phone?: string }
 }): Promise<RazorpayPaymentSuccess> => {
   await loadRazorpayScript()
@@ -178,6 +179,9 @@ export const launchRazorpayMandateCheckout = async (params: {
         name: params.customer?.name || '',
         email: params.customer?.email || '',
         contact: params.customer?.phone || '',
+      },
+      notes: {
+        type: 'MANDATE_AUTH',
       },
       theme: {
         color: '#6366f1',
@@ -203,6 +207,11 @@ export const launchRazorpayMandateCheckout = async (params: {
 
     if (params.subscriptionId && params.subscriptionId.startsWith('sub_')) {
       options.subscription_id = params.subscriptionId.trim()
+    }
+
+    if (params.customerId && params.customerId.trim().startsWith('cust_')) {
+      (options as Record<string, unknown>).customer_id = params.customerId.trim()
+      ;(options as Record<string, unknown>).recurring = '1'
     }
 
     try {

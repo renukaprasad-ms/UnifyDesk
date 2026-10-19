@@ -69,17 +69,22 @@ export default function AutoPayModal({
 
       if (result.keyId || result.subscriptionSessionId || result.actionUrl) {
         try {
-          await launchRazorpayMandateCheckout({
+          const mandateRes = await launchRazorpayMandateCheckout({
             key: result.keyId || '',
             subscriptionId: result.providerSubscriptionId || undefined,
             orderId: result.subscriptionSessionId || undefined,
+            customerId: result.customerId || undefined,
             customer: {
               name: name.trim() || companyName,
               email: email.trim(),
               phone: phone.trim(),
             },
           })
-          await handleVerifyInner()
+          await handleVerifyInner({
+            paymentId: mandateRes.razorpay_payment_id,
+            orderId: mandateRes.razorpay_order_id,
+            signature: mandateRes.razorpay_signature,
+          })
         } catch (checkoutErr) {
           console.warn('Razorpay mandate popup dismissed or error:', checkoutErr)
         }
@@ -91,8 +96,8 @@ export default function AutoPayModal({
     }
   }
 
-  const handleVerifyInner = async () => {
-    const result = await billingApi.verifyAutoPay(companyId)
+  const handleVerifyInner = async (verificationPayload?: { paymentId?: string; orderId?: string; signature?: string }) => {
+    const result = await billingApi.verifyAutoPay(companyId, verificationPayload)
     setMandateResult(result)
     if (result.status === 'ACTIVE') {
       onSuccess(result)
@@ -119,17 +124,22 @@ export default function AutoPayModal({
     setSubmitting(true)
     setError('')
     try {
-      await launchRazorpayMandateCheckout({
+      const mandateRes = await launchRazorpayMandateCheckout({
         key: mandateResult.keyId || '',
         subscriptionId: mandateResult.providerSubscriptionId || undefined,
         orderId: mandateResult.subscriptionSessionId || undefined,
+        customerId: mandateResult.customerId || undefined,
         customer: {
           name: name.trim() || companyName,
           email: email.trim(),
           phone: phone.trim(),
         },
       })
-      await handleVerifyInner()
+      await handleVerifyInner({
+        paymentId: mandateRes.razorpay_payment_id,
+        orderId: mandateRes.razorpay_order_id,
+        signature: mandateRes.razorpay_signature,
+      })
     } catch (checkoutErr) {
       setError(checkoutErr instanceof Error ? checkoutErr.message : 'Mandate popup dismissed.')
     } finally {

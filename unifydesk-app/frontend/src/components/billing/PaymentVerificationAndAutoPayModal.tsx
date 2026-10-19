@@ -153,10 +153,11 @@ export default function PaymentVerificationAndAutoPayModal({
       // 2. Open Razorpay recurring mandate popup (never redirect)
       if (setup.keyId || setup.subscriptionSessionId || setup.actionUrl) {
         try {
-          await launchRazorpayMandateCheckout({
+          const mandateRes = await launchRazorpayMandateCheckout({
             key: setup.keyId || '',
             subscriptionId: setup.providerSubscriptionId || undefined,
             orderId: setup.subscriptionSessionId || undefined,
+            customerId: setup.customerId || undefined,
             customer: {
               name: companyName,
               email: customerEmail,
@@ -164,8 +165,12 @@ export default function PaymentVerificationAndAutoPayModal({
             },
           })
 
-          // 3. Verify AutoPay status
-          const verified = await billingApi.verifyAutoPay(companyId)
+          // 3. Verify AutoPay status with signature and payment confirmation
+          const verified = await billingApi.verifyAutoPay(companyId, {
+            paymentId: mandateRes.razorpay_payment_id,
+            orderId: mandateRes.razorpay_order_id,
+            signature: mandateRes.razorpay_signature,
+          })
           setAutoPayDetails(verified)
           setStep('AUTOTOPUP_SETUP')
         } catch (popupErr) {

@@ -267,7 +267,7 @@ app:
   managed-email:
     enabled: ${APP_MANAGED_EMAIL_ENABLED:false}
     platform-sending-enabled: ${APP_MANAGED_EMAIL_PLATFORM_SENDING_ENABLED:false}
-    aws-region: ${APP_MANAGED_EMAIL_AWS_REGION:ap-southeast-2}
+    aws-region: ${APP_MANAGED_EMAIL_AWS_REGION:${AWS_REGION:ap-southeast-2}}
     hosted-base-domain: ${APP_MANAGED_EMAIL_HOSTED_BASE_DOMAIN:unifydesk.in}
     sns-topic-arn: ${APP_MANAGED_EMAIL_SNS_TOPIC_ARN:}
     cloudflare-zone-id: ${APP_MANAGED_EMAIL_CLOUDFLARE_ZONE_ID:}
@@ -584,22 +584,6 @@ app:
       security-from: ${APP_MAIL_SECURITY_FROM:security@unifydesk.in}
       billing-from: ${APP_MAIL_BILLING_FROM:billing@unifydesk.in}
       notification-from: ${APP_MAIL_NOTIFICATION_FROM:notification@unifydesk.in}
-  managed-email:
-    enabled: ${APP_MANAGED_EMAIL_ENABLED:true}
-    platform-sending-enabled: ${APP_MANAGED_EMAIL_PLATFORM_SENDING_ENABLED:true}
-    aws-region: ${APP_MANAGED_EMAIL_AWS_REGION:${AWS_REGION:ap-southeast-2}}
-    hosted-base-domain: ${APP_MANAGED_EMAIL_HOSTED_BASE_DOMAIN:unifydesk.in}
-    sns-topic-arn: ${APP_MANAGED_EMAIL_SNS_TOPIC_ARN:}
-    cloudflare-zone-id: ${APP_MANAGED_EMAIL_CLOUDFLARE_ZONE_ID:ac864ef36ae3c5528b4de0ffde7e9586}
-    cloudflare-api-token: ${APP_MANAGED_EMAIL_CLOUDFLARE_API_TOKEN:}
-    provisioning-poll-interval: ${APP_MANAGED_EMAIL_PROVISIONING_POLL_INTERVAL:2s}
-    provisioning-stale-after: ${APP_MANAGED_EMAIL_PROVISIONING_STALE_AFTER:5m}
-    verification-refresh-interval: ${APP_MANAGED_EMAIL_VERIFICATION_REFRESH_INTERVAL:5m}
-    account-rate-safety-cap: ${APP_MANAGED_EMAIL_ACCOUNT_RATE_SAFETY_CAP:1000}
-    new-tenant-hourly-cap: ${APP_MANAGED_EMAIL_NEW_TENANT_HOURLY_CAP:100}
-    new-tenant-daily-cap: ${APP_MANAGED_EMAIL_NEW_TENANT_DAILY_CAP:500}
-    event-replay-window: ${APP_MANAGED_EMAIL_EVENT_REPLAY_WINDOW:10m}
-    control-rate-limit-window: ${APP_MANAGED_EMAIL_CONTROL_RATE_LIMIT_WINDOW:1m}
   invitation:
     frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
     expiry: ${APP_INVITATION_EXPIRY:72h}

@@ -9,7 +9,6 @@ import {
   FiDollarSign,
   FiDownload,
   FiLayers,
-  FiPieChart,
   FiPlus,
   FiPhone,
   FiRefreshCw,
@@ -108,13 +107,13 @@ function TrendAreaChart({
       : ''
 
   return (
-    <div className="bg-slate-900/30 dark:bg-slate-950/40 rounded-2xl p-5 sm:p-6 flex flex-col justify-between shadow-sm">
+    <div className="panel p-5 sm:p-6 flex flex-col justify-between shadow-xs">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h4 className="text-sm font-bold text-foreground">{title}</h4>
           {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
-        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400">
+        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary">
           Activity Trend
         </span>
       </div>
@@ -122,8 +121,8 @@ function TrendAreaChart({
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-36 overflow-visible">
           <defs>
             <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="var(--theme-primary)" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="var(--theme-primary)" stopOpacity="0.0" />
             </linearGradient>
           </defs>
           <line
@@ -157,7 +156,7 @@ function TrendAreaChart({
             <path
               d={lineD}
               fill="none"
-              stroke="#6366f1"
+              stroke="var(--theme-primary)"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -169,7 +168,7 @@ function TrendAreaChart({
               cx={p.x}
               cy={p.y}
               r="3.5"
-              className="fill-indigo-400 stroke-slate-900 stroke-2 hover:r-5 transition-all"
+              className="fill-[var(--theme-primary)] stroke-[var(--theme-surface)] stroke-2 hover:r-5 transition-all"
             />
           ))}
         </svg>
@@ -205,7 +204,7 @@ function DonutChart({
   const circumference = 2 * Math.PI * radius
 
   return (
-    <div className="bg-slate-900/30 dark:bg-slate-950/40 rounded-2xl p-5 sm:p-6 flex flex-col justify-between shadow-sm">
+    <div className="panel p-5 sm:p-6 flex flex-col justify-between shadow-xs">
       <div>
         <h4 className="text-sm font-bold text-foreground">{title}</h4>
         {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
@@ -222,7 +221,7 @@ function DonutChart({
               fill="none"
               stroke="currentColor"
               strokeWidth={strokeWidth}
-              className="text-slate-800/60 dark:text-slate-800/40"
+              className="text-slate-100 dark:text-slate-800"
             />
             {/* Colored slices */}
             {total > 0 &&
@@ -1088,87 +1087,13 @@ export default function BillingPage() {
           </div>
         )}
 
-      {/* Modern Segmented Pill Tabs */}
-      <div className="inline-flex p-1.5 rounded-2xl bg-slate-900/40 dark:bg-slate-950/40 backdrop-blur-md gap-1 overflow-x-auto max-w-full">
-        <button
-          type="button"
-          onClick={() => handleTabChange('overview')}
-          className={`flex items-center gap-2 py-2 px-4 rounded-xl text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'overview'
-              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <FiPieChart className="text-base" />
-          Overview
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleTabChange('usage')}
-          className={`flex items-center gap-2 py-2 px-4 rounded-xl text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'usage'
-              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <FiBarChart2 className="text-base" />
-          Usage &amp; Quotas
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleTabChange('wallet')}
-          className={`flex items-center gap-2 py-2 px-4 rounded-xl text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'wallet'
-              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <FiDollarSign className="text-base" />
-          Wallet
-          {wallet && wallet.balance < 100 && (
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleTabChange('plans')}
-          className={`flex items-center gap-2 py-2 px-4 rounded-xl text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'plans'
-              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <FiLayers className="text-base" />
-          Plans &amp; Limits
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleTabChange('autopay')}
-          className={`flex items-center gap-2 py-2 px-4 rounded-xl text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'autopay'
-              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <FiZap className="text-base" />
-          AutoPay &amp; Invoices
-          {autoPayDetails?.status === 'ACTIVE' && (
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          )}
-        </button>
-      </div>
-
       {/* TAB 0: OVERVIEW */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* Top 4 KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {/* 1. Wallet Balance */}
-            <div className="rounded-2xl p-5 bg-gradient-to-br from-slate-900/60 via-slate-900/40 to-slate-950/70 border border-slate-800/80 shadow-sm flex flex-col justify-between">
+            <div className="panel p-5 flex flex-col justify-between shadow-xs hover:border-primary/40 transition-colors">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Wallet Balance
@@ -1203,7 +1128,7 @@ export default function BillingPage() {
                   setCustomTopupInput('1000')
                   setTopupModalOpen(true)
                 }}
-                className="mt-2 w-full py-2 px-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition cursor-pointer"
+                className="secondary-button w-full mt-2 inline-flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer"
               >
                 <FiPlus className="text-xs" />
                 Add Balance (Razorpay)
@@ -1211,7 +1136,7 @@ export default function BillingPage() {
             </div>
 
             {/* 2. Current Plan */}
-            <div className="rounded-2xl p-5 bg-gradient-to-br from-slate-900/60 via-slate-900/40 to-slate-950/70 border border-slate-800/80 shadow-sm flex flex-col justify-between">
+            <div className="panel p-5 flex flex-col justify-between shadow-xs hover:border-primary/40 transition-colors">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Current Plan
@@ -1233,7 +1158,7 @@ export default function BillingPage() {
               <button
                 type="button"
                 onClick={() => handleTabChange('plans')}
-                className="mt-2 w-full py-2 px-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition cursor-pointer"
+                className="mt-2 w-full py-2 px-3 rounded-xl bg-slate-800/60 hover:bg-[var(--theme-surface-subtle)] text-[var(--theme-text)] border border-[var(--theme-border)] text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
                 <FiLayers className="text-xs" />
                 Change Plan
@@ -1241,7 +1166,7 @@ export default function BillingPage() {
             </div>
 
             {/* 3. Monthly Volume */}
-            <div className="rounded-2xl p-5 bg-gradient-to-br from-slate-900/60 via-slate-900/40 to-slate-950/70 border border-slate-800/80 shadow-sm flex flex-col justify-between">
+            <div className="panel p-5 flex flex-col justify-between shadow-xs hover:border-primary/40 transition-colors">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Monthly Messaging
@@ -1261,7 +1186,7 @@ export default function BillingPage() {
               <button
                 type="button"
                 onClick={() => handleTabChange('usage')}
-                className="mt-2 w-full py-2 px-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition cursor-pointer"
+                className="mt-2 w-full py-2 px-3 rounded-xl bg-slate-800/60 hover:bg-[var(--theme-surface-subtle)] text-[var(--theme-text)] border border-[var(--theme-border)] text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
                 <FiBarChart2 className="text-xs" />
                 Usage Breakdown
@@ -1269,7 +1194,7 @@ export default function BillingPage() {
             </div>
 
             {/* 4. AutoPay Status */}
-            <div className="rounded-2xl p-5 bg-gradient-to-br from-slate-900/60 via-slate-900/40 to-slate-950/70 border border-slate-800/80 shadow-sm flex flex-col justify-between">
+            <div className="panel p-5 flex flex-col justify-between shadow-xs hover:border-primary/40 transition-colors">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   AutoPay Mandate
@@ -1297,7 +1222,7 @@ export default function BillingPage() {
               <button
                 type="button"
                 onClick={() => handleTabChange('autopay')}
-                className="mt-2 w-full py-2 px-3 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition cursor-pointer"
+                className="secondary-button w-full mt-2 inline-flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer"
               >
                 <FiZap className="text-xs" />
                 {autoPayDetails?.status === 'ACTIVE' ? 'Manage Mandate' : 'Setup AutoPay'}
@@ -1348,7 +1273,7 @@ export default function BillingPage() {
           </div>
 
           {/* Plan Entitlements & Capacity Overview */}
-          <div className="rounded-2xl p-6 bg-slate-900/30 dark:bg-slate-950/40 border border-slate-800/60">
+          <div className="panel p-6 shadow-xs">
             <h3 className="text-base font-bold text-foreground mb-4 flex items-center justify-between">
               <span>Active Plan Entitlements &amp; Quotas</span>
               <button
@@ -1361,7 +1286,7 @@ export default function BillingPage() {
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-750">
+              <div className="p-4 rounded-xl bg-[var(--theme-surface-subtle)] border border-[var(--theme-border)]">
                 <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
                   <span className="font-semibold text-foreground">Team User Seats</span>
                   <span className="font-mono">
@@ -1369,7 +1294,7 @@ export default function BillingPage() {
                     {usage?.seatsLimit === -1 ? '∞' : (usage?.seatsLimit ?? 5)}
                   </span>
                 </div>
-                <div className="w-full bg-slate-700/50 rounded-full h-2">
+                <div className="w-full bg-[var(--theme-border)] rounded-full h-2">
                   <div
                     className="bg-blue-500 h-2 rounded-full transition-all"
                     style={{
@@ -1384,14 +1309,14 @@ export default function BillingPage() {
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-750">
+              <div className="p-4 rounded-xl bg-[var(--theme-surface-subtle)] border border-[var(--theme-border)]">
                 <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
                   <span className="font-semibold text-foreground">CRM Contacts</span>
                   <span className="font-mono">
                     {usage?.contactsUsed ?? 0} / {usage?.contactsLimit ?? 1000}
                   </span>
                 </div>
-                <div className="w-full bg-slate-700/50 rounded-full h-2">
+                <div className="w-full bg-[var(--theme-border)] rounded-full h-2">
                   <div
                     className="bg-emerald-500 h-2 rounded-full transition-all"
                     style={{
@@ -1408,14 +1333,14 @@ export default function BillingPage() {
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-750">
+              <div className="p-4 rounded-xl bg-[var(--theme-surface-subtle)] border border-[var(--theme-border)]">
                 <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
                   <span className="font-semibold text-foreground">Monthly Emails</span>
                   <span className="font-mono">
                     {usage?.emailMonthlyUsed ?? 0} / {usage?.emailMonthlyLimit ?? 1000}
                   </span>
                 </div>
-                <div className="w-full bg-slate-700/50 rounded-full h-2">
+                <div className="w-full bg-[var(--theme-border)] rounded-full h-2">
                   <div
                     className="bg-cyan-500 h-2 rounded-full transition-all"
                     style={{
@@ -1432,14 +1357,14 @@ export default function BillingPage() {
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-750">
+              <div className="p-4 rounded-xl bg-[var(--theme-surface-subtle)] border border-[var(--theme-border)]">
                 <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
                   <span className="font-semibold text-foreground">Monthly SMS</span>
                   <span className="font-mono">
                     {usage?.smsMonthlyUsed ?? 0} / {usage?.smsMonthlyLimit ?? 100}
                   </span>
                 </div>
-                <div className="w-full bg-slate-700/50 rounded-full h-2">
+                <div className="w-full bg-[var(--theme-border)] rounded-full h-2">
                   <div
                     className="bg-amber-500 h-2 rounded-full transition-all"
                     style={{
@@ -1464,7 +1389,7 @@ export default function BillingPage() {
       {activeTab === 'plans' && (
         <div className="space-y-6">
           {/* Active Plan Overview Card (Clean, borderless with depth) */}
-          <div className="bg-slate-900/30 dark:bg-slate-950/40 backdrop-blur-md p-6 sm:p-7 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="panel p-6 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <span className="text-[11px] uppercase tracking-wider font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg">
@@ -1541,7 +1466,7 @@ export default function BillingPage() {
               </div>
 
               {/* Monthly / Annual Toggle */}
-              <div className="inline-flex items-center p-1 rounded-xl bg-slate-900/40 dark:bg-slate-950/40 self-start sm:self-auto">
+              <div className="inline-flex items-center p-1 rounded-xl bg-[var(--theme-surface-subtle)] border border-[var(--theme-border)] self-start sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setBillingInterval('MONTHLY')}
@@ -1672,7 +1597,7 @@ export default function BillingPage() {
 
                     <div className="pt-6 mt-6">
                       {isCurrent ? (
-                        <div className="w-full py-2.5 px-4 rounded-xl bg-slate-800/40 text-muted-foreground text-sm font-semibold text-center cursor-default">
+                        <div className="w-full py-2.5 px-4 rounded-xl  text-muted-foreground text-sm font-semibold text-center cursor-default">
                           Current Subscription
                         </div>
                       ) : (
@@ -1702,7 +1627,7 @@ export default function BillingPage() {
         <div className="space-y-6">
           {/* Hero Balance & Auto-Recharge Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 bg-slate-900/30 dark:bg-slate-950/40 rounded-2xl p-6 sm:p-7 shadow-sm flex flex-col justify-between space-y-6">
+            <div className="md:col-span-2 panel p-6 sm:p-7 shadow-xs flex flex-col justify-between space-y-6">
               <div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -1757,7 +1682,7 @@ export default function BillingPage() {
                         setCustomTopupInput(amt.toString())
                         setTopupModalOpen(true)
                       }}
-                      className="px-4 py-2.5 rounded-xl bg-slate-800/40 hover:bg-slate-800/80 text-sm font-bold text-foreground transition-all flex items-center gap-1.5"
+                      className="secondary-button px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <FiPlus className="text-xs text-primary" />₹{amt.toLocaleString('en-IN')}
                     </button>
@@ -1778,13 +1703,13 @@ export default function BillingPage() {
             </div>
 
             {/* Unified Smart AutoPay & Buffer Protection Card */}
-            <div className="bg-slate-900/30 dark:bg-slate-950/40 rounded-2xl p-6 sm:p-7 shadow-sm flex flex-col justify-between space-y-4">
+            <div className="panel p-6 sm:p-7 shadow-xs flex flex-col justify-between space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="text-base font-bold text-foreground flex items-center gap-2">
                     <FiShield className="text-indigo-400" /> Smart AutoPay
                   </h4>
-                  <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/50">
+                  <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[var(--theme-surface-subtle)] text-muted-foreground border border-[var(--theme-border)]">
                     Optional
                   </span>
                 </div>
@@ -1866,7 +1791,7 @@ export default function BillingPage() {
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl p-3.5 bg-slate-800/40 border border-slate-700/50 text-xs space-y-2.5">
+                <div className="rounded-xl p-3.5  border border-slate-700/50 text-xs space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground font-medium">Status:</span>
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700">
@@ -1910,7 +1835,7 @@ export default function BillingPage() {
           </div>
 
           {/* Audit Ledger Table (Clean surface without harsh box lines) */}
-          <div className="bg-slate-900/30 dark:bg-slate-950/40 rounded-2xl shadow-sm overflow-hidden">
+          <div className="panel shadow-xs overflow-hidden">
             <div className="p-6 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-foreground">Transaction Audit Ledger</h3>
@@ -1925,7 +1850,7 @@ export default function BillingPage() {
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-900/50 text-xs uppercase tracking-wider text-muted-foreground">
+                <thead className="bg-[var(--theme-surface-subtle)] text-xs uppercase tracking-wider text-muted-foreground border-b border-[var(--theme-border)]">
                   <tr>
                     <th className="py-3.5 px-5 font-semibold">Date & Time</th>
                     <th className="py-3.5 px-5 font-semibold">Type</th>
@@ -1934,7 +1859,7 @@ export default function BillingPage() {
                     <th className="py-3.5 px-5 font-semibold text-right">Balance After</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/[0.03]">
+                <tbody className="divide-y divide-[var(--theme-border)]">
                   {transactions.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
@@ -1946,7 +1871,7 @@ export default function BillingPage() {
                     transactions.map((tx) => {
                       const isCredit = tx.amount > 0
                       return (
-                        <tr key={tx.id} className="hover:bg-white/[0.02] transition-colors">
+                        <tr key={tx.id} className="hover:bg-[var(--theme-surface-subtle)] transition-colors">
                           <td className="py-3.5 px-5 text-xs text-muted-foreground whitespace-nowrap">
                             {dateTimeFmt(tx.createdAt)}
                           </td>
@@ -2025,7 +1950,7 @@ export default function BillingPage() {
                 {
                   label: 'Available Slots',
                   value: Math.max(0, (usage?.seatsLimit ?? 5) - (usage?.seatsUsed ?? 1)),
-                  color: '#1e293b', // Slate 800
+                  color: '#94a3b8', // Slate 800
                 },
               ]}
               centerPrimary={`${usage?.seatsUsed ?? 1}`}
@@ -2045,7 +1970,7 @@ export default function BillingPage() {
                 {
                   label: 'Remaining Limit',
                   value: Math.max(0, (usage?.contactsLimit ?? 1000) - (usage?.contactsUsed ?? 0)),
-                  color: '#1e293b', // Slate 800
+                  color: '#94a3b8', // Slate 800
                 },
               ]}
               centerPrimary={`${
@@ -2079,7 +2004,7 @@ export default function BillingPage() {
                       (usage?.emailMonthlyUsed ?? 0) +
                       ((usage?.smsMonthlyLimit ?? 100) - (usage?.smsMonthlyUsed ?? 0)),
                   ),
-                  color: '#1e293b', // Slate 800
+                  color: '#94a3b8', // Slate 800
                 },
               ]}
               centerPrimary={`${(usage?.emailMonthlyUsed ?? 0) + (usage?.smsMonthlyUsed ?? 0)}`}
@@ -2108,8 +2033,8 @@ export default function BillingPage() {
           </div>
 
           {/* Usage Debit and Credit History Ledger */}
-          <div className="bg-slate-900/30 dark:bg-slate-950/40 rounded-2xl p-6 sm:p-7 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/70">
+          <div className="panel p-6 sm:p-7 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--theme-border)]">
               <div>
                 <h3 className="text-base font-bold text-foreground">Usage Debit &amp; Credit Ledger</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -2121,7 +2046,7 @@ export default function BillingPage() {
             <div className="overflow-x-auto mt-4">
               <table className="w-full text-left text-xs text-slate-300">
                 <thead>
-                  <tr className="border-b border-slate-800 text-muted-foreground uppercase tracking-wider text-[11px]">
+                  <tr className="border-b border-[var(--theme-border)] text-muted-foreground uppercase tracking-wider text-[11px]">
                     <th className="py-3 px-3">Date &amp; Time</th>
                     <th className="py-3 px-3">Service</th>
                     <th className="py-3 px-3">Description</th>
@@ -2130,18 +2055,18 @@ export default function BillingPage() {
                     <th className="py-3 px-3 text-right">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 font-mono">
+                <tbody className="divide-y divide-[var(--theme-border)] font-mono">
                   {transactions.length > 0 ? (
                     transactions.map((tx) => {
                       const isCredit =
                         tx.amount >= 0 || tx.type.includes('CREDIT') || tx.type.includes('TOPUP')
                       return (
-                        <tr key={tx.id} className="hover:bg-slate-800/30 transition">
+                        <tr key={tx.id} className="hover:bg-[var(--theme-surface-subtle)] transition-colors">
                           <td className="py-3 px-3 text-slate-400 whitespace-nowrap">
                             {dateTimeFmt(tx.createdAt)}
                           </td>
                           <td className="py-3 px-3">
-                            <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-200 text-[10px] font-sans font-semibold">
+                            <span className="px-2 py-0.5 rounded-md bg-[var(--theme-surface-subtle)] text-[var(--theme-text)] border border-[var(--theme-border)] text-[10px] font-sans font-semibold">
                               {tx.type}
                             </span>
                           </td>
@@ -2191,7 +2116,7 @@ export default function BillingPage() {
       {activeTab === 'autopay' && (
         <div className="space-y-6">
           {/* Active 20-Year Recurring Mandate Card */}
-          <div className="bg-gradient-to-r from-slate-900/60 via-slate-900/40 to-indigo-950/40 border border-slate-800/80 rounded-2xl p-6 sm:p-7 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="panel p-6 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-r from-primary/5 via-primary/10 to-transparent">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <span className="text-[11px] uppercase tracking-wider font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg">
@@ -2242,7 +2167,7 @@ export default function BillingPage() {
             </div>
           </div>
           {/* Legal Business & GST Profile */}
-          <div className="bg-slate-900/30 dark:bg-slate-950/40 rounded-2xl p-6 sm:p-7 shadow-sm">
+          <div className="panel p-6 sm:p-7 shadow-xs">
             <div className="flex items-center justify-between pb-4">
               <div>
                 <h3 className="text-base font-bold text-foreground">Legal & Tax Profile</h3>
@@ -2264,7 +2189,7 @@ export default function BillingPage() {
                     value={profile.legalBusinessName || ''}
                     onChange={(e) => setProfile({ ...profile, legalBusinessName: e.target.value })}
                     placeholder="e.g. Acme Technologies Pvt Ltd"
-                    className="input-field w-full text-sm py-2 rounded-xl bg-slate-800/40"
+                    className="input-field w-full text-sm py-2 rounded-xl "
                   />
                 </div>
 
@@ -2279,7 +2204,7 @@ export default function BillingPage() {
                       setProfile({ ...profile, taxIdOrGstin: e.target.value.toUpperCase() })
                     }
                     placeholder="e.g. 29ABCDE1234F1Z5"
-                    className="input-field w-full text-sm py-2 uppercase font-mono rounded-xl bg-slate-800/40"
+                    className="input-field w-full text-sm py-2 uppercase font-mono rounded-xl "
                   />
                 </div>
 
@@ -2292,7 +2217,7 @@ export default function BillingPage() {
                     value={profile.billingEmail || ''}
                     onChange={(e) => setProfile({ ...profile, billingEmail: e.target.value })}
                     placeholder="billing@company.com"
-                    className="input-field w-full text-sm py-2 rounded-xl bg-slate-800/40"
+                    className="input-field w-full text-sm py-2 rounded-xl "
                   />
                 </div>
 
@@ -2305,7 +2230,7 @@ export default function BillingPage() {
                     value={profile.billingPhone || ''}
                     onChange={(e) => setProfile({ ...profile, billingPhone: e.target.value })}
                     placeholder="+91 9876543210"
-                    className="input-field w-full text-sm py-2 rounded-xl bg-slate-800/40"
+                    className="input-field w-full text-sm py-2 rounded-xl "
                   />
                 </div>
 
@@ -2318,7 +2243,7 @@ export default function BillingPage() {
                     value={profile.addressLine1 || ''}
                     onChange={(e) => setProfile({ ...profile, addressLine1: e.target.value })}
                     placeholder="Building, Suite, Street name"
-                    className="input-field w-full text-sm py-2 rounded-xl bg-slate-800/40"
+                    className="input-field w-full text-sm py-2 rounded-xl "
                   />
                 </div>
 
@@ -2329,7 +2254,7 @@ export default function BillingPage() {
                     value={profile.city || ''}
                     onChange={(city) => setProfile({ ...profile, city })}
                     placeholder="Select or enter city"
-                    className="input-field w-full text-sm py-2 rounded-xl bg-slate-800/40"
+                    className="input-field w-full text-sm py-2 rounded-xl "
                     showIcon
                   />
                 </div>
@@ -2341,7 +2266,7 @@ export default function BillingPage() {
                     value={profile.state || ''}
                     onChange={(e) => setProfile({ ...profile, state: e.target.value })}
                     placeholder="Karnataka"
-                    className="input-field w-full text-sm py-2 rounded-xl bg-slate-800/40"
+                    className="input-field w-full text-sm py-2 rounded-xl "
                   />
                 </div>
 
@@ -2354,7 +2279,7 @@ export default function BillingPage() {
                     value={profile.postalCode || ''}
                     onChange={(e) => setProfile({ ...profile, postalCode: e.target.value })}
                     placeholder="560001"
-                    className="input-field w-full text-sm py-2 font-mono rounded-xl bg-slate-800/40"
+                    className="input-field w-full text-sm py-2 font-mono rounded-xl "
                   />
                 </div>
 
@@ -2366,7 +2291,7 @@ export default function BillingPage() {
                     value={profile.country || 'India'}
                     valueType="name"
                     onChange={(country) => setProfile({ ...profile, country })}
-                    className="input-field w-full text-sm py-2 rounded-xl bg-slate-800/40"
+                    className="input-field w-full text-sm py-2 rounded-xl "
                     showIcon
                   />
                 </div>
@@ -2470,7 +2395,7 @@ export default function BillingPage() {
       {/* TOP-UP MODAL */}
       {topupModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5">
+          <div className="panel rounded-2xl shadow-2xl p-6 max-w-md w-full shadow-2xl space-y-5">
             <div className="flex items-center justify-between pb-3">
               <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <FiPlus className="text-primary" /> Top-Up Communications Wallet
@@ -2523,7 +2448,7 @@ export default function BillingPage() {
                     step="10"
                     value={customTopupInput}
                     onChange={(e) => setCustomTopupInput(e.target.value)}
-                    className="input-field pl-8 py-2.5 w-full text-base font-bold rounded-xl bg-slate-800/40"
+                    className="input-field pl-8 py-2.5 w-full text-base font-bold rounded-xl "
                   />
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">
@@ -2543,7 +2468,7 @@ export default function BillingPage() {
                     value={customer.phone}
                     onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
                     placeholder="9876543210"
-                    className="input-field pl-9 py-2.5 w-full text-xs font-medium rounded-xl bg-slate-800/40"
+                    className="input-field pl-9 py-2.5 w-full text-xs font-medium rounded-xl "
                   />
                 </div>
               </div>
@@ -2600,7 +2525,7 @@ export default function BillingPage() {
       {/* PLAN SELECTION MODAL */}
       {draft && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-5">
+          <div className="panel rounded-2xl shadow-2xl p-6 max-w-lg w-full shadow-2xl space-y-5">
             <div className="flex items-center justify-between pb-3">
               <h3 className="text-lg font-bold text-foreground">Confirm Plan: {draft.plan.name}</h3>
               <button
@@ -2626,7 +2551,7 @@ export default function BillingPage() {
               </p>
 
               {draft.price.amount > 0 && (
-                <div className="space-y-3 pt-3 border-t border-slate-800">
+                <div className="space-y-3 pt-3 border-t border-[var(--theme-border)]">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-foreground">
                       Billing & Tax Details:
@@ -2650,7 +2575,7 @@ export default function BillingPage() {
                           setCustomer({ ...customer, name: e.target.value })
                         }}
                         placeholder="Company Pvt Ltd"
-                        className="input-field w-full text-xs py-2 rounded-xl bg-slate-800/40"
+                        className="input-field w-full text-xs py-2 rounded-xl "
                       />
                     </div>
                     <div>
@@ -2665,7 +2590,7 @@ export default function BillingPage() {
                           setProfile({ ...profile, taxIdOrGstin: e.target.value.toUpperCase() })
                         }
                         placeholder="29ABCDE1234F1Z5"
-                        className="input-field w-full text-xs py-2 uppercase font-mono rounded-xl bg-slate-800/40"
+                        className="input-field w-full text-xs py-2 uppercase font-mono rounded-xl "
                       />
                     </div>
                   </div>
@@ -2684,7 +2609,7 @@ export default function BillingPage() {
                           setProfile({ ...profile, billingEmail: e.target.value })
                         }}
                         placeholder="billing@company.com"
-                        className="input-field w-full text-xs py-2 rounded-xl bg-slate-800/40"
+                        className="input-field w-full text-xs py-2 rounded-xl "
                       />
                     </div>
                     <div>
@@ -2700,7 +2625,7 @@ export default function BillingPage() {
                           setProfile({ ...profile, billingPhone: e.target.value })
                         }}
                         placeholder="9999999999"
-                        className="input-field w-full text-xs py-2 rounded-xl bg-slate-800/40"
+                        className="input-field w-full text-xs py-2 rounded-xl "
                       />
                     </div>
                   </div>
@@ -2714,7 +2639,7 @@ export default function BillingPage() {
                       value={profile.addressLine1 || ''}
                       onChange={(e) => setProfile({ ...profile, addressLine1: e.target.value })}
                       placeholder="Street address or office premises"
-                      className="input-field w-full text-xs py-2 rounded-xl bg-slate-800/40"
+                      className="input-field w-full text-xs py-2 rounded-xl "
                     />
                   </div>
 
@@ -2726,7 +2651,7 @@ export default function BillingPage() {
                         value={profile.city || ''}
                         onChange={(city) => setProfile({ ...profile, city })}
                         placeholder="Bengaluru"
-                        className="input-field w-full text-xs py-2 rounded-xl bg-slate-800/40"
+                        className="input-field w-full text-xs py-2 rounded-xl "
                       />
                     </div>
                     <div>
@@ -2736,7 +2661,7 @@ export default function BillingPage() {
                         value={profile.state || ''}
                         onChange={(e) => setProfile({ ...profile, state: e.target.value })}
                         placeholder="Karnataka"
-                        className="input-field w-full text-xs py-2 rounded-xl bg-slate-800/40"
+                        className="input-field w-full text-xs py-2 rounded-xl "
                       />
                     </div>
                     <div>
@@ -2746,7 +2671,7 @@ export default function BillingPage() {
                         value={profile.postalCode || ''}
                         onChange={(e) => setProfile({ ...profile, postalCode: e.target.value })}
                         placeholder="560001"
-                        className="input-field w-full text-xs py-2 rounded-xl bg-slate-800/40"
+                        className="input-field w-full text-xs py-2 rounded-xl "
                       />
                     </div>
                   </div>
@@ -2786,7 +2711,7 @@ export default function BillingPage() {
       {/* CANCELLATION MODAL */}
       {cancelOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="panel rounded-2xl shadow-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <h3 className="text-lg font-bold text-destructive flex items-center gap-2">
               <FiAlertTriangle /> Cancel Subscription?
             </h3>
@@ -2819,8 +2744,8 @@ export default function BillingPage() {
       {/* SMART AUTOPAY SETUP MODAL */}
       {autopayModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div className="panel rounded-2xl shadow-2xl p-6 max-w-lg w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--theme-border)]">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
                   <FiShield className="text-lg" />
@@ -2847,7 +2772,7 @@ export default function BillingPage() {
 
             <div className="space-y-3.5 text-xs">
               {/* Card 1: Communications Wallet Auto-Replenishment */}
-              <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/50 space-y-3">
+              <div className="p-4 rounded-xl  border border-slate-700/50 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-bold text-foreground text-sm">
                     <FiZap className="text-amber-400" />
@@ -2884,7 +2809,7 @@ export default function BillingPage() {
                           step={100}
                           value={autoThreshold}
                           onChange={(e) => setAutoThreshold(Number(e.target.value))}
-                          className="input-field pl-7 py-2 text-sm w-full rounded-xl bg-slate-900/60"
+                          className="input-field pl-7 py-2 text-sm w-full rounded-xl "
                         />
                       </div>
                     </div>
@@ -2902,7 +2827,7 @@ export default function BillingPage() {
                           step={500}
                           value={autoAmount}
                           onChange={(e) => setAutoAmount(Number(e.target.value))}
-                          className="input-field pl-7 py-2 text-sm w-full rounded-xl bg-slate-900/60"
+                          className="input-field pl-7 py-2 text-sm w-full rounded-xl "
                         />
                       </div>
                     </div>
@@ -2911,7 +2836,7 @@ export default function BillingPage() {
               </div>
 
               {/* Card 2: Next Month Plan Renewal */}
-              <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/50 space-y-2">
+              <div className="p-4 rounded-xl  border border-slate-700/50 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-bold text-foreground text-sm">
                     <FiRefreshCw className="text-indigo-400" />
@@ -2939,7 +2864,7 @@ export default function BillingPage() {
 
               {/* Card 3: Payment Account / Mandate */}
               {autoPayDetails?.status === 'ACTIVE' ? (
-                <div className="p-4 rounded-xl bg-slate-800/40 border border-emerald-500/30 space-y-2">
+                <div className="p-4 rounded-xl  border border-emerald-500/30 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-foreground text-sm flex items-center gap-2">
                       <FiCreditCard className="text-emerald-400" /> Linked AutoPay Mandate
@@ -2953,7 +2878,7 @@ export default function BillingPage() {
                   </p>
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/50 space-y-3">
+                <div className="p-4 rounded-xl  border border-slate-700/50 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-foreground text-sm flex items-center gap-2">
                       <FiCreditCard className="text-primary" /> Payment Method for Auto-Debit
@@ -3009,7 +2934,7 @@ export default function BillingPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+            <div className="flex items-center justify-between pt-3 border-t border-[var(--theme-border)]">
               {autoRechargeEnabled ? (
                 <button
                   type="button"

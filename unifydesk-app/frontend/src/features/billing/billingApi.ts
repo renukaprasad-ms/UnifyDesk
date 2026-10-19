@@ -228,9 +228,13 @@ export const billingApi = {
     return unwrap(response.data)
   },
 
-  async verifyAutoPay(companyId: string) {
+  async verifyAutoPay(
+    companyId: string,
+    payload?: { paymentId?: string; orderId?: string; signature?: string },
+  ) {
     const response = await apiClient.post<ApiResponse<import('./types').AutoPayDetails>>(
       `/api/v1/companies/${companyId}/billing/autopay/verify`,
+      payload ?? {},
     )
     return unwrap(response.data)
   },

@@ -1,3 +1,4 @@
+import { FiAlertCircle } from 'react-icons/fi'
 import { PageSkeleton, CardSkeleton } from '../../components/ui/Skeleton'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
@@ -41,6 +42,7 @@ export default function SegmentEditorPage() {
   const navigate = useNavigate()
 
   const [name, setName] = useState('')
+  const [nameTouched, setNameTouched] = useState(false)
   const [description, setDescription] = useState('')
   const [filter, setFilter] = useState<SegmentGroup>(emptySegment())
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([])
@@ -125,6 +127,14 @@ export default function SegmentEditorPage() {
     tags.map((tag) => ({ value: tag.id, label: tag.name })),
     lists.map((list) => ({ value: list.id, label: list.name })),
   )
+
+  const isSaveDisabled = saving || !name.trim()
+  const saveDisabledReason = useMemo(() => {
+    if (!canModify) return 'You do not have permission to modify segments.'
+    if (saving) return 'Saving segment…'
+    if (!name.trim()) return 'Segment name is required to save'
+    return ''
+  }, [canModify, saving, name])
 
   useEffect(
     () => () => {
@@ -237,7 +247,11 @@ export default function SegmentEditorPage() {
   }
 
   const save = async () => {
-    if (!companyId || !canModify || !name.trim() || !validate()) return
+    if (!name.trim()) {
+      setNameTouched(true)
+      return
+    }
+    if (!companyId || !canModify || !validate()) return
     const scope = captureScope()
 
     setSaving(true)
@@ -413,18 +427,29 @@ export default function SegmentEditorPage() {
 
         <fieldset disabled={!canModify}>
           <div className="panel mt-6 grid gap-4 p-5 md:grid-cols-2">
-            <label className="text-xs font-semibold text-slate-700">
-              Name
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <span className="flex items-center gap-1">
+                <span>Name</span>
+                <span className="text-rose-500 font-bold" title="Required">*</span>
+              </span>
               <input
-                className="form-input mt-2"
+                className={`form-input mt-2 ${!name.trim() && nameTouched ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20' : ''}`}
+                placeholder="e.g. Active Customers, VIP Contacts"
                 value={name}
+                onBlur={() => setNameTouched(true)}
                 onChange={(event) => setName(event.target.value)}
               />
+              {!name.trim() && nameTouched && (
+                <span className="mt-1.5 block text-[11px] font-normal text-rose-600 dark:text-rose-400">
+                  Segment name is required
+                </span>
+              )}
             </label>
-            <label className="text-xs font-semibold text-slate-700">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
               Description
               <input
                 className="form-input mt-2"
+                placeholder="Optional description"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
               />
@@ -461,7 +486,7 @@ export default function SegmentEditorPage() {
           </div>
         )}
 
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="mt-5 flex flex-wrap items-center gap-2">
           <button
             type="button"
             className="secondary-button"
@@ -471,14 +496,29 @@ export default function SegmentEditorPage() {
             {counting ? 'Calculating…' : 'Preview audience'}
           </button>
           {canModify && (
-            <button
-              type="button"
-              className="primary-button"
-              disabled={saving || !name.trim()}
-              onClick={() => void save()}
+            <div
+              className={`relative inline-flex group ${isSaveDisabled ? 'cursor-not-allowed' : ''}`}
+              title={isSaveDisabled ? saveDisabledReason : undefined}
             >
-              {saving ? 'Saving…' : 'Save Segment'}
-            </button>
+              <button
+                type="button"
+                className={`primary-button ${isSaveDisabled ? 'disabled:opacity-50 disabled:pointer-events-none' : ''}`}
+                disabled={isSaveDisabled}
+                onClick={() => void save()}
+              >
+                {saving ? 'Saving…' : 'Save Segment'}
+              </button>
+              {isSaveDisabled && saveDisabledReason && (
+                <div
+                  role="tooltip"
+                  className="pointer-events-none absolute bottom-full left-1/2 mb-2.5 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-xl opacity-0 invisible transition-all duration-150 group-hover:opacity-100 group-hover:visible z-30 dark:bg-slate-800 dark:text-slate-100 dark:border dark:border-slate-700 flex items-center gap-1.5"
+                >
+                  <FiAlertCircle className="shrink-0 text-amber-400" size={13} />
+                  <span>{saveDisabledReason}</span>
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900 dark:border-t-slate-800" />
+                </div>
+              )}
+            </div>
           )}
         </div>
 

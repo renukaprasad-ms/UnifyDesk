@@ -50,11 +50,12 @@ public class BillingAutoPayService {
         result.subscriptionSessionId(),
         "UPI_AUTOPAY",
         result.actionUrl(),
-        razorpayProperties.getKeyId());
+        razorpayProperties.getKeyId(),
+        result.customerId());
   }
 
   public AutoPayDetailsResponse get(Long companyId) {
-    var result = recurringAuthorizationService.getActiveCompanyAutopay(companyId);
+    var result = recurringAuthorizationService.getCompanyAutopay(companyId);
     if (result == null) {
       return AutoPayDetailsResponse.notConfigured();
     }
@@ -67,12 +68,16 @@ public class BillingAutoPayService {
         result.subscriptionSessionId(),
         "UPI_AUTOPAY",
         result.actionUrl(),
-        razorpayProperties.getKeyId());
+        razorpayProperties.getKeyId(),
+        result.customerId());
   }
 
   @Transactional
-  public AutoPayDetailsResponse verify(Long companyId) {
-    var result = recurringAuthorizationService.verifyAndRefreshCompanyAutopay(companyId);
+  public AutoPayDetailsResponse verify(Long companyId, com.messaging.billing.dto.AutoPayVerifyRequest request) {
+    var result = request != null && request.paymentId() != null
+        ? recurringAuthorizationService.verifyCompanyAutopay(
+            companyId, request.paymentId(), request.orderId(), request.signature())
+        : recurringAuthorizationService.verifyAndRefreshCompanyAutopay(companyId);
     if (result == null) {
       return AutoPayDetailsResponse.notConfigured();
     }
@@ -85,7 +90,8 @@ public class BillingAutoPayService {
         result.subscriptionSessionId(),
         "UPI_AUTOPAY",
         result.actionUrl(),
-        razorpayProperties.getKeyId());
+        razorpayProperties.getKeyId(),
+        result.customerId());
   }
 
   @Transactional

@@ -79,14 +79,35 @@ class RecurringAuthorizationStore {
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
                    authorization_payment_id, authorization_status, max_amount, currency,
-                   provider_authorization_payment_id
+                   provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where company_id = ? and is_company_autopay = true and provider in ('RAZORPAY', 'CASHFREE')
+             order by case when authorization_status = 'ACTIVE' then 0 else 1 end, id desc
              for update
             """,
             companyId);
     if (!existing.isEmpty()) {
-      return existing.getFirst();
+      Prepared current = existing.getFirst();
+      if ("ACTIVE".equalsIgnoreCase(current.status())) {
+        return current;
+      }
+      String newSubId = "UDS-AP-" + companyId + "-" + IdGenerator.nextId();
+      jdbcTemplate.update(
+          """
+          update payment_provider_authorizations
+             set provider_subscription_id = ?,
+                 authorization_status = 'CREATE_PENDING',
+                 provider_status = 'CREATE_PENDING',
+                 max_amount = ?,
+                 currency = ?,
+                 updated_at = now()
+           where id = ?
+          """,
+          newSubId,
+          maxAmount,
+          currency,
+          current.id());
+      return requireForUpdate(current.id());
     }
     return insertCompanyAutopay(
         companyId,
@@ -103,7 +124,25 @@ class RecurringAuthorizationStore {
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
                    authorization_payment_id, authorization_status, max_amount, currency,
-                   provider_authorization_payment_id
+                   provider_authorization_payment_id, payment_method_type
+              from payment_provider_authorizations
+             where company_id = ? and is_company_autopay = true and provider in ('RAZORPAY', 'CASHFREE')
+               and authorization_status = 'ACTIVE'
+             order by id desc
+            """,
+            companyId);
+    return rows.isEmpty() ? null : rows.getFirst();
+  }
+
+  @Transactional(readOnly = true)
+  Prepared findCompanyAutopay(Long companyId) {
+    List<Prepared> rows =
+        query(
+            """
+            select id, company_id, subscription_id, checkout_intent_id,
+                   provider_subscription_id, provider_subscription_session_id,
+                   authorization_payment_id, authorization_status, max_amount, currency,
+                   provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where company_id = ? and is_company_autopay = true and provider in ('RAZORPAY', 'CASHFREE')
              order by case when authorization_status = 'ACTIVE' then 0 else 1 end, id desc
@@ -127,6 +166,30 @@ class RecurringAuthorizationStore {
   }
 
   @Transactional
+  Prepared activateCompanyAutopay(
+      long id, String tokenId, String paymentId, String customerId) {
+    Prepared local = requireForUpdate(id);
+    String effectiveSubId = (tokenId != null && !tokenId.isBlank()) ? tokenId : local.providerSubscriptionId();
+    jdbcTemplate.update(
+        """
+        update payment_provider_authorizations
+           set provider_subscription_id = coalesce(cast(? as varchar), provider_subscription_id),
+               provider_authorization_payment_id = coalesce(cast(? as varchar), provider_authorization_payment_id),
+               payment_method_type = coalesce(cast(? as varchar), payment_method_type),
+               authorization_status = 'ACTIVE',
+               provider_status = 'ACTIVE',
+               provider_updated_at = now(),
+               updated_at = now()
+         where id = ?
+        """,
+        effectiveSubId,
+        paymentId,
+        customerId,
+        id);
+    return requireForUpdate(id);
+  }
+
+  @Transactional
   Prepared applySubscription(long id, PaymentProviderGateway.RecurringAuthorization remote) {
     Prepared local = requireForUpdate(id);
     if (!local.providerSubscriptionId().equals(remote.subscriptionId())) {
@@ -138,6 +201,7 @@ class RecurringAuthorizationStore {
         """
         update payment_provider_authorizations
            set provider_subscription_session_id = coalesce(cast(? as varchar), provider_subscription_session_id),
+               payment_method_type = coalesce(cast(? as varchar), payment_method_type),
                authorization_status = ?,
                provider_status = ?,
                provider_updated_at = now(),
@@ -145,6 +209,7 @@ class RecurringAuthorizationStore {
          where id = ?
         """,
         remote.subscriptionSessionId(),
+        remote.providerSubscriptionReference(),
         status,
         remote.authorizationStatus(),
         id);
@@ -441,7 +506,10 @@ class RecurringAuthorizationStore {
         rs.getString("authorization_status"),
         rs.getBigDecimal("max_amount"),
         rs.getString("currency"),
-        false);
+        false,
+        hasColumn(rs, "payment_method_type")
+            ? rs.getString("payment_method_type")
+            : null);
   }
 
   private Long nullableLong(ResultSet rs, String column) throws SQLException {
@@ -470,5 +538,22 @@ class RecurringAuthorizationStore {
       String status,
       BigDecimal maxAmount,
       String currency,
-      boolean newlyCreated) {}
+      boolean newlyCreated,
+      String customerId) {
+    public Prepared(
+        long id,
+        Long companyId,
+        Long subscriptionId,
+        Long checkoutIntentId,
+        String providerSubscriptionId,
+        String subscriptionSessionId,
+        String authorizationPaymentId,
+        String providerAuthorizationPaymentId,
+        String status,
+        BigDecimal maxAmount,
+        String currency,
+        boolean newlyCreated) {
+      this(id, companyId, subscriptionId, checkoutIntentId, providerSubscriptionId, subscriptionSessionId, authorizationPaymentId, providerAuthorizationPaymentId, status, maxAmount, currency, newlyCreated, null);
+    }
+  }
 }

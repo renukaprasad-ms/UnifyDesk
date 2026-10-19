@@ -81,10 +81,41 @@ public class RecurringAuthorizationService {
     return result(prepared, null);
   }
 
-  public AuthorizationResult verifyAndRefreshCompanyAutopay(Long companyId) {
-    RecurringAuthorizationStore.Prepared prepared = store.findActiveCompanyAutopay(companyId);
+  public AuthorizationResult getCompanyAutopay(Long companyId) {
+    RecurringAuthorizationStore.Prepared prepared = store.findCompanyAutopay(companyId);
     if (prepared == null) {
       return null;
+    }
+    return result(prepared, null);
+  }
+
+  public AuthorizationResult verifyCompanyAutopay(
+      Long companyId, String paymentId, String orderId, String signature) {
+    RecurringAuthorizationStore.Prepared prepared = store.findCompanyAutopay(companyId);
+    if (prepared == null) {
+      return null;
+    }
+    if ("ACTIVE".equalsIgnoreCase(prepared.status())) {
+      return result(prepared, null);
+    }
+    try {
+      String customerId = prepared.customerId();
+      String tokenId = gateway.verifyMandateToken(orderId, paymentId, signature, customerId);
+      prepared = store.activateCompanyAutopay(prepared.id(), tokenId, paymentId, customerId);
+      return result(prepared, null);
+    } catch (RuntimeException exception) {
+      store.markAmbiguous(prepared.id());
+      throw exception;
+    }
+  }
+
+  public AuthorizationResult verifyAndRefreshCompanyAutopay(Long companyId) {
+    RecurringAuthorizationStore.Prepared prepared = store.findCompanyAutopay(companyId);
+    if (prepared == null) {
+      return null;
+    }
+    if ("ACTIVE".equalsIgnoreCase(prepared.status())) {
+      return result(prepared, null);
     }
     try {
       PaymentProviderGateway.RecurringAuthorization remote =
@@ -128,6 +159,10 @@ public class RecurringAuthorizationService {
           || prepared.subscriptionSessionId().isBlank()) {
         throw new ConflictException(
             "Recurring authorization has no provider checkout continuation");
+      }
+
+      if (prepared.providerSubscriptionId() != null && prepared.providerSubscriptionId().startsWith("UDS-AP-")) {
+        return result(prepared, remoteSubscription.providerSubscriptionReference());
       }
 
       PaymentProviderGateway.RemoteSubscriptionPayment authorizationPayment =
@@ -215,7 +250,8 @@ public class RecurringAuthorizationService {
         prepared.providerSubscriptionId(),
         prepared.subscriptionSessionId(),
         prepared.status(),
-        actionUrl);
+        actionUrl,
+        prepared.customerId());
   }
 
   public record AuthorizationResult(
@@ -223,5 +259,15 @@ public class RecurringAuthorizationService {
       String providerSubscriptionId,
       String subscriptionSessionId,
       String status,
-      String actionUrl) {}
+      String actionUrl,
+      String customerId) {
+    public AuthorizationResult(
+        long authorizationId,
+        String providerSubscriptionId,
+        String subscriptionSessionId,
+        String status,
+        String actionUrl) {
+      this(authorizationId, providerSubscriptionId, subscriptionSessionId, status, actionUrl, null);
+    }
+  }
 }

@@ -146,6 +146,7 @@ export type AutoPayDetails = {
   paymentMethodType?: string | null
   actionUrl?: string | null
   keyId?: string | null
+  customerId?: string | null
 }
 
 /** Maps raw AutoPay status codes to user-friendly labels */
