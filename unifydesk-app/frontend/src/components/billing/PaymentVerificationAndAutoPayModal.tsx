@@ -148,8 +148,8 @@ export default function PaymentVerificationAndAutoPayModal({
 
   const handleAuthorizeAutoPay = async () => {
     const email = billingEmail.trim()
-    const phone = billingPhone.replace(/\\D/g, '').replace(/^91(?=\\d{10}$)/, '')
-    if (!email.includes('@') || !/^[6-9]\\d{9}$/.test(phone)) {
+    const phone = billingPhone.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '')
+    if (!email.includes('@') || !/^[6-9]\d{9}$/.test(phone)) {
       setError('Enter your billing email and a valid 10-digit Indian mobile number to authorize AutoPay.')
       return
     }
