@@ -200,30 +200,22 @@ public class RazorpayWebhookService {
               "amount", p.getAmount()));
       log.info("Payment confirmed via Razorpay webhook for payment {}", p.getId());
     } else {
-      String internalOrderId = paymentEntity.path("notes").path("internal_order_id").asText(null);
-      if (internalOrderId == null && payload.has("order")) {
-        internalOrderId = payload.path("order").path("entity").path("notes").path("internal_order_id").asText(null);
-      }
-
-      if (internalOrderId != null && internalOrderId.startsWith("TOPUP-")) {
-        try {
-          String[] parts = internalOrderId.split("-");
-          if (parts.length >= 2) {
-            Long companyId = Long.valueOf(parts[1]);
-            walletService.confirmTopup(companyId, internalOrderId, amount, null);
-            realtimeService.sendToCompany(
-                companyId,
-                "billing.wallet.updated",
-                Map.of(
-                    "companyId", companyId,
-                    "orderId", internalOrderId,
-                    "amount", amount,
-                    "status", "SUCCEEDED"));
-            log.info("Wallet top-up confirmed via Razorpay webhook for company {} order {}", companyId, internalOrderId);
-            return;
-          }
-        } catch (Exception topupEx) {
-          log.warn("Could not auto-credit wallet from top-up webhook {}: {}", internalOrderId, topupEx.getMessage());
+      if (rzpOrderId != null) {
+        var walletIntents = jdbcTemplate.queryForList(
+            "select company_id, internal_order_id from wallet_topup_intents "
+                + "where provider_order_id = ?",
+            rzpOrderId);
+        if (walletIntents.size() == 1) {
+          Map<String, Object> intent = walletIntents.getFirst();
+          Long companyId = ((Number) intent.get("company_id")).longValue();
+          String internalOrderId = (String) intent.get("internal_order_id");
+          // Fetch canonical captured payment from Razorpay; never trust webhook amounts or notes.
+          walletService.confirmTopup(companyId, rzpOrderId, null, null);
+          realtimeService.sendToCompany(
+              companyId, "billing.wallet.updated",
+              Map.of("companyId", companyId, "orderId", internalOrderId,
+                  "status", "SUCCEEDED"));
+          return;
         }
       }
 
@@ -268,7 +260,7 @@ public class RazorpayWebhookService {
       MessageDigest md = MessageDigest.getInstance("SHA-256");
       return HexFormat.of().formatHex(md.digest(data));
     } catch (Exception ex) {
-      return String.valueOf(System.currentTimeMillis());
+      throw new IllegalStateException("SHA-256 digest unavailable", ex);
     }
   }
 }
