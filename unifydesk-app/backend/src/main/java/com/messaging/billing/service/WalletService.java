@@ -14,6 +14,9 @@ import com.messaging.billing.repository.CompanyBillingProfileRepository;
 import com.messaging.billing.repository.CompanyWalletRepository;
 import com.messaging.billing.repository.WalletTransactionRepository;
 import com.messaging.common.exception.BadRequestException;
+import com.messaging.common.exception.ConflictException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.support.TransactionTemplate;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.company.entity.Company;
@@ -41,6 +44,8 @@ public class WalletService {
   private final PaymentProviderGateway paymentProviderGateway;
   private final RazorpayProperties razorpayProperties;
   private final WalletAutoRechargeService walletAutoRechargeService;
+  private final JdbcTemplate jdbcTemplate;
+  private final TransactionTemplate transactionTemplate;
 
   @Transactional
   public CompanyWallet getOrCreateWallet(Long companyId) {
@@ -95,6 +100,7 @@ public class WalletService {
     String currency = request.currency() != null && !request.currency().isBlank()
         ? request.currency().toUpperCase()
         : "INR";
+    if (!"INR".equals(currency)) throw new BadRequestException("Only INR wallet top-ups are supported");
     String orderId = "TOPUP-" + companyId + "-" + IdGenerator.nextId();
 
     boolean hasRazorpayKeys =
@@ -133,6 +139,12 @@ public class WalletService {
           ? checkout.paymentSessionId()
           : null;
 
+      if (rzpOrderId == null) throw new ConflictException("Razorpay checkout order was not created");
+      jdbcTemplate.update(
+          "insert into wallet_topup_intents "
+              + "(id, company_id, internal_order_id, provider_order_id, amount, currency, status) "
+              + "values (?, ?, ?, ?, ?, ?, 'CREATED')",
+          IdGenerator.nextId(), companyId, orderId, rzpOrderId, roundedAmount, currency);
       return new WalletTopupOrderResponse(
           checkout.orderId(),
           checkout.paymentSessionId(),
@@ -144,68 +156,105 @@ public class WalletService {
           roundedAmount.multiply(BigDecimal.valueOf(100)).longValue());
     }
 
-    // Fallback/Simulated checkout for environments without live Razorpay keys
-    return new WalletTopupOrderResponse(
-        orderId,
-        "simulated_session_" + orderId,
-        roundedAmount,
-        currency,
-        "ACTIVE",
-        null,
-        razorpayProperties.getKeyId(),
-        roundedAmount.multiply(BigDecimal.valueOf(100)).longValue());
+    throw new ConflictException("Razorpay is not configured; wallet top-up is unavailable");
   }
 
-  @Transactional
   public CompanyWalletResponse confirmTopup(
       Long companyId, String orderId, Long actorUserId) {
     return confirmTopup(companyId, orderId, null, actorUserId);
   }
 
-  @Transactional
+  /**
+   * Verify a durable company-owned order against Razorpay before entering the wallet transaction.
+   * Never accept the amount supplied by the browser or a webhook as financial authority.
+   */
   public CompanyWalletResponse confirmTopup(
       Long companyId, String orderId, BigDecimal clientAmount, Long actorUserId) {
     if (orderId == null || orderId.isBlank()) {
-      throw new BadRequestException("Order ID is required to confirm top-up");
+      throw new BadRequestException("Wallet top-up order is required");
+    }
+    List<TopupIntent> intents = jdbcTemplate.query(
+        "select internal_order_id, provider_order_id, amount, currency, status "
+            + "from wallet_topup_intents where company_id=? "
+            + "and (internal_order_id=? or provider_order_id=?)",
+        (rs, index) -> new TopupIntent(
+            rs.getString("internal_order_id"), rs.getString("provider_order_id"),
+            rs.getBigDecimal("amount"), rs.getString("currency"), rs.getString("status")),
+        companyId, orderId, orderId);
+    if (intents.size() != 1) throw new BadRequestException("Unknown company top-up order");
+    TopupIntent intent = intents.getFirst();
+    if ("CREDITED".equals(intent.status())) return getWalletResponse(companyId);
+    if (clientAmount != null && clientAmount.compareTo(intent.amount()) != 0) {
+      throw new BadRequestException("Wallet top-up amount does not match the order");
     }
 
-    // Pessimistic lock on company wallet
-    CompanyWallet wallet =
-        walletRepository
-            .findByCompanyIdForUpdate(companyId)
-            .orElseGet(() -> getOrCreateWallet(companyId));
+    PaymentProviderGateway.Checkout order = paymentProviderGateway.fetchOrder(intent.providerOrderId());
+    if (!intent.providerOrderId().equals(order.paymentSessionId())
+        || !"paid".equalsIgnoreCase(order.status())) {
+      throw new ConflictException("Razorpay has not confirmed the wallet top-up order as paid");
+    }
+    List<PaymentProviderGateway.RemotePayment> payments =
+        paymentProviderGateway.fetchOrderPayments(intent.providerOrderId());
+    List<PaymentProviderGateway.RemotePayment> captured = payments.stream()
+        .filter(p -> "SUCCESS".equalsIgnoreCase(p.status()))
+        .toList();
+    if (captured.size() != 1) {
+      throw new ConflictException("Wallet top-up requires exactly one captured Razorpay payment");
+    }
+    PaymentProviderGateway.RemotePayment capturedPayment = captured.getFirst();
+    if (capturedPayment.providerPaymentId() == null
+        || !capturedPayment.providerPaymentId().startsWith("pay_")
+        || capturedPayment.amount() == null
+        || capturedPayment.amount().compareTo(intent.amount()) != 0
+        || !intent.currency().equalsIgnoreCase(capturedPayment.currency())) {
+      throw new ConflictException("Captured Razorpay payment does not match this wallet order");
+    }
 
-    // Idempotency: verify this order reference has not already been credited
-    if (transactionRepository.existsByReferenceId(orderId)) {
-      log.info("Topup order {} already processed for company {}", orderId, companyId);
+    return transactionTemplate.execute(transaction -> {
+      List<TopupIntent> locked = jdbcTemplate.query(
+          "select internal_order_id, provider_order_id, amount, currency, status "
+              + "from wallet_topup_intents where company_id=? and internal_order_id=? for update",
+          (rs, index) -> new TopupIntent(
+              rs.getString("internal_order_id"), rs.getString("provider_order_id"),
+              rs.getBigDecimal("amount"), rs.getString("currency"), rs.getString("status")),
+          companyId, intent.internalOrderId());
+      if (locked.size() != 1) throw new ConflictException("Wallet top-up intent was removed");
+      TopupIntent current = locked.getFirst();
+      if ("CREDITED".equals(current.status())) return getWalletResponse(companyId);
+      if (!current.providerOrderId().equals(intent.providerOrderId())
+          || current.amount().compareTo(intent.amount()) != 0
+          || !current.currency().equalsIgnoreCase(intent.currency())) {
+        throw new ConflictException("Wallet top-up intent changed during verification");
+      }
+      CompanyWallet wallet = walletRepository.findByCompanyIdForUpdate(companyId)
+          .orElseGet(() -> getOrCreateWallet(companyId));
+      if (transactionRepository.existsByReferenceId(intent.internalOrderId())) {
+        throw new ConflictException("Wallet ledger already contains this top-up");
+      }
+      BigDecimal newBalance = wallet.getBalance().add(intent.amount());
+      wallet.setBalance(newBalance);
+      walletRepository.saveAndFlush(wallet);
+      WalletTransaction ledger = new WalletTransaction();
+      ledger.setCompany(wallet.getCompany());
+      ledger.setType("TOPUP");
+      ledger.setAmount(intent.amount());
+      ledger.setBalanceAfter(newBalance);
+      ledger.setCurrency(intent.currency());
+      ledger.setReferenceId(intent.internalOrderId());
+      ledger.setDescription("Verified wallet top-up");
+      ledger.setActorUserId(actorUserId);
+      ledger.setCreatedAt(Instant.now());
+      transactionRepository.saveAndFlush(ledger);
+      jdbcTemplate.update(
+          "update wallet_topup_intents set status='CREDITED', provider_payment_id=?, "
+              + "credited_at=now() where company_id=? and internal_order_id=? and status='CREATED'",
+          capturedPayment.providerPaymentId(), companyId, intent.internalOrderId());
       return toWalletResponse(wallet);
-    }
-
-    BigDecimal amount = clientAmount != null && clientAmount.compareTo(BigDecimal.ZERO) > 0
-        ? clientAmount.setScale(4, RoundingMode.HALF_UP)
-        : extractAmountOrQueryGateway(orderId);
-
-    BigDecimal updatedBalance = wallet.getBalance().add(amount);
-    wallet.setBalance(updatedBalance);
-    wallet = walletRepository.saveAndFlush(wallet);
-
-    WalletTransaction tx = new WalletTransaction();
-    tx.setCompany(wallet.getCompany());
-    tx.setType("TOPUP");
-    tx.setAmount(amount);
-    tx.setBalanceAfter(updatedBalance);
-    tx.setCurrency(wallet.getCurrency());
-    tx.setReferenceId(orderId);
-    tx.setDescription("Wallet top-up (Order: " + orderId + ")");
-    tx.setActorUserId(actorUserId);
-    tx.setCreatedAt(Instant.now());
-    transactionRepository.saveAndFlush(tx);
-
-    log.info("Company {} wallet credited with {} {}. New balance: {}",
-        companyId, amount, wallet.getCurrency(), updatedBalance);
-
-    return toWalletResponse(wallet);
+    });
   }
+
+  private record TopupIntent(String internalOrderId, String providerOrderId,
+      BigDecimal amount, String currency, String status) {}
 
   @Transactional
   public boolean debit(
@@ -309,32 +358,6 @@ public class WalletService {
     log.info("Manual/On-demand wallet auto-recharge triggered for company {}", companyId);
     walletAutoRechargeService.triggerAutoRechargeIfEligibleAsync(companyId);
     return toWalletResponse(wallet);
-  }
-
-  private BigDecimal extractAmountOrQueryGateway(String orderId) {
-    boolean hasRazorpayKeys =
-        razorpayProperties.isEnabled()
-            && razorpayProperties.getKeyId() != null
-            && !razorpayProperties.getKeyId().isBlank()
-            && razorpayProperties.getKeySecret() != null
-            && !razorpayProperties.getKeySecret().isBlank();
-
-    if (hasRazorpayKeys && orderId != null && orderId.startsWith("order_")) {
-      try {
-        List<PaymentProviderGateway.RemotePayment> payments =
-            paymentProviderGateway.fetchOrderPayments(orderId);
-        for (PaymentProviderGateway.RemotePayment p : payments) {
-          if ("SUCCESS".equalsIgnoreCase(p.status())) {
-            return p.amount().setScale(4, RoundingMode.HALF_UP);
-          }
-        }
-      } catch (Exception e) {
-        log.warn("Could not query Razorpay for order {}: {}", orderId, e.getMessage());
-      }
-    }
-
-    // Default simulation top-up amount if not queried or testing: 1000.00
-    return new BigDecimal("1000.0000");
   }
 
   private String resolveCustomerPhone(Long companyId, WalletTopupOrderRequest.WalletCustomerDetails customer) {
