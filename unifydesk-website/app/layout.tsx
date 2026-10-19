@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Script from "next/script";
+import AnalyticsConsent from "./analytics-consent";
 import "./globals.css";
 import StructuredData from "./structured-data";
 
@@ -50,18 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body>
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-3NRD69RV7S"
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-3NRD69RV7S');
-          `}
-        </Script>
+        <AnalyticsConsent />
         <StructuredData />
         {children}
       </body>

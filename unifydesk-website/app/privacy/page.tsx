@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: "Privacy Policy",
   description: "Draft India Early Access Privacy Policy for UnifyDesk",
   alternates: { canonical: "/privacy" },
-  robots: { index: true, follow: true },
+  robots: { index: false, follow: false },
 };
 const sections = [
   {
@@ -53,7 +53,7 @@ const sections = [
   {
     "title": "Analytics and cookies",
     "text": [
-      "The marketing site's reviewed Next.js layout loads Google Analytics 4 after page interaction begins. No consent gate is visible in that file. Actual tracking, cookies, geographic access and applicable choice mechanisms must be checked before launch."
+      "The current marketing-site code loads optional Google Analytics only after a visitor explicitly allows analytics. The site stores the visitor's choice locally and provides a Cookie settings control in the footer. Deployed tracking, cookies, geographic access and consent behavior must still be checked before approval."
     ]
   },
   {

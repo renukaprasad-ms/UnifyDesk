@@ -141,6 +141,14 @@ export function Footer() {
           <b>Legal</b>
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
+          <Link href="/cookies">Cookies &amp; analytics</Link>
+          <button
+            type="button"
+            className="footerPrivacyButton"
+            onClick={() => window.dispatchEvent(new Event("unifydesk:open-analytics-settings"))}
+          >
+            Cookie settings
+          </button>
         </div>
       </div>
       <div className="copyright">

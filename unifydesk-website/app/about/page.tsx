@@ -51,6 +51,27 @@ export default function About() {
             </p>
           </article>
         </section>
+        <section className="startupIdentity" aria-labelledby="startup-identity-heading">
+          <div className="startupIdentityIntro">
+            <p className="kicker">AN INDEPENDENT STARTUP IN INDIA</p>
+            <h2 id="startup-identity-heading">Built for growing teams. Starting with the essentials.</h2>
+            <p>
+              UnifyDesk is an independently developed, self-funded B2B SaaS initiative
+              based in Karnataka, India, and operating as a sole proprietorship.
+              We are building and testing the platform ahead of early access;
+              public sign-up and paid plans are not yet available.
+            </p>
+          </div>
+          <dl className="startupFacts">
+            <div><dt>Based in</dt><dd>Karnataka, India</dd></div>
+            <div><dt>Business structure</dt><dd>Sole proprietorship</dd></div>
+            <div><dt>Current stage</dt><dd>Bootstrapped · Preparing for early access</dd></div>
+          </dl>
+          <p className="startupIdentityContact">
+            Want to discuss UnifyDesk or its early-access roadmap?
+            {" "}<Link href="/contact">Get in touch</Link>.
+          </p>
+        </section>
         <section className="centerCta">
           <h2>Build customer workflows around one workspace.</h2>
           <p className="ctaSupport">UnifyDesk is under active development.</p>
