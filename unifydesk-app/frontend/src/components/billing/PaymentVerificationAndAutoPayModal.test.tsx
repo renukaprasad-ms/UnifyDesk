@@ -44,6 +44,8 @@ describe('AutoPay authorization status', () => {
         <PaymentVerificationAndAutoPayModal
           isOpen
           companyId="10"
+          customerEmail="billing@example.com"
+          customerPhone="9876543210"
           onDone={vi.fn()}
           paymentResult={{
             razorpay_order_id: 'order_payment',

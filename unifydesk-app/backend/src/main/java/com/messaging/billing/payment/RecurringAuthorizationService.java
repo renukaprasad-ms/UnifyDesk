@@ -65,9 +65,43 @@ public class RecurringAuthorizationService {
       BigDecimal maxAmount,
       String currency,
       PaymentProviderGateway.Customer customer) {
+    if (!properties.isRecurringEnabled()) {
+      throw new ConflictException(
+          "Razorpay recurring mandate setup is not enabled for this merchant");
+    }
     BigDecimal limit = maxAmount != null ? maxAmount : new BigDecimal("15000.00");
     String curr = currency != null && !currency.isBlank() ? currency : "INR";
-    return resolve(store.prepareCompanyAutopay(companyId, limit, curr), customer);
+    RecurringAuthorizationStore.Prepared prepared =
+        store.prepareCompanyAutopay(companyId, limit, curr);
+    if ("ACTIVE".equalsIgnoreCase(prepared.status())) {
+      return result(prepared, null);
+    }
+    // Setup calls must reuse an existing valid authorization order. A local UDS-AP
+    // identifier is never a Razorpay order or a confirmed recurring token.
+    if (!prepared.newlyCreated()) {
+      if (hasProviderCheckout(prepared)) {
+        return result(prepared, null);
+      }
+      throw new ConflictException(
+          "AutoPay authorization is incomplete or being prepared; retry later");
+    }
+    PaymentProviderGateway.RecurringAuthorization authorization;
+    try {
+      authorization = createSubscription(prepared, customer);
+      if (authorization == null
+          || !prepared.providerSubscriptionId().equals(authorization.subscriptionId())
+          || authorization.subscriptionSessionId() == null
+          || !authorization.subscriptionSessionId().startsWith("order_")
+          || authorization.providerSubscriptionReference() == null
+          || !authorization.providerSubscriptionReference().startsWith("cust_")) {
+        throw new ConflictException("Razorpay did not provide a valid mandate order and customer");
+      }
+      prepared = store.applySubscription(prepared.id(), authorization);
+      return result(prepared, null);
+    } catch (RuntimeException exception) {
+      store.markAmbiguous(prepared.id());
+      throw exception;
+    }
   }
 
   public AuthorizationResult getActiveCompanyAutopay(Long companyId) {
@@ -117,7 +151,10 @@ public class RecurringAuthorizationService {
     if (prepared == null) {
       return null;
     }
-    if ("ACTIVE".equalsIgnoreCase(prepared.status())) {
+    // No signed checkout evidence was supplied. Never ask Razorpay to fetch the local
+    // UDS-AP mandate intent as a token, or convert a paid order into ACTIVE status.
+    if (prepared.providerSubscriptionId() == null
+        || !prepared.providerSubscriptionId().startsWith("token_")) {
       return result(prepared, null);
     }
     try {
@@ -145,6 +182,13 @@ public class RecurringAuthorizationService {
 
   public void bindPayment(long authorizationId, Long paymentId) {
     store.bindPayment(authorizationId, paymentId);
+  }
+
+  private boolean hasProviderCheckout(RecurringAuthorizationStore.Prepared prepared) {
+    return prepared.subscriptionSessionId() != null
+        && prepared.subscriptionSessionId().startsWith("order_")
+        && prepared.customerId() != null
+        && prepared.customerId().startsWith("cust_");
   }
 
   private AuthorizationResult resolve(

@@ -46,8 +46,13 @@ public class BillingAutoPayController {
       @PathVariable Long companyId,
       @RequestBody(required = false) com.messaging.billing.dto.AutoPayVerifyRequest request) {
     requireBillingModify(companyId);
+    AutoPayDetailsResponse details = autoPayService.verify(companyId, request);
+    String message =
+        "ACTIVE".equalsIgnoreCase(details.status())
+            ? "AutoPay mandate verified"
+            : "AutoPay mandate has not yet been authorized";
     return ResponseEntity.ok(
-        ApiResponse.success(HttpStatus.OK.value(), autoPayService.verify(companyId, request), "AutoPay mandate verified"));
+        ApiResponse.success(HttpStatus.OK.value(), details, message));
   }
 
   @DeleteMapping

@@ -13,9 +13,11 @@ class RecurringAuthorizationServiceTests {
   void retryingCompanyAutopayCreatesAnOrderForTheNewPendingIdentity() {
     RecurringAuthorizationStore store = mock(RecurringAuthorizationStore.class);
     PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
-    var service = new RecurringAuthorizationService(store, gateway, new RazorpayProperties());
+    var properties = new RazorpayProperties();
+    properties.setRecurringEnabled(true);
+    var service = new RecurringAuthorizationService(store, gateway, properties);
     var pending = prepared(90L, null, null, "UDS-AP-10-90", null, null,
-        "CREATE_PENDING", new BigDecimal("15000"), false);
+        "CREATE_PENDING", new BigDecimal("15000"), true);
     var ready = new RecurringAuthorizationStore.Prepared(90L, 10L, null, null,
         "UDS-AP-10-90", "order_new", "UDA-90", null, "PENDING_AUTH",
         new BigDecimal("15000"), "INR", false, "cust_customer");
@@ -184,6 +186,99 @@ class RecurringAuthorizationServiceTests {
     verify(gateway).verifyMandateToken(
         eq("order_expected"), eq("pay_without_token"), eq("fake-signature"), any());
     verify(store, never()).activateCompanyAutopay(anyLong(), any(), any(), any());
+  }
+
+
+  @Test
+  void companyAutopayCreatesRealAuthorizationOrderAndReturnsRazorpayCustomer() {
+    RecurringAuthorizationStore store = mock(RecurringAuthorizationStore.class);
+    PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
+    RazorpayProperties properties = new RazorpayProperties();
+    properties.setRecurringEnabled(true);
+    RecurringAuthorizationService service =
+        new RecurringAuthorizationService(store, gateway, properties);
+    BigDecimal amount = new BigDecimal("15000.00");
+    var customer = new PaymentProviderGateway.Customer(
+        "company-10", "Example", "billing@example.com", "9876543210");
+    var initial = new RecurringAuthorizationStore.Prepared(
+        201L, 10L, null, null, "UDS-AP-10-201", null, "UDA-201", null,
+        "CREATE_PENDING", amount, "INR", true, null);
+    var persisted = new RecurringAuthorizationStore.Prepared(
+        201L, 10L, null, null, "UDS-AP-10-201", "order_123", "UDA-201", null,
+        "PENDING_AUTH", amount, "INR", false, "cust_123");
+    when(store.prepareCompanyAutopay(10L, amount, "INR")).thenReturn(initial);
+    when(gateway.createRecurringAuthorization(
+        eq("UDS-AP-10-201"), eq(amount), eq("INR"),
+        eq(customer), anyString(), anyString()))
+        .thenReturn(new PaymentProviderGateway.RecurringAuthorization(
+            "UDS-AP-10-201", "order_123", "PENDING_AUTH", "cust_123"));
+    when(store.applySubscription(eq(201L), any())).thenReturn(persisted);
+
+    var result = service.prepareCompanyAutopay(10L, amount, "INR", customer);
+
+    assertEquals("order_123", result.subscriptionSessionId());
+    assertEquals("cust_123", result.customerId());
+    assertEquals("PENDING_AUTH", result.status());
+    verify(gateway, times(1)).createRecurringAuthorization(
+        anyString(), any(), anyString(), any(), anyString(), anyString());
+  }
+
+  @Test
+  void companyAutopayReusesPendingProviderOrderWithoutCreatingANewOne() {
+    RecurringAuthorizationStore store = mock(RecurringAuthorizationStore.class);
+    PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
+    RazorpayProperties properties = new RazorpayProperties();
+    properties.setRecurringEnabled(true);
+    RecurringAuthorizationService service =
+        new RecurringAuthorizationService(store, gateway, properties);
+    var pending = new RecurringAuthorizationStore.Prepared(
+        202L, 10L, null, null, "UDS-AP-10-202", "order_existing", "UDA-202", null,
+        "PENDING_AUTH", new BigDecimal("15000.00"), "INR", false, "cust_existing");
+    when(store.prepareCompanyAutopay(eq(10L), any(), eq("INR"))).thenReturn(pending);
+
+    var result = service.prepareCompanyAutopay(10L, null, "INR", null);
+
+    assertEquals("order_existing", result.subscriptionSessionId());
+    assertEquals("cust_existing", result.customerId());
+    verifyNoInteractions(gateway);
+  }
+
+  @Test
+  void companyAutopayRejectsIncompleteLocalReferenceInsteadOfReturningFakeOrder() {
+    RecurringAuthorizationStore store = mock(RecurringAuthorizationStore.class);
+    PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
+    RazorpayProperties properties = new RazorpayProperties();
+    properties.setRecurringEnabled(true);
+    RecurringAuthorizationService service =
+        new RecurringAuthorizationService(store, gateway, properties);
+    var corrupted = new RecurringAuthorizationStore.Prepared(
+        203L, 10L, null, null, "UDS-AP-10-203", "UDS-AP-10-203", "UDA-203", null,
+        "PENDING_AUTH", new BigDecimal("15000.00"), "INR", false, null);
+    when(store.prepareCompanyAutopay(eq(10L), any(), eq("INR"))).thenReturn(corrupted);
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        com.messaging.common.exception.ConflictException.class,
+        () -> service.prepareCompanyAutopay(10L, null, "INR", null));
+    verifyNoInteractions(gateway);
+  }
+
+  @Test
+  void unsignedMandateRefreshNeverTreatsLocalReferenceAsProviderToken() {
+    RecurringAuthorizationStore store = mock(RecurringAuthorizationStore.class);
+    PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
+    RecurringAuthorizationService service =
+        new RecurringAuthorizationService(store, gateway, new RazorpayProperties());
+    var pending = new RecurringAuthorizationStore.Prepared(
+        204L, 10L, null, null, "UDS-AP-10-204", "UDS-AP-10-204",
+        "UDA-204", null, "PENDING_AUTH", new BigDecimal("15000.00"), "INR",
+        false, null);
+    when(store.findCompanyAutopay(10L)).thenReturn(pending);
+
+    var result = service.verifyAndRefreshCompanyAutopay(10L);
+
+    assertEquals("PENDING_AUTH", result.status());
+    verifyNoInteractions(gateway);
+    verify(store, never()).applySubscription(anyLong(), any());
   }
 
   private RecurringAuthorizationStore.Prepared prepared(

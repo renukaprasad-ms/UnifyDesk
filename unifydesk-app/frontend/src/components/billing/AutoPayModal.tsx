@@ -55,11 +55,19 @@ export default function AutoPayModal({
       }
 
       const result = await billingApi.setupAutoPay(companyId, input)
+      if (result.status === 'ACTIVE') {
+        onSuccess(result)
+        onClose()
+        return
+      }
+      if (!result.keyId?.startsWith('rzp_')
+          || !result.subscriptionSessionId?.startsWith('order_')
+          || !result.customerId?.startsWith('cust_')) {
+        throw new Error('Razorpay has not returned a valid authorization order and customer')
+      }
       setMandateResult(result)
-      onSuccess(result)
 
-      if (result.keyId || result.subscriptionSessionId || result.actionUrl) {
-        try {
+      try {
           const mandateRes = await launchRazorpayMandateCheckout({
             key: result.keyId || '',
             subscriptionId: result.providerSubscriptionId || undefined,
@@ -77,9 +85,8 @@ export default function AutoPayModal({
             signature: mandateRes.razorpay_signature,
           })
         } catch (checkoutErr) {
-          showGlobalSnackbar(apiErrorMessage(checkoutErr, 'AutoPay authorization was not completed. You can try again.'), { variant: 'warning' })
+          setError(checkoutErr instanceof Error ? checkoutErr.message : 'Razorpay mandate checkout was not completed')
         }
-      }
     } catch (err) {
       setError(apiErrorMessage(err, 'Failed to prepare AutoPay mandate setup.'))
     } finally {
@@ -185,8 +192,8 @@ export default function AutoPayModal({
         <div className="mb-6 p-3.5 rounded-xl bg-indigo-950/40 border border-indigo-800/50 flex items-start gap-3">
           <FiShield className="size-5 text-indigo-400 shrink-0 mt-0.5" />
           <div className="text-xs leading-relaxed text-indigo-200">
-            <strong className="text-white block mb-0.5">RBI Compliant &amp; Bank-Grade Security</strong>
-            No card or bank details are stored on UnifyDesk servers. All recurring mandates are tokenized directly via Razorpay Payments with a 20-year span and authorization cap up to ₹15,000.
+            <strong className="text-white block mb-0.5">Razorpay Mandate Authorization</strong>
+            Razorpay handles payment authorization. The requested mandate validity is up to 3 years with a ₹15,000 maximum per debit, subject to bank and provider approval. A ₹1 authorization payment may be collected.
           </div>
         </div>
 
@@ -199,7 +206,7 @@ export default function AutoPayModal({
               <FiCheckCircle className="size-8 text-emerald-400 mx-auto mb-2" />
               <h3 className="font-bold text-white text-sm">Mandate Checkout Ready</h3>
               <p className="text-xs text-slate-400 mt-1">
-                Complete your recurring AutoPay authorization with Razorpay SDK popup (supports UPI AutoPay, NetBanking, and Cards up to ₹15,000).
+                Complete your optional UPI AutoPay mandate using the Razorpay checkout. Your bank may require additional confirmation.
               </p>
             </div>
 
@@ -287,11 +294,11 @@ export default function AutoPayModal({
               </div>
               <div className="flex justify-between">
                 <span>Mandate Validity:</span>
-                <span className="font-semibold text-slate-200">20 Years (Cancel anytime)</span>
+                <span className="font-semibold text-slate-200">Up to 3 years (subject to approval)</span>
               </div>
               <div className="flex justify-between">
                 <span>Supported Methods:</span>
-                <span className="font-semibold text-slate-200">UPI AutoPay / eNACH / Netbanking</span>
+                <span className="font-semibold text-slate-200">UPI AutoPay (subject to availability)</span>
               </div>
             </div>
 
@@ -320,4 +327,3 @@ export default function AutoPayModal({
     </div>
   )
 }
-import { showGlobalSnackbar } from '../feedback/SnackbarProvider'
