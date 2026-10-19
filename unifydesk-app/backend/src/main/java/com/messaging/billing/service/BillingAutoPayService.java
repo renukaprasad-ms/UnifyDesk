@@ -27,6 +27,11 @@ public class BillingAutoPayService {
 
   public AutoPayDetailsResponse setup(Long companyId, AutoPaySetupRequest request) {
     PaymentProviderGateway.Customer customer = resolveCustomer(companyId, request);
+    if (customer.email() == null || customer.email().isBlank()
+        || customer.phone() == null || !customer.phone().matches("[6-9][0-9]{9}")) {
+      throw new BadRequestException(
+          "A valid billing email and a real 10-digit Indian mobile number are required for AutoPay");
+    }
     BigDecimal maxAmount = request != null && request.maxAmount() != null
         ? request.maxAmount()
         : new BigDecimal("15000.00");
@@ -124,7 +129,7 @@ public class BillingAutoPayService {
         ? request.phone().trim()
         : (profile != null && profile.getBillingPhone() != null && !profile.getBillingPhone().isBlank()
             ? profile.getBillingPhone().trim()
-            : "9999999999");
+            : null);
 
     return new PaymentProviderGateway.Customer("company-" + companyId, name, email, phone);
   }
