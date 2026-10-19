@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiRefreshCw } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -44,7 +45,7 @@ export default function GoogleAppCampaignPanel({
   const [performance, setPerformance] =
     useState<GoogleAppCampaignPerformance | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const load = async () => {
     setLoading(true)
@@ -93,11 +94,7 @@ export default function GoogleAppCampaignPanel({
         </button>
       </div>
 
-      {error && (
-        <div className="mx-5 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+
 
       {settings && (
         <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import { platformApi } from '../../features/platform/platformApi'
 import type { ManagedProviderRoute } from '../../features/platform/types'
@@ -18,8 +19,8 @@ export default function PlatformManagedProviders() {
   const [reason, setReason] = useState<Record<string,string>>({})
   const [busy, setBusy] = useState('')
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   async function reload() {
     setLoading(true)
@@ -117,8 +118,8 @@ export default function PlatformManagedProviders() {
       <h1 className="mt-2 text-2xl font-bold text-slate-950">Managed providers</h1>
       <p className="mt-2 max-w-3xl text-sm text-slate-600">Choose the internal provider used for future UnifyDesk managed messages. Existing campaigns keep their original provider. Provider credentials remain backend-only.</p>
     </header>
-    {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-    {notice && <p role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
+
+
     {loading ? <CardSkeleton rows={5}/> : <div className="grid gap-5 lg:grid-cols-2">
       {routes.map((route) => <div key={route.channel} className="panel space-y-4 p-5">
         <div className="flex items-center justify-between gap-3">

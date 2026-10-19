@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiPlay, FiPlus, FiRefreshCw, FiPause } from 'react-icons/fi'
 import { Link, useSearchParams } from 'react-router'
@@ -63,8 +64,8 @@ export default function AdCampaigns() {
   const [googleCreateType, setGoogleCreateType] = useState<
     'SEARCH' | 'PERFORMANCE_MAX' | 'ADVANCED' | 'APP'
   >('SEARCH')
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [notice, setNotice] = useSnackbarState('', 'success')
 
   const managedAccounts = useMemo(
     () => accounts.filter((account) => account.managed && account.accessible),

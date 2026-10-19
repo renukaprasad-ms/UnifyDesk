@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiX } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -51,7 +52,7 @@ export default function GoogleAdvancedCampaignModal({
   const [merchantId, setMerchantId] = useState('')
   const [merchantAccounts, setMerchantAccounts] = useState<GoogleMerchantAccount[]>([])
   const [loadingMerchants, setLoadingMerchants] = useState(false)
-  const [merchantError, setMerchantError] = useState('')
+  const [merchantError, setMerchantError] = useSnackbarState('', 'error')
   const [campaignPriority, setCampaignPriority] = useState('0')
   const [enableLocal, setEnableLocal] = useState(false)
   const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] = useState<

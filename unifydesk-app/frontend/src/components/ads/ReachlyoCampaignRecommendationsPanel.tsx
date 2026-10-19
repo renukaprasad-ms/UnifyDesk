@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiAlertTriangle, FiArrowRight, FiInfo, FiRefreshCw, FiTrendingUp } from 'react-icons/fi'
 import { Link } from 'react-router'
@@ -41,7 +42,7 @@ const severityIcon = (severity: AdRecommendationSeverity) => {
 export default function ReachlyoCampaignRecommendationsPanel({ companyId, campaignId }: Props) {
   const [data, setData] = useState<ReachlyoCampaignRecommendations | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [filter, setFilter] = useState<'ALL' | AdRecommendationSeverity>('ALL')
 
   const load = async () => {
@@ -86,11 +87,7 @@ export default function ReachlyoCampaignRecommendationsPanel({ companyId, campai
         </button>
       </div>
 
-      {error && (
-        <div className="border-b border-red-100 bg-red-50 px-5 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+
 
       {data && (
         <div className="border-b border-slate-100 px-5 py-4">

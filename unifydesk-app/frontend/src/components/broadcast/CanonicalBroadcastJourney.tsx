@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import {
@@ -244,7 +245,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   const savedDraft = useRef<{ key: string; id: string } | null>(null)
   const [launchConfirmOpen, setLaunchConfirmOpen] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
 
   const selector = useMemo(
     () => buildAudienceSelector(sourceType, sourceId, contactIds),
@@ -754,14 +755,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
             </span>
           </div>
 
-          {error && (
-            <div
-              role="alert"
-              className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
-            >
-              {error}
-            </div>
-          )}
+
 
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
             <div>

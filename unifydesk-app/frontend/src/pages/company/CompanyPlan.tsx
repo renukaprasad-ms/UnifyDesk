@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import PhoneInput from '../../components/ui/PhoneInput'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FiAlertTriangle, FiCreditCard, FiRefreshCw } from 'react-icons/fi'
@@ -53,8 +54,8 @@ export default function CompanyPlan() {
   const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [draft, setDraft] = useState<ChangeDraft | null>(null)
   const [quote, setQuote] = useState<SubscriptionChange | null>(null)
   const [checkout, setCheckout] = useState<CheckoutResponse | null>(null)
@@ -290,7 +291,7 @@ export default function CompanyPlan() {
           <div><p className="eyebrow">Company</p><h1 className="mt-2 text-2xl font-bold">Billing</h1><p className="mt-1 text-sm text-slate-500">Manage the platform subscription. Managed Services usage is billed separately.</p></div>
           <button className="secondary-button" disabled={refreshing} onClick={() => void load(true)}><FiRefreshCw className={refreshing ? 'animate-spin' : ''} /> Refresh</button>
         </header>
-        {(error || notice) && <div className={`mt-5 rounded-xl border p-4 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{error || notice}</div>}
+
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_340px]">
           <article className="panel p-5">

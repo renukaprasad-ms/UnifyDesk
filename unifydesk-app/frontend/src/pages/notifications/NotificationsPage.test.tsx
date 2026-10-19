@@ -1,3 +1,4 @@
+import { SnackbarProvider } from '../../components/feedback/SnackbarProviderComponent'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -55,9 +56,9 @@ describe('NotificationsPage', () => {
       })
 
     render(
-      <MemoryRouter>
+      <SnackbarProvider>{<MemoryRouter>
         <NotificationsPage />
-      </MemoryRouter>,
+      </MemoryRouter>}</SnackbarProvider>,
     )
 
     await screen.findByText('3 new emails')
@@ -83,9 +84,9 @@ describe('NotificationsPage', () => {
     })
 
     render(
-      <MemoryRouter>
+      <SnackbarProvider>{<MemoryRouter>
         <NotificationsPage />
-      </MemoryRouter>,
+      </MemoryRouter>}</SnackbarProvider>,
     )
 
     await screen.findByText('3 new emails')

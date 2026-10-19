@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiBarChart2, FiRefreshCw } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -47,8 +48,8 @@ export default function ReachlyoCampaignAnalyticsPanel({
   const [analytics, setAnalytics] = useState<ReachlyoCampaignAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [syncFailures, setSyncFailures] = useState<
     Array<{ provider: string; adAccountId: string; message: string }>
   >([])
@@ -188,16 +189,8 @@ export default function ReachlyoCampaignAnalyticsPanel({
         </div>
       </div>
 
-      {error && (
-        <div className="border-b border-red-100 bg-red-50 px-5 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-      {notice && (
-        <div className="border-b border-amber-100 bg-amber-50 px-5 py-3 text-sm text-amber-800">
-          {notice}
-        </div>
-      )}
+
+
 
       {syncFailures.length > 0 && (
         <div className="border-b border-amber-100 bg-amber-50 px-5 py-3">

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import PhoneInput from '../../components/ui/PhoneInput'
 import CountrySelect from '../../components/ui/CountrySelect'
 import StateSelect from '../../components/ui/StateSelect'
@@ -17,9 +18,9 @@ export default function PublicLeadFormPage() {
   const [form, setForm] = useState<PublicForm | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const [submitted, setSubmitted] = useState(false)
-  const [successMsg, setSuccessMsg] = useState('')
+  const [successMsg, setSuccessMsg] = useSnackbarState('', 'success')
   const [formData, setFormData] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -153,12 +154,7 @@ export default function PublicLeadFormPage() {
             )}
           </div>
 
-          {error && (
-            <div className="mb-6 flex items-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 p-3.5 text-sm text-rose-700 dark:text-rose-300">
-              <FiAlertCircle className="size-5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {form?.fields?.map((field: FormFieldConfig) => (

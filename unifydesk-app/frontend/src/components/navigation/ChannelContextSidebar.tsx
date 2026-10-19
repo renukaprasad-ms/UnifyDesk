@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   FiCheck,
@@ -161,7 +162,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const [broadcastSearch, setBroadcastSearch] = useState('')
   const [localLoading, setLocalLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useSnackbarState<string | null>(null, 'error')
   const [conversationSearch, setConversationSearch] = useState('')
   const [searchConversations, setSearchConversations] = useState<InboxConversation[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
@@ -169,7 +170,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const [searchPage, setSearchPage] = useState(0)
   const [searchTotalPages, setSearchTotalPages] = useState(0)
   const [searchTotalElements, setSearchTotalElements] = useState(0)
-  const [searchError, setSearchError] = useState<string | null>(null)
+  const [searchError, setSearchError] = useSnackbarState<string | null>(null, 'error')
 
   const search = useMemo(() => new URLSearchParams(location.search), [location.search])
   const selectedConnectionId = search.get('connectionId')

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { FiX } from 'react-icons/fi'
+import { showGlobalSnackbar } from '../feedback/SnackbarProvider'
 
 export default function WorkspaceDialog({
   title,
@@ -18,6 +19,9 @@ export default function WorkspaceDialog({
   wide?: boolean
 }) {
   const titleId = useId()
+  useEffect(() => {
+    if (error) showGlobalSnackbar(error, { variant: 'error' })
+  }, [error])
   const panel = useRef<HTMLDivElement>(null)
   const close = useRef(onClose)
   const saving = useRef(busy)
@@ -106,11 +110,6 @@ export default function WorkspaceDialog({
           </button>
         </header>
         <div className="overflow-y-auto p-5">
-          {error && (
-            <p role="alert" className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">
-              {error}
-            </p>
-          )}
           {children}
         </div>
       </div>

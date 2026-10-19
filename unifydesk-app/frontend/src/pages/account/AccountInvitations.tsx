@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiCheckCircle, FiClock, FiMail, FiRefreshCw } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
@@ -22,7 +23,7 @@ export default function AccountInvitations() {
   const [invitations, setInvitations] = useState<CompanyInvitation[]>([])
   const [loading, setLoading] = useState(true)
   const [workingId, setWorkingId] = useState<string | null>(null)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const load = async () => {
     setLoading(true)
@@ -136,11 +137,7 @@ export default function AccountInvitations() {
           </button>
         </header>
 
-        {error && (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
+
 
         <div className="panel mt-7 overflow-hidden">
           <div className="border-b border-slate-100 px-5 py-4">

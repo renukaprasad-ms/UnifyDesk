@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FiEdit2, FiPlus, FiRefreshCw, FiSearch, FiShield, FiTrash2, FiX } from 'react-icons/fi'
 import { iamApi } from '../../features/iam/iamApi'
@@ -89,7 +90,7 @@ export default function CompanyRoles() {
   const [saving, setSaving] = useState(false)
   const [draft, setDraft] = useState<RoleDraft | null>(null)
   const [permissionSearch, setPermissionSearch] = useState('')
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [roleToDelete, setRoleToDelete] = useState<CompanyRole | null>(null)
 
   const groupedPermissions = useMemo(() => {
@@ -287,11 +288,7 @@ export default function CompanyRoles() {
           </div>
         )}
 
-        {error && (
-          <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        )}
+
 
         <div className="panel mt-5 overflow-hidden">
           <div className="border-b border-slate-100 px-5 py-4">

@@ -1,14 +1,6 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useRef, useState } from 'react'
-import {
-  FiFileText,
-  FiFile,
-  FiImage,
-  FiUploadCloud,
-  FiDownload,
-  FiTrash2,
-  FiPaperclip,
-  FiAlertCircle,
-} from 'react-icons/fi'
+import { FiFileText, FiFile, FiImage, FiUploadCloud, FiDownload, FiTrash2, FiPaperclip } from 'react-icons/fi'
 import {
   crmSalesApi,
   type DealAttachment,
@@ -79,7 +71,7 @@ export default function DealAttachmentsSection({
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadingName, setUploadingName] = useState('')
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [isDragOver, setIsDragOver] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
@@ -229,12 +221,7 @@ export default function DealAttachmentsSection({
         }}
       />
 
-      {error && (
-        <div className="flex items-center gap-2 rounded-lg bg-rose-50 dark:bg-rose-950/40 p-2.5 text-xs text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900">
-          <FiAlertCircle className="size-4 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
+
 
       {/* Upload Dropzone */}
       {canEdit && (

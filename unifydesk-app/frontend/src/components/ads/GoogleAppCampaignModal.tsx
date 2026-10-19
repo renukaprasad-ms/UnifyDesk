@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import {
   useEffect,
   useMemo,
@@ -153,7 +154,7 @@ export default function GoogleAppCampaignModal({
   >('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [loadError, setLoadError] = useState('')
+  const [loadError, setLoadError] = useSnackbarState('', 'error')
 
   const appConversions = useMemo(
     () =>

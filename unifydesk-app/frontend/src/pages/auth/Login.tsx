@@ -1,5 +1,7 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { Link, useLocation, useNavigate } from 'react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'
 import { FiUser } from 'react-icons/fi'
 import { authApi } from '../../features/auth/authApi'
 import { resolvePostAuthRedirect } from '../../features/company/invitationContinuation'
@@ -15,7 +17,7 @@ const Login = () => {
   const location = useLocation()
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const [preAuthToken, setPreAuthToken] = useState<string | null>(null)
   const [otp, setOtp] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -31,6 +33,16 @@ const Login = () => {
   const securityUpdated = Boolean(routeState?.securityUpdated)
   const emailChanged = Boolean(routeState?.emailChanged)
   const redirectTo = resolvePostAuthRedirect(routeState?.redirectTo)
+  useEffect(() => {
+    const message = passwordReset
+      ? 'Password reset successfully. Sign in with your new password.'
+      : passwordChanged
+        ? 'Password changed successfully. Sign in again with your new password.'
+        : emailChanged
+          ? 'Email changed successfully. Sign in again with your new email address.'
+          : securityUpdated ? 'Security settings updated. Sign in again to continue.' : ''
+    if (message) showGlobalSnackbar(message, { variant: 'success' })
+  }, [passwordReset, passwordChanged, emailChanged, securityUpdated])
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -104,9 +116,7 @@ const Login = () => {
               error={Boolean(error)}
             />
           </div>
-          {error && (
-            <p className="rounded-lg bg-rose-50 p-3 text-center text-sm text-rose-600">{error}</p>
-          )}
+
           <button
             type="submit"
             className="primary-button flex w-full justify-center"
@@ -139,17 +149,6 @@ const Login = () => {
         Sign in to continue to your messaging workspace.
       </p>
 
-      {(passwordReset || passwordChanged || securityUpdated || emailChanged) && (
-        <p className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
-          {passwordReset
-            ? 'Password reset successfully. Sign in with your new password.'
-            : passwordChanged
-              ? 'Password changed successfully. Sign in again with your new password.'
-              : emailChanged
-                ? 'Email changed successfully. Sign in again with your new email address.'
-                : 'Security settings updated. Sign in again to continue.'}
-        </p>
-      )}
 
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         <label className="block">
@@ -190,7 +189,7 @@ const Login = () => {
             showLeftIcon
           />
         </label>
-        {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
+
         <button
           type="submit"
           className="primary-button flex w-full justify-center"

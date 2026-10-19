@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { FiPlus, FiTrash2, FiUpload, FiX } from 'react-icons/fi'
 import type {
@@ -64,7 +65,7 @@ export default function GoogleDemandGenCreativeModal({
   const [tallPortraitImage, setTallPortraitImage] = useState('')
   const [logoImage, setLogoImage] = useState('')
   const [cards, setCards] = useState<CardState[]>([newCard(), newCard()])
-  const [imageError, setImageError] = useState('')
+  const [, setImageError] = useSnackbarState('', 'error')
 
   const canSubmit = useMemo(() => {
     if (!name.trim() || !finalUrl.trim() || !businessName.trim() || !logoImage) {
@@ -513,7 +514,7 @@ export default function GoogleDemandGenCreativeModal({
             </>
           )}
 
-          {imageError && <p className="text-xs font-semibold text-red-600">{imageError}</p>}
+
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
             <button type="button" className="secondary-button" disabled={saving} onClick={onClose}>

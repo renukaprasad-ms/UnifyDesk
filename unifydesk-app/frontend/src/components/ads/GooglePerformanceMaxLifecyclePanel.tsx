@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiRefreshCw, FiSave, FiTrash2 } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -96,8 +97,8 @@ export default function GooglePerformanceMaxLifecyclePanel({
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState('')
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const googleAudiences = useMemo(
     () => audiences.filter((audience) => audience.accessible),
@@ -289,17 +290,7 @@ export default function GooglePerformanceMaxLifecyclePanel({
       </div>
 
       <div className="p-5">
-        {(error || notice) && (
-          <div
-            className={`mb-4 rounded-xl border px-4 py-3 text-sm font-medium ${
-              error
-                ? 'border-red-200 bg-red-50 text-red-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            }`}
-          >
-            {error || notice}
-          </div>
-        )}
+
 
         {loading ? (
           <CardSkeleton rows={5} />

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useState } from 'react'
 import { FiArrowLeft, FiMail } from 'react-icons/fi'
 import { Link, useNavigate } from 'react-router'
@@ -11,7 +12,7 @@ export default function ForgotPassword() {
   const [challengeId, setChallengeId] = useState<string | null>(null)
   const [otp, setOtp] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
 
   const requestReset = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -68,7 +69,7 @@ export default function ForgotPassword() {
             />
           </div>
 
-          {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
+
 
           <button
             type="submit"
@@ -133,7 +134,7 @@ export default function ForgotPassword() {
           />
         </label>
 
-        {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
+
 
         <button type="submit" className="primary-button flex w-full" disabled={submitting}>
           {submitting ? 'Sending code...' : 'Send reset code'}

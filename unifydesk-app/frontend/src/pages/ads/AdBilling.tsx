@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
 import {
@@ -93,8 +94,8 @@ export default function AdBilling() {
   const [syncing, setSyncing] = useState(false)
   const [savingCap, setSavingCap] = useState(false)
   const [capModalOpen, setCapModalOpen] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [notice, setNotice] = useSnackbarState('', 'success')
 
   const managedAccounts = useMemo(
     () => accounts.filter((account) => account.managed && account.accessible),

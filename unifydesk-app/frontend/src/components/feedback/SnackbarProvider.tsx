@@ -25,20 +25,16 @@ export type ExternalSnackbarRequest = {
   options?: SnackbarOptions
 }
 
-export const externalSnackbarListeners = new Set<
-  (request: ExternalSnackbarRequest) => void
->()
+export const externalSnackbarListeners = new Set<(request: ExternalSnackbarRequest) => void>()
 export const pendingExternalSnackbars: ExternalSnackbarRequest[] = []
 
-export const showGlobalSnackbar = (
-  message: string,
-  options?: SnackbarOptions,
-) => {
+export const showGlobalSnackbar = (message: string, options?: SnackbarOptions) => {
   const normalized = message.trim()
   if (!normalized) return
 
   const request = { message: normalized, options }
   if (externalSnackbarListeners.size === 0) {
+    if (pendingExternalSnackbars.some((item) => item.message === normalized)) return
     pendingExternalSnackbars.push(request)
     if (pendingExternalSnackbars.length > 3) {
       pendingExternalSnackbars.splice(0, pendingExternalSnackbars.length - 3)

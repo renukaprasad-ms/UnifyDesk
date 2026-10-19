@@ -1,3 +1,4 @@
+import { SnackbarProvider } from '../feedback/SnackbarProviderComponent'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ManagedEmailApi } from '../../features/managedEmail/managedEmailApi'
@@ -108,7 +109,7 @@ describe('ManagedEmailModal', () => {
         .fn()
         .mockResolvedValue(domain({ status: 'PROVISIONING', dnsRecords: [] })),
     })
-    render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
+    render(<SnackbarProvider>{<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />}</SnackbarProvider>)
 
     await clickEnabled(/I have my own domain/i)
     fireEvent.change(screen.getByLabelText(/Business domain/i), {
@@ -127,7 +128,7 @@ describe('ManagedEmailModal', () => {
 
   it('rejects URLs and email addresses as domain input', async () => {
     const api = client()
-    render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
+    render(<SnackbarProvider>{<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />}</SnackbarProvider>)
 
     await clickEnabled(/I have my own domain/i)
     fireEvent.change(screen.getByLabelText(/Business domain/i), {
@@ -165,7 +166,7 @@ describe('ManagedEmailModal', () => {
       ],
     })
     const api = client({ createCustomerDomain: vi.fn().mockResolvedValue(pending) })
-    render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
+    render(<SnackbarProvider>{<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />}</SnackbarProvider>)
 
     await clickEnabled(/I have my own domain/i)
     fireEvent.change(screen.getByLabelText(/Business domain/i), {
@@ -192,7 +193,7 @@ describe('ManagedEmailModal', () => {
       createCustomerDomain: vi.fn().mockResolvedValue(domain()),
       refreshDomain: vi.fn().mockResolvedValue(refreshed),
     })
-    render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
+    render(<SnackbarProvider>{<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />}</SnackbarProvider>)
 
     await clickEnabled(/I have my own domain/i)
     fireEvent.change(screen.getByLabelText(/Business domain/i), {
@@ -215,7 +216,7 @@ describe('ManagedEmailModal', () => {
       dnsRecords: [],
     })
     const api = client({ createHostedDomain: vi.fn().mockResolvedValue(hosted) })
-    render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
+    render(<SnackbarProvider>{<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />}</SnackbarProvider>)
 
     await clickEnabled(/Use an UnifyDesk domain/i)
 
@@ -238,12 +239,12 @@ describe('ManagedEmailModal', () => {
       createSender,
     })
     render(
-      <ManagedEmailModal
+      <SnackbarProvider>{<ManagedEmailModal
         companyId="company-1"
         initialDomainId="domain-1"
         client={api}
         onClose={vi.fn()}
-      />,
+      />}</SnackbarProvider>,
     )
 
     expect(await screen.findByText(/Domain active/i)).toBeTruthy()
@@ -279,12 +280,12 @@ describe('ManagedEmailModal', () => {
       domain: vi.fn().mockResolvedValue(domain({ status: 'SUSPENDED_POLICY' })),
     })
     render(
-      <ManagedEmailModal
+      <SnackbarProvider>{<ManagedEmailModal
         companyId="company-1"
         initialDomainId="domain-1"
         client={api}
         onClose={vi.fn()}
-      />,
+      />}</SnackbarProvider>,
     )
 
     expect(await screen.findByText('Sending suspended')).toBeTruthy()
@@ -300,12 +301,12 @@ describe('ManagedEmailModal', () => {
     })
 
     render(
-      <ManagedEmailModal
+      <SnackbarProvider>{<ManagedEmailModal
         companyId="company-1"
         initialDomainId="domain-1"
         client={api}
         onClose={vi.fn()}
-      />,
+      />}</SnackbarProvider>,
     )
 
     expect(await screen.findByText('offers@example.com')).toBeTruthy()
@@ -325,12 +326,12 @@ describe('ManagedEmailModal', () => {
     const domainRequest = vi.fn().mockResolvedValue(domain())
     const api = client({ domain: domainRequest })
     const view = render(
-      <ManagedEmailModal
+      <SnackbarProvider>{<ManagedEmailModal
         companyId="company-1"
         initialDomainId="domain-1"
         client={api}
         onClose={vi.fn()}
-      />,
+      />}</SnackbarProvider>,
     )
 
     await act(async () => {
@@ -348,7 +349,7 @@ describe('ManagedEmailModal', () => {
 
   it('uses the existing responsive modal and sheet patterns', () => {
     const api = client()
-    render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
+    render(<SnackbarProvider>{<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />}</SnackbarProvider>)
     const dialog = screen.getByRole('dialog')
     expect(dialog.className).toContain('mobile-modal-shell')
     expect(dialog.querySelector('.mobile-sheet')).toBeTruthy()

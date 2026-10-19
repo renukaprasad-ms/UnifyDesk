@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import {
   FiAlertTriangle,
@@ -76,8 +77,8 @@ export default function PlatformBilling() {
   const [assignments, setAssignments] = useState<PlanAssignment[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [superAdmin, setSuperAdmin] = useState<boolean | null>(null)
   const [grantPlanId, setGrantPlanId] = useState('')
   const [grantPlanPriceId, setGrantPlanPriceId] = useState('')
@@ -289,11 +290,7 @@ export default function PlatformBilling() {
           ))}
         </nav>
 
-        {(error || notice) && (
-          <div className={`mt-5 rounded-xl border p-4 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
-            {error || notice}
-          </div>
-        )}
+
 
         {activeTab === 'overview' && <>
           <BillingChannelTrafficOverview companyNames={Object.fromEntries(companies.map((company) => [company.companyId, company.name]))} />

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { FiUpload, FiX } from 'react-icons/fi'
 import type {
@@ -43,7 +44,7 @@ export default function GoogleVisualAdModal({
   const [squareImage, setSquareImage] = useState('')
   const [logoImage, setLogoImage] = useState('')
   const [youtubeVideoId, setYoutubeVideoId] = useState('')
-  const [imageError, setImageError] = useState('')
+  const [, setImageError] = useSnackbarState('', 'error')
 
   const canSubmit = useMemo(
     () =>
@@ -280,7 +281,7 @@ export default function GoogleVisualAdModal({
             </div>
           )}
 
-          {imageError && <p className="text-xs font-semibold text-red-600">{imageError}</p>}
+
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
             <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>

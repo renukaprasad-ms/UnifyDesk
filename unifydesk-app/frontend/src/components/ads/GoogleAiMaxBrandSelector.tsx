@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useState } from 'react'
 import { FiPlus, FiSearch, FiX } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -19,7 +20,7 @@ export default function GoogleAiMaxBrandSelector(props: Props) {
   const [mode, setMode] = useState<'INCLUDE' | 'EXCLUDE'>('INCLUDE')
   const [suggestions, setSuggestions] = useState<GoogleBrandSuggestion[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const selectedIds = [...props.inclusions, ...props.exclusions].map((item) => item.id)
 
@@ -112,7 +113,7 @@ export default function GoogleAiMaxBrandSelector(props: Props) {
         </button>
       </div>
 
-      {error && <p className="mt-2 text-xs font-medium text-red-600">{error}</p>}
+
 
       {suggestions.length > 0 && (
         <div className="mt-3 grid gap-2 rounded-xl border border-slate-100 bg-slate-50 p-2">

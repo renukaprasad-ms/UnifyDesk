@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import {
   FiTarget,
@@ -27,7 +28,7 @@ export default function CrmAttributionView({ companyId, currency = 'INR' }: CrmA
   const [period, setPeriod] = useState<string>('all_time')
   const [report, setReport] = useState<AttributionReport | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string>('')
+  const [error, setError] = useSnackbarState<string>('', 'error')
   const [refreshKey, setRefreshKey] = useState<number>(0)
   const [activeDrilldownTab, setActiveDrilldownTab] = useState<'all' | 'broadcasts' | 'ads' | 'forms'>('all')
 

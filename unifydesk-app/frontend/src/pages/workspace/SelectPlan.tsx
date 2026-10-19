@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import StateSelect from '../../components/ui/StateSelect'
 import CountrySelect from '../../components/ui/CountrySelect'
 import PhoneInput from '../../components/ui/PhoneInput'
@@ -118,7 +119,7 @@ export default function SelectPlan() {
     country: 'India',
   })
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [verificationResult, setVerificationResult] = useState<RazorpayPaymentSuccess | null>(null)
   const [verificationOpen, setVerificationOpen] = useState(false)
 
@@ -266,7 +267,7 @@ export default function SelectPlan() {
         await billingApi.updateBillingProfile(companyId, profileToSave)
         setBillingProfile(profileToSave)
       } catch (profError) {
-        console.warn('Could not save billing profile before checkout', profError)
+        showGlobalSnackbar(apiErrorMessage(profError, 'Could not save your billing profile. Checkout will continue with the details you entered.'), { variant: 'warning' })
       }
 
       const prepared = await billingApi.upgradeCheckout(companyId, {
@@ -402,11 +403,7 @@ export default function SelectPlan() {
           </div>
         )}
 
-        {error && (
-          <div className="mt-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm font-semibold text-rose-400">
-            {error}
-          </div>
-        )}
+
 
         {!loading && availablePlans.length === 0 && (
           <div className="mt-8 rounded-2xl bg-slate-900/30 border border-slate-800/60 p-8 text-center text-sm text-slate-400">
@@ -793,3 +790,4 @@ export default function SelectPlan() {
     </div>
   )
 }
+import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'

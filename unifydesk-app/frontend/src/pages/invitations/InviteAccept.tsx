@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import { FiCheckCircle, FiMail, FiShield } from 'react-icons/fi'
 import { Link, useNavigate, useParams } from 'react-router'
@@ -19,7 +20,7 @@ export default function InviteAccept() {
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const user = useAppSelector(selectAuthUser)
   const [accepting, setAccepting] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const redirectTo = token ? `/invite/${token}` : '/'
 
@@ -105,7 +106,7 @@ export default function InviteAccept() {
               accepted if it was sent to this email.
             </p>
           </div>
-          {error && <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
+
           <button
             type="button"
             className="primary-button mt-5 flex w-full"

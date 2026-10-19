@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiActivity, FiRefreshCw, FiSliders, FiUsers } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -65,8 +66,8 @@ export default function AdOptimizationWorkspace({
     useState<ReachlyoBudgetRecommendation | null>(null)
   const [funnel, setFunnel] = useState<ReachlyoFunnelAttribution | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [policyToApprove, setPolicyToApprove] = useState<AdOptimizationPolicy | null>(null)
 
   const [policyName, setPolicyName] = useState('')
@@ -328,16 +329,8 @@ export default function AdOptimizationWorkspace({
         </button>
       </div>
 
-      {error && (
-        <div className="m-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-      {notice && (
-        <div className="m-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {notice}
-        </div>
-      )}
+
+
 
       <div className="grid gap-6 p-5 xl:grid-cols-2">
         <div className="rounded-2xl border border-slate-100 p-4">

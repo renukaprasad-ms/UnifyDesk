@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import PhoneInput from '../ui/PhoneInput'
 import { useState, type FormEvent } from 'react'
 import { FiPlus, FiTrash2 } from 'react-icons/fi'
@@ -90,7 +91,7 @@ export default function GoogleAdvancedAssetForm({ companyId, accountId, onCreate
   const [type, setType] = useState<AdvancedType>('CALL')
   const [name, setName] = useState('')
   const [working, setWorking] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const [callCountry, setCallCountry] = useState('IN')
   const [phone, setPhone] = useState('')
@@ -244,11 +245,7 @@ export default function GoogleAdvancedAssetForm({ companyId, accountId, onCreate
         </p>
       </div>
 
-      {error && (
-        <div className="mt-3 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-          {error}
-        </div>
-      )}
+
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-xs font-semibold text-slate-700">

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiSearch } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -38,7 +39,7 @@ export default function GoogleSearchInterestSelector({
   const [query, setQuery] = useState('')
   const [catalog, setCatalog] = useState<GoogleSearchInterestCatalog | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   useEffect(() => {
     if (!accountId) {
@@ -122,11 +123,7 @@ export default function GoogleSearchInterestSelector({
         </p>
       )}
 
-      {error && (
-        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </p>
-      )}
+
 
       {catalog?.customSegmentsNote && (
         <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-5 text-slate-600">

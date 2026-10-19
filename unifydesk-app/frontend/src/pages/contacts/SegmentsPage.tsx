@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
@@ -21,7 +22,7 @@ export default function SegmentsPage() {
   const { can } = useIam()
   const [items, setItems] = useState<SegmentDefinition[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   useEffect(() => {
     if (!companyId) {
@@ -68,14 +69,7 @@ export default function SegmentsPage() {
           )}
         </header>
 
-        {error && (
-          <div
-            role="alert"
-            className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
-          >
-            {error}
-          </div>
-        )}
+
 
         {loading ? (
           <div className="mt-6">

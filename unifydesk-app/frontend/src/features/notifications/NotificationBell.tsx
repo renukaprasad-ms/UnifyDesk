@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useRef, useState } from 'react'
 import { FiBell, FiCheckCircle, FiMail, FiUsers } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
@@ -36,7 +37,7 @@ export default function NotificationBell({ notificationPath = '/notifications' }
     refresh,
   } = useNotifications()
   const [open, setOpen] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const rootRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
@@ -200,7 +201,7 @@ export default function NotificationBell({ notificationPath = '/notifications' }
             )}
           </div>
 
-          {error && <p className="notification-inline-error">{error}</p>}
+
           <div className="notification-popover-list" aria-live="polite">
             {loadingRecent && <p className="notification-state">Loading notifications…</p>}
             {!loadingRecent && recent.length === 0 && (

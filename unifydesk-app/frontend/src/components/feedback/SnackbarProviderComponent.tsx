@@ -1,17 +1,6 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react'
-import {
-  FiAlertCircle,
-  FiCheckCircle,
-  FiInfo,
-  FiX,
-} from 'react-icons/fi'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { FiAlertCircle, FiCheckCircle, FiInfo, FiX } from 'react-icons/fi'
 import {
   SnackbarContext,
   externalSnackbarListeners,
@@ -94,12 +83,8 @@ function SnackbarCard({
       </span>
 
       <div className="min-w-0 flex-1 pt-0.5">
-        <p className={`text-xs font-bold ${visual.title}`}>
-          {item.title ?? visual.defaultTitle}
-        </p>
-        <p className="mt-1 break-words text-xs leading-5 text-slate-600">
-          {item.message}
-        </p>
+        <p className={`text-xs font-bold ${visual.title}`}>{item.title ?? visual.defaultTitle}</p>
+        <p className="mt-1 break-words text-xs leading-5 text-slate-600">{item.message}</p>
       </div>
 
       <button
@@ -116,6 +101,7 @@ function SnackbarCard({
 
 export function SnackbarProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<SnackbarItem[]>([])
+  const activeItems = useRef<SnackbarItem[]>([])
   const nextId = useRef(1)
   const timers = useRef(new Map<number, number>())
 
@@ -125,13 +111,16 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
       window.clearTimeout(timer)
       timers.current.delete(id)
     }
-    setItems((current) => current.filter((item) => item.id !== id))
+    activeItems.current = activeItems.current.filter((item) => item.id !== id)
+    setItems(activeItems.current)
   }, [])
 
   const show = useCallback(
     (message: string, options?: Parameters<SnackbarApi['show']>[1]) => {
       const normalized = message.trim()
       if (!normalized) return -1
+      const existing = activeItems.current.find((item) => item.message === normalized)
+      if (existing) return existing.id
 
       const variant = options?.variant ?? 'info'
       const id = nextId.current++
@@ -144,20 +133,17 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
         duration,
       }
 
-      setItems((current) => {
-        const next = [...current, item]
-        if (next.length <= 3) return next
-
-        const removed = next.slice(0, next.length - 3)
-        removed.forEach((removedItem) => {
-          const timer = timers.current.get(removedItem.id)
-          if (timer !== undefined) {
-            window.clearTimeout(timer)
-            timers.current.delete(removedItem.id)
-          }
-        })
-        return next.slice(-3)
+      const next = [...activeItems.current, item]
+      const removed = next.slice(0, Math.max(0, next.length - 3))
+      removed.forEach((removedItem) => {
+        const timer = timers.current.get(removedItem.id)
+        if (timer !== undefined) {
+          window.clearTimeout(timer)
+          timers.current.delete(removedItem.id)
+        }
       })
+      activeItems.current = next.slice(-3)
+      setItems(activeItems.current)
 
       if (duration > 0) {
         const timer = window.setTimeout(() => dismiss(id), duration)
@@ -171,6 +157,7 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
   const clear = useCallback(() => {
     timers.current.forEach((timer) => window.clearTimeout(timer))
     timers.current.clear()
+    activeItems.current = []
     setItems([])
   }, [])
 
@@ -185,13 +172,20 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
     }
   }, [show])
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    activeItems.current.forEach((item) => {
+      if (item.duration > 0 && !timers.current.has(item.id)) {
+        timers.current.set(
+          item.id,
+          window.setTimeout(() => dismiss(item.id), item.duration),
+        )
+      }
+    })
+    return () => {
       timers.current.forEach((timer) => window.clearTimeout(timer))
       timers.current.clear()
-    },
-    [],
-  )
+    }
+  }, [dismiss])
 
   const api = useMemo<SnackbarApi>(
     () => ({
@@ -209,14 +203,17 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
   return (
     <SnackbarContext.Provider value={api}>
       {children}
-      <div
-        className="pointer-events-none fixed inset-x-3 top-3 z-[100] flex flex-col items-end gap-2 sm:inset-x-auto sm:right-5 sm:top-5"
-        aria-label="Notifications"
-      >
-        {items.map((item) => (
-          <SnackbarCard key={item.id} item={item} onDismiss={dismiss} />
-        ))}
-      </div>
+      {createPortal(
+        <div
+          className="pointer-events-none fixed inset-x-3 top-3 z-[200] flex flex-col items-end gap-2 sm:inset-x-auto sm:right-5 sm:top-5"
+          aria-label="Notifications"
+        >
+          {items.map((item) => (
+            <SnackbarCard key={item.id} item={item} onDismiss={dismiss} />
+          ))}
+        </div>,
+        document.body,
+      )}
     </SnackbarContext.Provider>
   )
 }

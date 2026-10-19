@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useMemo, useState } from 'react'
 import { FiCheck, FiChevronDown, FiRefreshCw, FiSearch, FiTrendingUp } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -51,7 +52,7 @@ export default function GoogleKeywordPlannerPanel(props: Props) {
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [mode, setMode] = useState<'IDEAS' | 'HISTORICAL'>('IDEAS')
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const filteredRows = useMemo(() => {
     const query = filter.trim().toLowerCase()
@@ -307,11 +308,7 @@ export default function GoogleKeywordPlannerPanel(props: Props) {
         </span>
       </div>
 
-      {error && (
-        <div className="border-t border-red-100 bg-red-50 px-4 py-3 text-xs font-medium text-red-700">
-          {error}
-        </div>
-      )}
+
 
       {report && (
         <div className="border-t border-indigo-100 bg-white">

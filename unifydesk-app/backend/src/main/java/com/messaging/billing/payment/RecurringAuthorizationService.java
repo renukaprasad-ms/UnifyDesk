@@ -182,7 +182,10 @@ public class RecurringAuthorizationService {
 
   private PaymentProviderGateway.RecurringAuthorization createOrRecoverSubscription(
       RecurringAuthorizationStore.Prepared prepared, PaymentProviderGateway.Customer customer) {
-    if (prepared.newlyCreated()) {
+    if (prepared.newlyCreated()
+        || ("CREATE_PENDING".equals(prepared.status())
+            && prepared.providerSubscriptionId() != null
+            && prepared.providerSubscriptionId().startsWith("UDS-AP-"))) {
       return createSubscription(prepared, customer);
     }
     try {

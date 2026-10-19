@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import PhoneInput from '../../components/ui/PhoneInput'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router'
@@ -26,7 +27,7 @@ export default function PublicBookingPage() {
   const { slug } = useParams<{ slug: string }>()
   const [bookingType, setBookingType] = useState<PublicBookingType | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
 
   // Date selection state
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -72,8 +73,9 @@ export default function PublicBookingPage() {
       .then((slots) => {
         setAvailableSlots(slots || [])
       })
-      .catch(() => {
+      .catch((requestError) => {
         setAvailableSlots([])
+        setError(apiErrorMessage(requestError, 'Unable to load available booking times. Please try again.'))
       })
       .finally(() => setSlotsLoading(false))
   }, [slug, selectedDate])
@@ -92,6 +94,7 @@ export default function PublicBookingPage() {
         notes: notes.trim() || undefined,
       })
       setBookResult(result)
+      showGlobalSnackbar(result.message || 'Meeting booked successfully.', { variant: result.success ? 'success' : 'warning' })
     } catch (err) {
       setError(apiErrorMessage(err, 'Failed to schedule meeting. This slot may have just been reserved.'))
     } finally {
@@ -163,7 +166,7 @@ export default function PublicBookingPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8 flex flex-col justify-center">
       <div className="mx-auto w-full max-w-4xl">
         <div className="overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl grid md:grid-cols-12 min-h-[580px]">
-          
+
           {/* Left Summary Sidebar */}
           <div className="md:col-span-4 p-8 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex flex-col justify-between">
             <div className="space-y-4">
@@ -305,12 +308,7 @@ export default function PublicBookingPage() {
                   Enter Your Details
                 </h3>
 
-                {error && (
-                  <div className="rounded-lg bg-rose-50 dark:bg-rose-950/50 p-3 text-xs text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 flex items-center gap-2">
-                    <FiAlertCircle className="h-4 w-4 shrink-0" />
-                    <span>{error}</span>
-                  </div>
-                )}
+
 
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                   <span className="flex items-center gap-1.5">
@@ -381,7 +379,7 @@ export default function PublicBookingPage() {
                     <FiCalendar className="text-violet-600 dark:text-violet-400" />
                     Select a Date
                   </h3>
-                  
+
                   {/* Horizontal Date Picker Strip */}
                   <div className="flex gap-2 overflow-x-auto pb-2 pt-3 scrollbar-none">
                     {nextDays.map((dStr) => {
@@ -447,3 +445,4 @@ export default function PublicBookingPage() {
     </div>
   )
 }
+import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'

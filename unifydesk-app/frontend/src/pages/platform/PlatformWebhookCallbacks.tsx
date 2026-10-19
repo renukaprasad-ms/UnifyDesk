@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiChevronLeft, FiChevronRight, FiEye, FiRefreshCw, FiSearch, FiX } from 'react-icons/fi'
 import { platformApi } from '../../features/platform/platformApi'
@@ -45,7 +46,7 @@ export default function PlatformWebhookCallbacks() {
   const [status, setStatus] = useState<WebhookCallbackStatus | ''>('')
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const load = async (targetPage = page) => {
     setLoading(true)
@@ -166,11 +167,7 @@ export default function PlatformWebhookCallbacks() {
             </form>
           </div>
 
-          {error && (
-            <div className="border-b border-rose-200 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
-              {error}
-            </div>
-          )}
+
 
           <div className="overflow-x-auto">
             <table className="mobile-card-table min-w-full text-left">

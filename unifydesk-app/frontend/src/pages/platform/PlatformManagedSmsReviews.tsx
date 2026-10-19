@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useCallback, useEffect, useState } from 'react'
 import { platformApi } from '../../features/platform/platformApi'
 import type { ManagedSmsReviewItem } from '../../features/platform/types'
@@ -8,8 +9,8 @@ export default function PlatformManagedSmsReviews() {
   const [chosen,setChosen]=useState<ManagedSmsReviewItem | null>(null)
   const [busy,setBusy]=useState(false)
   const [loading,setLoading]=useState(true)
-  const [error,setError]=useState('')
-  const [notice,setNotice]=useState('')
+  const [,setError]=useSnackbarState('', 'error')
+  const [,setNotice]=useSnackbarState('', 'success')
   const [reason,setReason]=useState('')
   const [accountRef,setAccountRef]=useState('')
   const [clientRef,setClientRef]=useState('')
@@ -78,8 +79,8 @@ export default function PlatformManagedSmsReviews() {
       </div>
       <button type="button" className="secondary-button" onClick={()=>void refresh()} disabled={busy||loading}>Refresh queue</button>
     </header>
-    {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-    {notice && <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{notice}</div>}
+
+
     {loading?<CardSkeleton rows={5}/>:<div className="grid gap-4 lg:grid-cols-2">
       <div className="panel p-4">
         <h2 className="text-sm font-bold text-slate-900">Pending reviews ({items.length})</h2>

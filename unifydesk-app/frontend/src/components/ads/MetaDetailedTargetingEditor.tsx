@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useState } from 'react'
 import { FiSearch, FiX } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -25,7 +26,7 @@ export default function MetaDetailedTargetingEditor({
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<MetaDetailedTargetingSuggestion[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const search = async () => {
     const normalized = query.trim()
@@ -112,11 +113,7 @@ export default function MetaDetailedTargetingEditor({
         </button>
       </div>
 
-      {error && (
-        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-          {error}
-        </p>
-      )}
+
 
       {results.length > 0 && (
         <div className="mt-3 max-h-56 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import axios from 'axios'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FiBell, FiCheckCircle, FiRefreshCw } from 'react-icons/fi'
@@ -33,7 +34,7 @@ export default function NotificationsPage() {
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const [workspaceUnavailable, setWorkspaceUnavailable] = useState(false)
   const [online, setOnline] = useState(() => navigator.onLine)
   const loadSequence = useRef(0)
@@ -147,17 +148,18 @@ export default function NotificationsPage() {
       if (unreadOnly && read) {
         setItems((current) => current.filter((item) => item.id !== notification.id))
       }
+      return true
     } catch (mutationError) {
       setItems(previous)
       setError(apiErrorMessage(mutationError, 'Unable to update notification'))
-      throw mutationError
+      return false
     }
   }
 
   const visit = async (notification: NotificationItem) => {
     setError('')
     try {
-      if (notification.unread) await changeReadState(notification, true)
+      if (notification.unread && !(await changeReadState(notification, true))) return
       if (isSafeAppRoute(notification.action?.path)) {
         navigate(notification.action.path)
       }
@@ -223,11 +225,7 @@ export default function NotificationsPage() {
           </div>
         )}
 
-        {error && (
-          <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-            {error}
-          </div>
-        )}
+
 
         {workspaceUnavailable ? (
           <div className="panel mt-6 p-8 text-center">

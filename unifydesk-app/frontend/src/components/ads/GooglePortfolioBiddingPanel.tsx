@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiLink, FiPlus, FiRefreshCw, FiSave } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -103,8 +104,8 @@ export default function GooglePortfolioBiddingPanel({
   const [selectedBudgetId, setSelectedBudgetId] = useState('')
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState('')
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const selectedStrategy = useMemo(
     () => strategies.find((strategy) => strategy.id === selectedStrategyId) ?? null,
@@ -306,17 +307,7 @@ export default function GooglePortfolioBiddingPanel({
       </div>
 
       <div className="space-y-6 p-5">
-        {(error || notice) && (
-          <div
-            className={`rounded-xl border px-4 py-3 text-sm font-medium ${
-              error
-                ? 'border-red-200 bg-red-50 text-red-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            }`}
-          >
-            {error || notice}
-          </div>
-        )}
+
 
         {loading ? (
           <div className="grid gap-4 lg:grid-cols-2"><CardSkeleton rows={5} /><CardSkeleton rows={5} /></div>

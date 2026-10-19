@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { ListSkeleton, PageSkeleton } from '../../components/ui/Skeleton'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
@@ -36,8 +37,8 @@ export default function ListDetailPage() {
   const [candidateLoading, setCandidateLoading] = useState(false)
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false)
   const [memberToRemove, setMemberToRemove] = useState<ContactSummary | null>(null)
 
@@ -206,19 +207,7 @@ export default function ListDetailPage() {
           )}
         </div>
 
-        {(error || notice) && (
-          <div
-            role={error ? 'alert' : 'status'}
-            className={
-              'mt-5 rounded-xl border px-4 py-3 text-sm ' +
-              (error
-                ? 'border-rose-200 bg-rose-50 text-rose-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700')
-            }
-          >
-            {error || notice}
-          </div>
-        )}
+
 
         {can(PERMISSIONS.CONTACT_MODIFY) && list && (
           <section className="panel mt-6 p-5">

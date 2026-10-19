@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiBell, FiClock, FiLock, FiMonitor, FiRefreshCw } from 'react-icons/fi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -51,8 +52,8 @@ export default function NotificationPreferencesPanel({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [browserBusy, setBrowserBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -210,18 +211,7 @@ export default function NotificationPreferencesPanel({
 
   return (
     <div className="space-y-4">
-      {(error || notice) && (
-        <div
-          className={`rounded-xl border px-4 py-3 text-sm font-medium ${
-            error
-              ? 'border-red-200 bg-red-50 text-red-700'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-          }`}
-          role={error ? 'alert' : 'status'}
-        >
-          {error || notice}
-        </div>
-      )}
+
 
       <div className="panel p-5">
         <div className="flex items-start gap-4">

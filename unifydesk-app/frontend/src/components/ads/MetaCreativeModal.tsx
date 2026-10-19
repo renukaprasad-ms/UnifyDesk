@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiPlus, FiTrash2, FiX } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -66,7 +67,7 @@ export default function MetaCreativeModal({
   const [existingPostId, setExistingPostId] = useState('')
   const [existingPosts, setExistingPosts] = useState<MetaExistingPost[]>([])
   const [postsLoading, setPostsLoading] = useState(false)
-  const [postsError, setPostsError] = useState('')
+  const [postsError, setPostsError] = useSnackbarState('', 'error')
   const [cards, setCards] = useState<MetaCarouselCardInput[]>([emptyCard(), emptyCard()])
 
   useEffect(() => {

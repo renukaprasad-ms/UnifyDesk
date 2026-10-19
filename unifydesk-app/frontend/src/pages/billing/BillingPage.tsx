@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import StateSelect from '../../components/ui/StateSelect'
 import PhoneInput from '../../components/ui/PhoneInput'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -386,8 +387,8 @@ export default function BillingPage() {
   const [billingInterval, setBillingInterval] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [notice, setNotice] = useSnackbarState('', 'success')
 
   // Subscription state
   const [details, setDetails] = useState<CompanyPlanDetails | null>(null)
@@ -808,7 +809,7 @@ export default function BillingPage() {
           })
           setProfile(updatedProfile)
         } catch (profileErr) {
-          console.warn('Could not persist billing profile before checkout:', profileErr)
+          showGlobalSnackbar(apiErrorMessage(profileErr, 'Could not save your billing profile. Checkout will continue with the details you entered.'), { variant: 'warning' })
         }
       }
 
@@ -3020,3 +3021,4 @@ export default function BillingPage() {
     </div>
   )
 }
+import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'

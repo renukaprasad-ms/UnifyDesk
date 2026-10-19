@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import AssigneeDialog from '../../components/ui/AssigneeDialog'
 import BoardViewToggle from '../../components/ui/BoardViewToggle'
 import { BoardSkeleton, TableSkeleton } from '../../components/ui/Skeleton'
@@ -103,7 +104,7 @@ export default function CrmTasksPage() {
   const requestNumber = useRef(0)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const [showCreate, setShowCreate] = useState(false)
   const scopeKey = `${companyId}:${epoch}`
   const [params] = useSearchParams()

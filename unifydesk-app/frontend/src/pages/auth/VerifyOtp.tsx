@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useEffect, useState } from 'react'
 import { FiMail } from 'react-icons/fi'
@@ -22,9 +23,13 @@ const VerifyOtp = () => {
   } | null
   const email = routeState?.email ?? user?.email
   const redirectTo = resolvePostAuthRedirect(routeState?.redirectTo)
+  const profilePictureWarning = routeState?.profilePictureWarning
+  useEffect(() => {
+    if (profilePictureWarning) showGlobalSnackbar(`${profilePictureWarning}. You can update it later.`, { variant: 'warning' })
+  }, [profilePictureWarning])
   const [otp, setOtp] = useState('')
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [submitting, setSubmitting] = useState(false)
   const [resending, setResending] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS)
@@ -46,6 +51,7 @@ const VerifyOtp = () => {
     try {
       const verifiedUser = await authApi.verifyEmail(otp)
       dispatch(setAuthUser(verifiedUser))
+      showGlobalSnackbar('Email verified successfully.', { variant: 'success' })
       navigate(redirectTo, { replace: true })
     } catch (submitError) {
       setError(apiErrorMessage(submitError, 'Unable to verify OTP'))
@@ -78,11 +84,6 @@ const VerifyOtp = () => {
       <p className="mt-2 text-sm leading-6 text-slate-500">
         Enter the one-time password sent to {email ?? 'your email'}.
       </p>
-      {routeState?.profilePictureWarning && (
-        <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-700">
-          {routeState.profilePictureWarning}. You can update it later.
-        </p>
-      )}
       <div className="flex items-center gap-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 p-3.5 text-xs text-indigo-700 dark:text-indigo-300">
         <FiMail className="size-5 shrink-0" aria-hidden="true" />
         <span>
@@ -109,14 +110,8 @@ const VerifyOtp = () => {
           />
         </div>
 
-        {error && (
-          <p className="rounded-lg bg-rose-50 p-3 text-center text-sm text-rose-600">{error}</p>
-        )}
-        {notice && (
-          <p className="rounded-lg bg-emerald-50 p-3 text-center text-sm text-emerald-700">
-            {notice}
-          </p>
-        )}
+
+
         <button
           type="submit"
           className="primary-button flex w-full justify-center"
@@ -152,3 +147,4 @@ const VerifyOtp = () => {
 }
 
 export default VerifyOtp
+import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'

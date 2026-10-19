@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   FiArrowLeft,
@@ -125,8 +126,8 @@ export default function AdCampaignDetails() {
   const [name, setName] = useState('')
   const [bidStrategy, setBidStrategy] = useState('')
   const [budget, setBudget] = useState('')
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const account = useMemo(
     () => accounts.find((item) => item.id === campaign?.adAccountId) ?? null,
@@ -486,17 +487,7 @@ export default function AdCampaignDetails() {
               </div>
             )}
 
-            {(error || notice) && (
-              <div
-                className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${
-                  error
-                    ? 'border-red-200 bg-red-50 text-red-700'
-                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                }`}
-              >
-                {error || notice}
-              </div>
-            )}
+
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="panel p-5">

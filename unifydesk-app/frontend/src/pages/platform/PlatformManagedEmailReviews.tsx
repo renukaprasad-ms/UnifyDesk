@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useCallback, useEffect, useState } from 'react'
 import { FiCheck, FiCornerDownRight, FiMail, FiRefreshCw, FiX } from 'react-icons/fi'
 import { CardSkeleton } from '../../components/ui/Skeleton'
@@ -12,8 +13,8 @@ export default function PlatformManagedEmailReviews() {
   const [rejectionReason, setRejectionReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -116,17 +117,9 @@ export default function PlatformManagedEmailReviews() {
         </button>
       </div>
 
-      {notice && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-medium text-emerald-800">
-          {notice}
-        </div>
-      )}
 
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-800">
-          {error}
-        </div>
-      )}
+
+
 
       {loading ? (
         <CardSkeleton rows={4} />

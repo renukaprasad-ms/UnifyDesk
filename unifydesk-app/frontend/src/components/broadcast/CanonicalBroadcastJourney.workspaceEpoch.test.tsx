@@ -1,3 +1,4 @@
+import { SnackbarProvider } from '../feedback/SnackbarProviderComponent'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -202,11 +203,11 @@ const setupCurrentCatalog = () => {
 
 const renderJourney = (onCreated = vi.fn()) =>
   render(
-    <MemoryRouter initialEntries={['/broadcast/email']}>
+    <SnackbarProvider>{<MemoryRouter initialEntries={['/broadcast/email']}>
       <WorkspaceEpochBoundary>
         <CanonicalBroadcastJourney channel="EMAIL" onCreated={onCreated} />
       </WorkspaceEpochBoundary>
-    </MemoryRouter>,
+    </MemoryRouter>}</SnackbarProvider>,
   )
 
 const chooseReadyEmail = async () => {
@@ -275,21 +276,21 @@ describe('CanonicalBroadcastJourney workspace epoch remediation', () => {
     currentCompanyId = 'company-b'
     currentEpoch = 2
     view.rerender(
-      <MemoryRouter initialEntries={['/broadcast/email']}>
+      <SnackbarProvider>{<MemoryRouter initialEntries={['/broadcast/email']}>
         <WorkspaceEpochBoundary>
           <CanonicalBroadcastJourney channel="EMAIL" onCreated={vi.fn()} />
         </WorkspaceEpochBoundary>
-      </MemoryRouter>,
+      </MemoryRouter>}</SnackbarProvider>,
     )
 
     currentCompanyId = 'company-a'
     currentEpoch = 3
     view.rerender(
-      <MemoryRouter initialEntries={['/broadcast/email']}>
+      <SnackbarProvider>{<MemoryRouter initialEntries={['/broadcast/email']}>
         <WorkspaceEpochBoundary>
           <CanonicalBroadcastJourney channel="EMAIL" onCreated={vi.fn()} />
         </WorkspaceEpochBoundary>
-      </MemoryRouter>,
+      </MemoryRouter>}</SnackbarProvider>,
     )
 
     expect(await screen.findByRole('option', { name: /A2 List/ })).toBeInTheDocument()
@@ -321,20 +322,20 @@ describe('CanonicalBroadcastJourney workspace epoch remediation', () => {
     currentCompanyId = 'company-b'
     currentEpoch = 2
     view.rerender(
-      <MemoryRouter initialEntries={['/broadcast/email']}>
+      <SnackbarProvider>{<MemoryRouter initialEntries={['/broadcast/email']}>
         <WorkspaceEpochBoundary>
           <CanonicalBroadcastJourney channel="EMAIL" onCreated={vi.fn()} />
         </WorkspaceEpochBoundary>
-      </MemoryRouter>,
+      </MemoryRouter>}</SnackbarProvider>,
     )
     currentCompanyId = 'company-a'
     currentEpoch = 3
     view.rerender(
-      <MemoryRouter initialEntries={['/broadcast/email']}>
+      <SnackbarProvider>{<MemoryRouter initialEntries={['/broadcast/email']}>
         <WorkspaceEpochBoundary>
           <CanonicalBroadcastJourney channel="EMAIL" onCreated={vi.fn()} />
         </WorkspaceEpochBoundary>
-      </MemoryRouter>,
+      </MemoryRouter>}</SnackbarProvider>,
     )
 
     await screen.findByRole('option', { name: /A2 List/ })
@@ -360,11 +361,11 @@ describe('CanonicalBroadcastJourney workspace epoch remediation', () => {
     currentCompanyId = 'company-b'
     currentEpoch = 2
     view.rerender(
-      <MemoryRouter initialEntries={['/broadcast/email']}>
+      <SnackbarProvider>{<MemoryRouter initialEntries={['/broadcast/email']}>
         <WorkspaceEpochBoundary>
           <CanonicalBroadcastJourney channel="EMAIL" onCreated={vi.fn()} />
         </WorkspaceEpochBoundary>
-      </MemoryRouter>,
+      </MemoryRouter>}</SnackbarProvider>,
     )
 
     await act(async () => {

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import React, { useEffect, useState } from 'react'
 import { FiCheckCircle, FiLock, FiMail, FiShield, FiX } from 'react-icons/fi'
 import { authApi } from '../../features/auth/authApi'
@@ -23,7 +24,7 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
   const [challengeToken, setChallengeToken] = useState('')
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const [resendCooldown, setResendCooldown] = useState(0)
 
   useEffect(() => {
@@ -217,11 +218,7 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
               />
             </label>
 
-            {error && (
-              <p className="rounded-xl bg-rose-50 dark:bg-rose-950/30 p-3 text-xs font-medium text-rose-600 dark:text-rose-400">
-                {error}
-              </p>
-            )}
+
 
             <div className="flex items-center justify-end gap-3 pt-3">
               <button
@@ -268,11 +265,7 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
               />
             </div>
 
-            {error && (
-              <p className="rounded-xl bg-rose-50 dark:bg-rose-950/30 p-3 text-xs font-medium text-rose-600 dark:text-rose-400 text-center">
-                {error}
-              </p>
-            )}
+
 
             <div className="flex items-center justify-center pt-1 text-xs">
               <button

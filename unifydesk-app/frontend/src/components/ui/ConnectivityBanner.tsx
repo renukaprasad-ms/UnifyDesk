@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react'
 import { FiWifiOff } from 'react-icons/fi'
+import { showGlobalSnackbar } from '../feedback/SnackbarProvider'
 
 export default function ConnectivityBanner() {
   const [online, setOnline] = useState(() => navigator.onLine)
 
   useEffect(() => {
-    const onOnline = () => setOnline(true)
-    const onOffline = () => setOnline(false)
+    const onOnline = () => {
+      setOnline(true)
+      showGlobalSnackbar('Connection restored.', { variant: 'success' })
+    }
+    const onOffline = () => {
+      setOnline(false)
+      showGlobalSnackbar('You are offline. Network actions may be unavailable until your connection returns.', { variant: 'warning' })
+    }
     window.addEventListener('online', onOnline)
     window.addEventListener('offline', onOffline)
     return () => {

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
 import {
@@ -217,8 +218,8 @@ export default function AdRecommendations() {
     GoogleNativeRecommendation[]
   >([])
   const [nativeWorking, setNativeWorking] = useState<string | null>(null)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [notice, setNotice] = useSnackbarState('', 'success')
 
   const managedAccounts = useMemo(
     () =>

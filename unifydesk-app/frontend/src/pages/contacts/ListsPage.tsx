@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import WorkspaceDialog from '../../components/ui/WorkspaceDialog'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
@@ -26,7 +27,7 @@ export default function ListsPage() {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
 
   const load = async (scope: WorkspaceEpochToken | null = captureScope()) => {
     if (!companyId || !scopeIsCurrent(scope)) return

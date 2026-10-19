@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { ListSkeleton } from '../../components/ui/Skeleton'
 import WorkspaceDialog from '../../components/ui/WorkspaceDialog'
 import { useCallback, useEffect, useState } from 'react'
@@ -28,7 +29,7 @@ export default function CrmCompaniesPage() {
   const [customDefs, setCustomDefs] = useState<CrmFieldDef[]>([])
   const [customFields, setCustomFields] = useState<CustomFieldValues>({})
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

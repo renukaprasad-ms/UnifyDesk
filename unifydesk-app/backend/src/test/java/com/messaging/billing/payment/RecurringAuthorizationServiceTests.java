@@ -10,6 +10,29 @@ import org.junit.jupiter.api.Test;
 class RecurringAuthorizationServiceTests {
 
   @Test
+  void retryingCompanyAutopayCreatesAnOrderForTheNewPendingIdentity() {
+    RecurringAuthorizationStore store = mock(RecurringAuthorizationStore.class);
+    PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
+    var service = new RecurringAuthorizationService(store, gateway, new RazorpayProperties());
+    var pending = prepared(90L, null, null, "UDS-AP-10-90", null, null,
+        "CREATE_PENDING", new BigDecimal("15000"), false);
+    var ready = new RecurringAuthorizationStore.Prepared(90L, 10L, null, null,
+        "UDS-AP-10-90", "order_new", "UDA-90", null, "PENDING_AUTH",
+        new BigDecimal("15000"), "INR", false, "cust_customer");
+    when(store.prepareCompanyAutopay(10L, new BigDecimal("15000"), "INR")).thenReturn(pending);
+    when(gateway.createRecurringAuthorization(anyString(), any(), anyString(), any(), anyString(), anyString()))
+        .thenReturn(new PaymentProviderGateway.RecurringAuthorization(
+            "UDS-AP-10-90", "order_new", "PENDING_AUTH", "cust_customer"));
+    when(store.applySubscription(eq(90L), any())).thenReturn(ready);
+
+    var result = service.prepareCompanyAutopay(10L, new BigDecimal("15000"), "INR",
+        new PaymentProviderGateway.Customer("10", "Admin", "a@example.com", "+919876543210"));
+    assertEquals("order_new", result.subscriptionSessionId());
+    assertEquals("cust_customer", result.customerId());
+    verify(gateway, never()).fetchRecurringAuthorization(anyString());
+  }
+
+  @Test
   void providerAuthorizationUsesStableSubscriptionAndAuthPaymentIdentity() {
     RecurringAuthorizationStore store = mock(RecurringAuthorizationStore.class);
     PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);

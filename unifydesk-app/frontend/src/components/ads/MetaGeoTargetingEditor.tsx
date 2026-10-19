@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiPlus, FiSearch, FiTrash2 } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -43,7 +44,7 @@ export default function MetaGeoTargetingEditor({
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<MetaGeoLocationSuggestion[]>([])
   const [searching, setSearching] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [radius, setRadius] = useState('10')
@@ -190,11 +191,7 @@ export default function MetaGeoTargetingEditor({
         </p>
       </div>
 
-      {error && (
-        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-          {error}
-        </div>
-      )}
+
 
       <div className="mt-4 rounded-xl bg-slate-50 p-3">
         <p className="text-xs font-semibold text-slate-700">People in these locations</p>

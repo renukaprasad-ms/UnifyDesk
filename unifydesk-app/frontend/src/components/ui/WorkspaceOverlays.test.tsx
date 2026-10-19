@@ -1,3 +1,4 @@
+import { SnackbarProvider } from '../feedback/SnackbarProviderComponent'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import WorkspaceDialog from './WorkspaceDialog'
@@ -9,13 +10,13 @@ it('focuses the form, traps Tab, closes with Escape and restores focus', () => {
   previous.focus()
   const close = vi.fn()
   const { unmount } = render(
-    <WorkspaceDialog title="New task" onClose={close}>
+    <SnackbarProvider>{<WorkspaceDialog title="New task" onClose={close}>
       <label>
         Title
         <input />
       </label>
       <button type="button">Save</button>
-    </WorkspaceDialog>,
+    </WorkspaceDialog>}</SnackbarProvider>,
   )
   expect(screen.getByRole('textbox', { name: 'Title' })).toHaveFocus()
   screen.getByRole('button', { name: 'Save' }).focus()
@@ -27,29 +28,30 @@ it('focuses the form, traps Tab, closes with Escape and restores focus', () => {
   expect(previous).toHaveFocus()
   previous.remove()
 })
-it('keeps a saving dialog open and displays errors inside it', () => {
+it('keeps a saving dialog open and displays errors above it in the snackbar', () => {
   const close = vi.fn()
   render(
-    <WorkspaceDialog title="New task" onClose={close} busy error="Unable to save">
+    <SnackbarProvider>{<WorkspaceDialog title="New task" onClose={close} busy error="Unable to save">
       <input aria-label="Title" />
-    </WorkspaceDialog>,
+    </WorkspaceDialog>}</SnackbarProvider>,
   )
   fireEvent.keyDown(document, { key: 'Escape' })
   expect(close).not.toHaveBeenCalled()
   expect(screen.getByRole('button', { name: 'Close New task' })).toBeDisabled()
-  expect(screen.getByRole('dialog')).toContainElement(screen.getByRole('alert'))
+  expect(screen.getByRole('alert')).toHaveTextContent('Unable to save')
+  expect(screen.getByRole('dialog')).not.toContainElement(screen.getByRole('alert'))
 })
 it('opens filters, clears applied values, and dismisses on outside click', () => {
   const reset = vi.fn()
   render(
-    <FilterPopover activeCount={1} onReset={reset}>
+    <SnackbarProvider>{<FilterPopover activeCount={1} onReset={reset}>
       <label>
         Status
         <select>
           <option>Open</option>
         </select>
       </label>
-    </FilterPopover>,
+    </FilterPopover>}</SnackbarProvider>,
   )
   expect(screen.queryByRole('combobox')).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Filters, 1 active' }))

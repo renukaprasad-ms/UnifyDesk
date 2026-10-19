@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useState, type FormEvent } from 'react'
 import PhoneInput from '../ui/PhoneInput'
 import {
@@ -36,7 +37,7 @@ export default function ContactFormDialog({
     initialMarketingPreferences,
   )
   const [marketingConfirmed, setMarketingConfirmed] = useState(false)
-  const [marketingError, setMarketingError] = useState('')
+  const [marketingError, setMarketingError] = useSnackbarState('', 'error')
   const [errors, setErrors] = useState<Partial<Record<keyof ContactFormDraft, string>>>({})
 
   useEffect(() => {
@@ -64,6 +65,8 @@ export default function ContactFormDialog({
     event.preventDefault()
     const nextErrors = validateContactDraft(draft, showIdentityFields)
     setErrors(nextErrors)
+    const firstError = Object.values(nextErrors).find(Boolean)
+    if (firstError) showGlobalSnackbar(firstError, { variant: 'error' })
 
     const hasOptIn = Object.values(marketing).includes('OPTED_IN')
     if (showMarketingPermissions && hasOptIn && !marketingConfirmed) {
@@ -236,3 +239,4 @@ export default function ContactFormDialog({
     </div>
   )
 }
+import { showGlobalSnackbar } from '../feedback/SnackbarProvider'

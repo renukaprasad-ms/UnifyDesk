@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { PageSkeleton } from '../../components/ui/Skeleton'
 import { useEffect, useState } from 'react'
 import ContactsNav from '../../components/contacts/ContactsNav'
@@ -37,8 +38,8 @@ export default function ContactSettingsPage() {
   const [fieldOptions, setFieldOptions] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [archiveTarget, setArchiveTarget] = useState<{
     kind: 'tag' | 'field'
     id: string
@@ -159,18 +160,7 @@ export default function ContactSettingsPage() {
           </p>
         </header>
 
-        {(error || notice) && (
-          <div
-            className={
-              'mt-5 rounded-xl border px-4 py-3 text-sm ' +
-              (error
-                ? 'border-rose-200 bg-rose-50 text-rose-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700')
-            }
-          >
-            {error || notice}
-          </div>
-        )}
+
 
         <div className="mt-6 grid gap-5 xl:grid-cols-2">
           <section className="panel p-5">

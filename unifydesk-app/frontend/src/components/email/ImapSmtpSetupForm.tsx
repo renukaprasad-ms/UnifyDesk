@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useState, type FormEvent } from 'react'
 import { FiArrowLeft, FiEye, FiEyeOff, FiLock, FiServer } from 'react-icons/fi'
 import { imapSmtpApi } from '../../features/channel/imapSmtpApi'
@@ -31,7 +32,7 @@ export default function ImapSmtpSetupForm({
   const [smtpSecurity, setSmtpSecurity] = useState<MailSecurityMode>('SSL_TLS')
   const [sentFolder, setSentFolder] = useState('')
   const [connecting, setConnecting] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   useEffect(() => {
     if (!usernameEdited) setUsername(email)
@@ -277,11 +278,7 @@ export default function ImapSmtpSetupForm({
         </span>
       </label>
 
-      {error && (
-        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs leading-5 text-rose-700">
-          {error}
-        </div>
-      )}
+
 
       <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button

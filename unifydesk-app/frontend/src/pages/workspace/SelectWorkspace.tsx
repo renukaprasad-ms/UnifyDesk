@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { FiMail, FiPlus } from 'react-icons/fi'
@@ -22,7 +23,7 @@ export default function SelectWorkspace() {
   const navigate = useNavigate()
   const companies = useAppSelector(selectCompanies)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
 
   useEffect(() => {
     let active = true
@@ -88,7 +89,7 @@ export default function SelectWorkspace() {
             ))}
           </div>
         )}
-        {error && <p className="mt-7 text-sm font-semibold text-red-600">{error}</p>}
+
         {!loading && !error && (
           <div className="mt-7 space-y-3">
             {companies.map((company) => (

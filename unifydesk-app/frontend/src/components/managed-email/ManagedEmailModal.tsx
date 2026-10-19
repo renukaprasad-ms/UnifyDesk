@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   FiArrowLeft,
@@ -77,7 +78,7 @@ export default function ManagedEmailModal({
   const [busy, setBusy] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [, setError] = useSnackbarState<string | null>(null, 'error')
   const pollAttempt = useRef(0)
 
   useEffect(() => {
@@ -334,14 +335,7 @@ export default function ManagedEmailModal({
           </button>
         </div>
 
-        {error && (
-          <div
-            className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs leading-5 text-rose-700"
-            role="alert"
-          >
-            {error}
-          </div>
-        )}
+
 
         {overview && !overview.enabled && (
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiSearch } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -57,7 +58,7 @@ export default function GoogleSearchDemographicSelector(props: Props) {
   const [query, setQuery] = useState('')
   const [options, setOptions] = useState<GoogleDetailedDemographicOption[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   useEffect(() => {
     if (!props.accountId) {
@@ -240,11 +241,7 @@ export default function GoogleSearchDemographicSelector(props: Props) {
           />
         </label>
 
-        {error && (
-          <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-            {error}
-          </p>
-        )}
+
 
         {loading ? (
           <div className="mt-3 space-y-2" role="status" aria-label="Loading demographics">

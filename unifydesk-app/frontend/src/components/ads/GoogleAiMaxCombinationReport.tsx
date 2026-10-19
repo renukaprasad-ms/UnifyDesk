@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiRefreshCw, FiZap } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -28,7 +29,7 @@ export default function GoogleAiMaxCombinationReport({ companyId, campaignId }: 
   const [to, setTo] = useState(initial.to)
   const [report, setReport] = useState<Report | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const load = async () => {
     setLoading(true)
@@ -108,11 +109,7 @@ export default function GoogleAiMaxCombinationReport({ companyId, campaignId }: 
         </div>
       </div>
 
-      {error && (
-        <div className="border-b border-red-100 bg-red-50 px-5 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+
 
       {loading ? (
         <div className="p-4"><TableSkeleton rows={6} columns={5} /></div>

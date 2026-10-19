@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiArrowLeft, FiArchive, FiCheck, FiSave, FiTrash2 } from 'react-icons/fi'
 import { useNavigate, useParams } from 'react-router'
@@ -217,8 +218,8 @@ export default function PlatformPlanDetails() {
   const [tab, setTab] = useState<Tab>('overview')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [priceForm, setPriceForm] = useState(blankPrice)
   const [priceFrom, setPriceFrom] = useState('')
   const [priceTo, setPriceTo] = useState('')
@@ -567,16 +568,8 @@ export default function PlatformPlanDetails() {
             Published commercial terms are immutable. Create a new plan version to change commercial terms.
           </div>
         )}
-        {error && (
-          <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-        {notice && (
-          <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-            {notice}
-          </div>
-        )}
+
+
 
         <div className="mt-7 flex overflow-x-auto border-b border-slate-200">
           {([

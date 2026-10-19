@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { adminBillingApi } from '../../features/platformBilling/adminBillingApi'
 import type { BillingUsageReconciliationReport } from '../../features/platformBilling/types'
@@ -12,7 +13,7 @@ export default function BillingUsageReconciliationOverview({ companyNames }: Pro
   const [days, setDays] = useState(30)
   const [report, setReport] = useState<BillingUsageReconciliationReport | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [reload, setReload] = useState(0)
   useEffect(() => {
     let active = true
@@ -50,7 +51,7 @@ export default function BillingUsageReconciliationOverview({ companyNames }: Pro
       </div>
     </div>
     {loading && <p className="mt-4 text-sm" role="status">Reconciling...</p>}
-    {error && <p className="mt-4 text-sm text-red-600" role="alert">{error}</p>}
+
     {!loading && report && <>
       <div className="mt-4 flex flex-wrap gap-4 text-sm">
         <p><strong>Rated managed usage:</strong> {amount(totalRated)}</p>

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiArrowUpCircle, FiPlay, FiPlusCircle, FiRefreshCw, FiSquare } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -57,7 +58,7 @@ export default function GoogleExperimentsPanel({
   const [campaigns, setCampaigns] = useState<AdCampaign[]>([])
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState('')
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [showCreate, setShowCreate] = useState(false)
   const [showCampaignMix, setShowCampaignMix] = useState(false)
   const [pendingAction, setPendingAction] = useState<{ experiment: GoogleExperiment; type: 'promote' | 'end' | 'graduate' } | null>(null)
@@ -262,11 +263,7 @@ export default function GoogleExperimentsPanel({
         provider-specific setup is completed in Google Ads.
       </div>
 
-      {error && (
-        <div className="m-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+
 
       {showCreate && canCreate && (
         <form

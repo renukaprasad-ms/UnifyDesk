@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { FiImage, FiLink2, FiPlus, FiRefreshCw, FiTrash2, FiVideo } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -112,8 +113,8 @@ export default function GooglePerformanceMaxAssets({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [trackingTemplate, setTrackingTemplate] = useState('')
   const [finalUrlSuffix, setFinalUrlSuffix] = useState('')
   const [customParameters, setCustomParameters] = useState('')
@@ -320,17 +321,7 @@ export default function GooglePerformanceMaxAssets({
         </button>
       </div>
 
-      {(error || notice) && (
-        <div
-          className={`mt-3 rounded-lg border px-3 py-2 text-xs font-medium ${
-            error
-              ? 'border-red-200 bg-red-50 text-red-700'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-          }`}
-        >
-          {error || notice}
-        </div>
-      )}
+
 
       {performance && (
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">

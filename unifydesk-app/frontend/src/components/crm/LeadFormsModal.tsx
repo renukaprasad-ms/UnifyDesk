@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import {
   FiPlus,
@@ -58,7 +59,7 @@ export default function LeadFormsModal({ companyId, onClose }: Props) {
   const [forms, setForms] = useState<LeadForm[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   // Custom Lead Field Definitions

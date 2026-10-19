@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useRef, useState } from 'react'
 import { FiAlertTriangle, FiCheckCircle, FiClock, FiRefreshCw, FiZap } from 'react-icons/fi'
 import { Link } from 'react-router'
@@ -27,7 +28,7 @@ export default function PaymentReturnPage() {
   const [context] = useState<PendingBillingCheckout | null>(() => readPendingBillingCheckout())
   const [details, setDetails] = useState<CompanyPlanDetails | null>(null)
   const [state, setState] = useState<VerificationState>('CHECKING')
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const [autoPayModalOpen, setAutoPayModalOpen] = useState(false)
   const [autoPayActive, setAutoPayActive] = useState(false)
   const runRef = useRef(0)

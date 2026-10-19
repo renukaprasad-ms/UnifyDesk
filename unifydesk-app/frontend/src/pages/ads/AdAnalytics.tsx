@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiActivity, FiBarChart2, FiClock, FiRefreshCw, FiTrendingUp } from 'react-icons/fi'
 import { Link } from 'react-router'
@@ -469,8 +470,8 @@ export default function AdAnalytics() {
   const [analytics, setAnalytics] = useState<AdAnalyticsData>(emptyAnalytics)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [notice, setNotice] = useSnackbarState('', 'success')
 
   const managedAccounts = useMemo(
     () => accounts.filter((account) => account.managed && account.accessible),

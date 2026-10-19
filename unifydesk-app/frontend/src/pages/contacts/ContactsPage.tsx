@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import FilterPopover from '../../components/ui/FilterPopover'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
@@ -53,8 +54,8 @@ export default function ContactsPage() {
   const [saving, setSaving] = useState(false)
   const [tags, setTags] = useState<TagSummary[]>([])
   const [lists, setLists] = useState<ListSummary[]>([])
-  const [notice, setNotice] = useState('')
-  const [error, setError] = useState('')
+  const [notice, setNotice] = useSnackbarState('', 'success')
+  const [error, setError] = useSnackbarState('', 'error')
   const rawStatus = params.get('status')
   const status = parseContactSearchStatus(rawStatus)
   const query: ContactQuery = {

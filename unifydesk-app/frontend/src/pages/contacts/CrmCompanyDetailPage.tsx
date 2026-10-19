@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { PageSkeleton } from '../../components/ui/Skeleton'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
@@ -42,7 +43,7 @@ export default function CrmCompanyDetailPage() {
   const [chosen, setChosen] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [refreshToken, setRefreshToken] = useState(0)
   const requestId = useRef(0)
 
@@ -158,11 +159,7 @@ export default function CrmCompanyDetailPage() {
         <p className="eyebrow">CRM / Customer company</p>
         <h1 className="mt-2 text-3xl font-bold">{account?.name ?? 'Company profile'}</h1>
       </header>
-      {error && (
-        <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">
-          {error}
-        </p>
-      )}
+
       {loading ? (
         <PageSkeleton />
       ) : (

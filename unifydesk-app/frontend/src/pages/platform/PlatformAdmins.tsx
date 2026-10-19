@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import { platformApi } from '../../features/platform/platformApi'
 import type { Page, PlatformAdmin } from '../../features/platform/types'
@@ -5,7 +6,7 @@ import type { Page, PlatformAdmin } from '../../features/platform/types'
 export default function PlatformAdmins() {
   const [data, setData] = useState<Page<PlatformAdmin> | null>(null)
   const [email, setEmail] = useState('')
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const load = () =>
     platformApi
       .admins('', 0)
@@ -43,7 +44,7 @@ export default function PlatformAdmins() {
         />
         <button className="primary-button w-full sm:w-auto">Add admin</button>
       </form>
-      {error && <p className="mb-3 text-sm text-rose-600">{error}</p>}
+
       <div className="overflow-x-auto rounded-xl border bg-white">
         <table className="mobile-card-table w-full min-w-[640px] text-left text-sm">
           <thead>

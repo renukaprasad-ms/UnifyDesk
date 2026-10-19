@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import { FiArrowRight, FiLayers, FiPlus, FiRefreshCw } from 'react-icons/fi'
 import { Link } from 'react-router'
@@ -26,7 +27,7 @@ export default function ReachlyoCampaigns() {
   const [campaigns, setCampaigns] = useState<ReachlyoCampaignSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const load = async (manual = false) => {
     if (!selectedCompany) return
@@ -77,11 +78,7 @@ export default function ReachlyoCampaigns() {
           </div>
         </header>
 
-        {error && (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
+
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="panel overflow-hidden">

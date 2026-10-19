@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
@@ -55,7 +56,7 @@ export default function GooglePerformanceMaxLifecycleLaunchSettings({
   const [goals, setGoals] = useState<GoogleLifecycleGoal[]>([])
   const [customerTypes, setCustomerTypes] = useState<GoogleUserListCustomerType[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   useEffect(() => {
     if (!accountId) {
@@ -93,11 +94,7 @@ export default function GooglePerformanceMaxLifecycleLaunchSettings({
         configured. This launch only applies campaign-specific settings.
       </p>
 
-      {error && (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </p>
-      )}
+
 
       {loading ? (
         <p className="mt-3 text-xs text-slate-500">Checking Google lifecycle setup…</p>

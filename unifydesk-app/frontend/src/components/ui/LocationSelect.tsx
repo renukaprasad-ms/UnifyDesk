@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { showGlobalSnackbar } from '../feedback/SnackbarProvider'
 
 export type LocationSelectProps = {
   value: string
@@ -29,6 +30,9 @@ export default function LocationSelect({
   error,
 }: LocationSelectProps) {
   const [manual, setManual] = useState(false)
+  useEffect(() => {
+    if (error) showGlobalSnackbar('Locations could not load. Select Other to enter manually.', { variant: 'warning' })
+  }, [error])
   const custom = manual || (!!value && !loading && !options.includes(value))
   return (
     <div className="space-y-2">

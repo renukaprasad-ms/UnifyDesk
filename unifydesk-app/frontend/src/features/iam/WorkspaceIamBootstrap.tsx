@@ -47,6 +47,7 @@ export default function WorkspaceIamBootstrap({ children }: { children: React.Re
       })
       .catch((error) => {
         if (!active) return
+        showGlobalSnackbar(apiErrorMessage(error, 'Unable to load workspace permissions'), { variant: 'error' })
         dispatch(
           iamLoadFailed({
             companyId,
@@ -116,3 +117,4 @@ export default function WorkspaceIamBootstrap({ children }: { children: React.Re
 
   return children
 }
+import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'

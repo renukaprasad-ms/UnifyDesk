@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import { FiBriefcase, FiChevronLeft, FiChevronRight, FiSearch } from 'react-icons/fi'
 import { platformApi } from '../../features/platform/platformApi'
@@ -20,7 +21,7 @@ export default function PlatformCompanies() {
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [changingId, setChangingId] = useState<string | null>(null)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [pendingStatusCompany, setPendingStatusCompany] = useState<PlatformCompany | null>(null)
 
   const load = async (targetPage = page) => {
@@ -104,11 +105,7 @@ export default function PlatformCompanies() {
             </form>
           </div>
 
-          {error && (
-            <div className="border-b border-rose-200 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
-              {error}
-            </div>
-          )}
+
           {loading && companies.length === 0 && (
             <div className="p-4 sm:p-5">
               <TableSkeleton rows={7} columns={5} />

@@ -924,6 +924,7 @@ function EmailInboxView() {
         status: 'FAILED',
         error: apiErrorMessage(requestError, 'Attachment upload failed'),
       })
+      snackbar.error(apiErrorMessage(requestError, 'Attachment upload failed'))
     }
   }
 

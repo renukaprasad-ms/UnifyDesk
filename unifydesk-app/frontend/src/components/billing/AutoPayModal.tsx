@@ -1,16 +1,7 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import PhoneInput from '../ui/PhoneInput'
 import { useState, type FormEvent } from 'react'
-import {
-  FiAlertCircle,
-  FiCheckCircle,
-  FiExternalLink,
-  FiLock,
-  FiMail,
-  FiShield,
-  FiUser,
-  FiX,
-  FiZap,
-} from 'react-icons/fi'
+import { FiCheckCircle, FiExternalLink, FiLock, FiMail, FiShield, FiUser, FiX, FiZap } from 'react-icons/fi'
 import { billingApi } from '../../features/billing/billingApi'
 import { launchRazorpayMandateCheckout } from '../../features/billing/razorpayCheckout'
 import type { AutoPayDetails, AutoPaySetupInput } from '../../features/billing/types'
@@ -40,7 +31,7 @@ export default function AutoPayModal({
   const [email, setEmail] = useState(initialEmail)
   const [phone, setPhone] = useState(initialPhone)
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [mandateResult, setMandateResult] = useState<AutoPayDetails | null>(null)
 
   if (!isOpen) return null
@@ -86,7 +77,7 @@ export default function AutoPayModal({
             signature: mandateRes.razorpay_signature,
           })
         } catch (checkoutErr) {
-          console.warn('Razorpay mandate popup dismissed or error:', checkoutErr)
+          showGlobalSnackbar(apiErrorMessage(checkoutErr, 'AutoPay authorization was not completed. You can try again.'), { variant: 'warning' })
         }
       }
     } catch (err) {
@@ -199,12 +190,7 @@ export default function AutoPayModal({
           </div>
         </div>
 
-        {error && (
-          <div className="mb-5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
-            <FiAlertCircle className="size-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
+
 
         {mandateResult ? (
           /* Step 2: Mandate Authorization Ready */
@@ -334,3 +320,4 @@ export default function AutoPayModal({
     </div>
   )
 }
+import { showGlobalSnackbar } from '../feedback/SnackbarProvider'

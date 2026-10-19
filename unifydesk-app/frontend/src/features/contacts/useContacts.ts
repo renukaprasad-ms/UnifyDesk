@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useWorkspaceEpochScope } from '../workspace/useWorkspaceEpochScope'
@@ -15,7 +16,7 @@ export const useContacts = (companyId: string | null, epoch: number, query: Cont
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const requestRef = useRef(0)
   const normalized = useMemo(
     () => normalizeContactQuery(query),

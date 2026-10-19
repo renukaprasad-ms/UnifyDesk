@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { PageSkeleton, CardSkeleton } from '../../components/ui/Skeleton'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
@@ -143,7 +144,7 @@ export default function ImportDetailPage() {
   const [strategy, setStrategy] = useState<'SKIP' | 'MERGE_EXACT' | 'FAIL'>('SKIP')
   const [targetListId, setTargetListId] = useState('')
   const [lists, setLists] = useState<ListSummary[]>([])
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const [reload, setReload] = useState(0)
   const [committing, setCommitting] = useState(false)
   const [downloadingErrors, setDownloadingErrors] = useState(false)
@@ -369,14 +370,7 @@ export default function ImportDetailPage() {
           start the import.
         </p>
 
-        {error && (
-          <div
-            role="alert"
-            className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
-          >
-            {error}
-          </div>
-        )}
+
 
         {(processing || terminal) && resource ? (
           (() => {

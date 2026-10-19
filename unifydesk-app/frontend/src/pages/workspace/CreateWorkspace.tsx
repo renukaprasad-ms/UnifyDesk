@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   FiBarChart2,
@@ -48,7 +49,7 @@ export default function CreateWorkspace() {
   const [logoUploadResult, setLogoUploadResult] = useState<InitiateMediaUploadResponse | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [logoUploading, setLogoUploading] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const logoPreviewUrlRef = useRef('')
   const logoUploadRunIdRef = useRef(0)
   const logoUploadPromiseRef = useRef<Promise<InitiateMediaUploadResponse> | null>(null)
@@ -323,7 +324,7 @@ export default function CreateWorkspace() {
               </div>
             </fieldset>
 
-            {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
+
             <AsyncButton
               type="submit"
               className="h-11 w-full rounded-[8px] text-xs font-semibold"

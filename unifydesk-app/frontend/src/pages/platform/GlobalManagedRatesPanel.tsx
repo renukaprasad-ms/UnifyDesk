@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { adminBillingApi } from '../../features/platformBilling/adminBillingApi'
 import type { GlobalManagedRate, GlobalManagedRateInput, ManagedBillingSku } from '../../features/platformBilling/types'
@@ -13,8 +14,8 @@ export default function GlobalManagedRatesPanel() {
   const [rates, setRates] = useState<GlobalManagedRate[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [editing, setEditing] = useState<ManagedBillingSku | null>(null)
   const [amount, setAmount] = useState('')
   const [start, setStart] = useState('')
@@ -96,8 +97,8 @@ export default function GlobalManagedRatesPanel() {
       </div>
       <button type="button" className="secondary-button" disabled={loading || saving} onClick={() => { setLoading(true); refresh().catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unable to refresh rates')).finally(() => setLoading(false)) }}>Refresh</button>
     </div>
-    {error && <p className="mt-4 text-sm text-red-600" role="alert">{error}</p>}
-    {notice && <p className="mt-4 text-sm text-emerald-700" role="status">{notice}</p>}
+
+
     {loading ? <p className="mt-4 text-sm">Loading global pricing...</p> : <div className="mt-5 grid gap-3 md:grid-cols-2">
       {SKUS.map(({ sku, title, unit, description }) => <div key={sku} className="rounded-xl border p-4">
         <div className="flex items-start justify-between gap-2">

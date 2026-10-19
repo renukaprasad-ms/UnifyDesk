@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import AssigneeDialog from '../../components/ui/AssigneeDialog'
 import BoardViewToggle from '../../components/ui/BoardViewToggle'
 import { BoardSkeleton, TableSkeleton } from '../../components/ui/Skeleton'
@@ -146,7 +147,7 @@ export default function CrmDealsPage() {
   }, [companyId])
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const pendingMoves = useRef(new Set<string>())
   const [pending, setPending] = useState<Set<string>>(new Set())
   const scopeKey = companyId + ':' + epoch

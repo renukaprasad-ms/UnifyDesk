@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import {
   FiBell,
@@ -31,8 +32,8 @@ export default function AccountSettings() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deletePassword, setDeletePassword] = useState('')
   const [twoFactorModalOpen, setTwoFactorModalOpen] = useState(false)
@@ -130,17 +131,7 @@ export default function AccountSettings() {
           </p>
         </header>
 
-        {(error || notice) && (
-          <div
-            className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${
-              error
-                ? 'border-red-200 bg-red-50 text-red-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            }`}
-          >
-            {error || notice}
-          </div>
-        )}
+
 
         {loading ? (
           <div className="mt-7 space-y-4">

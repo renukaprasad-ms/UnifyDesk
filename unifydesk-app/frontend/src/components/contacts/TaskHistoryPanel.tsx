@@ -28,6 +28,9 @@ export default function TaskHistoryPanel({
     error: string
   } | null>(null)
   const loading = result?.key !== key
+  useEffect(() => {
+    if (result?.key === key && result.error) showGlobalSnackbar(result.error, { variant: 'error' })
+  }, [result, key])
   const events = !loading ? result.events : []
   useEffect(() => {
     let active = true
@@ -183,3 +186,4 @@ export default function TaskHistoryPanel({
     </section>
   )
 }
+import { showGlobalSnackbar } from '../feedback/SnackbarProvider'

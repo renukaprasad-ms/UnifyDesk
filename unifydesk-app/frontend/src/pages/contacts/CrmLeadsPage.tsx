@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { TableSkeleton, ListSkeleton } from '../../components/ui/Skeleton'
 import WorkspaceDialog from '../../components/ui/WorkspaceDialog'
 import FilterPopover from '../../components/ui/FilterPopover'
@@ -57,7 +58,7 @@ export default function CrmLeadsPage() {
   const [busy, setBusy] = useState(false)
   const requestNumber = useRef(0)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const [detail, setDetail] = useState<{ scope: string; contactId: string } | null>(null)
   const scopeKey = `${companyId}:${epoch}`
 

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   FiBriefcase,
@@ -59,8 +60,8 @@ export default function CompanyDetails() {
   const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
   const previewUrlRef = useRef('')
@@ -296,17 +297,7 @@ export default function CompanyDetails() {
           )}
         </header>
 
-        {(error || notice) && (
-          <div
-            className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${
-              error
-                ? 'border-red-200 bg-red-50 text-red-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            }`}
-          >
-            {error || notice}
-          </div>
-        )}
+
 
         <form className="mt-7 space-y-5" onSubmit={save}>
           <div className="panel overflow-hidden">

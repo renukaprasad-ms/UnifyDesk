@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { ListSkeleton } from '../ui/Skeleton'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
@@ -32,7 +33,7 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
   const [taskTitle, setTaskTitle] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [generation, setGeneration] = useState(0)
   const requestId = useRef(0)
 
@@ -144,11 +145,7 @@ export default function ContactCrmPanel({ contactId }: { contactId: string }) {
           Open CRM
         </Link>
       </div>
-      {error && (
-        <p role="alert" className="mt-3 text-sm text-rose-700">
-          {error}
-        </p>
-      )}
+
       {loading && <ListSkeleton rows={3} />}
       {details && !loading && (
         <div className="mt-5 grid gap-5 lg:grid-cols-3">

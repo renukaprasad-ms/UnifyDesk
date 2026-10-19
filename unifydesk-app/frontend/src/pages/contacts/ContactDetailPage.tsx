@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router'
 import ContactAttributesPanel from '../../components/contacts/ContactAttributesPanel'
@@ -73,8 +74,8 @@ export default function ContactDetailPage() {
   const [editingPreference, setEditingPreference] = useState<
     CommunicationPreference['channel'] | null
   >(null)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [pendingPreferenceState, setPendingPreferenceState] = useState<
     CommunicationPreference['state'] | null
   >(null)
@@ -265,19 +266,7 @@ export default function ContactDetailPage() {
           )}
         </header>
 
-        {(error || notice) && (
-          <div
-            role={error ? 'alert' : 'status'}
-            className={
-              'mt-5 rounded-xl border px-4 py-3 text-sm font-medium ' +
-              (error
-                ? 'border-rose-200 bg-rose-50 text-rose-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700')
-            }
-          >
-            {error || notice}
-          </div>
-        )}
+
 
         <div className="mt-6 grid gap-5 lg:grid-cols-2">
           <ContactCrmPanel key={contactId} contactId={contactId} />

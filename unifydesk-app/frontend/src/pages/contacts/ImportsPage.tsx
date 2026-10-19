@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
@@ -11,7 +12,7 @@ export default function ImportsPage() {
   const navigate = useNavigate()
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [dragging, setDragging] = useState(false)
 
@@ -276,14 +277,7 @@ export default function ImportsPage() {
             </p>
           </details>
 
-          {error && (
-            <div
-              role="alert"
-              className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
-            >
-              {error}
-            </div>
-          )}
+
 
           <button
             className="primary-button mt-5"

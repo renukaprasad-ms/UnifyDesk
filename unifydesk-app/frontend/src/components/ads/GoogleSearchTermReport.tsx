@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiFilter, FiPlus, FiRefreshCw, FiSlash } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -65,8 +66,8 @@ export default function GoogleSearchTermReport({
   const [workingKey, setWorkingKey] = useState<string | null>(null)
   const [locallyExcluded, setLocallyExcluded] = useState<Set<string>>(new Set())
   const [locallyPromoted, setLocallyPromoted] = useState<Set<string>>(new Set())
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const load = async () => {
     setLoading(true)
@@ -269,18 +270,7 @@ export default function GoogleSearchTermReport({
         </div>
       </div>
 
-      {(error || notice) && (
-        <div
-          className={
-            'mx-5 mt-4 rounded-xl border px-4 py-3 text-sm font-medium ' +
-            (error
-              ? 'border-red-200 bg-red-50 text-red-700'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-700')
-          }
-        >
-          {error || notice}
-        </div>
-      )}
+
 
       <div className="grid gap-3 border-b border-slate-100 px-5 py-4 md:grid-cols-[minmax(180px,1fr)_180px_160px_auto]">
         <label className="text-[11px] font-semibold text-slate-600">

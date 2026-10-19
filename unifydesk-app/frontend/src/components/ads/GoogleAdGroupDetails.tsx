@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useState, type FormEvent } from 'react'
 import { FiArrowLeft, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave, FiTrash2 } from 'react-icons/fi'
 import { Link } from 'react-router'
@@ -98,8 +99,8 @@ export default function GoogleAdGroupDetails({
   const [keywordOpen, setKeywordOpen] = useState(false)
   const [adOpen, setAdOpen] = useState(false)
   const [demandGenCreativeOpen, setDemandGenCreativeOpen] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const channel = campaign?.objective ?? 'SEARCH'
   const isSearch = channel === 'SEARCH'
   const isDisplay = channel === 'DISPLAY'
@@ -401,13 +402,7 @@ export default function GoogleAdGroupDetails({
             ))}
         </header>
 
-        {(error || notice) && (
-          <div
-            className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}
-          >
-            {error || notice}
-          </div>
-        )}
+
 
         {isVideo && (
           <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">

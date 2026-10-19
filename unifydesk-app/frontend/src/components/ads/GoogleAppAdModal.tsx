@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import {
   useEffect,
   useMemo,
@@ -41,7 +42,7 @@ export default function GoogleAppAdModal({
   const [assets, setAssets] = useState<GoogleAppCreativeAsset[]>([])
   const [selectedImages, setSelectedImages] = useState<string[]>([])
   const [selectedVideos, setSelectedVideos] = useState<string[]>([])
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const images = useMemo(() => assets.filter((asset) => asset.type === 'IMAGE'), [assets])
   const videos = useMemo(() => assets.filter((asset) => asset.type === 'YOUTUBE_VIDEO'), [assets])
@@ -107,11 +108,7 @@ export default function GoogleAppAdModal({
         </div>
 
         <form className="space-y-6 p-6" onSubmit={submit}>
-          {error && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-              {error}
-            </div>
-          )}
+
 
           <label className="block text-xs font-semibold text-slate-700">
             Ad name

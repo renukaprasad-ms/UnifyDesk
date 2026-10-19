@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
 import { FiPlus, FiRefreshCw, FiUploadCloud, FiUsers } from 'react-icons/fi'
@@ -64,8 +65,8 @@ export default function AdAudiences() {
   const [uploadingMembers, setUploadingMembers] = useState(false)
   const [uploadAudience, setUploadAudience] = useState<AdAudience | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [notice, setNotice] = useSnackbarState('', 'success')
 
   const managedAccounts = useMemo(
     () => accounts.filter((account) => account.managed && account.accessible),

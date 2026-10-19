@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiActivity, FiChevronDown, FiChevronUp, FiRefreshCw } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -33,7 +34,7 @@ export default function AdActivity() {
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const accountById = useMemo(
     () =>
@@ -108,11 +109,7 @@ export default function AdActivity() {
           </button>
         </header>
 
-        {error && (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
+
 
         <div className="mt-6 max-w-sm">
           <label className="text-xs font-semibold text-slate-700">

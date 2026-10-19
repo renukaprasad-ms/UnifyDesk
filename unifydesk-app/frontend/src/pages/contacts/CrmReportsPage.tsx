@@ -68,6 +68,9 @@ export default function CrmReportsPage() {
   const loading = result?.key !== key,
     report = !loading ? result.report : null
   useEffect(() => {
+    if (result?.key === key && result.error) showGlobalSnackbar(result.error, { variant: 'error' })
+  }, [result, key])
+  useEffect(() => {
     if (!companyId) return
     let active = true
     const scope = capture()
@@ -366,3 +369,4 @@ export default function CrmReportsPage() {
     </section>
   )
 }
+import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'

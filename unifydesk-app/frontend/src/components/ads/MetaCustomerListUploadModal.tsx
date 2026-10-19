@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useMemo, useState, type FormEvent } from 'react'
 import { FiTrash2, FiUploadCloud, FiX } from 'react-icons/fi'
 import type {
@@ -69,7 +70,7 @@ export default function MetaCustomerListUploadModal({
   const [operation, setOperation] = useState<MetaCustomerListMembersInput['operation']>('ADD')
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [hashing, setHashing] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const rows = useMemo(
     () =>
@@ -144,11 +145,7 @@ export default function MetaCustomerListUploadModal({
         </div>
 
         <form className="space-y-5 p-6" onSubmit={submit}>
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-              {error}
-            </div>
-          )}
+
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-xs font-semibold text-slate-700">

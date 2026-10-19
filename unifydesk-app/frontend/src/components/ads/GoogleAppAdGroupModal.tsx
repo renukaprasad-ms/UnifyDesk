@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiX } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -48,7 +49,7 @@ export default function GoogleAppAdGroupModal({
   const [targetCpa, setTargetCpa] = useState('')
   const [audiences, setAudiences] = useState<AdAudience[]>([])
   const [userListId, setUserListId] = useState('')
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const eligibleAudiences = useMemo(
     () =>
@@ -118,11 +119,7 @@ export default function GoogleAppAdGroupModal({
         </div>
 
         <form className="space-y-5 p-6" onSubmit={submit}>
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-              {error}
-            </div>
-          )}
+
 
           <label className="block text-xs font-semibold text-slate-700">
             Ad group name

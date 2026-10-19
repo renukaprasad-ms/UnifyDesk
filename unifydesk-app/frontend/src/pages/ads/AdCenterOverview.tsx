@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
 import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'
@@ -47,8 +48,8 @@ export default function AdCenterOverview() {
   const [workingAccountId, setWorkingAccountId] = useState<string | null>(null)
   const [syncingResourceAccountId, setSyncingResourceAccountId] = useState<string | null>(null)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [notice, setNotice] = useSnackbarState('', 'success')
 
   const load = async () => {
     if (!selectedCompany) return

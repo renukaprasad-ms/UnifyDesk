@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
@@ -435,8 +436,8 @@ export default function ReachlyoCampaignWizard() {
   const [loading, setLoading] = useState(Boolean(campaignId))
   const [busy, setBusy] = useState(false)
   const [reviewLoading, setReviewLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const [name, setName] = useState('')
   const [objective, setObjective] = useState<ReachlyoCampaignObjective>('LEADS')
@@ -2505,16 +2506,8 @@ export default function ReachlyoCampaignWizard() {
           )}
         </header>
 
-        {error && (
-          <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
-        {notice && (
-          <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-            {notice}
-          </div>
-        )}
+
+
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
           <aside className="panel h-fit overflow-hidden lg:sticky lg:top-6">

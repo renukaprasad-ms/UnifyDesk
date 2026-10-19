@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { ListSkeleton } from '../../components/ui/Skeleton'
 import WorkspaceDialog from '../../components/ui/WorkspaceDialog'
 import FilterPopover from '../../components/ui/FilterPopover'
@@ -35,7 +36,7 @@ export default function CrmActivitiesPage() {
   const [showNote, setShowNote] = useState(false),
     [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true),
-    [error, setError] = useState('')
+    [error, setError] = useSnackbarState('', 'error')
   const request = useRef(0)
   const load = useCallback(
     async (cursor?: string) => {

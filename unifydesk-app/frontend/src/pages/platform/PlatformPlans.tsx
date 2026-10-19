@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiArrowRight, FiLayers, FiPlus, FiX } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
@@ -48,7 +49,7 @@ export default function PlatformPlans() {
   const [visibilityFilter, setVisibilityFilter] = useState<'ALL' | 'PUBLIC' | 'PRIVATE' | 'INTERNAL'>('ALL')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [superAdmin, setSuperAdmin] = useState<boolean | null>(null)
 
   const load = async () => {
@@ -152,11 +153,7 @@ export default function PlatformPlans() {
           </button>
         </div>
 
-        {error && (
-          <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
+
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="panel p-4">

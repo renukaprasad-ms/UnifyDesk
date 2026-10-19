@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import {
   FiClock,
@@ -51,7 +52,7 @@ export default function CompanyUsers() {
   const [managingUser, setManagingUser] = useState<CompanyUser | null>(null)
   const [memberAssignments, setMemberAssignments] = useState<MemberRoleAssignment[]>([])
   const [roleActionId, setRoleActionId] = useState<string | null>(null)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [invitationToRevoke, setInvitationToRevoke] = useState<CompanyInvitation | null>(null)
   const [memberActionUserId, setMemberActionUserId] = useState<string | null>(null)
   const [ownershipPassword, setOwnershipPassword] = useState('')
@@ -309,11 +310,7 @@ export default function CompanyUsers() {
           </div>
         </div>
 
-        {error && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+
 
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
           <div className="panel p-5">
@@ -735,9 +732,7 @@ export default function CompanyUsers() {
               )}
               </div>
 
-              {error && (
-                <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>
-              )}
+
             </div>
 
             <div className="flex justify-end border-t border-slate-100 px-5 py-4">
@@ -821,9 +816,7 @@ export default function CompanyUsers() {
                 </fieldset>
               )}
 
-              {error && (
-                <p className="mt-5 rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>
-              )}
+
 
               <div className="mt-6 flex justify-end gap-2">
                 <button

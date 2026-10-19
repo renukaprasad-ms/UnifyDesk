@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useRef, useState } from 'react'
 import { createIdempotencyKey } from '../../features/contacts/contactModel'
 import { contactsApi } from '../../features/contacts/contactsApi'
@@ -31,7 +32,7 @@ export default function ExportJobButton({
 }: Props) {
   const [resource, setResource] = useState<ContactExport | null>(null)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const pollCount = useRef(0)
 
   useEffect(() => {
@@ -119,11 +120,7 @@ export default function ExportJobButton({
           {resource.rowCount != null ? ' · ' + resource.rowCount.toLocaleString() + ' rows' : ''}
         </span>
       )}
-      {error && (
-        <span className="max-w-64 text-xs text-rose-600" role="alert">
-          {error}
-        </span>
-      )}
+
     </div>
   )
 }

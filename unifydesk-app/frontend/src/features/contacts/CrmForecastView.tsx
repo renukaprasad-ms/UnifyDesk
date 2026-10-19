@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import {
   FiTarget,
@@ -38,7 +39,7 @@ export default function CrmForecastView({ companyId, currency = 'INR' }: CrmFore
 
   const [forecast, setForecast] = useState<CrmForecastResponse | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string>('')
+  const [error, setError] = useSnackbarState<string>('', 'error')
   const [refreshKey, setRefreshKey] = useState<number>(0)
 
   // Quota Modal State

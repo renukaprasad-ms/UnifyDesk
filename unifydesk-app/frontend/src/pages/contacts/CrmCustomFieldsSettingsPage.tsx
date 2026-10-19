@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 /**
  * CRM Custom Fields Settings Page
  * Route: /crm/settings/custom-fields
@@ -154,7 +155,7 @@ export default function CrmCustomFieldsSettingsPage() {
   const [activeTab, setActiveTab] = useState<CrmEntityType>('LEAD')
   const [fields, setFields] = useState<CrmFieldDef[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [showExplainer, setShowExplainer] = useState(true)
 
   // Dialog state
@@ -163,7 +164,7 @@ export default function CrmCustomFieldsSettingsPage() {
   const [optionInput, setOptionInput] = useState('')
   const [options, setOptions] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
-  const [formError, setFormError] = useState('')
+  const [formError, setFormError] = useSnackbarState('', 'error')
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const currentTabConfig = ENTITY_TABS.find((t) => t.type === activeTab) || ENTITY_TABS[0]
@@ -374,11 +375,7 @@ export default function CrmCustomFieldsSettingsPage() {
       </div>
 
       {/* Error state */}
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
-          {error}
-        </div>
-      )}
+
 
       {/* Content Section */}
       <div className="panel overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-xs">

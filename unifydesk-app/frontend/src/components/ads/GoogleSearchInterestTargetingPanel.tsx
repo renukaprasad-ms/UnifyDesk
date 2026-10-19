@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import { FiSave } from 'react-icons/fi'
 import GoogleSearchInterestSelector from './GoogleSearchInterestSelector'
@@ -24,8 +25,8 @@ export default function GoogleSearchInterestTargetingPanel({
   const [excluded, setExcluded] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const applySnapshot = (value: GoogleSearchInterestTargeting) => {
     setSnapshot(value)
@@ -73,17 +74,7 @@ export default function GoogleSearchInterestTargetingPanel({
         </p>
       </div>
 
-      {(error || notice) && (
-        <div
-          className={`mt-4 rounded-xl border px-4 py-3 text-sm font-medium ${
-            error
-              ? 'border-red-200 bg-red-50 text-red-700'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-          }`}
-        >
-          {error || notice}
-        </div>
-      )}
+
 
       {loading ? (
         <div className="mt-4"><CardSkeleton rows={4} /></div>

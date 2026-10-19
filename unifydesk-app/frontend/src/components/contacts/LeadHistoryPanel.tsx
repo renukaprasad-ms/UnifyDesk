@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { ListSkeleton } from '../ui/Skeleton'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
@@ -45,6 +46,9 @@ export default function LeadHistoryPanel({
     error: string
   } | null>(null)
   const loading = result?.key !== key
+  useEffect(() => {
+    if (result?.key === key && result.error) showGlobalSnackbar(result.error, { variant: 'error' })
+  }, [result, key])
   const events = !loading ? result.events : []
 
   // Custom fields state
@@ -52,7 +56,7 @@ export default function LeadHistoryPanel({
   const [customFields, setCustomFields] = useState<CustomFieldValues>(lead.customFields || {})
   const [editingCustom, setEditingCustom] = useState(false)
   const [savingCustom, setSavingCustom] = useState(false)
-  const [customError, setCustomError] = useState('')
+  const [customError, setCustomError] = useSnackbarState('', 'error')
 
   // Lead score breakdown state
   const [scoreResult, setScoreResult] = useState<LeadScoreResult | null>(null)
@@ -395,3 +399,4 @@ export default function LeadHistoryPanel({
     </section>
   )
 }
+import { showGlobalSnackbar } from '../feedback/SnackbarProvider'

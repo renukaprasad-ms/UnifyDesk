@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiCheck, FiLink, FiPlus, FiRefreshCw, FiX } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -103,8 +104,8 @@ export default function GoogleReusableAssetsPanel(props: Props) {
   const [workingId, setWorkingId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [savingUrls, setSavingUrls] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const [assetType, setAssetType] = useState<GoogleReusableAssetType>('SITELINK')
   const [assetName, setAssetName] = useState('')
@@ -340,18 +341,7 @@ export default function GoogleReusableAssetsPanel(props: Props) {
         ))}
       </div>
 
-      {(error || notice) && (
-        <div
-          className={
-            'mx-5 mt-4 rounded-xl border px-4 py-3 text-sm font-medium ' +
-            (error
-              ? 'border-red-200 bg-red-50 text-red-700'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-700')
-          }
-        >
-          {error || notice}
-        </div>
-      )}
+
 
       <div className="grid gap-5 p-5 xl:grid-cols-[1.2fr_0.8fr]">
         <div>

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useState, type FormEvent } from 'react'
 import { FiArrowLeft, FiEye, FiEyeOff, FiKey } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
@@ -60,7 +61,7 @@ export default function ChangePassword() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -112,11 +113,7 @@ export default function ChangePassword() {
           </p>
         </header>
 
-        {error && (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
+
 
         <form className="panel mt-6 p-6 sm:p-7" onSubmit={(event) => void submit(event)}>
           <div className="flex items-start gap-4 border-b border-slate-100 pb-5">

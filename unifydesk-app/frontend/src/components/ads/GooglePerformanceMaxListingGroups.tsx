@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import { FiRefreshCw, FiSave } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -54,8 +55,8 @@ export default function GooglePerformanceMaxListingGroups({
   const [includeOther, setIncludeOther] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const load = async () => {
     if (!assetGroup.id) return
@@ -206,17 +207,7 @@ export default function GooglePerformanceMaxListingGroups({
         </button>
       </div>
 
-      {(error || notice) && (
-        <div
-          className={`mt-3 rounded-lg border px-3 py-2 text-xs font-medium ${
-            error
-              ? 'border-red-200 bg-red-50 text-red-700'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-          }`}
-        >
-          {error || notice}
-        </div>
-      )}
+
 
       <div className="mt-4 overflow-x-auto">
         <table className="min-w-full text-left text-xs">

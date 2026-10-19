@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { adminBillingApi } from '../../features/platformBilling/adminBillingApi'
 import { utcWeekStart } from '../../features/platformBilling/analyticsBucketing'
@@ -20,7 +21,7 @@ export default function BillingChannelTrafficOverview({ companyNames }: Props) {
   const [reload, setReload] = useState(0)
   const [report, setReport] = useState<BillingChannelTrafficReport | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   useEffect(() => {
     let active = true
     const to = new Date()
@@ -73,7 +74,7 @@ export default function BillingChannelTrafficOverview({ companyNames }: Props) {
       </div>
     </div>
     {loading && <p className="mt-5 text-sm" role="status">Loading message activity...</p>}
-    {error && <p className="mt-5 text-sm text-red-600" role="alert">{error}</p>}
+
     {!loading && report && <>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[

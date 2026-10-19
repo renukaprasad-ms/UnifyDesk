@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   FiAlertCircle,
@@ -221,7 +222,7 @@ export default function Home() {
   const [channelsLoading, setChannelsLoading] = useState(true)
   const [adsLoading, setAdsLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [dashboardError, setDashboardError] = useState<string | null>(null)
+  const [dashboardError, setDashboardError] = useSnackbarState<string | null>(null, 'error')
   const [contactSummary, setContactSummary] = useState<ContactDashboardSummary | null>(null)
   const [recentContacts, setRecentContacts] = useState<ContactSummary[]>([])
   const [lists, setLists] = useState<ListSummary[]>([])

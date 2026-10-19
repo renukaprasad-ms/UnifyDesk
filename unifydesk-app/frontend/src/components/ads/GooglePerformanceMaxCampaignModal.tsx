@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { FiUpload, FiX } from 'react-icons/fi'
 import type {
@@ -77,7 +78,7 @@ export default function GooglePerformanceMaxCampaignModal({
   const [merchantId, setMerchantId] = useState('')
   const [feedLabel, setFeedLabel] = useState('')
   const [merchantLoading, setMerchantLoading] = useState(false)
-  const [imageError, setImageError] = useState('')
+  const [, setImageError] = useSnackbarState('', 'error')
 
   const canSubmit = useMemo(
     () =>
@@ -547,7 +548,7 @@ export default function GooglePerformanceMaxCampaignModal({
               </span>
             </label>
 
-            {imageError && <p className="mt-3 text-xs font-semibold text-red-600">{imageError}</p>}
+
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

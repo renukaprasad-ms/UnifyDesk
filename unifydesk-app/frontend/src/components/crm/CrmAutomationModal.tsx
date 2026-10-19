@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import {
   FiX,
@@ -40,8 +41,8 @@ export default function CrmAutomationModal({
   const [logs, setLogs] = useState<AutomationLog[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [feedback, setFeedback] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [, setFeedback] = useSnackbarState('', 'success')
 
   // Add / Edit Modal state
   const [editingRule, setEditingRule] = useState<AutomationRule | null>(null)
@@ -296,18 +297,8 @@ export default function CrmAutomationModal({
         </div>
 
         {/* Feedback & Error banners */}
-        {feedback && (
-          <div className="bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 px-6 py-2 text-xs flex items-center gap-2 border-b border-emerald-200 dark:border-emerald-800">
-            <FiCheckCircle className="h-4 w-4" />
-            <span>{feedback}</span>
-          </div>
-        )}
-        {error && (
-          <div className="bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 px-6 py-2 text-xs flex items-center gap-2 border-b border-rose-200 dark:border-rose-800">
-            <FiAlertCircle className="h-4 w-4" />
-            <span>{error}</span>
-          </div>
-        )}
+
+
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">

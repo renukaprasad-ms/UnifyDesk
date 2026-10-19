@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import PhoneInput from '../ui/PhoneInput'
 import { phoneValidationMessage } from '../../utils/phone'
 import { useEffect, useMemo, useState } from 'react'
@@ -39,7 +40,7 @@ export default function SendWhatsAppModal({
   const [loading, setLoading] = useState(true)
   const [context, setContext] = useState<WhatsAppContext | null>(null)
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([])
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
 
   // Form State
   const [selectedPhone, setSelectedPhone] = useState('')

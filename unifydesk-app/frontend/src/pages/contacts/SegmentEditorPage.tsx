@@ -51,6 +51,9 @@ export default function SegmentEditorPage() {
   const [preview, setPreview] = useState<SegmentPreview | null>(null)
   const [errors, setErrors] = useState<string[]>([])
   const [serverErrors, setServerErrors] = useState<string[]>([])
+  useEffect(() => {
+    if (serverErrors.length) showGlobalSnackbar(serverErrors.join('\n'), { variant: 'error' })
+  }, [serverErrors])
   const [saving, setSaving] = useState(false)
   const [initialLoading, setInitialLoading] = useState(!creating)
   const [segmentVersion, setSegmentVersion] = useState<number | null>(null)
@@ -209,6 +212,7 @@ export default function SegmentEditorPage() {
   const validate = () => {
     const localErrors = validateSegmentClient(filter, fields)
     setErrors(localErrors)
+    if (localErrors.length) showGlobalSnackbar(localErrors[0], { variant: 'warning' })
     return localErrors.length === 0
   }
 
@@ -249,6 +253,7 @@ export default function SegmentEditorPage() {
   const save = async () => {
     if (!name.trim()) {
       setNameTouched(true)
+      showGlobalSnackbar('Enter a segment name before saving.', { variant: 'warning' })
       return
     }
     if (!companyId || !canModify || !validate()) return
@@ -570,3 +575,4 @@ export default function SegmentEditorPage() {
     </section>
   )
 }
+import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'

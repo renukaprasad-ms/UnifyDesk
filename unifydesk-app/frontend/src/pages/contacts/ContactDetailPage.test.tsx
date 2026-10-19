@@ -1,3 +1,4 @@
+import { SnackbarProvider } from '../../components/feedback/SnackbarProviderComponent'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -44,12 +45,12 @@ const iam = {
 
 const renderPage = (entry = '/contacts/contact-1') =>
   render(
-    <MemoryRouter initialEntries={[entry]}>
+    <SnackbarProvider>{<MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/contacts/target" element={<div>Target contact</div>} />
         <Route path="/contacts/:contactId" element={<ContactDetailPage />} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>}</SnackbarProvider>,
   )
 
 describe('ContactDetailPage', () => {
@@ -75,7 +76,7 @@ describe('ContactDetailPage', () => {
     renderPage()
 
     expect(await screen.findByText('Contact unavailable')).toBeInTheDocument()
-    expect(screen.getByText('Contact not found.')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Contact not found.')
     expect(screen.queryByText(/foreign tenant/i)).toBeNull()
   })
 

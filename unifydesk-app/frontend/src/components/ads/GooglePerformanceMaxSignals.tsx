@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiPlus, FiRefreshCw } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -24,8 +25,8 @@ export default function GooglePerformanceMaxSignals({
   const [selectedAudienceIds, setSelectedAudienceIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const eligibleAudiences = useMemo(
     () => audiences.filter((audience) => audience.accessible),
@@ -106,17 +107,7 @@ export default function GooglePerformanceMaxSignals({
         </button>
       </div>
 
-      {(error || notice) && (
-        <div
-          className={`mt-3 rounded-lg border px-3 py-2 text-xs font-medium ${
-            error
-              ? 'border-red-200 bg-red-50 text-red-700'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-          }`}
-        >
-          {error || notice}
-        </div>
-      )}
+
 
       <div className="mt-4 flex flex-wrap gap-2">
         {searchThemeSignals.map((signal) => (

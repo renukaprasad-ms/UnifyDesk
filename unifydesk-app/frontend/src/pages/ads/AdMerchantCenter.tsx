@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiBox, FiPlus, FiRefreshCw, FiShoppingBag, FiTrash2 } from 'react-icons/fi'
 import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
@@ -43,8 +44,8 @@ export default function AdMerchantCenter() {
   const [productOpen, setProductOpen] = useState(false)
   const [savingProduct, setSavingProduct] = useState(false)
   const [editingProduct, setEditingProduct] = useState<GoogleMerchantProduct | null>(null)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [notice, setNotice] = useSnackbarState('', 'success')
   const [sourceToDelete, setSourceToDelete] = useState<GoogleMerchantDataSource | null>(null)
   const [productToDelete, setProductToDelete] = useState<GoogleMerchantProduct | null>(null)
   const [deleting, setDeleting] = useState(false)

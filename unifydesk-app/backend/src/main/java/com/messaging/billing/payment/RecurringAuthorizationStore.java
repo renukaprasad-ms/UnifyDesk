@@ -284,7 +284,7 @@ class RecurringAuthorizationStore {
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
                    authorization_payment_id, authorization_status, max_amount, currency,
-                   provider_authorization_payment_id
+                   provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where company_id = ? and checkout_intent_id = ? and provider = 'RAZORPAY'
              for update
@@ -355,7 +355,7 @@ class RecurringAuthorizationStore {
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
                    authorization_payment_id, authorization_status, max_amount, currency,
-                   provider_authorization_payment_id
+                   provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where company_id = ? and subscription_id = ? and provider = 'RAZORPAY'
                and authorization_status = 'ACTIVE'
@@ -373,7 +373,7 @@ class RecurringAuthorizationStore {
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
                    authorization_payment_id, authorization_status, max_amount, currency,
-                   provider_authorization_payment_id
+                   provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where company_id = ? and subscription_id = ? and provider = 'RAZORPAY'
             """,
@@ -479,7 +479,7 @@ class RecurringAuthorizationStore {
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
                    authorization_payment_id, authorization_status, max_amount, currency,
-                   provider_authorization_payment_id
+                   provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where id = ?
              for update

@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import { FiChevronLeft, FiChevronRight, FiSearch, FiShield, FiUser } from 'react-icons/fi'
 import { platformApi } from '../../features/platform/platformApi'
@@ -17,7 +18,7 @@ export default function PlatformUsers() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const load = async (targetPage = page) => {
     setLoading(true)
@@ -81,11 +82,7 @@ export default function PlatformUsers() {
             </form>
           </div>
 
-          {error && (
-            <div className="border-b border-rose-200 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
-              {error}
-            </div>
-          )}
+
 
           <div className="overflow-x-auto">
             <table className="mobile-card-table min-w-full text-left">

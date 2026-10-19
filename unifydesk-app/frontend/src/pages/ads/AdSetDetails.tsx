@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiArrowLeft, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave } from 'react-icons/fi'
 import { Link, useParams } from 'react-router'
@@ -245,8 +246,8 @@ export default function AdSetDetails() {
   const [creatingAd, setCreatingAd] = useState(false)
   const [workingAdId, setWorkingAdId] = useState<string | null>(null)
   const [adModalOpen, setAdModalOpen] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const [name, setName] = useState('')
   const [optimizationGoal, setOptimizationGoal] = useState('')
@@ -609,17 +610,7 @@ export default function AdSetDetails() {
                 ))}
             </header>
 
-            {(error || notice) && (
-              <div
-                className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${
-                  error
-                    ? 'border-red-200 bg-red-50 text-red-700'
-                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                }`}
-              >
-                {error || notice}
-              </div>
-            )}
+
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="panel p-5">

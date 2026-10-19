@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useEffect, useRef, useState } from 'react'
 import { FiAtSign, FiImage, FiLock, FiMail, FiUploadCloud, FiUser, FiX } from 'react-icons/fi'
@@ -31,7 +32,7 @@ const Register = () => {
   const [profileUploadProgress, setProfileUploadProgress] = useState(0)
   const [profileUploadResult, setProfileUploadResult] =
     useState<InitiateMediaUploadResponse | null>(null)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
   const [submitting, setSubmitting] = useState(false)
   const [profileUploading, setProfileUploading] = useState(false)
   const profilePreviewUrlRef = useRef('')
@@ -275,7 +276,7 @@ const Register = () => {
             />
           )}
         </div>
-        {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
+
         <AsyncButton
           type="submit"
           className="primary-button flex w-full"

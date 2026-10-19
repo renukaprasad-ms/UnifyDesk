@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { FiRefreshCw } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -62,7 +63,7 @@ export default function GoogleProviderReportingPanel({
   const [tab, setTab] = useState<Tab>('LANDING')
   const [report, setReport] = useState<GoogleProviderReport>(emptyReport)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
 
   const load = async () => {
     setLoading(true)

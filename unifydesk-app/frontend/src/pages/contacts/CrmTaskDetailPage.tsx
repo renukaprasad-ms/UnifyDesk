@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
@@ -96,7 +97,7 @@ export default function CrmTaskDetailPage() {
 
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const [activeTab, setActiveTab] = useState<'comments' | 'history'>('comments')
   const [newComment, setNewComment] = useState('')
   const [postingComment, setPostingComment] = useState(false)
@@ -518,11 +519,7 @@ export default function CrmTaskDetailPage() {
         </div>
       </header>
 
-      {error && (
-        <div className="rounded-lg bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-          {error}
-        </div>
-      )}
+
 
       {/* Jira-style 2-Column Grid */}
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_340px]">

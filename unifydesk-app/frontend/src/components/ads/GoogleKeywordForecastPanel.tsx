@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useMemo, useState } from 'react'
 import { FiActivity, FiRefreshCw } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -37,7 +38,7 @@ export default function GoogleKeywordForecastPanel(props: Props) {
   const [endDate, setEndDate] = useState(() => dateFromToday(30))
   const [result, setResult] = useState<GoogleKeywordForecastResponse | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const keywords = useMemo(() => {
     const seen = new Set<string>()
@@ -250,11 +251,7 @@ export default function GoogleKeywordForecastPanel(props: Props) {
         )}
       </div>
 
-      {error && (
-        <div className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-          {error}
-        </div>
-      )}
+
 
       {result && (
         <div className="mt-4">

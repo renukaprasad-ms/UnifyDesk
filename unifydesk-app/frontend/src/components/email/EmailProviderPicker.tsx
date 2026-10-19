@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useState } from 'react'
 import { FaMicrosoft } from 'react-icons/fa'
 import { FiMail, FiPlus, FiServer, FiX } from 'react-icons/fi'
@@ -37,7 +38,7 @@ export default function EmailProviderPicker({
   const [open, setOpen] = useState(false)
   const [connecting, setConnecting] = useState<'GMAIL' | 'MICROSOFT' | 'ZOHO_MAIL' | null>(null)
   const [customSetup, setCustomSetup] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
 
   const close = () => {
     setOpen(false)
@@ -236,11 +237,7 @@ export default function EmailProviderPicker({
                   </button>
                 </div>
 
-                {error && (
-                  <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs leading-5 text-rose-700">
-                    {error}
-                  </div>
-                )}
+
               </>
             )}
           </div>

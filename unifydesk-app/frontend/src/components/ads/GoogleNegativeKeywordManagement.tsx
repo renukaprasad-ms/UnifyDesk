@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useState, type FormEvent } from 'react'
 import { FiLink, FiPlus, FiRefreshCw, FiTrash2, FiX } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -52,8 +53,8 @@ export default function GoogleNegativeKeywordManagement({
     useState<GoogleNegativeKeywordInput['matchType']>('PHRASE')
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
 
   const load = async () => {
     setLoading(true)
@@ -263,18 +264,7 @@ export default function GoogleNegativeKeywordManagement({
         </button>
       </div>
 
-      {(error || notice) && (
-        <div
-          className={
-            'mx-5 mt-4 rounded-xl border px-4 py-3 text-sm font-medium ' +
-            (error
-              ? 'border-red-200 bg-red-50 text-red-700'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-700')
-          }
-        >
-          {error || notice}
-        </div>
-      )}
+
 
       <div className="grid gap-6 p-5 lg:grid-cols-2">
         <div>

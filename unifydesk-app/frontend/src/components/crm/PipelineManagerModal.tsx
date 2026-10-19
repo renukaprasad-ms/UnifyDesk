@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useState } from 'react'
 import {
   FiEdit2,
@@ -42,7 +43,7 @@ export default function PipelineManagerModal({
   const [editingPipeline, setEditingPipeline] = useState<Pipeline | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
 
   // Form state
   const [name, setName] = useState('')

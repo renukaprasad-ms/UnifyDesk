@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
@@ -75,7 +76,7 @@ export default function CrmDealDetailPage() {
 
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
   const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'attachments'>('comments')
   const [newComment, setNewComment] = useState('')
   const [postingComment, setPostingComment] = useState(false)
@@ -378,11 +379,7 @@ export default function CrmDealDetailPage() {
         </div>
       </header>
 
-      {error && (
-        <div className="rounded-lg bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-          {error}
-        </div>
-      )}
+
 
       {/* Interactive Jira / HubSpot Pipeline Chevron Stepper */}
       <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">

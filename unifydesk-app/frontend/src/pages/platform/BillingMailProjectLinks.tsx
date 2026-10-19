@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../../components/feedback/useSnackbarState'
 import { useEffect, useMemo, useState } from 'react'
 import { adminBillingApi } from '../../features/platformBilling/adminBillingApi'
 import type {
@@ -19,8 +20,8 @@ export default function BillingMailProjectLinks({ companies }: Props) {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState('')
   const [replayState, setReplayState] = useState<Record<string, { from: string; afterId: string }>>({})
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [, setError] = useSnackbarState('', 'error')
+  const [, setNotice] = useSnackbarState('', 'success')
   const [form, setForm] = useState<MailBillingProjectLinkInput>({
     companyId: '', mailProjectId: '', ownershipProof: '', ownershipVerified: false,
   })
@@ -142,8 +143,8 @@ export default function BillingMailProjectLinks({ companies }: Props) {
         Reporting only: this bridge never creates billing charges or invoices. Mail product
         amounts remain separate from managed email revenue.
       </p>
-      {error && <p className="mt-4 text-sm text-red-700" role="alert">{error}</p>}
-      {notice && <p className="mt-4 text-sm text-emerald-700" role="status">{notice}</p>}
+
+
       <form className="mt-5 grid gap-4 lg:grid-cols-3" onSubmit={(event) => { void submit(event) }}>
         <label className="text-xs font-semibold">UnifyDesk company
           <select required className="form-input mt-1" value={form.companyId}

@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "check:feedback": "node scripts/check-feedback.mjs",
     "generate:locations": "node scripts/generate-locations.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",

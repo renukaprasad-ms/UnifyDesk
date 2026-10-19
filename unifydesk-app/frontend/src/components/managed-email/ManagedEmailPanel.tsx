@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   FiAlertTriangle,
@@ -61,7 +62,7 @@ export default function ManagedEmailPanel({
   const [deliverability, setDeliverability] = useState<ManagedEmailDeliverability | null>(null)
   const [loading, setLoading] = useState(true)
   const [workingId, setWorkingId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [, setError] = useSnackbarState<string | null>(null, 'error')
   const [senderToDisable, setSenderToDisable] = useState<ManagedEmailSender | null>(null)
   const [domainToRetire, setDomainToRetire] = useState<ManagedEmailDomain | null>(null)
 
@@ -191,14 +192,7 @@ export default function ManagedEmailPanel({
         </div>
       </div>
 
-      {error && (
-        <div
-          className="border-b border-rose-100 bg-rose-50 px-5 py-3 text-xs text-rose-700"
-          role="alert"
-        >
-          {error}
-        </div>
-      )}
+
 
       {overview?.globalNotice && (
         <div className="border-b border-amber-100 bg-amber-50 px-5 py-3 text-xs leading-5 text-amber-800">

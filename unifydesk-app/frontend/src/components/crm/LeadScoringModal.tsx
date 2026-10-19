@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useState } from 'react'
 import {
   FiX,
@@ -42,8 +43,8 @@ export default function LeadScoringModal({
   const [customDefs, setCustomDefs] = useState<CrmFieldDef[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [feedback, setFeedback] = useState('')
+  const [error, setError] = useSnackbarState('', 'error')
+  const [, setFeedback] = useSnackbarState('', 'success')
 
   // Add / Edit Rule dialog
   const [editingRule, setEditingRule] = useState<ScoreRule | null>(null)
@@ -329,16 +330,8 @@ export default function LeadScoringModal({
         </div>
 
         {/* Feedback / Error banner */}
-        {error && (
-          <div className="mx-5 mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-400">
-            {error}
-          </div>
-        )}
-        {feedback && (
-          <div className="mx-5 mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400">
-            {feedback}
-          </div>
-        )}
+
+
 
         {/* Main Content Area */}
         <div className="min-h-0 flex-1 overflow-y-auto p-5">

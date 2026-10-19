@@ -1,3 +1,4 @@
+import { useSnackbarState } from '../feedback/useSnackbarState'
 import { useEffect, useRef, useState } from 'react'
 import {
   FiAlertCircle,
@@ -48,7 +49,7 @@ export default function PaymentVerificationAndAutoPayModal({
   onDone,
 }: PaymentVerificationAndAutoPayModalProps) {
   const [step, setStep] = useState<VerificationStep>('VERIFYING_SIGNATURE')
-  const [error, setError] = useState<string>('')
+  const [error, setError] = useSnackbarState<string>('', 'error')
   const [countdown, setCountdown] = useState<number>(7)
   const [autoPayDetails, setAutoPayDetails] = useState<AutoPayDetails | null>(null)
   const [isSettingUpAutoPay, setIsSettingUpAutoPay] = useState(false)
@@ -141,7 +142,7 @@ export default function PaymentVerificationAndAutoPayModal({
     setIsSettingUpAutoPay(true)
     setError('')
     try {
-      // 1. Prepare 20-year mandate with up to ₹15,000 monthly limit
+      // Prepare the mandate; the provider confirms its validity and per-charge limit.
       const setup = await billingApi.setupAutoPay(companyId, {
         name: companyName || 'Company Admin',
         email: customerEmail || undefined,
@@ -149,6 +150,10 @@ export default function PaymentVerificationAndAutoPayModal({
         maxAmount: 15000,
       })
       setAutoPayDetails(setup)
+      if (setup.status === 'ACTIVE') {
+        setStep('AUTOTOPUP_SETUP')
+        return
+      }
 
       // 2. Open Razorpay recurring mandate popup (never redirect)
       if (setup.keyId || setup.subscriptionSessionId || setup.actionUrl) {
@@ -172,6 +177,10 @@ export default function PaymentVerificationAndAutoPayModal({
             signature: mandateRes.razorpay_signature,
           })
           setAutoPayDetails(verified)
+          if (verified.status !== 'ACTIVE') {
+            setError('AutoPay authorization is pending. Confirm the mandate in Razorpay, then retry verification.')
+            return
+          }
           setStep('AUTOTOPUP_SETUP')
         } catch (popupErr) {
           // If popup is closed or test simulation fallback
@@ -188,10 +197,13 @@ export default function PaymentVerificationAndAutoPayModal({
           }
         }
       } else {
-        // Fallback for simulated local environment
         const verified = await billingApi.verifyAutoPay(companyId)
         setAutoPayDetails(verified)
-        setStep('AUTOTOPUP_SETUP')
+        if (verified.status === 'ACTIVE') {
+          setStep('AUTOTOPUP_SETUP')
+        } else {
+          setError('AutoPay setup is incomplete. Please retry setup or contact support.')
+        }
       }
     } catch (err) {
       setError(apiErrorMessage(err, 'Could not initialize AutoPay setup.'))
@@ -302,23 +314,18 @@ export default function PaymentVerificationAndAutoPayModal({
               <div className="flex items-start gap-2.5">
                 <FiShield className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold text-slate-100">Zero immediate charge:</span> Mandate authorization only activates automated billing when an invoice or low-balance trigger occurs.
+                  <span className="font-semibold text-slate-100">Authorization payment:</span> Razorpay requests ₹1 to authorize this mandate. Future charges follow your invoices and wallet recharge settings.
                 </div>
               </div>
               <div className="flex items-start gap-2.5">
                 <FiCreditCard className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold text-slate-100">20-Year Long Term Mandate:</span> Max authorization limit capped at <strong className="text-indigo-300">₹15,000</strong> for total security.
+                  <span className="font-semibold text-slate-100">Recurring mandate:</span> Up to <strong className="text-indigo-300">₹15,000</strong> per charge. Review the validity and terms in Razorpay before approving.
                 </div>
               </div>
             </div>
 
-            {error && (
-              <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400">
-                <FiAlertCircle className="h-4 w-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
+
 
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <button
@@ -362,7 +369,7 @@ export default function PaymentVerificationAndAutoPayModal({
               </div>
               <div>
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">
-                  Mandate Active (₹15,000 / mo)
+                  Mandate Active (up to ₹15,000 per charge)
                 </span>
                 <h3 className="text-xl font-bold text-white">Enable Wallet Auto-Topup</h3>
               </div>
@@ -463,7 +470,7 @@ export default function PaymentVerificationAndAutoPayModal({
             </div>
             <h3 className="text-xl font-bold text-white">AutoPay Successfully Configured!</h3>
             <p className="mt-2 text-sm text-slate-400 max-w-sm">
-              Your 20-year recurring mandate (up to ₹15,000) is now active. Future renewals and automated wallet recharges will process effortlessly.
+              Your recurring mandate is active, with a limit of up to ₹15,000 per charge. Future renewals and wallet recharges follow your billing settings.
             </p>
             {autoPayDetails?.maxAmount && (
               <p className="mt-1 text-xs text-indigo-400 font-medium">
