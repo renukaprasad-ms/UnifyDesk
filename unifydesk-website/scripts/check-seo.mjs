@@ -4,7 +4,8 @@ import path from "node:path";
 const origin = "https://unifydesk.in";
 const guideRoutes = ["/guides", "/guides/whatsapp-broadcast-india", "/guides/email-broadcast-vs-email-marketing", "/guides/bulk-sms-dlt-india"];
 const channelRoutes = ["/best-omnichannel-broadcast-india", "/whatsapp-shared-inbox", "/whatsapp-broadcast", "/sms-marketing", "/email-campaigns", "/omnichannel-inbox"];
-const routes = ["/", "/product", "/solutions", "/integrations", "/pricing", "/security", "/about", "/contact", "/privacy", "/terms", ...channelRoutes, ...guideRoutes];
+const routes = ["/", "/product", "/solutions", "/integrations", "/pricing", "/security", "/about", "/contact", ...channelRoutes, ...guideRoutes];
+const draftLegalRoutes = ["/privacy", "/terms", "/data-deletion", "/cookies", "/subprocessors", "/acceptable-use", "/refund-policy", "/dpa"];
 const preservedTitles = {
   "/": "UnifyDesk | Customer Communication & Marketing Platform",
   "/product": "Customer Communication Platform | UnifyDesk",
@@ -24,8 +25,9 @@ const fail = (route, issue) => failures.push(`${route}: ${issue}`);
 const exportedPath = (route) => path.join("out", route === "/" ? "index.html" : `${route.slice(1)}.html`);
 
 for (const route of routes) documents.set(route, await fs.readFile(exportedPath(route), "utf8"));
-for (const route of ["/data-deletion", "/cookies", "/subprocessors", "/acceptable-use", "/refund-policy", "/dpa"]) {
-  try { documents.set(route, await fs.readFile(exportedPath(route), "utf8")); } catch {}
+for (const route of draftLegalRoutes) {
+  try { documents.set(route, await fs.readFile(exportedPath(route), "utf8")); }
+  catch { fail(route, "missing exported draft legal page"); }
 }
 const sitemap = await fs.readFile("out/sitemap.xml", "utf8");
 const robots = await fs.readFile("out/robots.txt", "utf8");
@@ -78,6 +80,15 @@ for (const [route, html] of documents) {
     if (target.hash && !documents.get(targetRoute).includes(`id="${decodeURIComponent(target.hash.slice(1))}"`)) fail(route, `missing fragment ${href}`);
   }
   pages.push({ route, title, description, canonical: canonical[0]?.href, h1: decode(h1s[0]?.[1].replace(/<[^>]+>/g, "") ?? ""), mainWords: copy ? copy.split(" ").length : 0, images: imgs.length, intentionallyEmptyBrandAlt: imgs.filter(img => img.src === "/logo-icon.svg" && img.alt === "").length, internalLinks, schemaTypes: schemas.map(schema => schema["@type"]) });
+}
+for (const route of draftLegalRoutes) {
+  const html = documents.get(route);
+  if (!html) continue;
+  const metas = [...html.matchAll(/<meta\\b[^>]*>/g)].map(([tag]) => attributes(tag));
+  const robotsMeta = metas.find(meta => meta.name === "robots")?.content ?? "";
+  if (!/noindex/i.test(robotsMeta)) fail(route, "unapproved legal draft must be noindex");
+  if (sitemap.includes(`<loc>${origin}${route}</loc>`)) fail(route, "draft legal page must not appear in sitemap");
+  if (!html.includes("REVIEW DRAFT")) fail(route, "missing visible legal draft warning");
 }
 for (const file of ["public/_redirects", "out/_redirects"]) {
   try { const redirects = await fs.readFile(file, "utf8"); if (/^https?:\/\//m.test(redirects)) fail(file, "unsupported domain-level source rule"); }

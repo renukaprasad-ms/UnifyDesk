@@ -6,6 +6,9 @@ export default function StructuredData(){
       "@id":"https://unifydesk.in/#organization",
       name:"UnifyDesk",
       url:"https://unifydesk.in/",
+      email:"support@unifydesk.in",
+      areaServed:{"@type":"Country",name:"India"},
+      contactPoint:[{"@type":"ContactPoint",contactType:"customer support",email:"support@unifydesk.in"}],
       logo:"https://unifydesk.in/logo.svg",
       description:"UnifyDesk is a customer communication and marketing platform that connects conversations, contacts, broadcasts and advertising workflows."
     },

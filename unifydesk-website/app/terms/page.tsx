@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: "Terms of Service",
   description: "Draft India Early Access Terms of Service for UnifyDesk",
   alternates: { canonical: "/terms" },
-  robots: { index: true, follow: true },
+  robots: { index: false, follow: false },
 };
 const sections = [
   {
@@ -37,7 +37,7 @@ const sections = [
     "title": "Plans and payments",
     "text": [
       "Platform subscriptions and separately priced pay-as-you-go managed communications may apply. Actual prices, tax, plan limits, renewal consent, invoicing, downgrade timing and billable events need an approved order and matching backend verification.",
-      "Cashfree payment code exists, but production readiness, refunds, cancellation and payment processing are not established by this draft."
+      "Payment processing is being migrated to Razorpay. One-time checkout, renewal authorization, wallet auto-top-up, cancellations and refunds must be verified against the deployed system before public billing terms are approved."
     ]
   },
   {

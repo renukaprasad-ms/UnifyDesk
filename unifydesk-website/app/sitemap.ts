@@ -12,8 +12,7 @@ const routes=[
   {path:"/security",priority:.7,changeFrequency:"monthly" as const},
   {path:"/about",priority:.6,changeFrequency:"monthly" as const},
   {path:"/contact",priority:.6,changeFrequency:"monthly" as const},
-  {path:"/privacy",priority:.3,changeFrequency:"yearly" as const},
-  {path:"/terms",priority:.3,changeFrequency:"yearly" as const},
+  // Legal drafts remain accessible by direct link but are not finalized public notices.
   ...channelGuides.map(({path})=>({path,priority:.7,changeFrequency:"monthly" as const})),
   {path:"/guides",priority:.7,changeFrequency:"monthly" as const},
   ...guides.map(guide=>({path:guidePath(guide.slug),priority:.7,changeFrequency:"monthly" as const})),
