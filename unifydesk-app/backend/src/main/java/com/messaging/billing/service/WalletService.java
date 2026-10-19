@@ -125,6 +125,11 @@ public class WalletService {
       String returnUrl = razorpayProperties.getReturnUrl();
       String notifyUrl = razorpayProperties.getNotifyUrl();
 
+      jdbcTemplate.update(
+          "insert into wallet_topup_intents "
+              + "(id, company_id, internal_order_id, amount, currency, status) "
+              + "values (?, ?, ?, ?, ?, 'CREATE_PENDING')",
+          IdGenerator.nextId(), companyId, orderId, roundedAmount, currency);
       PaymentProviderGateway.Checkout checkout =
           paymentProviderGateway.createOrder(
               orderId,
@@ -140,11 +145,11 @@ public class WalletService {
           : null;
 
       if (rzpOrderId == null) throw new ConflictException("Razorpay checkout order was not created");
-      jdbcTemplate.update(
-          "insert into wallet_topup_intents "
-              + "(id, company_id, internal_order_id, provider_order_id, amount, currency, status) "
-              + "values (?, ?, ?, ?, ?, ?, 'CREATED')",
-          IdGenerator.nextId(), companyId, orderId, rzpOrderId, roundedAmount, currency);
+      int bound = jdbcTemplate.update(
+          "update wallet_topup_intents set provider_order_id=?, status='CREATED' "
+              + "where company_id=? and internal_order_id=? and status='CREATE_PENDING'",
+          rzpOrderId, companyId, orderId);
+      if (bound != 1) throw new ConflictException("Wallet checkout order binding conflicted");
       return new WalletTopupOrderResponse(
           checkout.orderId(),
           checkout.paymentSessionId(),
