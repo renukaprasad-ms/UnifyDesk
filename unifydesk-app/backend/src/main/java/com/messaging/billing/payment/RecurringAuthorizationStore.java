@@ -91,11 +91,33 @@ class RecurringAuthorizationStore {
       if ("ACTIVE".equalsIgnoreCase(current.status())) {
         return current;
       }
+      // A pending Razorpay order is a real provider operation. Reuse it rather than
+      // creating a second authorization order when the user retries setup.
+      if (current.subscriptionSessionId() != null
+          && current.subscriptionSessionId().startsWith("order_")) {
+        if (current.customerId() == null || !current.customerId().startsWith("cust_")) {
+          throw new ConflictException(
+              "Existing Razorpay authorization order has no verified customer; contact support");
+        }
+        return requireCoverage(current, maxAmount, currency);
+      }
+      // A CREATE_PENDING row may represent an in-flight provider request. Do not
+      // replay it blindly after a concurrent click or a network timeout.
+      if ("CREATE_PENDING".equalsIgnoreCase(current.status())) {
+        throw new ConflictException(
+            "AutoPay authorization creation is already pending; contact support if it persists");
+      }
+      // Repair older PENDING_AUTH rows that contain only the local UDS-AP ID.
+      // Such an ID is never a real Razorpay order, payment or mandate token.
+      // Any existing real provider order was handled above and must not be reset.
       String newSubId = "UDS-AP-" + companyId + "-" + IdGenerator.nextId();
       jdbcTemplate.update(
           """
           update payment_provider_authorizations
              set provider_subscription_id = ?,
+                 provider_subscription_session_id = null,
+                 provider_authorization_payment_id = null,
+                 payment_method_type = null,
                  authorization_status = 'CREATE_PENDING',
                  provider_status = 'CREATE_PENDING',
                  max_amount = ?,
@@ -107,7 +129,10 @@ class RecurringAuthorizationStore {
           maxAmount,
           currency,
           current.id());
-      return requireForUpdate(current.id());
+      return new Prepared(
+          current.id(), companyId, null, null, newSubId, null,
+          current.authorizationPaymentId(), null, "CREATE_PENDING", maxAmount,
+          currency, true);
     }
     return insertCompanyAutopay(
         companyId,
@@ -479,7 +504,7 @@ class RecurringAuthorizationStore {
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
                    authorization_payment_id, authorization_status, max_amount, currency,
-                   provider_authorization_payment_id
+                   provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where id = ?
              for update
