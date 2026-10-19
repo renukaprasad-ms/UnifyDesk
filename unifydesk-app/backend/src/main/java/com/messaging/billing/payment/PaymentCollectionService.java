@@ -71,14 +71,11 @@ public class PaymentCollectionService {
 
   private PaymentProviderGateway.Checkout recoverOrCreateIfDefinitelyAbsent(
       PaymentCollectionStore.Prepared prepared, PaymentProviderGateway.Customer customer) {
-    try {
-      return gateway.fetchOrder(prepared.providerOrderId());
-    } catch (RestClientResponseException exception) {
-      if (exception.getStatusCode().value() != 404) throw exception;
-      // A provider 404 is a definitive absence signal. Re-submit with the same order identity
-      // and the same deterministic idempotency key; never generate a second provider identity.
-      return createRemote(prepared, customer);
-    }
+    // Razorpay Orders are addressed by provider-generated order IDs, not our local receipt.
+    // If the provider response was lost, guessing or resubmitting might expose duplicate
+    // payable orders. Hold the ambiguous intent for manual/provider receipt reconciliation.
+    throw new com.messaging.common.exception.ConflictException(
+        "Razorpay checkout order creation is unresolved; contact billing support");
   }
 
   private PaymentProviderGateway.Checkout createRemote(

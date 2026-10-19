@@ -25,7 +25,6 @@ public class BillingAutoPayService {
   private final CompanyRepository companyRepository;
   private final com.messaging.billing.payment.RazorpayProperties razorpayProperties;
 
-  @Transactional
   public AutoPayDetailsResponse setup(Long companyId, AutoPaySetupRequest request) {
     PaymentProviderGateway.Customer customer = resolveCustomer(companyId, request);
     BigDecimal maxAmount = request != null && request.maxAmount() != null
@@ -72,7 +71,6 @@ public class BillingAutoPayService {
         result.customerId());
   }
 
-  @Transactional
   public AutoPayDetailsResponse verify(Long companyId, com.messaging.billing.dto.AutoPayVerifyRequest request) {
     var result = request != null && request.paymentId() != null
         ? recurringAuthorizationService.verifyCompanyAutopay(
@@ -94,7 +92,6 @@ public class BillingAutoPayService {
         result.customerId());
   }
 
-  @Transactional
   public boolean cancel(Long companyId) {
     boolean cancelled = recurringAuthorizationService.cancelCompanyAutopay(companyId);
     log.info("Cancelled AutoPay mandate for company {}: success={}", companyId, cancelled);
@@ -121,7 +118,7 @@ public class BillingAutoPayService {
         ? request.email().trim()
         : (profile != null && profile.getBillingEmail() != null && !profile.getBillingEmail().isBlank()
             ? profile.getBillingEmail().trim()
-            : (company.getBusinessEmail() != null ? company.getBusinessEmail().trim() : "billing@unifydesk.in"));
+            : (company.getBusinessEmail() != null ? company.getBusinessEmail().trim() : null));
 
     String phone = request != null && request.phone() != null && !request.phone().isBlank()
         ? request.phone().trim()

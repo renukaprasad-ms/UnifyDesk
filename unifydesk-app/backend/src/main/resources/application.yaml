@@ -88,6 +88,7 @@ app:
       sync-initial-delay-ms: ${APP_BILLING_MAIL_BRIDGE_INITIAL_DELAY_MS:60000}
     razorpay:
       enabled: ${APP_BILLING_RAZORPAY_ENABLED:true}
+      recurring-enabled: ${APP_BILLING_RAZORPAY_RECURRING_ENABLED:false}
       base-url: ${APP_BILLING_RAZORPAY_BASE_URL:https://api.razorpay.com/v1}
       key-id: ${APP_BILLING_RAZORPAY_KEY_ID:rzp_test_placeholder}
       key-secret: ${APP_BILLING_RAZORPAY_KEY_SECRET:rzp_test_secret_placeholder}
@@ -105,28 +106,6 @@ app:
       automatic-renewal-claim-seconds: ${APP_BILLING_RAZORPAY_AUTOMATIC_RENEWAL_CLAIM_SECONDS:300}
       automatic-renewal-interval-ms: ${APP_BILLING_RAZORPAY_AUTOMATIC_RENEWAL_INTERVAL_MS:60000}
       automatic-renewal-initial-delay-ms: ${APP_BILLING_RAZORPAY_AUTOMATIC_RENEWAL_INITIAL_DELAY_MS:60000}
-    cashfree:
-      enabled: ${APP_BILLING_CASHFREE_ENABLED:false}
-      base-url: ${APP_BILLING_CASHFREE_BASE_URL:https://sandbox.cashfree.com}
-      client-id: ${APP_BILLING_CASHFREE_CLIENT_ID:}
-      client-secret: ${APP_BILLING_CASHFREE_CLIENT_SECRET:}
-      subscriptions-client-id: ${APP_BILLING_CASHFREE_SUBSCRIPTIONS_CLIENT_ID:}
-      subscriptions-client-secret: ${APP_BILLING_CASHFREE_SUBSCRIPTIONS_CLIENT_SECRET:}
-      payments-api-version: ${APP_BILLING_CASHFREE_PAYMENTS_API_VERSION:2025-01-01}
-      subscriptions-api-version: ${APP_BILLING_CASHFREE_SUBSCRIPTIONS_API_VERSION:2025-01-01}
-      return-url: ${APP_BILLING_CASHFREE_RETURN_URL:https://app.unifydesk.in/billing/payment-return}
-      notify-url: ${APP_BILLING_CASHFREE_NOTIFY_URL:https://api.unifydesk.in/api/v1/webhooks/cashfree}
-      reconciliation-interval-ms: ${APP_BILLING_CASHFREE_RECONCILIATION_INTERVAL_MS:300000}
-      reconciliation-initial-delay-ms: ${APP_BILLING_CASHFREE_RECONCILIATION_INITIAL_DELAY_MS:60000}
-      webhook-max-attempts: ${APP_BILLING_CASHFREE_WEBHOOK_MAX_ATTEMPTS:8}
-      webhook-retry-base-seconds: ${APP_BILLING_CASHFREE_WEBHOOK_RETRY_BASE_SECONDS:300}
-      webhook-claim-seconds: ${APP_BILLING_CASHFREE_WEBHOOK_CLAIM_SECONDS:120}
-      webhook-max-age-seconds: ${APP_BILLING_CASHFREE_WEBHOOK_MAX_AGE_SECONDS:300}
-      webhook-future-skew-seconds: ${APP_BILLING_CASHFREE_WEBHOOK_FUTURE_SKEW_SECONDS:60}
-      dunning-claim-seconds: ${APP_BILLING_CASHFREE_DUNNING_CLAIM_SECONDS:300}
-      automatic-renewal-claim-seconds: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_CLAIM_SECONDS:300}
-      automatic-renewal-interval-ms: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_INTERVAL_MS:60000}
-      automatic-renewal-initial-delay-ms: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_INITIAL_DELAY_MS:60000}
   recipient-action:
     encryption-key: ${APP_RECIPIENT_ACTION_KEY:}
     token-ttl: ${APP_RECIPIENT_ACTION_TOKEN_TTL:365d}

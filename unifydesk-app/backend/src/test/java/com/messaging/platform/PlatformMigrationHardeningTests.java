@@ -28,10 +28,10 @@ class PlatformMigrationHardeningTests {
   private static final String ADMIN_URL = "jdbc:postgresql://127.0.0.1:55432/postgres";
   private static final String USER = "test";
   private static final String PASSWORD = "test";
-  private static final MigrationVersion CURRENT_HEAD = MigrationVersion.fromVersion("95");
+  private static final MigrationVersion CURRENT_HEAD = MigrationVersion.fromVersion("133");
 
   @Test
-  void cleanDatabaseMigratesToV95AndHibernateValidatesSchema() throws Exception {
+  void cleanDatabaseMigratesToCurrentHeadAndHibernateValidatesSchema() throws Exception {
     withDatabase(
         "platform_clean",
         url -> {
@@ -44,7 +44,7 @@ class PlatformMigrationHardeningTests {
   }
 
   @Test
-  void representativeV79DatabaseUpgradesToV95() throws Exception {
+  void representativeV79DatabaseUpgradesToCurrentHead() throws Exception {
     withDatabase(
         "platform_from79",
         url -> {

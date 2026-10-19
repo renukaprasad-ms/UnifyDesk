@@ -123,6 +123,46 @@ class RecurringAuthorizationServiceTests {
             eq("UDS-I-555"), any(), eq("INR"), eq(customer), anyString(), anyString());
   }
 
+
+  @Test
+  void mandateVerificationRejectsOrderFromAnotherCompanyWithoutCallingProvider() {
+    RecurringAuthorizationStore store = mock(RecurringAuthorizationStore.class);
+    PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
+    RecurringAuthorizationService service =
+        new RecurringAuthorizationService(store, gateway, new RazorpayProperties());
+    when(store.findCompanyAutopay(10L)).thenReturn(
+        prepared(123L, null, null, "UDS-AP-10", "order_expected", null,
+            "PENDING_AUTH", new BigDecimal("15000.00"), false));
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        com.messaging.common.exception.ConflictException.class,
+        () -> service.verifyCompanyAutopay(
+            10L, "pay_from_other_company", "order_other", "fake-signature"));
+
+    verify(gateway, never()).verifyMandateToken(any(), any(), any(), any());
+    verify(store, never()).activateCompanyAutopay(anyLong(), any(), any(), any());
+  }
+
+  @Test
+  void mandateVerificationRejectsMissingConfirmedToken() {
+    RecurringAuthorizationStore store = mock(RecurringAuthorizationStore.class);
+    PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
+    RecurringAuthorizationService service =
+        new RecurringAuthorizationService(store, gateway, new RazorpayProperties());
+    when(store.findCompanyAutopay(10L)).thenReturn(
+        prepared(124L, null, null, "UDS-AP-10", "order_expected", null,
+            "PENDING_AUTH", new BigDecimal("15000.00"), false));
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        com.messaging.common.exception.ConflictException.class,
+        () -> service.verifyCompanyAutopay(
+            10L, "pay_without_token", "order_expected", "fake-signature"));
+
+    verify(gateway).verifyMandateToken(
+        eq("order_expected"), eq("pay_without_token"), eq("fake-signature"), any());
+    verify(store, never()).activateCompanyAutopay(anyLong(), any(), any(), any());
+  }
+
   private RecurringAuthorizationStore.Prepared prepared(
       long id,
       Long subscriptionId,

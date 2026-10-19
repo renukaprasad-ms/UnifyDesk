@@ -49,9 +49,6 @@ public class RecurringAuthorizationService {
     if (prepared == null) {
       return null;
     }
-    if ("ACTIVE".equals(prepared.status())) {
-      return result(prepared, null);
-    }
     try {
       PaymentProviderGateway.RecurringAuthorization remote =
           gateway.fetchRecurringAuthorization(prepared.providerSubscriptionId());
@@ -99,8 +96,14 @@ public class RecurringAuthorizationService {
       return result(prepared, null);
     }
     try {
+      if (orderId == null || !orderId.equals(prepared.subscriptionSessionId())) {
+        throw new ConflictException("Mandate checkout order does not match the company");
+      }
       String customerId = prepared.customerId();
       String tokenId = gateway.verifyMandateToken(orderId, paymentId, signature, customerId);
+      if (tokenId == null || !tokenId.startsWith("token_")) {
+        throw new ConflictException("A verified recurring token is required");
+      }
       prepared = store.activateCompanyAutopay(prepared.id(), tokenId, paymentId, customerId);
       return result(prepared, null);
     } catch (RuntimeException exception) {
@@ -129,6 +132,10 @@ public class RecurringAuthorizationService {
   }
 
   public boolean cancelCompanyAutopay(Long companyId) {
+    RecurringAuthorizationStore.Prepared active = store.findActiveCompanyAutopay(companyId);
+    if (active != null) {
+      gateway.cancelRecurringAuthorization(active.providerSubscriptionId(), active.customerId());
+    }
     return store.cancelCompanyAutopay(companyId);
   }
 

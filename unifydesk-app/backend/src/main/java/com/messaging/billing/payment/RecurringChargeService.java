@@ -45,7 +45,7 @@ public class RecurringChargeService {
     if (prepared.logicalSucceeded()) return;
 
     // This is the final local commercial gate before any provider read/submit for the recurring
-    // command. A stale command is terminalized locally and never reaches Cashfree.
+    // command. A stale command is terminalized locally and never reaches Razorpay.
     try {
       chargeStore.assertCommerciallyCurrent(prepared, scheduledAt);
     } catch (ConflictException conflict) {
@@ -80,8 +80,8 @@ public class RecurringChargeService {
   }
 
   @Scheduled(
-      fixedDelayString = "${app.billing.cashfree.reconciliation-interval-ms:300000}",
-      initialDelayString = "${app.billing.cashfree.reconciliation-initial-delay-ms:60000}")
+      fixedDelayString = "${app.billing.razorpay.reconciliation-interval-ms:300000}",
+      initialDelayString = "${app.billing.razorpay.reconciliation-initial-delay-ms:60000}")
   public void reconcileAmbiguousRecurringCharges() {
     List<Long> ids =
         jdbcTemplate.queryForList(

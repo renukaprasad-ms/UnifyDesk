@@ -29,6 +29,8 @@ export type RazorpayOptions = {
   }
   handler?: (response: RazorpayPaymentSuccess) => void
   subscription_id?: string
+  customer_id?: string
+  recurring?: string
 }
 
 export interface RazorpayInstance {
@@ -159,66 +161,57 @@ export const launchRazorpayMandateCheckout = async (params: {
   customerId?: string
   customer?: { name?: string; email?: string; phone?: string }
 }): Promise<RazorpayPaymentSuccess> => {
+  const orderId = params.orderId?.trim()
+  const customerId = params.customerId?.trim()
+  if (!params.key || !params.key.startsWith('rzp_')) {
+    throw new Error('Razorpay checkout is not configured')
+  }
+  if (!orderId?.startsWith('order_') || !customerId?.startsWith('cust_')) {
+    throw new Error('Razorpay mandate setup requires a valid authorization order and customer')
+  }
   await loadRazorpayScript()
 
   const RazorpayClass = window.Razorpay
-  if (!RazorpayClass) {
-    throw new Error('Razorpay SDK failed to initialize')
-  }
+  if (!RazorpayClass) throw new Error('Razorpay SDK failed to initialize')
 
   return new Promise<RazorpayPaymentSuccess>((resolve, reject) => {
-    let resolved = false
-
+    let completed = false
     const options: RazorpayOptions = {
-      key: params.key || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder',
-      amount: 100, // ₹1 auth transaction for mandate setup
+      key: params.key,
+      order_id: orderId,
+      customer_id: customerId,
+      recurring: '1',
+      amount: 100,
       currency: 'INR',
-      name: 'UnifyDesk AutoPay Mandate',
-      description: 'Recurring Mandate Authorization up to ₹15,000 for 20 years',
+      name: 'UnifyDesk AutoPay',
+      description: 'Authorize optional recurring payments. Review the mandate terms before approval.',
       prefill: {
         name: params.customer?.name || '',
         email: params.customer?.email || '',
         contact: params.customer?.phone || '',
       },
-      notes: {
-        type: 'MANDATE_AUTH',
-      },
-      theme: {
-        color: '#6366f1',
-      },
+      theme: { color: '#6366f1' },
       modal: {
         ondismiss: () => {
-          if (!resolved) {
-            reject(new Error('Mandate authorization was cancelled by user.'))
-          }
+          if (!completed) reject(new Error('Mandate setup was cancelled'))
         },
       },
-      handler: (response: RazorpayPaymentSuccess) => {
-        resolved = true
+      handler: (response) => {
+        if (completed) return
+        if (response.razorpay_order_id !== orderId
+            || !response.razorpay_payment_id
+            || !response.razorpay_signature) {
+          reject(new Error('Razorpay mandate verification data is incomplete'))
+          return
+        }
+        completed = true
         resolve(response)
       },
     }
-
-    if (params.orderId && params.orderId.trim().startsWith('order_')) {
-      options.order_id = params.orderId.trim()
-    } else if (params.subscriptionId && params.subscriptionId.startsWith('order_')) {
-      options.order_id = params.subscriptionId.trim()
-    }
-
-    if (params.subscriptionId && params.subscriptionId.startsWith('sub_')) {
-      options.subscription_id = params.subscriptionId.trim()
-    }
-
-    if (params.customerId && params.customerId.trim().startsWith('cust_')) {
-      (options as Record<string, unknown>).customer_id = params.customerId.trim()
-      ;(options as Record<string, unknown>).recurring = '1'
-    }
-
     try {
-      const rzp = new RazorpayClass(options)
-      rzp.open()
-    } catch (err) {
-      reject(err)
+      new RazorpayClass(options).open()
+    } catch (error) {
+      reject(error)
     }
   })
 }

@@ -53,7 +53,11 @@ public interface PaymentProviderGateway {
 
   default String verifyMandateToken(
       String orderId, String paymentId, String signature, String customerId) {
-    return null;
+    throw new UnsupportedOperationException("Provider does not support verified mandates");
+  }
+
+  default void cancelRecurringAuthorization(String tokenId, String customerId) {
+    throw new UnsupportedOperationException("Provider does not support mandate cancellation");
   }
 
   enum AuthorizationMethod {
