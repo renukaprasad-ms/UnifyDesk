@@ -29,7 +29,7 @@ public class DunningService {
   private final PaymentReconciliationService reconciliationService;
   private final RecurringChargeService recurringChargeService;
   private final SubscriptionLifecycleService lifecycleService;
-  private final CashfreeProperties properties;
+  private final RazorpayProperties properties;
   private final com.messaging.billing.service.BillingNotificationService billingNotificationService;
 
   public void schedule(
@@ -54,9 +54,10 @@ public class DunningService {
   }
 
   @Scheduled(
-      fixedDelayString = "${app.billing.cashfree.dunning-interval-ms:300000}",
-      initialDelayString = "${app.billing.cashfree.dunning-initial-delay-ms:60000}")
+      fixedDelayString = "${app.billing.razorpay.dunning-interval-ms:300000}",
+      initialDelayString = "${app.billing.razorpay.dunning-initial-delay-ms:60000}")
   public void run() {
+    if (!properties.isRecurringEnabled()) return;
     for (Job job : claimDue()) {
       processClaimed(job);
     }
