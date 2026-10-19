@@ -25,7 +25,7 @@ class AutomaticRenewalServiceTests {
   private RecurringChargeService chargeService;
   private PaymentConfirmationService confirmationService;
   private SubscriptionLifecycleService lifecycleService;
-  private CashfreeProperties properties;
+  private RazorpayProperties properties;
   private com.messaging.billing.service.BillingNotificationService notificationService;
   private AutomaticRenewalService service;
 
@@ -38,8 +38,9 @@ class AutomaticRenewalServiceTests {
     chargeService = mock(RecurringChargeService.class);
     confirmationService = mock(PaymentConfirmationService.class);
     lifecycleService = mock(SubscriptionLifecycleService.class);
-    properties = new CashfreeProperties();
+    properties = new RazorpayProperties();
     properties.setAutomaticRenewalClaimSeconds(120L);
+    properties.setRecurringEnabled(true);
     notificationService = mock(com.messaging.billing.service.BillingNotificationService.class);
     service =
         new AutomaticRenewalService(
@@ -62,7 +63,7 @@ class AutomaticRenewalServiceTests {
     when(store.subscription(job))
         .thenReturn(
             new AutomaticRenewalStore.SubscriptionSnapshot(
-                SubscriptionStatus.ACTIVE, boundary, false, "CASHFREE"));
+                SubscriptionStatus.ACTIVE, boundary, false, "RAZORPAY"));
     when(checkoutService.createOrResolveRenewalInvoice(eq(10L), eq(77L), any(), isNull()))
         .thenReturn(invoice(boundary));
     when(collectionService.prepareRecurringRenewal(10L, 20L, 77L))
@@ -88,7 +89,7 @@ class AutomaticRenewalServiceTests {
     when(store.subscription(job))
         .thenReturn(
             new AutomaticRenewalStore.SubscriptionSnapshot(
-                SubscriptionStatus.ACTIVE, boundary, false, "CASHFREE"));
+                SubscriptionStatus.ACTIVE, boundary, false, "RAZORPAY"));
     when(checkoutService.createOrResolveRenewalInvoice(eq(10L), eq(77L), any(), isNull()))
         .thenReturn(zeroDueInvoice(boundary));
 
@@ -114,7 +115,7 @@ class AutomaticRenewalServiceTests {
     when(store.subscription(job))
         .thenReturn(
             new AutomaticRenewalStore.SubscriptionSnapshot(
-                SubscriptionStatus.ACTIVE, boundary, false, "CASHFREE"));
+                SubscriptionStatus.ACTIVE, boundary, false, "RAZORPAY"));
     when(checkoutService.createOrResolveRenewalInvoice(eq(10L), eq(77L), any(), isNull()))
         .thenReturn(zeroDueInvoice(boundary));
 
@@ -132,7 +133,7 @@ class AutomaticRenewalServiceTests {
     when(store.subscription(job))
         .thenReturn(
             new AutomaticRenewalStore.SubscriptionSnapshot(
-                SubscriptionStatus.ACTIVE, null, false, "CASHFREE"));
+                SubscriptionStatus.ACTIVE, null, false, "RAZORPAY"));
     when(store.zeroDueBoundaryAlreadyApplied(job)).thenReturn(true);
 
     service.processClaimed(job);
@@ -151,7 +152,7 @@ class AutomaticRenewalServiceTests {
     when(store.subscription(job))
         .thenReturn(
             new AutomaticRenewalStore.SubscriptionSnapshot(
-                SubscriptionStatus.ACTIVE, boundary, false, "CASHFREE"));
+                SubscriptionStatus.ACTIVE, boundary, false, "RAZORPAY"));
     when(checkoutService.createOrResolveRenewalInvoice(eq(10L), eq(77L), any(), isNull()))
         .thenThrow(new ConflictException("old-plan boundary already owns financial truth"));
 
@@ -173,7 +174,7 @@ class AutomaticRenewalServiceTests {
     when(store.subscription(job))
         .thenReturn(
             new AutomaticRenewalStore.SubscriptionSnapshot(
-                SubscriptionStatus.ACTIVE, boundary, false, "CASHFREE"));
+                SubscriptionStatus.ACTIVE, boundary, false, "RAZORPAY"));
     when(checkoutService.createOrResolveRenewalInvoice(eq(10L), eq(77L), any(), isNull()))
         .thenReturn(invoice(boundary));
     when(collectionService.prepareRecurringRenewal(10L, 20L, 77L))
@@ -198,7 +199,7 @@ class AutomaticRenewalServiceTests {
     when(store.subscription(job))
         .thenReturn(
             new AutomaticRenewalStore.SubscriptionSnapshot(
-                SubscriptionStatus.ACTIVE, boundary, false, "CASHFREE"));
+                SubscriptionStatus.ACTIVE, boundary, false, "RAZORPAY"));
     when(checkoutService.createOrResolveRenewalInvoice(eq(10L), eq(77L), any(), isNull()))
         .thenReturn(invoice(boundary));
     when(collectionService.prepareRecurringRenewal(10L, 20L, 77L))
