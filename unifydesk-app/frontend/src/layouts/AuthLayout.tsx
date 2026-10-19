@@ -108,6 +108,18 @@ const AuthLayout = () => {
             <span className="text-xl font-bold text-slate-900">UnifyDesk</span>
           </div>
           <Outlet />
+
+          <div className="mt-8 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
+            <a href="/terms" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Terms</a>
+            <span>&middot;</span>
+            <a href="/privacy" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Privacy</a>
+            <span>&middot;</span>
+            <a href="/cancellation-and-refund" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Refunds</a>
+            <span>&middot;</span>
+            <a href="/shipping-and-exchange" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Shipping</a>
+            <span>&middot;</span>
+            <a href="/contact" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Contact Us</a>
+          </div>
         </div>
       </section>
     </main>

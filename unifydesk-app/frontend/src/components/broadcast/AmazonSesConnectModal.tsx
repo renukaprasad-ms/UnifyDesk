@@ -4,6 +4,7 @@ import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type { BroadcastSender, BroadcastSenderAuthMode } from '../../features/broadcast/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../feedback/SnackbarProvider'
+import PasswordInput from '../ui/PasswordInput'
 
 type Props = {
   companyId: string
@@ -177,13 +178,13 @@ export default function AmazonSesConnectModal({ companyId, onClose, onConnected 
             </label>
             <label className="block text-xs font-semibold text-slate-700">
               AWS Secret Access Key
-              <input
-                type="password"
-                className="form-input mt-2"
+              <PasswordInput
+                className="mt-2"
                 value={secretAccessKey}
                 onChange={(event) => setSecretAccessKey(event.target.value)}
                 autoComplete="new-password"
                 required
+                showLeftIcon
               />
             </label>
           </div>

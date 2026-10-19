@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SubscriptionLifecycleService {
 
-  public static final Duration PAST_DUE_GRACE = Duration.ofDays(7);
+  public static final Duration PAST_DUE_GRACE = Duration.ofDays(3);
   private static final int CLAIM_BATCH_SIZE = 100;
 
   private static final List<SubscriptionStatus> CURRENT_STATUSES =
@@ -447,6 +447,9 @@ public class SubscriptionLifecycleService {
         continue;
       }
       subscription.setStatus(SubscriptionStatus.SUSPENDED);
+      if (subscription.getCompany() != null) {
+        subscription.getCompany().setStatus(com.messaging.company.enums.CompanyStatus.SUSPENDED);
+      }
       subscriptionRepository.save(subscription);
       record(
           subscription,

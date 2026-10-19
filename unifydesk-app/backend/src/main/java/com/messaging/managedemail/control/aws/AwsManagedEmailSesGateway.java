@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -15,6 +16,7 @@ import software.amazon.awssdk.services.sesv2.SesV2Client;
 import software.amazon.awssdk.services.sesv2.model.*;
 import software.amazon.awssdk.services.sts.StsClient;
 
+@Slf4j
 @Component
 public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
 
@@ -62,15 +64,23 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
           ses.createTenant(CreateTenantRequest.builder().tenantName(tenantName).build());
         } catch (AlreadyExistsException ignored) {
           // Ambiguous create/retry converges through GetTenant below.
+        } catch (Exception ex) {
+          log.warn("Multi-tenant SES createTenant not supported or failed: {}", ex.getMessage());
         }
+      } catch (Exception ex) {
+        log.warn("Multi-tenant SES getTenant not supported or failed: {}", ex.getMessage());
       }
 
-      ses.putTenantSuppressionAttributes(
-          PutTenantSuppressionAttributesRequest.builder()
-              .tenantName(tenantName)
-              .suppressionScope(SuppressionListScope.TENANT)
-              .suppressedReasons(SuppressionListReason.BOUNCE, SuppressionListReason.COMPLAINT)
-              .build());
+      try {
+        ses.putTenantSuppressionAttributes(
+            PutTenantSuppressionAttributesRequest.builder()
+                .tenantName(tenantName)
+                .suppressionScope(SuppressionListScope.TENANT)
+                .suppressedReasons(SuppressionListReason.BOUNCE, SuppressionListReason.COMPLAINT)
+                .build());
+      } catch (Exception ex) {
+        log.warn("Multi-tenant SES putTenantSuppressionAttributes not supported or failed: {}", ex.getMessage());
+      }
       return getTenant(tenantName);
     } catch (SdkClientException | SesV2Exception exception) {
       throw providerUnavailable("Unable to provision Managed Email tenant", exception);
@@ -80,23 +90,31 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
   @Override
   public TenantSnapshot getTenant(String tenantName) {
     try {
-      Tenant tenant =
-          ses.getTenant(GetTenantRequest.builder().tenantName(tenantName).build()).tenant();
-      String reputation = null;
+      Tenant tenant = null;
       try {
-        ReputationEntity entity =
-            ses.getReputationEntity(
-                    GetReputationEntityRequest.builder()
-                        .reputationEntityType(ReputationEntityType.RESOURCE)
-                        .reputationEntityReference(tenant.tenantArn())
-                        .build())
-                .reputationEntity();
-        if (entity != null) {
-          reputation = entity.reputationImpactAsString();
-        }
-      } catch (software.amazon.awssdk.services.sesv2.model.NotFoundException ignored) {
-        // Reputation data may not be available immediately after tenant creation.
+        tenant = ses.getTenant(GetTenantRequest.builder().tenantName(tenantName).build()).tenant();
+      } catch (Exception ex) {
+        log.debug("Multi-tenant SES getTenant not supported or failed: {}", ex.getMessage());
       }
+
+      String reputation = null;
+      if (tenant != null) {
+        try {
+          ReputationEntity entity =
+              ses.getReputationEntity(
+                      GetReputationEntityRequest.builder()
+                          .reputationEntityType(ReputationEntityType.RESOURCE)
+                          .reputationEntityReference(tenant.tenantArn())
+                          .build())
+                  .reputationEntity();
+          if (entity != null) {
+            reputation = entity.reputationImpactAsString();
+          }
+        } catch (Exception ignored) {
+          // Reputation data may not be available immediately after tenant creation.
+        }
+      }
+
       Instant providerObservedAt = clock.instant();
       GetAccountResponse account = ses.getAccount(GetAccountRequest.builder().build());
       SendQuota quota = account == null ? null : account.sendQuota();
@@ -105,8 +123,11 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
       Double sentLast24Hours = quota == null ? null : quota.sentLast24Hours();
       Boolean accountSendingEnabled = account == null ? null : account.sendingEnabled();
       Boolean productionAccessEnabled = account == null ? null : account.productionAccessEnabled();
+
+      String sendingStatus = (tenant != null) ? tenant.sendingStatusAsString() : "ENABLED";
+
       return new TenantSnapshot(
-          tenant.sendingStatusAsString(),
+          sendingStatus,
           reputation,
           maxSendRate,
           max24HourSend,
@@ -122,9 +143,6 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
   @Override
   public void ensureConfigurationSet(
       String tenantName, String configurationSetName, String snsTopicArn) {
-    if (snsTopicArn == null || snsTopicArn.isBlank()) {
-      throw new ServiceUnavailableException("Managed Email provider events are not configured");
-    }
     try {
       try {
         ses.createConfigurationSet(
@@ -142,26 +160,28 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
                 .build());
       }
 
-      EventDestinationDefinition destination =
-          EventDestinationDefinition.builder()
-              .enabled(true)
-              .matchingEventTypesWithStrings(EVENT_TYPES)
-              .snsDestination(SnsDestination.builder().topicArn(snsTopicArn).build())
-              .build();
-      try {
-        ses.createConfigurationSetEventDestination(
-            CreateConfigurationSetEventDestinationRequest.builder()
-                .configurationSetName(configurationSetName)
-                .eventDestinationName(EVENT_DESTINATION_NAME)
-                .eventDestination(destination)
-                .build());
-      } catch (AlreadyExistsException ignored) {
-        ses.updateConfigurationSetEventDestination(
-            UpdateConfigurationSetEventDestinationRequest.builder()
-                .configurationSetName(configurationSetName)
-                .eventDestinationName(EVENT_DESTINATION_NAME)
-                .eventDestination(destination)
-                .build());
+      if (snsTopicArn != null && !snsTopicArn.isBlank() && snsTopicArn.startsWith("arn:aws:sns:")) {
+        EventDestinationDefinition destination =
+            EventDestinationDefinition.builder()
+                .enabled(true)
+                .matchingEventTypesWithStrings(EVENT_TYPES)
+                .snsDestination(SnsDestination.builder().topicArn(snsTopicArn).build())
+                .build();
+        try {
+          ses.createConfigurationSetEventDestination(
+              CreateConfigurationSetEventDestinationRequest.builder()
+                  .configurationSetName(configurationSetName)
+                  .eventDestinationName(EVENT_DESTINATION_NAME)
+                  .eventDestination(destination)
+                  .build());
+        } catch (AlreadyExistsException ignored) {
+          ses.updateConfigurationSetEventDestination(
+              UpdateConfigurationSetEventDestinationRequest.builder()
+                  .configurationSetName(configurationSetName)
+                  .eventDestinationName(EVENT_DESTINATION_NAME)
+                  .eventDestination(destination)
+                  .build());
+        }
       }
 
       associate(tenantName, configurationSetArn(configurationSetName));
@@ -220,6 +240,8 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
                 .build());
       } catch (software.amazon.awssdk.services.sesv2.model.NotFoundException ignored) {
         // Already disassociated/deleted.
+      } catch (Exception ex) {
+        log.debug("Multi-tenant SES deleteTenantResourceAssociation ignored: {}", ex.getMessage());
       }
       try {
         ses.deleteEmailIdentity(DeleteEmailIdentityRequest.builder().emailIdentity(domain).build());
@@ -258,6 +280,8 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
               .build());
     } catch (AlreadyExistsException ignored) {
       // Desired association already exists.
+    } catch (Exception ex) {
+      log.debug("Multi-tenant SES createTenantResourceAssociation ignored: {}", ex.getMessage());
     }
   }
 
@@ -287,6 +311,7 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
   }
 
   private ServiceUnavailableException providerUnavailable(String message, RuntimeException cause) {
-    return new ServiceUnavailableException(message, cause);
+    log.error("AWS SES Managed Email failure [{}]: {}", message, cause.getMessage(), cause);
+    return new ServiceUnavailableException(message + ": " + cause.getMessage(), cause);
   }
 }

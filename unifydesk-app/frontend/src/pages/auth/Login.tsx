@@ -1,11 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router'
-import { useRef, useState } from 'react'
-import { FiEye, FiEyeOff } from 'react-icons/fi'
+import { useState } from 'react'
+import { FiUser } from 'react-icons/fi'
 import { authApi } from '../../features/auth/authApi'
 import { resolvePostAuthRedirect } from '../../features/company/invitationContinuation'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { setAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch } from '../../store/hooks'
+import OtpBoxInput from '../../components/ui/OtpBoxInput'
+import PasswordInput from '../../components/ui/PasswordInput'
 
 const Login = () => {
   const dispatch = useAppDispatch()
@@ -13,12 +15,10 @@ const Login = () => {
   const location = useLocation()
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [preAuthToken, setPreAuthToken] = useState<string | null>(null)
   const [otp, setOtp] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const otpRefs = useRef<Array<HTMLInputElement | null>>([])
   const routeState = location.state as {
     passwordReset?: boolean
     passwordChanged?: boolean
@@ -91,62 +91,32 @@ const Login = () => {
           Enter the 6-digit verification code sent to your email.
         </p>
         <form className="mt-6 space-y-4" onSubmit={onVerifyTwoFactor}>
-          <div className="flex gap-2" role="group" aria-label="6-digit verification code">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <input
-                key={index}
-                ref={(element) => {
-                  otpRefs.current[index] = element
-                }}
-                className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white text-center text-lg font-semibold text-slate-950 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                type="text"
-                inputMode="numeric"
-                autoComplete={index === 0 ? 'one-time-code' : 'off'}
-                maxLength={1}
-                value={otp[index] ?? ''}
-                aria-label={`Verification code digit ${index + 1}`}
-                onChange={(event) => {
-                  const digit = event.target.value.replace(/\D/g, '').slice(-1)
-                  const digits = otp.split('')
-                  digits[index] = digit
-                  const nextOtp = Array.from(
-                    { length: 6 },
-                    (_, digitIndex) => digits[digitIndex] ?? '',
-                  ).join('')
-                  setOtp(nextOtp)
-                  setError('')
-                  if (digit && index < 5) otpRefs.current[index + 1]?.focus()
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Backspace' && !otp[index] && index > 0) {
-                    otpRefs.current[index - 1]?.focus()
-                  }
-                  if (event.key === 'ArrowLeft' && index > 0) otpRefs.current[index - 1]?.focus()
-                  if (event.key === 'ArrowRight' && index < 5) otpRefs.current[index + 1]?.focus()
-                }}
-                onPaste={(event) => {
-                  event.preventDefault()
-                  const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
-                  if (!pasted) return
-                  setOtp(pasted)
-                  setError('')
-                  otpRefs.current[Math.min(pasted.length, 6) - 1]?.focus()
-                }}
-                required
-              />
-            ))}
+          <div className="py-2">
+            <OtpBoxInput
+              length={6}
+              value={otp}
+              onChange={(val) => {
+                setOtp(val)
+                if (error) setError('')
+              }}
+              autoFocus
+              disabled={submitting}
+              error={Boolean(error)}
+            />
           </div>
-          {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
+          {error && (
+            <p className="rounded-lg bg-rose-50 p-3 text-center text-sm text-rose-600">{error}</p>
+          )}
           <button
             type="submit"
-            className="primary-button flex w-full"
+            className="primary-button flex w-full justify-center"
             disabled={submitting || otp.length !== 6}
           >
             {submitting ? 'Verifying...' : 'Verify and login'}
           </button>
           <button
             type="button"
-            className="secondary-button flex w-full"
+            className="secondary-button flex w-full justify-center"
             onClick={() => {
               setPreAuthToken(null)
               setOtp('')
@@ -183,22 +153,27 @@ const Login = () => {
 
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold text-slate-700">
+          <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+            <FiUser className="size-3.5 text-slate-400" />
             Email or username
           </span>
-          <input
-            className="form-input"
-            type="text"
-            placeholder="you@example.com or username"
-            value={identifier}
-            onChange={(event) => setIdentifier(event.target.value)}
-            autoComplete="username"
-            required
-          />
+          <div className="relative">
+            <input
+              className="form-input"
+              type="text"
+              placeholder="you@example.com or username"
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
+              autoComplete="username"
+              required
+            />
+          </div>
         </label>
         <label className="block">
           <span className="mb-1.5 flex items-center justify-between gap-3 text-xs font-semibold text-slate-700">
-            <span>Password</span>
+            <span className="flex items-center gap-1.5">
+              <span>Password</span>
+            </span>
             <Link
               className="font-semibold text-indigo-500 hover:text-indigo-600"
               to="/forgot-password"
@@ -206,29 +181,21 @@ const Login = () => {
               Forgot password?
             </Link>
           </span>
-          <span className="relative block">
-            <input
-              className="form-input pr-11"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Enter password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-              required
-            />
-            <button
-              type="button"
-              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-slate-400 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-indigo-500"
-              onClick={() => setShowPassword((current) => !current)}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              aria-pressed={showPassword}
-            >
-              {showPassword ? <FiEyeOff aria-hidden="true" /> : <FiEye aria-hidden="true" />}
-            </button>
-          </span>
+          <PasswordInput
+            placeholder="Enter password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
+            required
+            showLeftIcon
+          />
         </label>
         {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
-        <button type="submit" className="primary-button flex w-full" disabled={submitting}>
+        <button
+          type="submit"
+          className="primary-button flex w-full justify-center"
+          disabled={submitting}
+        >
           {submitting ? 'Logging in...' : 'Login'}
         </button>
       </form>

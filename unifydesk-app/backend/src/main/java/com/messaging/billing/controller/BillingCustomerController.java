@@ -84,7 +84,7 @@ public class BillingCustomerController {
         ApiResponse.success(
             HttpStatus.OK.value(),
             walletService.confirmTopup(
-                companyId, request.orderId(), currentUserService.currentUserId()),
+                companyId, request.orderId(), request.amount(), currentUserService.currentUserId()),
             "Wallet topped up successfully"));
   }
 
@@ -98,6 +98,17 @@ public class BillingCustomerController {
             HttpStatus.OK.value(),
             walletService.configureAutoRecharge(companyId, request),
             "Auto-recharge configuration updated"));
+  }
+
+  @PostMapping("/wallet/auto-recharge/trigger")
+  public ResponseEntity<ApiResponse<CompanyWalletResponse>> triggerAutoRecharge(
+      @PathVariable Long companyId) {
+    requireBalanceAdd(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            walletService.triggerAutoRecharge(companyId),
+            "Wallet auto-recharge triggered successfully"));
   }
 
   @GetMapping("/profile")

@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useEffect, useRef, useState } from 'react'
-import { FiImage, FiUploadCloud, FiX } from 'react-icons/fi'
+import { FiAtSign, FiImage, FiLock, FiMail, FiUploadCloud, FiUser, FiX } from 'react-icons/fi'
 import { authApi } from '../../features/auth/authApi'
 import { resolvePostAuthRedirect } from '../../features/company/invitationContinuation'
 import { mediaApi } from '../../features/media/mediaApi'
@@ -10,6 +10,7 @@ import { setAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch } from '../../store/hooks'
 import AsyncButton from '../../components/ui/AsyncButton'
 import ProgressBar from '../../components/ui/ProgressBar'
+import PasswordInput from '../../components/ui/PasswordInput'
 import useBeforeUnloadGuard from '../../hooks/useBeforeUnloadGuard'
 
 const Register = () => {
@@ -37,7 +38,9 @@ const Register = () => {
   const profileUploadRunIdRef = useRef(0)
   const profileUploadPromiseRef = useRef<Promise<InitiateMediaUploadResponse> | null>(null)
 
-  useBeforeUnloadGuard(!submitting && Boolean(name.trim() || email.trim() || username.trim() || profilePicture))
+  useBeforeUnloadGuard(
+    !submitting && Boolean(name.trim() || email.trim() || username.trim() || profilePicture),
+  )
 
   useEffect(
     () => () => {
@@ -148,7 +151,10 @@ const Register = () => {
       </p>
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold text-slate-700">Name</span>
+          <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+            <FiUser className="size-3.5 text-slate-400" />
+            Name
+          </span>
           <input
             className="form-input"
             type="text"
@@ -160,7 +166,10 @@ const Register = () => {
           />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold text-slate-700">Email</span>
+          <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+            <FiMail className="size-3.5 text-slate-400" />
+            Email
+          </span>
           <input
             className="form-input"
             type="email"
@@ -172,7 +181,10 @@ const Register = () => {
           />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold text-slate-700">Username</span>
+          <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+            <FiAtSign className="size-3.5 text-slate-400" />
+            Username
+          </span>
           <input
             className="form-input"
             type="text"
@@ -186,31 +198,33 @@ const Register = () => {
           />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold text-slate-700">Password</span>
-          <input
-            className="form-input"
-            type="password"
-            placeholder="Create password"
+          <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+            <FiLock className="size-3.5 text-slate-400" />
+            Password
+          </span>
+          <PasswordInput
+            placeholder="Create password (min 12 characters)"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             autoComplete="new-password"
             minLength={12}
             required
+            showLeftIcon
           />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold text-slate-700">
+          <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+            <FiLock className="size-3.5 text-slate-400" />
             Confirm password
           </span>
-          <input
-            className="form-input"
-            type="password"
+          <PasswordInput
             placeholder="Confirm password"
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
             autoComplete="new-password"
             minLength={12}
             required
+            showLeftIcon
           />
         </label>
         <div className="block">

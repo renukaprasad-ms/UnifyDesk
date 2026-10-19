@@ -10,4 +10,27 @@ public record CompanyWalletResponse(
     boolean autoRechargeEnabled,
     BigDecimal autoRechargeThreshold,
     BigDecimal autoRechargeAmount,
-    Instant updatedAt) {}
+    int autoRechargeFailedAttempts,
+    boolean autoRechargePaused,
+    Instant updatedAt) {
+
+  public CompanyWalletResponse(
+      String companyId,
+      BigDecimal balance,
+      String currency,
+      boolean autoRechargeEnabled,
+      BigDecimal autoRechargeThreshold,
+      BigDecimal autoRechargeAmount,
+      Instant updatedAt) {
+    this(
+        companyId,
+        balance,
+        currency,
+        autoRechargeEnabled,
+        autoRechargeThreshold,
+        autoRechargeAmount,
+        0,
+        false,
+        updatedAt);
+  }
+}

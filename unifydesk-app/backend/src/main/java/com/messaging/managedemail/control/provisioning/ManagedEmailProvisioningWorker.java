@@ -19,9 +19,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ManagedEmailProvisioningWorker {
@@ -110,6 +112,8 @@ public class ManagedEmailProvisioningWorker {
         readTenantProviderState(work.companyId(), work.providerTenantName());
     persistTenantProviderState(work.companyId(), work.tenantId(), tenantSnapshot);
     if (work.type() == DomainType.UNIFYDESK_HOSTED) {
+      DomainIdentitySnapshot snapshot = sesGateway.getDomainIdentity(work.domain());
+      persistDkimRecords(work, snapshot);
       ensureHostedDns(work);
     }
     applyDomainState(work.companyId(), work.domainId(), sesGateway.getDomainIdentity(work.domain()));
@@ -441,13 +445,14 @@ public class ManagedEmailProvisioningWorker {
   }
 
   private void retryOrFail(Long operationId, RuntimeException exception) {
+    log.error("Provisioning operation {} failed: {}", operationId, exception.getMessage(), exception);
     transactionTemplate.executeWithoutResult(
         status -> {
           ManagedEmailProvisioningOperation operation =
               operationRepository.findById(operationId).orElseThrow();
           operation.setClaimedAt(null);
           operation.setLastErrorCode(exception.getClass().getSimpleName());
-          operation.setLastErrorMessage("Managed Email provider operation failed");
+          operation.setLastErrorMessage(exception.getMessage() != null ? exception.getMessage() : "Managed Email provider operation failed");
           if (operation.getAttemptCount() >= MAX_ATTEMPTS) {
             operation.setStatus(ProvisioningOperationStatus.FAILED);
             operation.setCompletedAt(Instant.now());

@@ -19,6 +19,7 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { TableSkeleton } from '../../components/ui/Skeleton'
+import PasswordInput from '../../components/ui/PasswordInput'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
@@ -659,13 +660,13 @@ export default function CompanyUsers() {
                       <p className="mt-1 text-[11px] leading-5 text-amber-800">
                         Re-enter your current password before transferring this company.
                       </p>
-                      <input
-                        type="password"
-                        className="form-input mt-2"
+                      <PasswordInput
+                        className="mt-2"
                         autoComplete="current-password"
                         placeholder="Current password"
                         value={ownershipPassword}
                         onChange={(event) => setOwnershipPassword(event.target.value)}
+                        showLeftIcon
                       />
                       <button
                         type="button"

@@ -13,6 +13,9 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
   Optional<Payment> findByCompanyIdAndIdempotencyKey(Long companyId, String idempotencyKey);
   Optional<Payment> findByProviderAndProviderOrderId(String provider, String providerOrderId);
 
+  @Query("select p from Payment p where p.providerOrderId = :orderId or p.providerCheckoutSessionId = :orderId")
+  Optional<Payment> findByProviderOrderIdOrCheckoutSessionId(@Param("orderId") String orderId);
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select p from Payment p where p.id = :id")
   Optional<Payment> findByIdForUpdate(@Param("id") Long id);

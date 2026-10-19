@@ -14,7 +14,7 @@ public class ManagedEmailProperties {
 
   private boolean enabled;
   private boolean platformSendingEnabled;
-  private String awsRegion = "ap-south-1";
+  private String awsRegion = "ap-southeast-2";
   private String hostedBaseDomain = "unifydesk.in";
   private String snsTopicArn = "";
   private String cloudflareZoneId = "";
@@ -48,6 +48,6 @@ public class ManagedEmailProperties {
   }
 
   public boolean hasSnsTopic() {
-    return snsTopicArn != null && !snsTopicArn.isBlank();
+    return snsTopicArn != null && !snsTopicArn.isBlank() && snsTopicArn.startsWith("arn:aws:sns:");
   }
 }

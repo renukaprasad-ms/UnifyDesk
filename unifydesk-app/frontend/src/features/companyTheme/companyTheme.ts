@@ -99,6 +99,7 @@ export const applyCompanyTheme = (
   const root = document.documentElement
   root.dataset.colorScheme = mode.toLowerCase()
   root.style.colorScheme = mode.toLowerCase()
+  root.classList.toggle('dark', mode === 'DARK')
   root.style.background = appearanceTokens[mode]['--theme-bg']
   persistAppearanceMode(preference)
 

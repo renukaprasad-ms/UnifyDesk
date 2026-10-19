@@ -56,6 +56,23 @@ export default function Contact() {
             </Link>
           </article>
         </section>
+        <section className="startupIdentity contactBusiness" aria-labelledby="business-details-heading">
+          <div className="startupIdentityIntro">
+            <p className="kicker">BUSINESS INFORMATION</p>
+            <h2 id="business-details-heading">A product company in its early stage.</h2>
+            <p>
+              UnifyDesk is an India-based, independently developed B2B SaaS
+              initiative operating as a sole proprietorship in Karnataka.
+              We are preparing for early access; this website describes the
+              product and development roadmap, not a generally available paid service.
+            </p>
+          </div>
+          <dl className="startupFacts">
+            <div><dt>Location</dt><dd>Karnataka, India</dd></div>
+            <div><dt>Business enquiries</dt><dd><a href="mailto:reply@unifydesk.in">reply@unifydesk.in</a></dd></div>
+            <div><dt>Support and privacy</dt><dd><a href="mailto:support@unifydesk.in">support@unifydesk.in</a></dd></div>
+          </dl>
+        </section>
         <section className="centerCta">
           <h2>Public access is coming soon.</h2>
           <p className="ctaSupport">

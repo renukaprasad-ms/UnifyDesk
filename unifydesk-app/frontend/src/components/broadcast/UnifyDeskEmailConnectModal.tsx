@@ -4,6 +4,7 @@ import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type { BroadcastSender } from '../../features/broadcast/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../feedback/SnackbarProvider'
+import PasswordInput from '../ui/PasswordInput'
 
 type Props = {
   companyId: string
@@ -92,9 +93,15 @@ export default function UnifyDeskEmailConnectModal({
 
         <label className="mt-4 block text-xs font-semibold text-slate-700">
           Project API key
-          <input type="password" className="form-input mt-2" value={apiKey}
-            placeholder="ude_live_..." autoComplete="new-password"
-            onChange={(e) => setApiKey(e.target.value)} required />
+          <PasswordInput
+            className="mt-2"
+            value={apiKey}
+            placeholder="ude_live_..."
+            autoComplete="new-password"
+            onChange={(e) => setApiKey(e.target.value)}
+            required
+            showLeftIcon
+          />
         </label>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">

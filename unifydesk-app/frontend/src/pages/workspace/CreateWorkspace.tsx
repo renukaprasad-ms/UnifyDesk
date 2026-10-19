@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { FiBarChart2, FiImage, FiMail, FiMessageSquare, FiUploadCloud, FiUsers, FiX } from 'react-icons/fi'
+import {
+  FiBarChart2,
+  FiImage,
+  FiMail,
+  FiMessageSquare,
+  FiUploadCloud,
+  FiUsers,
+  FiX,
+} from 'react-icons/fi'
 import { useNavigate } from 'react-router'
 import AsyncButton from '../../components/ui/AsyncButton'
 import ProgressBar from '../../components/ui/ProgressBar'
-import {
-  brandContrastColor,
-  DEFAULT_BRAND_COLOR,
-} from '../../features/companyTheme/companyTheme'
+import CountrySelect from '../../components/ui/CountrySelect'
+import { brandContrastColor, DEFAULT_BRAND_COLOR } from '../../features/companyTheme/companyTheme'
 import { mediaApi } from '../../features/media/mediaApi'
 import type { InitiateMediaUploadResponse } from '../../features/media/types'
 import { workspaceApi } from '../../features/workspace/workspaceApi'
@@ -51,9 +57,9 @@ export default function CreateWorkspace() {
     !submitting &&
       Boolean(
         name.trim() ||
-          businessEmail.trim() ||
-          logo ||
-          brandColor.toUpperCase() !== DEFAULT_BRAND_COLOR,
+        businessEmail.trim() ||
+        logo ||
+        brandColor.toUpperCase() !== DEFAULT_BRAND_COLOR,
       ),
   )
 
@@ -188,7 +194,9 @@ export default function CreateWorkspace() {
 
           <form className="mt-6 space-y-4" onSubmit={submit}>
             <div>
-              <span className="mb-2 block text-[11px] font-medium text-slate-600">Company logo</span>
+              <span className="mb-2 block text-[11px] font-medium text-slate-600">
+                Company logo
+              </span>
               <label className="profile-upload">
                 <input
                   className="sr-only"
@@ -242,7 +250,9 @@ export default function CreateWorkspace() {
             </div>
 
             <label className="block">
-              <span className="mb-2 block text-[11px] font-medium text-slate-600">Company name</span>
+              <span className="mb-2 block text-[11px] font-medium text-slate-600">
+                Company name
+              </span>
               <input
                 className="form-input"
                 placeholder="Acme Pvt Ltd"
@@ -268,19 +278,8 @@ export default function CreateWorkspace() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-[11px] font-medium text-slate-600">
-                  Country
-                </span>
-                <input
-                  className="form-input uppercase"
-                  value={country}
-                  maxLength={2}
-                  placeholder="IN"
-                  onChange={(event) => setCountry(event.target.value.toUpperCase())}
-                />
-                <span className="mt-1 block text-[10px] text-slate-400">
-                  2-letter country code, for example IN.
-                </span>
+                <span className="mb-2 block text-[11px] font-medium text-slate-600">Country</span>
+                <CountrySelect value={country} valueType="code" onChange={setCountry} showIcon />
               </label>
               <label className="block">
                 <span className="mb-2 block text-[11px] font-medium text-slate-600">Timezone</span>
@@ -299,7 +298,9 @@ export default function CreateWorkspace() {
             </div>
 
             <fieldset className="rounded-xl border border-slate-200 p-4">
-              <legend className="px-1 text-xs font-bold text-slate-800">Workspace brand colour</legend>
+              <legend className="px-1 text-xs font-bold text-slate-800">
+                Workspace brand colour
+              </legend>
               <p className="mt-1 text-xs leading-5 text-slate-500">
                 Pick the accent used for primary buttons, active navigation and highlights.
               </p>
@@ -340,7 +341,9 @@ export default function CreateWorkspace() {
         <aside className="lg:sticky lg:top-8">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-6">
             <div className="mb-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Live preview</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Live preview
+              </p>
               <p className="mt-1 text-sm text-slate-600">
                 This is how your accent will feel inside the UnifyDesk dashboard.
               </p>
@@ -430,7 +433,10 @@ export default function CreateWorkspace() {
                             style={{ backgroundColor: `${previewColor}16` }}
                           />
                           <div className="flex-1">
-                            <div className="h-2 rounded bg-slate-200" style={{ width: `${width}%` }} />
+                            <div
+                              className="h-2 rounded bg-slate-200"
+                              style={{ width: `${width}%` }}
+                            />
                             <div className="mt-1.5 h-1.5 w-20 rounded bg-slate-100" />
                           </div>
                         </div>

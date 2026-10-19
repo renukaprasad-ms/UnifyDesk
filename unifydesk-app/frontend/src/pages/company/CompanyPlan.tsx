@@ -15,7 +15,8 @@ import {
   upgradeQuoteRows,
   upgradeRequiresCheckout,
 } from '../../features/billing/billingModel'
-import { launchCashfreeCheckout } from '../../features/billing/cashfreeCheckout'
+import { launchRazorpayCheckout, type RazorpayPaymentSuccess } from '../../features/billing/razorpayCheckout'
+import PaymentVerificationAndAutoPayModal from '../../components/billing/PaymentVerificationAndAutoPayModal'
 import { savePendingBillingCheckout } from '../../features/billing/pendingCheckout'
 import type {
   CheckoutCustomer,
@@ -61,6 +62,8 @@ export default function CompanyPlan() {
   })
   const [mutationPending, setMutationPending] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
+  const [verificationResult, setVerificationResult] = useState<RazorpayPaymentSuccess | null>(null)
+  const [verificationOpen, setVerificationOpen] = useState(false)
   const requestRef = useRef(0)
   const companyId = selectedCompany?.companyId ?? null
 
@@ -170,7 +173,7 @@ export default function CompanyPlan() {
         customer: { name: customer.name?.trim() || null, email: customer.email.trim(), phone: customer.phone.trim() },
       })
       if (!scopeIsCurrent(scope)) return
-      if (!prepared.paymentSessionId) throw new Error('Backend checkout did not include a payment session')
+      if (!prepared.paymentSessionId && !prepared.razorpayOrderId) throw new Error('Backend checkout did not include an order session')
       savePendingBillingCheckout({
         companyId,
         targetPlanId: draft.plan.planId,
@@ -182,7 +185,19 @@ export default function CompanyPlan() {
         createdAt: new Date().toISOString(),
       })
       setCheckout(prepared)
-      await launchCashfreeCheckout(prepared.paymentSessionId)
+      const res = await launchRazorpayCheckout({
+        key: prepared.keyId || '',
+        orderId: prepared.razorpayOrderId || prepared.paymentSessionId || prepared.providerOrderId || '',
+        amount: prepared.amount,
+        amountInPaise: prepared.amountInPaise,
+        customer: {
+          name: customer.name?.trim() || selectedCompany?.name || undefined,
+          email: customer.email.trim(),
+          phone: customer.phone.trim(),
+        },
+      })
+      setVerificationResult(res)
+      setVerificationOpen(true)
     } catch (cause) {
       if (scopeIsCurrent(scope)) setError(apiErrorMessage(cause, 'Unable to prepare Billing checkout.'))
     } finally {
@@ -206,8 +221,19 @@ export default function CompanyPlan() {
         createdAt: new Date().toISOString(),
       })
       if (!scopeIsCurrent(scope)) return
-      if (!checkout.paymentSessionId) throw new Error('Backend checkout did not include a payment session')
-      await launchCashfreeCheckout(checkout.paymentSessionId)
+      const res = await launchRazorpayCheckout({
+        key: checkout.keyId || '',
+        orderId: checkout.razorpayOrderId || checkout.paymentSessionId || checkout.providerOrderId || '',
+        amount: checkout.amount,
+        amountInPaise: checkout.amountInPaise,
+        customer: {
+          name: customer.name?.trim() || selectedCompany?.name || undefined,
+          email: customer.email.trim(),
+          phone: customer.phone.trim(),
+        },
+      })
+      setVerificationResult(res)
+      setVerificationOpen(true)
     } catch (cause) {
       if (scopeIsCurrent(scope)) setError(cause instanceof Error ? cause.message : 'Unable to open payment checkout.')
     } finally {
@@ -293,8 +319,25 @@ export default function CompanyPlan() {
           </div>
         </section>
 
-        {draft && <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-4 sm:items-center"><div className="panel w-full max-w-xl p-6"><h2 className="text-xl font-bold">{draft.mode === 'DOWNGRADE' ? 'Schedule downgrade' : draft.mode === 'UPGRADE' ? 'Upgrade plan' : 'Start subscription'}</h2><p className="mt-2 text-sm text-slate-500">{draft.plan.name} · {money(draft.price.amount, draft.price.currency)} · {draft.price.billingCycle}</p>{draft.mode === 'DOWNGRADE' ? <><p className="mt-4 text-sm">{DOWNGRADE_BOUNDARY_COPY}</p><button className="primary-button mt-5" disabled={mutationPending} onClick={() => void scheduleDowngrade()}>Schedule at period boundary</button></> : <form className="mt-4 space-y-3" onSubmit={prepareCheckout}><input required type="email" className="form-input" placeholder="Billing email" value={customer.email} onChange={(e) => setCustomer({ ...customer, email: e.target.value })} /><input required className="form-input" placeholder="Billing phone" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} />{quote && <div className="rounded-xl bg-slate-50 p-4">{upgradeQuoteRows(quote).map(([label, value]) => <div key={label} className="flex justify-between text-sm"><span>{label}</span><strong>{money(value, quote.currency ?? draft.price.currency)}</strong></div>)}</div>}{checkout ? <button type="button" className="primary-button" onClick={() => void pay()}>Continue to Cashfree · {money(checkout.amount, checkout.currency)}</button> : <button className="primary-button" disabled={mutationPending}>{quote ? `Continue to Cashfree · ${money(quote.amountDue, quote.currency ?? draft.price.currency)}` : draft.mode === 'UPGRADE' ? 'Review upgrade amount' : 'Prepare backend checkout'}</button>}</form>}<button className="secondary-button mt-3" onClick={() => { setDraft(null); setQuote(null); setCheckout(null) }}>Close</button></div></div>}
+        {draft && <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-4 sm:items-center"><div className="panel w-full max-w-xl p-6"><h2 className="text-xl font-bold">{draft.mode === 'DOWNGRADE' ? 'Schedule downgrade' : draft.mode === 'UPGRADE' ? 'Upgrade plan' : 'Start subscription'}</h2><p className="mt-2 text-sm text-slate-500">{draft.plan.name} · {money(draft.price.amount, draft.price.currency)} · {draft.price.billingCycle}</p>{draft.mode === 'DOWNGRADE' ? <><p className="mt-4 text-sm">{DOWNGRADE_BOUNDARY_COPY}</p><button className="primary-button mt-5" disabled={mutationPending} onClick={() => void scheduleDowngrade()}>Schedule at period boundary</button></> : <form className="mt-4 space-y-3" onSubmit={prepareCheckout}><input required type="email" className="form-input" placeholder="Billing email" value={customer.email} onChange={(e) => setCustomer({ ...customer, email: e.target.value })} /><input required className="form-input" placeholder="Billing phone" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} />{quote && <div className="rounded-xl bg-slate-50 p-4">{upgradeQuoteRows(quote).map(([label, value]) => <div key={label} className="flex justify-between text-sm"><span>{label}</span><strong>{money(value, quote.currency ?? draft.price.currency)}</strong></div>)}</div>}{checkout ? <button type="button" className="primary-button cursor-pointer" onClick={() => void pay()}>Pay with Razorpay · {money(checkout.amount, checkout.currency)}</button> : <button className="primary-button cursor-pointer" disabled={mutationPending}>{quote ? `Pay with Razorpay · ${money(quote.amountDue, quote.currency ?? draft.price.currency)}` : draft.mode === 'UPGRADE' ? 'Review upgrade amount' : 'Prepare backend checkout'}</button>}</form>}<button className="secondary-button mt-3 cursor-pointer" onClick={() => { setDraft(null); setQuote(null); setCheckout(null) }}>Close</button></div></div>}
         {cancelOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"><div className="panel max-w-md p-6"><h2 className="text-xl font-bold">Cancel subscription</h2><p className="mt-3 text-sm">{CANCELLATION_COPY}</p><button className="mt-5 rounded-lg bg-rose-600 px-4 py-2 text-white" onClick={() => void cancelAtPeriodEnd()}>Confirm period-end cancellation</button><button className="secondary-button ml-2" onClick={() => setCancelOpen(false)}>Keep subscription</button></div></div>}
+        {companyId && (
+          <PaymentVerificationAndAutoPayModal
+            isOpen={verificationOpen}
+            companyId={companyId}
+            companyName={selectedCompany?.name ?? ''}
+            paymentResult={verificationResult}
+            customerEmail={customer.email}
+            customerPhone={customer.phone}
+            onDone={() => {
+              setVerificationOpen(false)
+              setDraft(null)
+              setQuote(null)
+              setCheckout(null)
+              void load(true)
+            }}
+          />
+        )}
       </div>
     </section>
   )

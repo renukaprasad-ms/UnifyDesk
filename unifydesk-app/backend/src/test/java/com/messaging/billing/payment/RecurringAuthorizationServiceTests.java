@@ -13,7 +13,7 @@ class RecurringAuthorizationServiceTests {
   void providerAuthorizationUsesStableSubscriptionAndAuthPaymentIdentity() {
     RecurringAuthorizationStore store = mock(RecurringAuthorizationStore.class);
     PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
-    CashfreeProperties properties = new CashfreeProperties();
+    RazorpayProperties properties = new RazorpayProperties();
     properties.setReturnUrl("https://app.unifydesk.in/billing/return");
     RecurringAuthorizationService service =
         new RecurringAuthorizationService(store, gateway, properties);
@@ -83,7 +83,7 @@ class RecurringAuthorizationServiceTests {
   void initialCheckoutBootstrapIsStableAndReplayDoesNotCreateSecondProviderSubscription() {
     RecurringAuthorizationStore store = mock(RecurringAuthorizationStore.class);
     PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
-    CashfreeProperties properties = new CashfreeProperties();
+    RazorpayProperties properties = new RazorpayProperties();
     RecurringAuthorizationService service =
         new RecurringAuthorizationService(store, gateway, properties);
 

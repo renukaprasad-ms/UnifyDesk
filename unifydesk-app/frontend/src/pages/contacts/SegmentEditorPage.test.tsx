@@ -335,4 +335,24 @@ describe('SegmentEditorPage', () => {
       20,
     )
   })
+
+  it('displays error hover tooltip and disables save button when name is missing', async () => {
+    render(
+      <MemoryRouter initialEntries={['/contacts/segments/new']}>
+        <Routes>
+          <Route path="/contacts/segments/new" element={<SegmentEditorPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const saveButton = await screen.findByRole('button', { name: 'Save Segment' })
+    expect(saveButton).toBeDisabled()
+
+    // Hover tooltip/label with error message is rendered
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Segment name is required to save')
+    expect(saveButton.closest('div')).toHaveAttribute(
+      'title',
+      'Segment name is required to save',
+    )
+  })
 })

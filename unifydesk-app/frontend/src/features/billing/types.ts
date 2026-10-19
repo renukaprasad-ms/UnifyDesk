@@ -7,7 +7,7 @@ export type SubscriptionStatus =
   | 'SUSPENDED'
   | 'CANCELLED'
   | 'EXPIRED'
-export type PaymentPolicy = 'CASHFREE' | 'COMPED' | 'OFFLINE_CONTRACT'
+export type PaymentPolicy = 'RAZORPAY' | 'CASHFREE' | 'COMPED' | 'OFFLINE_CONTRACT'
 export type SubscriptionChangeType = 'UPGRADE' | 'DOWNGRADE' | 'REACTIVATION'
 export type SubscriptionChangeStatus =
   | 'REQUESTED'
@@ -122,12 +122,48 @@ export type CheckoutResponse = {
   paymentId: string
   invoiceId: string
   providerOrderId?: string | null
+  razorpayOrderId?: string | null
   paymentSessionId?: string | null
+  keyId?: string | null
   amount: number
+  amountInPaise?: number
   currency: string
   status: PaymentStatus
+  customerName?: string | null
+  customerEmail?: string | null
+  customerPhone?: string | null
   recurringAuthorizationSessionId?: string | null
   recurringAuthorizationActionUrl?: string | null
+}
+
+export type AutoPayDetails = {
+  authorizationId?: string | null
+  status: 'ACTIVE' | 'PENDING_AUTH' | 'CANCELLED' | 'FAILED' | 'NOT_CONFIGURED'
+  maxAmount: number
+  currency: string
+  providerSubscriptionId?: string | null
+  subscriptionSessionId?: string | null
+  paymentMethodType?: string | null
+  actionUrl?: string | null
+  keyId?: string | null
+  customerId?: string | null
+}
+
+/** Maps raw AutoPay status codes to user-friendly labels */
+export const autoPayStatusLabel: Record<AutoPayDetails['status'], string> = {
+  ACTIVE: 'Active',
+  PENDING_AUTH: 'Pending Approval',
+  CANCELLED: 'Cancelled',
+  FAILED: 'Failed',
+  NOT_CONFIGURED: 'Not Configured',
+}
+
+export type AutoPaySetupInput = {
+  name?: string | null
+  email?: string | null
+  phone?: string | null
+  returnUrl?: string | null
+  maxAmount?: number | null
 }
 
 export type CompanyWallet = {
@@ -137,6 +173,8 @@ export type CompanyWallet = {
   autoRechargeEnabled: boolean
   autoRechargeThreshold: number
   autoRechargeAmount: number
+  autoRechargeFailedAttempts?: number
+  autoRechargePaused?: boolean
   updatedAt: string
 }
 
@@ -203,7 +241,10 @@ export type Invoice = {
 export type WalletTopupOrder = {
   orderId: string
   paymentSessionId?: string | null
+  razorpayOrderId?: string | null
+  keyId?: string | null
   amount: number
+  amountInPaise?: number | null
   currency: string
   status: string
 }

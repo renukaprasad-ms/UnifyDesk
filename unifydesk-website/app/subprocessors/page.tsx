@@ -28,7 +28,7 @@ const sections = [
   {
     "title": "Payment and analytics",
     "text": [
-      "Cashfree payment components exist and Google Analytics is loaded by the marketing-site layout. Verify both active services, their terms and purposes."
+      "Payment processing is transitioning to Razorpay. The marketing site now gates optional Google Analytics behind a visitor choice; verify live behavior, active vendors, their terms and processing purposes."
     ]
   },
   {

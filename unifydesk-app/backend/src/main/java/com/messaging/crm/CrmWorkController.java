@@ -223,7 +223,6 @@ public class CrmWorkController {
       @RequestParam(required = false) Long reporterUserId,
       @RequestParam(required = false) Long dealId) {
     require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
-    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(
         ApiResponse.success(
             200,
@@ -334,7 +333,6 @@ public class CrmWorkController {
   public ResponseEntity<ApiResponse<CrmWorkService.Task>> task(
       @PathVariable long companyId, @PathVariable long taskId) {
     require(companyId, CompanyPermissionKeys.CRM_TASK_READ);
-    require(companyId, CompanyPermissionKeys.CONTACT_READ);
     return ResponseEntity.ok(
         ApiResponse.success(200, service.getTask(companyId, taskId), "Task fetched"));
   }

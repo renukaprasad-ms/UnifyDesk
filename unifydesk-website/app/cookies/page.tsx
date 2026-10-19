@@ -10,7 +10,7 @@ const sections = [
   {
     "title": "Known code",
     "text": [
-      "The marketing-site layout currently loads Google Analytics 4 via gtag.js with afterInteractive behavior. No consent manager was found in that file. Verify deployed cookie names, tracking events and Google Analytics settings."
+      "The marketing-site code only inserts optional Google Analytics scripts after a visitor selects Allow analytics. No optional analytics script is requested before a choice or after a rejection. Verify this behavior in the deployed site and audit the actual cookie names, tracking events and Google Analytics settings."
     ]
   },
   {
@@ -22,7 +22,7 @@ const sections = [
   {
     "title": "Choices",
     "text": [
-      "Do not claim an existing opt-in/out control without a tested implementation. Determine what consent or notice is required for the actual India-only audience, tracking and applicable laws."
+      "The website offers Allow analytics and Not now, stores the choice in local browser storage, and provides Cookie settings in the footer. Rejecting analytics after a previous acceptance reloads the page to stop further analytics requests. Check real browser behavior and any additional legal obligations before declaring the implementation compliant."
     ]
   }
 ];

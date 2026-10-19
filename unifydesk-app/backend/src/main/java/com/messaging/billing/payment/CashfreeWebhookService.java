@@ -21,7 +21,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-@Service
 @RequiredArgsConstructor
 public class CashfreeWebhookService {
 
@@ -56,9 +55,6 @@ public class CashfreeWebhookService {
     claimOne(id).ifPresent(this::processAndRecord);
   }
 
-  @Scheduled(
-      fixedDelayString = "${app.billing.cashfree.webhook-retry-interval-ms:60000}",
-      initialDelayString = "${app.billing.cashfree.webhook-retry-initial-delay-ms:60000}")
   public void retryDueEvents() {
     for (Claimed event : claimDue()) {
       processAndRecord(event);

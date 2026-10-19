@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where([data-color-scheme="dark"], [data-color-scheme="dark"] *, .dark, .dark *));
+
 @theme {
   --color-indigo-950: var(--theme-primary-hover);
   --color-indigo-900: var(--theme-primary-hover);
@@ -10,6 +12,21 @@
   --color-indigo-200: var(--theme-primary-ring);
   --color-indigo-100: var(--theme-primary-soft);
   --color-indigo-50: var(--theme-primary-softer);
+
+  --color-primary: var(--theme-primary);
+  --color-primary-foreground: var(--theme-primary-contrast);
+  --color-primary-hover: var(--theme-primary-hover);
+  --color-primary-soft: var(--theme-primary-soft);
+  --color-primary-softer: var(--theme-primary-softer);
+  --color-primary-ring: var(--theme-primary-ring);
+
+  --color-foreground: var(--theme-text);
+  --color-muted-foreground: var(--theme-muted);
+  --color-background: var(--theme-bg);
+  --color-surface: var(--theme-surface);
+  --color-surface-subtle: var(--theme-surface-subtle);
+  --color-border: var(--theme-border);
+  --color-border-soft: var(--theme-border-soft);
 }
 
 @layer base {
@@ -518,6 +535,7 @@
     letter-spacing: 0.08em;
     color: var(--theme-primary);
   }
+  .input-field,
   .form-input {
     display: block;
     width: 100%;
@@ -528,6 +546,12 @@
     color: var(--theme-text);
     border-radius: 9px;
     font-size: 14px;
+  }
+  .input-field:focus,
+  .form-input:focus {
+    border-color: var(--theme-primary);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--theme-primary-soft);
   }
   textarea.form-input {
     min-height: 92px;

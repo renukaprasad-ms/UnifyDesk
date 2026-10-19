@@ -33,8 +33,7 @@ export default function CrmSidebar({ onNavigate }: { onNavigate: () => void }) {
     if (item.to === '/crm/leads')
       return can(PERMISSIONS.CRM_LEAD_READ) && can(PERMISSIONS.CONTACT_READ)
     if (item.to === '/crm/companies') return can(PERMISSIONS.CRM_ACCOUNT_READ)
-    if (item.to === '/crm/tasks')
-      return can(PERMISSIONS.CRM_TASK_READ) && can(PERMISSIONS.CONTACT_READ)
+    if (item.to === '/crm/tasks') return can(PERMISSIONS.CRM_TASK_READ)
     if (item.to === '/crm/deals')
       return (
         can(PERMISSIONS.CRM_DEAL_READ) &&

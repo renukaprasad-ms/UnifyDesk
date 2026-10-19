@@ -35,6 +35,7 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { selectAuthUser } from '../../store/auth/authSlice'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
 
@@ -126,21 +127,48 @@ export default function CrmTaskDetailPage() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
-  // Granular permissions with umbrella fallback
+  const currentUser = useAppSelector(selectAuthUser)
+  const currentUserId = currentUser ? String(currentUser.userId) : null
+
+  const isAssigneeOrReporter =
+    currentUserId !== null &&
+    Boolean(task && (task.assigneeUserId === currentUserId || task.reporterUserId === currentUserId))
+
+  // Granular permissions with umbrella fallback and assignee empowerment
   const canEdit =
     can(PERMISSIONS.CRM_TASK_EDIT) ||
-    can(PERMISSIONS.CRM_TASK_MODIFY)
+    can(PERMISSIONS.CRM_TASK_MODIFY) ||
+    isAssigneeOrReporter
   const canStatusChange =
     can(PERMISSIONS.CRM_TASK_STATUS) ||
     can(PERMISSIONS.CRM_TASK_MODIFY) ||
-    canEdit
+    canEdit ||
+    isAssigneeOrReporter
   const canDelete =
     can(PERMISSIONS.CRM_TASK_DELETE) ||
     can(PERMISSIONS.CRM_TASK_MODIFY)
   const canComment =
     can(PERMISSIONS.CRM_TASK_COMMENT) ||
     can(PERMISSIONS.CRM_TASK_MODIFY) ||
-    canEdit
+    canEdit ||
+    isAssigneeOrReporter
+
+  const [elapsedActiveMinutes, setElapsedActiveMinutes] = useState(0)
+
+  useEffect(() => {
+    if (task?.status !== 'IN_PROGRESS' || !task?.inProgressStartedAt) {
+      setElapsedActiveMinutes(0)
+      return
+    }
+    const updateElapsed = () => {
+      const start = new Date(task.inProgressStartedAt!).getTime()
+      const diffSecs = Math.max(0, Math.floor((Date.now() - start) / 1000))
+      setElapsedActiveMinutes(Math.max(1, Math.round(diffSecs / 60)))
+    }
+    updateElapsed()
+    const timer = window.setInterval(updateElapsed, 10000)
+    return () => window.clearInterval(timer)
+  }, [task?.status, task?.inProgressStartedAt])
 
   const loadData = useCallback(async () => {
     if (!companyId || !taskId) return
@@ -1175,6 +1203,21 @@ export default function CrmTaskDetailPage() {
                   {formatMinutes(task.loggedMinutes)}
                 </span>
               </div>
+
+              {task.status === 'IN_PROGRESS' && (
+                <div className="flex items-center justify-between rounded-lg bg-indigo-50/80 p-2 text-xs text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75"></span>
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-600"></span>
+                    </span>
+                    <span>In-Progress Session:</span>
+                  </div>
+                  <span className="font-mono font-bold">
+                    {formatMinutes(elapsedActiveMinutes)} active
+                  </span>
+                </div>
+              )}
 
               {/* Progress bar */}
               <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">

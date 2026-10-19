@@ -80,6 +80,12 @@ import EmailUnsubscribePage from '../pages/unsubscribe/EmailUnsubscribePage'
 import CreateWorkspace from '../pages/workspace/CreateWorkspace'
 import SelectPlan from '../pages/workspace/SelectPlan'
 import SelectWorkspace from '../pages/workspace/SelectWorkspace'
+import LegalLayout from '../pages/legal/LegalLayout'
+import TermsPage from '../pages/legal/TermsPage'
+import PrivacyPage from '../pages/legal/PrivacyPage'
+import RefundPage from '../pages/legal/RefundPage'
+import ShippingPage from '../pages/legal/ShippingPage'
+import ContactPage from '../pages/legal/ContactPage'
 import GuestRoute from './guards/GuestRoute'
 import HomeRoute from './guards/HomeRoute'
 import PermissionRoute from './guards/PermissionRoute'
@@ -93,6 +99,20 @@ const AppRoutes = () => (
     <Route path="/unsubscribe" element={<EmailUnsubscribePage />} />
     <Route path="/forms/:formKey" element={<PublicLeadFormPage />} />
     <Route path="/book/:slug" element={<PublicBookingPage />} />
+
+    {/* Public Merchant Compliance & Legal Pages (Razorpay KYC) */}
+    <Route element={<LegalLayout />}>
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/terms-and-conditions" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/privacy-policy" element={<PrivacyPage />} />
+      <Route path="/cancellation-and-refund" element={<RefundPage />} />
+      <Route path="/refund-policy" element={<RefundPage />} />
+      <Route path="/shipping-and-exchange" element={<ShippingPage />} />
+      <Route path="/shipping-and-delivery" element={<ShippingPage />} />
+      <Route path="/contact" element={<ContactPage />} />
+      <Route path="/contact-us" element={<ContactPage />} />
+    </Route>
 
     <Route element={<AuthLayout />}>
       <Route path="/invite/:token" element={<InviteAccept />} />
@@ -276,7 +296,7 @@ const AppRoutes = () => (
             </Route>
             <Route
               element={
-                <PermissionRoute allOf={[PERMISSIONS.CRM_TASK_READ, PERMISSIONS.CONTACT_READ]} />
+                <PermissionRoute allOf={[PERMISSIONS.CRM_TASK_READ]} />
               }
             >
               <Route
@@ -482,6 +502,14 @@ const AppRoutes = () => (
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.BILLING_READ, PERMISSIONS.BILLING_BALANCE_READ]} />}>
               <Route
                 path="billing"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <BillingPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
+              <Route
+                path="billing/:tab"
                 element={
                   <WorkspaceEpochBoundary>
                     <BillingPage />

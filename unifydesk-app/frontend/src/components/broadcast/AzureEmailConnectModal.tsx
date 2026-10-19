@@ -4,6 +4,7 @@ import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type { BroadcastSender } from '../../features/broadcast/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../feedback/SnackbarProvider'
+import PasswordInput from '../ui/PasswordInput'
 
 type Props = {
   companyId: string
@@ -96,13 +97,13 @@ export default function AzureEmailConnectModal({ companyId, onClose, onConnected
 
         <label className="mt-4 block text-xs font-semibold text-slate-700">
           Access key
-          <input
-            type="password"
-            className="form-input mt-2"
+          <PasswordInput
+            className="mt-2"
             value={accessKey}
             onChange={(event) => setAccessKey(event.target.value)}
             autoComplete="new-password"
             required
+            showLeftIcon
           />
         </label>
 

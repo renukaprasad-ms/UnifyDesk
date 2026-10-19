@@ -10,7 +10,7 @@ import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpo
 import { useAppSelector } from '../../store/hooks'
 import PaymentReturnPage from './PaymentReturnPage'
 
-vi.mock('../../features/billing/billingApi', () => ({ billingApi: { companyPlan: vi.fn() } }))
+vi.mock('../../features/billing/billingApi', () => ({ billingApi: { companyPlan: vi.fn(), getAutoPayDetails: vi.fn().mockResolvedValue(null) } }))
 vi.mock('../../features/workspace/useWorkspaceEpochScope', () => ({ useWorkspaceEpochScope: vi.fn() }))
 vi.mock('../../store/hooks', () => ({ useAppSelector: vi.fn() }))
 
@@ -19,7 +19,7 @@ let epoch = 1
 let scopeCurrent = true
 const active = (planId: string, subscriptionId = 'sub-1') => ({
   plan: { planId, code: 'PLAN', name: 'Plan', status: 'PUBLISHED', visibility: 'PUBLIC', billingCycle: 'MONTHLY', basePrice: 1000, currency: 'INR', version: 1, prices: [], entitlements: [] },
-  subscription: { subscriptionId, companyId, planId, planCode: 'PLAN', planName: 'Plan', status: 'ACTIVE', startedAt: '2020-01-01T00:00:00Z', cancelAtPeriodEnd: false, paymentPolicy: 'CASHFREE' },
+  subscription: { subscriptionId, companyId, planId, planCode: 'PLAN', planName: 'Plan', status: 'ACTIVE', startedAt: '2020-01-01T00:00:00Z', cancelAtPeriodEnd: false, paymentPolicy: 'RAZORPAY' },
 }) as const
 const saveInitial = (overrides = {}) => savePendingBillingCheckout({
   companyId: 'company-a', targetPlanId: 'growth', kind: 'INITIAL', paymentId: 'pay-1',
@@ -53,8 +53,10 @@ describe('PaymentReturnPage', () => {
     saveInitial()
     vi.mocked(billingApi.companyPlan).mockResolvedValue(active('growth') as never)
     render(<MemoryRouter><PaymentReturnPage /></MemoryRouter>)
-    await act(async () => { await Promise.resolve() })
-    expect(await screen.findByText('Subscription activated')).toBeInTheDocument()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    expect(screen.getByText('Subscription activated')).toBeInTheDocument()
     expect(readPendingBillingCheckout()).toBeNull()
   })
 

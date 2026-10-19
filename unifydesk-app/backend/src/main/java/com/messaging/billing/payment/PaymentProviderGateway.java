@@ -51,6 +51,11 @@ public interface PaymentProviderGateway {
 
   RemoteSubscriptionPayment fetchSubscriptionPayment(String subscriptionId, String paymentId);
 
+  default String verifyMandateToken(
+      String orderId, String paymentId, String signature, String customerId) {
+    return null;
+  }
+
   enum AuthorizationMethod {
     HOSTED_UPI_LINK
   }

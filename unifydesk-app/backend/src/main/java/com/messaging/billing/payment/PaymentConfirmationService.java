@@ -36,6 +36,7 @@ public class PaymentConfirmationService {
   private final SubscriptionLifecycleService lifecycleService;
   private final RecurringAuthorizationService recurringAuthorizationService;
   private final JdbcTemplate jdbcTemplate;
+  private final com.messaging.realtime.service.RealtimeService realtimeService;
 
   @Transactional
   public void confirmSuccess(
@@ -46,7 +47,8 @@ public class PaymentConfirmationService {
       Instant providerCreatedAt) {
     Payment payment =
         paymentRepository
-            .findByProviderAndProviderOrderId("CASHFREE", providerOrderId)
+            .findByProviderAndProviderOrderId("RAZORPAY", providerOrderId)
+            .or(() -> paymentRepository.findByProviderAndProviderOrderId("CASHFREE", providerOrderId))
             .orElseThrow(() -> new ConflictException("Provider order is not bound to a payment"));
     confirmSuccessByPaymentId(
         payment.getId(), providerPaymentId, amount, currency, providerCreatedAt);
@@ -85,7 +87,8 @@ public class PaymentConfirmationService {
       Instant providerCreatedAt) {
     Payment payment =
         paymentRepository
-            .findByProviderAndProviderOrderId("CASHFREE", providerOrderId)
+            .findByProviderAndProviderOrderId("RAZORPAY", providerOrderId)
+            .or(() -> paymentRepository.findByProviderAndProviderOrderId("CASHFREE", providerOrderId))
             .orElseThrow(() -> new ConflictException("Provider order is not bound to a payment"));
     recordFailureByPaymentId(
         payment.getId(),
@@ -235,6 +238,18 @@ public class PaymentConfirmationService {
       }
     }
     completeDunning(payment.getId());
+    try {
+      realtimeService.sendToCompany(
+          payment.getCompany().getId(),
+          "billing.payment.updated",
+          java.util.Map.of(
+              "companyId", payment.getCompany().getId(),
+              "paymentId", payment.getId(),
+              "orderId", payment.getProviderOrderId() != null ? payment.getProviderOrderId() : "",
+              "status", "SUCCEEDED",
+              "amount", payment.getAmount()));
+    } catch (Exception ignored) {
+    }
   }
 
   private void applyNonSuccess(

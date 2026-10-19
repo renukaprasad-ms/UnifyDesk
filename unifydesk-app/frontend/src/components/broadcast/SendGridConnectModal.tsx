@@ -4,6 +4,7 @@ import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type { BroadcastSender, SendGridRegion } from '../../features/broadcast/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../feedback/SnackbarProvider'
+import PasswordInput from '../ui/PasswordInput'
 
 type Props = {
   companyId: string
@@ -99,14 +100,14 @@ export default function SendGridConnectModal({ companyId, onClose, onConnected }
 
         <label className="mt-4 block text-xs font-semibold text-slate-700">
           API key
-          <input
-            type="password"
-            className="form-input mt-2"
+          <PasswordInput
+            className="mt-2"
             value={apiKey}
             onChange={(event) => setApiKey(event.target.value)}
             autoComplete="new-password"
             placeholder="SG..."
             required
+            showLeftIcon
           />
         </label>
 

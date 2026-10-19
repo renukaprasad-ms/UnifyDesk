@@ -76,6 +76,41 @@ export const billingApi = {
     return unwrap(response.data)
   },
 
+  async checkout(
+    companyId: string,
+    input: {
+      planId?: string
+      planPriceId?: string
+      changeId?: string
+      quoteReference?: string
+      subscriptionId?: string
+      idempotencyKey?: string
+      customer?: import('./types').CheckoutCustomer
+    },
+  ) {
+    const response = await apiClient.post<ApiResponse<CheckoutResponse>>(
+      `/api/v1/companies/${companyId}/billing/payments/checkout`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async verifyPayment(
+    companyId: string,
+    input: {
+      paymentId: string
+      razorpayOrderId: string
+      razorpayPaymentId: string
+      razorpaySignature: string
+    },
+  ) {
+    const response = await apiClient.post<ApiResponse<{ verified: boolean; status: string; paymentId: string }>>(
+      `/api/v1/companies/${companyId}/billing/payments/verify`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
   async initialCheckout(companyId: string, input: InitialCheckoutInput) {
     const response = await apiClient.post<ApiResponse<CheckoutResponse>>(
       `/api/v1/companies/${companyId}/billing/payments/initial`,
@@ -118,10 +153,15 @@ export const billingApi = {
     return unwrap(response.data)
   },
 
-  async confirmTopup(companyId: string, orderId: string) {
+  async confirmTopup(
+    companyId: string,
+    orderId: string,
+    amount?: number,
+    razorpayPaymentId?: string,
+  ) {
     const response = await apiClient.post<ApiResponse<import('./types').CompanyWallet>>(
       `/api/v1/companies/${companyId}/billing/wallet/topup-confirm`,
-      { orderId },
+      { orderId, amount, razorpayPaymentId },
     )
     return unwrap(response.data)
   },
@@ -133,6 +173,13 @@ export const billingApi = {
     const response = await apiClient.put<ApiResponse<import('./types').CompanyWallet>>(
       `/api/v1/companies/${companyId}/billing/wallet/auto-recharge`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async triggerAutoRecharge(companyId: string) {
+    const response = await apiClient.post<ApiResponse<import('./types').CompanyWallet>>(
+      `/api/v1/companies/${companyId}/billing/wallet/auto-recharge/trigger`,
     )
     return unwrap(response.data)
   },
@@ -162,6 +209,39 @@ export const billingApi = {
   async getUsage(companyId: string) {
     const response = await apiClient.get<ApiResponse<import('./types').BillingUsageSummary>>(
       `/api/v1/companies/${companyId}/billing/usage`,
+    )
+    return unwrap(response.data)
+  },
+
+  async getAutoPayDetails(companyId: string) {
+    const response = await apiClient.get<ApiResponse<import('./types').AutoPayDetails>>(
+      `/api/v1/companies/${companyId}/billing/autopay`,
+    )
+    return unwrap(response.data)
+  },
+
+  async setupAutoPay(companyId: string, input?: import('./types').AutoPaySetupInput) {
+    const response = await apiClient.post<ApiResponse<import('./types').AutoPayDetails>>(
+      `/api/v1/companies/${companyId}/billing/autopay/setup`,
+      input ?? {},
+    )
+    return unwrap(response.data)
+  },
+
+  async verifyAutoPay(
+    companyId: string,
+    payload?: { paymentId?: string; orderId?: string; signature?: string },
+  ) {
+    const response = await apiClient.post<ApiResponse<import('./types').AutoPayDetails>>(
+      `/api/v1/companies/${companyId}/billing/autopay/verify`,
+      payload ?? {},
+    )
+    return unwrap(response.data)
+  },
+
+  async cancelAutoPay(companyId: string) {
+    const response = await apiClient.delete<ApiResponse<void>>(
+      `/api/v1/companies/${companyId}/billing/autopay`,
     )
     return unwrap(response.data)
   },
