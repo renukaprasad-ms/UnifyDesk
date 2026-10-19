@@ -275,7 +275,8 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
 
   @Override
   public void cancelRecurringAuthorization(String tokenId, String customerId) {
-    assertRecurringEnabled();
+    // Cancellation must remain available even when new recurring debits are disabled.
+    assertConfigured();
     if (tokenId == null || !tokenId.startsWith("token_")
         || customerId == null || !customerId.startsWith("cust_")) {
       throw new ConflictException("Valid Razorpay token and customer are required");
