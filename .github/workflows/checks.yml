@@ -40,6 +40,29 @@ jobs:
         if: always()
         run: docker compose -f unifydesk-app/compose.test.yml down -v
 
+  billing-payment-regression:
+    runs-on: ubuntu-latest
+    env:
+      SNOWFLAKE_NODE_ID: '0'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: unifydesk-app/backend/pom.xml
+      - name: Start PostgreSQL and Redis
+        run: docker compose -f unifydesk-app/compose.test.yml up -d --wait
+      - name: Compile and run payment / migration regression tests
+        working-directory: unifydesk-app/backend
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -Dtest=AutomaticRenewalServiceTests,DunningServiceTests,RecurringChargeServiceTests,RecurringAuthorizationServiceTests,PaymentCollectionServiceTests,PlatformMigrationHardeningTests test
+      - name: Stop PostgreSQL and Redis
+        if: always()
+        run: docker compose -f unifydesk-app/compose.test.yml down -v
+
   database:
     runs-on: ubuntu-latest
     env:
