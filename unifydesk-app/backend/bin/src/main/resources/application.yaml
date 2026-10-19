@@ -1,0 +1,685 @@
+spring:
+  application:
+    name: app
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}
+    username: ${SPRING_DATASOURCE_USERNAME:messaging}
+    password: ${SPRING_DATASOURCE_PASSWORD:messaging}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+    open-in-view: false
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    url: ${SPRING_FLYWAY_URL:${APP_DATASOURCE_WRITE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}}
+    user: ${SPRING_FLYWAY_USER:${APP_DATASOURCE_WRITE_USERNAME:${SPRING_DATASOURCE_USERNAME:messaging}}}
+    password: ${SPRING_FLYWAY_PASSWORD:${APP_DATASOURCE_WRITE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:messaging}}}
+    locations: classpath:db/migration
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:0}
+  data:
+    redis:
+      host: ${REDIS_HOST:${SPRING_DATA_REDIS_HOST:localhost}}
+      port: ${REDIS_PORT:${SPRING_DATA_REDIS_PORT:6001}}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2s}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:2s}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:20}
+          max-idle: ${REDIS_POOL_MAX_IDLE:10}
+          min-idle: ${REDIS_POOL_MIN_IDLE:2}
+          max-wait: ${REDIS_POOL_MAX_WAIT:1s}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9001}}
+    client-id: ${KAFKA_CLIENT_ID:messaging-api}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        delivery.timeout.ms: ${KAFKA_DELIVERY_TIMEOUT_MS:120000}
+        request.timeout.ms: ${KAFKA_REQUEST_TIMEOUT_MS:30000}
+        linger.ms: ${KAFKA_LINGER_MS:5}
+        batch.size: ${KAFKA_BATCH_SIZE:16384}
+        compression.type: ${KAFKA_COMPRESSION_TYPE:none}
+        max.in.flight.requests.per.connection: ${KAFKA_MAX_IN_FLIGHT_REQUESTS:5}
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:messaging-workers}
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.messaging.kafka.event
+        spring.json.value.default.type: com.messaging.kafka.event.KafkaEvent
+        max.poll.records: ${KAFKA_MAX_POLL_RECORDS:50}
+        max.poll.interval.ms: ${KAFKA_MAX_POLL_INTERVAL_MS:300000}
+        session.timeout.ms: ${KAFKA_SESSION_TIMEOUT_MS:45000}
+        heartbeat.interval.ms: ${KAFKA_HEARTBEAT_INTERVAL_MS:15000}
+
+app:
+  crm:
+    task-reminders:
+      enabled: ${APP_CRM_TASK_REMINDERS_ENABLED:false}
+      poll-interval-ms: ${APP_CRM_TASK_REMINDERS_POLL_INTERVAL_MS:60000}
+      initial-delay-ms: ${APP_CRM_TASK_REMINDERS_INITIAL_DELAY_MS:30000}
+  company:
+    max-owned-workspaces: ${APP_COMPANY_MAX_OWNED_WORKSPACES:3}
+  billing:
+    # New first-party Mail service uses its own project IDs and usage ledger.
+    # Explicit Super Admin linking is required; imported events are reporting-only.
+    mail-bridge:
+      enabled: ${APP_BILLING_MAIL_BRIDGE_ENABLED:false}
+      base-url: ${APP_BILLING_MAIL_BRIDGE_BASE_URL:}
+      internal-token: ${APP_BILLING_MAIL_BRIDGE_INTERNAL_TOKEN:}
+      batch-size: ${APP_BILLING_MAIL_BRIDGE_BATCH_SIZE:100}
+      sync-interval-ms: ${APP_BILLING_MAIL_BRIDGE_SYNC_INTERVAL_MS:300000}
+      sync-initial-delay-ms: ${APP_BILLING_MAIL_BRIDGE_INITIAL_DELAY_MS:60000}
+    razorpay:
+      enabled: ${APP_BILLING_RAZORPAY_ENABLED:true}
+      recurring-enabled: ${APP_BILLING_RAZORPAY_RECURRING_ENABLED:false}
+      base-url: ${APP_BILLING_RAZORPAY_BASE_URL:https://api.razorpay.com/v1}
+      key-id: ${APP_BILLING_RAZORPAY_KEY_ID:rzp_test_placeholder}
+      key-secret: ${APP_BILLING_RAZORPAY_KEY_SECRET:rzp_test_secret_placeholder}
+      webhook-secret: ${APP_BILLING_RAZORPAY_WEBHOOK_SECRET:razorpay_webhook_secret}
+      return-url: ${APP_BILLING_RAZORPAY_RETURN_URL:https://app.unifydesk.in/billing}
+      notify-url: ${APP_BILLING_RAZORPAY_NOTIFY_URL:https://api.unifydesk.in/api/v1/webhooks/razorpay}
+      reconciliation-interval-ms: ${APP_BILLING_RAZORPAY_RECONCILIATION_INTERVAL_MS:300000}
+      reconciliation-initial-delay-ms: ${APP_BILLING_RAZORPAY_RECONCILIATION_INITIAL_DELAY_MS:60000}
+      webhook-max-attempts: ${APP_BILLING_RAZORPAY_WEBHOOK_MAX_ATTEMPTS:8}
+      webhook-retry-base-seconds: ${APP_BILLING_RAZORPAY_WEBHOOK_RETRY_BASE_SECONDS:300}
+      webhook-claim-seconds: ${APP_BILLING_RAZORPAY_WEBHOOK_CLAIM_SECONDS:120}
+      webhook-max-age-seconds: ${APP_BILLING_RAZORPAY_WEBHOOK_MAX_AGE_SECONDS:300}
+      webhook-future-skew-seconds: ${APP_BILLING_RAZORPAY_WEBHOOK_FUTURE_SKEW_SECONDS:60}
+      dunning-claim-seconds: ${APP_BILLING_RAZORPAY_DUNNING_CLAIM_SECONDS:300}
+      automatic-renewal-claim-seconds: ${APP_BILLING_RAZORPAY_AUTOMATIC_RENEWAL_CLAIM_SECONDS:300}
+      automatic-renewal-interval-ms: ${APP_BILLING_RAZORPAY_AUTOMATIC_RENEWAL_INTERVAL_MS:60000}
+      automatic-renewal-initial-delay-ms: ${APP_BILLING_RAZORPAY_AUTOMATIC_RENEWAL_INITIAL_DELAY_MS:60000}
+  recipient-action:
+    encryption-key: ${APP_RECIPIENT_ACTION_KEY:}
+    token-ttl: ${APP_RECIPIENT_ACTION_TOKEN_TTL:365d}
+    clock-skew: ${APP_RECIPIENT_ACTION_CLOCK_SKEW:5m}
+    frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
+    public-api-base-url: ${APP_PUBLIC_API_BASE_URL:https://api.unifydesk.in}
+  notification-platform:
+    frontend-base-url: ${APP_NOTIFICATION_FRONTEND_BASE_URL:${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}}
+    core:
+      outbox:
+        batch-size: ${APP_NOTIFICATION_OUTBOX_BATCH_SIZE:100}
+        poll-interval-ms: ${APP_NOTIFICATION_OUTBOX_POLL_INTERVAL_MS:750}
+        lease: ${APP_NOTIFICATION_OUTBOX_LEASE:30s}
+        recovery-after: ${APP_NOTIFICATION_OUTBOX_RECOVERY_AFTER:5m}
+        max-attempts: ${APP_NOTIFICATION_OUTBOX_MAX_ATTEMPTS:20}
+        retry-initial-backoff: ${APP_NOTIFICATION_OUTBOX_RETRY_INITIAL_BACKOFF:1s}
+        retry-max-backoff: ${APP_NOTIFICATION_OUTBOX_RETRY_MAX_BACKOFF:1m}
+        publish-timeout: ${APP_NOTIFICATION_OUTBOX_PUBLISH_TIMEOUT:30s}
+      fanout:
+        claim-size: ${APP_NOTIFICATION_FANOUT_CLAIM_SIZE:10}
+        recipient-batch-size: ${APP_NOTIFICATION_FANOUT_RECIPIENT_BATCH_SIZE:500}
+        poll-interval-ms: ${APP_NOTIFICATION_FANOUT_POLL_INTERVAL_MS:750}
+        lease: ${APP_NOTIFICATION_FANOUT_LEASE:1m}
+        max-attempts: ${APP_NOTIFICATION_FANOUT_MAX_ATTEMPTS:20}
+        retry-initial-backoff: ${APP_NOTIFICATION_FANOUT_RETRY_INITIAL_BACKOFF:2s}
+        retry-max-backoff: ${APP_NOTIFICATION_FANOUT_RETRY_MAX_BACKOFF:5m}
+      reconciliation:
+        batch-size: ${APP_NOTIFICATION_RECONCILIATION_BATCH_SIZE:100}
+        interval-ms: ${APP_NOTIFICATION_RECONCILIATION_INTERVAL_MS:900000}
+    delivery:
+      enabled: ${APP_NOTIFICATION_DELIVERY_ENABLED:true}
+      claim-batch-size: ${APP_NOTIFICATION_DELIVERY_CLAIM_BATCH_SIZE:100}
+      claim-lease: ${APP_NOTIFICATION_DELIVERY_CLAIM_LEASE:2m}
+      poll-delay: ${APP_NOTIFICATION_DELIVERY_POLL_DELAY:1s}
+      email-max-attempts: ${APP_NOTIFICATION_EMAIL_MAX_ATTEMPTS:5}
+    retention:
+      events: ${APP_NOTIFICATION_EVENT_RETENTION:90d}
+      notifications: ${APP_NOTIFICATION_HISTORY_RETENTION:180d}
+      delivery-intents: ${APP_NOTIFICATION_DELIVERY_RETENTION:90d}
+      cleanup-batch-size: ${APP_NOTIFICATION_CLEANUP_BATCH_SIZE:1000}
+      cleanup-interval-ms: ${APP_NOTIFICATION_CLEANUP_INTERVAL_MS:86400000}
+      cleanup-initial-delay-ms: ${APP_NOTIFICATION_CLEANUP_INITIAL_DELAY_MS:300000}
+    digest:
+      enabled: ${APP_NOTIFICATION_DIGEST_ENABLED:true}
+      aggregation-batch-size: ${APP_NOTIFICATION_DIGEST_AGGREGATION_BATCH_SIZE:250}
+      threshold: ${APP_NOTIFICATION_DIGEST_THRESHOLD:10}
+      trigger-count: ${APP_NOTIFICATION_DIGEST_THRESHOLD:10}
+      max-wait: ${APP_NOTIFICATION_DIGEST_MAX_WAIT:2h}
+      debounce: ${APP_NOTIFICATION_DIGEST_DEBOUNCE:15m}
+      cooldown: ${APP_NOTIFICATION_DIGEST_COOLDOWN:4h}
+      optional-email-rolling-cap: ${APP_NOTIFICATION_EMAIL_OPTIONAL_ROLLING_24H_CAP:3}
+      rolling-window: ${APP_NOTIFICATION_EMAIL_ROLLING_WINDOW:24h}
+      poll-delay: ${APP_NOTIFICATION_DIGEST_POLL_DELAY:1m}
+    email:
+      enabled: ${APP_NOTIFICATION_EMAIL_ENABLED:true}
+      optional-rolling24h-cap: ${APP_NOTIFICATION_EMAIL_OPTIONAL_ROLLING_24H_CAP:3}
+    push:
+      vapid-public-key: ${APP_NOTIFICATION_PUSH_VAPID_PUBLIC_KEY:}
+      vapid-private-key: ${APP_NOTIFICATION_PUSH_VAPID_PRIVATE_KEY:}
+      vapid-subject: ${APP_NOTIFICATION_PUSH_VAPID_SUBJECT:mailto:support@unifydesk.in}
+      max-subscriptions-per-user: ${APP_NOTIFICATION_PUSH_MAX_SUBSCRIPTIONS_PER_USER:10}
+      max-active-subscriptions: ${APP_NOTIFICATION_PUSH_MAX_SUBSCRIPTIONS_PER_USER:10}
+      target-payload-bytes: ${APP_NOTIFICATION_PUSH_TARGET_PAYLOAD_BYTES:2048}
+      max-payload-bytes: ${APP_NOTIFICATION_PUSH_MAX_PAYLOAD_BYTES:4096}
+      max-attempts: ${APP_NOTIFICATION_PUSH_MAX_ATTEMPTS:4}
+      inbox-ttl: ${APP_NOTIFICATION_PUSH_INBOX_TTL:30m}
+      default-ttl: ${APP_NOTIFICATION_PUSH_DEFAULT_TTL:15m}
+      cleanup-delay: ${APP_NOTIFICATION_PUSH_CLEANUP_DELAY:1h}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://app.unifydesk.in}
+  lifecycle:
+    deletion:
+      retention: ${DELETION_RETENTION:30d}
+      retry-delay: ${DELETION_RETRY_DELAY:1h}
+      stale-after: ${DELETION_STALE_AFTER:1h}
+      batch-size: ${DELETION_JOB_BATCH_SIZE:20}
+      row-batch-size: ${DELETION_ROW_BATCH_SIZE:5000}
+      max-row-batches-per-run: ${DELETION_MAX_ROW_BATCHES_PER_RUN:4}
+      media-batch-size: ${DELETION_MEDIA_BATCH_SIZE:250}
+      scheduler-interval: ${DELETION_SCHEDULER_INTERVAL:1m}
+      scheduler-initial-delay: ${DELETION_SCHEDULER_INITIAL_DELAY:1m}
+  realtime:
+    redis-channel: ${REALTIME_REDIS_CHANNEL:messaging:realtime}
+    heartbeat-interval-ms: ${REALTIME_HEARTBEAT_INTERVAL_MS:30000}
+    allowed-origins: ${REALTIME_ALLOWED_ORIGINS:https://app.unifydesk.in}
+  broadcast:
+    member-write-batch-size: ${BROADCAST_MEMBER_WRITE_BATCH_SIZE:500}
+    snapshot-batch-size: ${BROADCAST_SNAPSHOT_BATCH_SIZE:100}
+    recipient-claim-size: ${BROADCAST_RECIPIENT_CLAIM_SIZE:10}
+    worker-concurrency: ${BROADCAST_WORKER_CONCURRENCY:8}
+    worker-poll-interval-ms: ${BROADCAST_WORKER_POLL_INTERVAL_MS:250}
+    max-delivery-attempts: ${BROADCAST_MAX_DELIVERY_ATTEMPTS:5}
+    retry-initial-backoff: ${BROADCAST_RETRY_INITIAL_BACKOFF:2s}
+    retry-max-backoff: ${BROADCAST_RETRY_MAX_BACKOFF:5m}
+    stale-claim-after: ${BROADCAST_STALE_CLAIM_AFTER:5m}
+    outbox-batch-size: ${BROADCAST_OUTBOX_BATCH_SIZE:50}
+    outbox-poll-interval-ms: ${BROADCAST_OUTBOX_POLL_INTERVAL_MS:250}
+    outbox-stale-after: ${BROADCAST_OUTBOX_STALE_AFTER:2m}
+    outbox-max-attempts: ${BROADCAST_OUTBOX_MAX_ATTEMPTS:20}
+    message-id-domain: ${BROADCAST_MESSAGE_ID_DOMAIN:unifydesk.in}
+    ses-max-per-second-cap: ${BROADCAST_SES_MAX_PER_SECOND_CAP:1000}
+    send-grid-max-per-second-cap: ${BROADCAST_SENDGRID_MAX_PER_SECOND_CAP:20}
+    azure-email-max-per-second-cap: ${BROADCAST_AZURE_EMAIL_MAX_PER_SECOND_CAP:0.5}
+    msg91-max-per-second-cap: ${BROADCAST_MSG91_MAX_PER_SECOND_CAP:20}
+    msg91-email-max-per-second-cap: ${BROADCAST_MSG91_EMAIL_MAX_PER_SECOND_CAP:20}
+    provider-max-per-second-cap: ${BROADCAST_PROVIDER_MAX_PER_SECOND_CAP:1000}
+  managed-sms:
+    enabled: ${APP_MANAGED_SMS_ENABLED:false}
+    provider: ${APP_MANAGED_SMS_PROVIDER:MSG91_SMS}
+    provider-mode: ${APP_MANAGED_SMS_PROVIDER_MODE:CHILD_PER_COMPANY}
+    master-auth-key: ${APP_MANAGED_SMS_MASTER_AUTH_KEY:}
+    allow-shared-master: ${APP_MANAGED_SMS_ALLOW_SHARED_MASTER:false}
+    webhook-token-key: ${APP_MANAGED_SMS_WEBHOOK_TOKEN_KEY:}
+    webhook-previous-token-key: ${APP_MANAGED_SMS_WEBHOOK_PREVIOUS_TOKEN_KEY:}
+    webhook-previous-token-valid-until: ${APP_MANAGED_SMS_WEBHOOK_PREVIOUS_TOKEN_VALID_UNTIL:}
+    compliance-stale-after: ${APP_MANAGED_SMS_COMPLIANCE_STALE_AFTER:7d}
+    provisioning-poll-interval: ${APP_MANAGED_SMS_PROVISIONING_POLL_INTERVAL:5s}
+    provisioning-stale-after: ${APP_MANAGED_SMS_PROVISIONING_STALE_AFTER:5m}
+    compliance-refresh-interval: ${APP_MANAGED_SMS_COMPLIANCE_REFRESH_INTERVAL:5m}
+    provider-observation-poll-ms: ${APP_MANAGED_SMS_PROVIDER_OBSERVATION_POLL_MS:60000}
+    platform-sending-enabled: ${APP_MANAGED_SMS_PLATFORM_SENDING_ENABLED:false}
+    global-max-per-second: ${APP_MANAGED_SMS_GLOBAL_MAX_PER_SECOND:20}
+    provider-account-max-per-second: ${APP_MANAGED_SMS_ACCOUNT_MAX_PER_SECOND:15}
+    company-max-per-second: ${APP_MANAGED_SMS_COMPANY_MAX_PER_SECOND:10}
+    run-max-per-second: ${APP_MANAGED_SMS_RUN_MAX_PER_SECOND:5}
+    campaign-max-recipients: ${APP_MANAGED_SMS_CAMPAIGN_MAX_RECIPIENTS:5000}
+    new-tenant-hourly-cap: ${APP_MANAGED_SMS_NEW_TENANT_HOURLY_CAP:100}
+    new-tenant-daily-cap: ${APP_MANAGED_SMS_NEW_TENANT_DAILY_CAP:500}
+    provider-balance-reserve: ${APP_MANAGED_SMS_PROVIDER_BALANCE_RESERVE:100}
+    metareach:
+      enabled: ${APP_MANAGED_SMS_METAREACH_ENABLED:false}
+      contract-confirmed: ${APP_MANAGED_SMS_METAREACH_CONTRACT_CONFIRMED:false}
+      api-key: ${APP_MANAGED_SMS_METAREACH_API_KEY:}
+      route-id: ${APP_MANAGED_SMS_METAREACH_ROUTE_ID:1}
+      dlr-poll-ms: ${APP_MANAGED_SMS_METAREACH_DLR_POLL_MS:30000}
+      dlr-reclaim-ms: ${APP_MANAGED_SMS_METAREACH_DLR_RECLAIM_MS:120000}
+    event-replay-window: ${APP_MANAGED_SMS_EVENT_REPLAY_WINDOW:10m}
+  managed-email:
+    enabled: ${APP_MANAGED_EMAIL_ENABLED:false}
+    platform-sending-enabled: ${APP_MANAGED_EMAIL_PLATFORM_SENDING_ENABLED:false}
+    aws-region: ${APP_MANAGED_EMAIL_AWS_REGION:${AWS_REGION:ap-southeast-2}}
+    hosted-base-domain: ${APP_MANAGED_EMAIL_HOSTED_BASE_DOMAIN:unifydesk.in}
+    sns-topic-arn: ${APP_MANAGED_EMAIL_SNS_TOPIC_ARN:}
+    cloudflare-zone-id: ${APP_MANAGED_EMAIL_CLOUDFLARE_ZONE_ID:}
+    cloudflare-api-token: ${APP_MANAGED_EMAIL_CLOUDFLARE_API_TOKEN:}
+    provisioning-poll-interval: ${APP_MANAGED_EMAIL_PROVISIONING_POLL_INTERVAL:2s}
+    provisioning-stale-after: ${APP_MANAGED_EMAIL_PROVISIONING_STALE_AFTER:5m}
+    verification-refresh-interval: ${APP_MANAGED_EMAIL_VERIFICATION_REFRESH_INTERVAL:5m}
+    account-rate-safety-cap: ${APP_MANAGED_EMAIL_ACCOUNT_RATE_SAFETY_CAP:1000}
+    new-tenant-hourly-cap: ${APP_MANAGED_EMAIL_NEW_TENANT_HOURLY_CAP:100}
+    new-tenant-daily-cap: ${APP_MANAGED_EMAIL_NEW_TENANT_DAILY_CAP:500}
+    event-replay-window: ${APP_MANAGED_EMAIL_EVENT_REPLAY_WINDOW:10m}
+    control-rate-limit-window: ${APP_MANAGED_EMAIL_CONTROL_RATE_LIMIT_WINDOW:1m}
+    customer-domain-create-company-limit: ${APP_MANAGED_EMAIL_CUSTOMER_DOMAIN_CREATE_COMPANY_LIMIT:10}
+    customer-domain-create-user-limit: ${APP_MANAGED_EMAIL_CUSTOMER_DOMAIN_CREATE_USER_LIMIT:5}
+    hosted-domain-create-company-limit: ${APP_MANAGED_EMAIL_HOSTED_DOMAIN_CREATE_COMPANY_LIMIT:10}
+    hosted-domain-create-user-limit: ${APP_MANAGED_EMAIL_HOSTED_DOMAIN_CREATE_USER_LIMIT:5}
+    domain-refresh-company-limit: ${APP_MANAGED_EMAIL_DOMAIN_REFRESH_COMPANY_LIMIT:30}
+    domain-refresh-user-limit: ${APP_MANAGED_EMAIL_DOMAIN_REFRESH_USER_LIMIT:15}
+    domain-delete-company-limit: ${APP_MANAGED_EMAIL_DOMAIN_DELETE_COMPANY_LIMIT:10}
+    domain-delete-user-limit: ${APP_MANAGED_EMAIL_DOMAIN_DELETE_USER_LIMIT:5}
+    sender-create-company-limit: ${APP_MANAGED_EMAIL_SENDER_CREATE_COMPANY_LIMIT:30}
+    sender-create-user-limit: ${APP_MANAGED_EMAIL_SENDER_CREATE_USER_LIMIT:15}
+    sender-disable-company-limit: ${APP_MANAGED_EMAIL_SENDER_DISABLE_COMPANY_LIMIT:30}
+    sender-disable-user-limit: ${APP_MANAGED_EMAIL_SENDER_DISABLE_USER_LIMIT:15}
+    runtime:
+      sending-enabled: ${APP_MANAGED_EMAIL_PLATFORM_SENDING_ENABLED:false}
+      region: ${APP_MANAGED_EMAIL_AWS_REGION:ap-south-1}
+      sns-topic-arn: ${APP_MANAGED_EMAIL_SNS_TOPIC_ARN:}
+      account-safety-max-per-second: ${APP_MANAGED_EMAIL_ACCOUNT_RATE_SAFETY_CAP:1000}
+      company-max-per-second: ${APP_MANAGED_EMAIL_COMPANY_MAX_PER_SECOND:25}
+      plan-max-per-second: ${APP_MANAGED_EMAIL_PLAN_MAX_PER_SECOND:25}
+      run-max-per-second: ${APP_MANAGED_EMAIL_RUN_MAX_PER_SECOND:10}
+      new-tenant-max-per-second: ${APP_MANAGED_EMAIL_NEW_TENANT_MAX_PER_SECOND:2}
+      account-daily-safety-cap: ${APP_MANAGED_EMAIL_ACCOUNT_DAILY_SAFETY_CAP:50000}
+      new-tenant-hourly-cap: ${APP_MANAGED_EMAIL_NEW_TENANT_HOURLY_CAP:100}
+      new-tenant-daily-cap: ${APP_MANAGED_EMAIL_NEW_TENANT_DAILY_CAP:500}
+      established-hourly-cap: ${APP_MANAGED_EMAIL_ESTABLISHED_HOURLY_CAP:5000}
+      established-daily-cap: ${APP_MANAGED_EMAIL_ESTABLISHED_DAILY_CAP:25000}
+      campaign-size-cap: ${APP_MANAGED_EMAIL_CAMPAIGN_SIZE_CAP:5000}
+      provider-snapshot-max-age-seconds: ${APP_MANAGED_EMAIL_PROVIDER_SNAPSHOT_MAX_AGE_SECONDS:300}
+      provider-effect-poll-batch-size: ${APP_MANAGED_EMAIL_PROVIDER_EFFECT_POLL_BATCH_SIZE:25}
+      provider-effect-stale-after-seconds: ${APP_MANAGED_EMAIL_PROVIDER_EFFECT_STALE_AFTER_SECONDS:120}
+      provider-effect-max-attempts: ${APP_MANAGED_EMAIL_PROVIDER_EFFECT_MAX_ATTEMPTS:8}
+      provider-effect-retry-initial-seconds: ${APP_MANAGED_EMAIL_PROVIDER_EFFECT_RETRY_INITIAL_SECONDS:2}
+      provider-effect-retry-max-seconds: ${APP_MANAGED_EMAIL_PROVIDER_EFFECT_RETRY_MAX_SECONDS:900}
+      sns-replay-window-seconds: ${APP_MANAGED_EMAIL_SNS_REPLAY_WINDOW_SECONDS:600}
+      webhook-max-bytes: ${APP_MANAGED_EMAIL_WEBHOOK_MAX_BYTES:262144}
+      webhook-max-json-depth: ${APP_MANAGED_EMAIL_WEBHOOK_MAX_JSON_DEPTH:32}
+      signing-certificate-max-bytes: ${APP_MANAGED_EMAIL_SIGNING_CERTIFICATE_MAX_BYTES:65536}
+      stale-reservation-minutes: ${APP_MANAGED_EMAIL_STALE_RESERVATION_MINUTES:30}
+      reputation-window-hours: ${APP_MANAGED_EMAIL_REPUTATION_WINDOW_HOURS:24}
+      minimum-reputation-sample-size: ${APP_MANAGED_EMAIL_REPUTATION_MIN_SAMPLE:100}
+      warning-hard-bounce-rate: ${APP_MANAGED_EMAIL_WARNING_HARD_BOUNCE_RATE:0.03}
+      warning-complaint-rate: ${APP_MANAGED_EMAIL_WARNING_COMPLAINT_RATE:0.001}
+      throttle-hard-bounce-rate: ${APP_MANAGED_EMAIL_THROTTLE_HARD_BOUNCE_RATE:0.05}
+      throttle-complaint-rate: ${APP_MANAGED_EMAIL_THROTTLE_COMPLAINT_RATE:0.002}
+      suspension-hard-bounce-rate: ${APP_MANAGED_EMAIL_SUSPENSION_HARD_BOUNCE_RATE:0.08}
+      suspension-complaint-rate: ${APP_MANAGED_EMAIL_SUSPENSION_COMPLAINT_RATE:0.004}
+      throttle-rate-multiplier: ${APP_MANAGED_EMAIL_THROTTLE_RATE_MULTIPLIER:0.25}
+  delivery:
+    email:
+      claim-size: ${EMAIL_DELIVERY_REPORT_CLAIM_SIZE:100}
+      poll-interval-ms: ${EMAIL_DELIVERY_REPORT_POLL_INTERVAL_MS:5000}
+      max-attempts: ${EMAIL_DELIVERY_REPORT_MAX_ATTEMPTS:12}
+      retry-initial-backoff: ${EMAIL_DELIVERY_REPORT_RETRY_INITIAL_BACKOFF:30s}
+      retry-max-backoff: ${EMAIL_DELIVERY_REPORT_RETRY_MAX_BACKOFF:10m}
+      stale-after: ${EMAIL_DELIVERY_REPORT_STALE_AFTER:5m}
+      match-lookback: ${EMAIL_DELIVERY_REPORT_MATCH_LOOKBACK:14d}
+  datasource:
+    write:
+      url: ${APP_DATASOURCE_WRITE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}
+      username: ${APP_DATASOURCE_WRITE_USERNAME:${SPRING_DATASOURCE_USERNAME:messaging}}
+      password: ${APP_DATASOURCE_WRITE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:messaging}}
+      max-pool-size: ${APP_DATASOURCE_WRITE_MAX_POOL_SIZE:25}
+      min-idle: ${APP_DATASOURCE_WRITE_MIN_IDLE:1}
+    read:
+      url: ${APP_DATASOURCE_READ_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}
+      username: ${APP_DATASOURCE_READ_USERNAME:${SPRING_DATASOURCE_USERNAME:messaging}}
+      password: ${APP_DATASOURCE_READ_PASSWORD:${SPRING_DATASOURCE_PASSWORD:messaging}}
+      max-pool-size: ${APP_DATASOURCE_READ_MAX_POOL_SIZE:25}
+      min-idle: ${APP_DATASOURCE_READ_MIN_IDLE:1}
+  security:
+    trust-forwarded-headers: ${APP_SECURITY_TRUST_FORWARDED_HEADERS:false}
+    auth:
+      login-ip-limit: ${APP_AUTH_LOGIN_IP_LIMIT:120}
+      login-identifier-limit: ${APP_AUTH_LOGIN_IDENTIFIER_LIMIT:10}
+      register-ip-limit: ${APP_AUTH_REGISTER_IP_LIMIT:30}
+      register-identifier-limit: ${APP_AUTH_REGISTER_IDENTIFIER_LIMIT:5}
+      otp-verify-limit: ${APP_AUTH_OTP_VERIFY_LIMIT:5}
+    jwt:
+      issuer: ${JWT_ISSUER:messaging}
+      private-key: ${JWT_PRIVATE_KEY:}
+      public-key: ${JWT_PUBLIC_KEY:}
+      access-expiration: ${JWT_ACCESS_EXPIRATION:15m}
+      refresh-expiration: ${JWT_REFRESH_EXPIRATION:7d}
+      untrusted-refresh-expiration: ${JWT_UNTRUSTED_REFRESH_EXPIRATION:1d}
+      pre-auth-expiration: ${JWT_PRE_AUTH_EXPIRATION:10m}
+    cookie:
+      access-name: ${JWT_ACCESS_COOKIE_NAME:msid}
+      refresh-name: ${JWT_REFRESH_COOKIE_NAME:msid_r}
+      pre-auth-name: ${JWT_PRE_AUTH_COOKIE_NAME:msid_pre}
+      access-max-age: ${JWT_ACCESS_COOKIE_MAX_AGE:15m}
+      refresh-max-age: ${JWT_REFRESH_COOKIE_MAX_AGE:7d}
+      pre-auth-max-age: ${JWT_PRE_AUTH_COOKIE_MAX_AGE:10m}
+      path: ${JWT_COOKIE_PATH:/}
+      domain: ${JWT_COOKIE_DOMAIN:}
+      http-only: ${JWT_COOKIE_HTTP_ONLY:true}
+      secure: ${JWT_COOKIE_SECURE:false}
+      same-site: ${JWT_COOKIE_SAME_SITE:Strict}
+  channel:
+    credentials:
+      master-key: ${CHANNEL_CREDENTIAL_MASTER_KEY:}
+    meta-whatsapp:
+      enabled: ${META_WHATSAPP_ENABLED:false}
+      app-id: ${META_WHATSAPP_APP_ID:}
+      app-secret: ${META_WHATSAPP_APP_SECRET:}
+      configuration-id: ${META_WHATSAPP_CONFIGURATION_ID:}
+      graph-api-version: ${META_WHATSAPP_GRAPH_API_VERSION:v26.0}
+      webhook-verify-token: ${META_WHATSAPP_WEBHOOK_VERIFY_TOKEN:}
+      signup-session-ttl: ${META_WHATSAPP_SIGNUP_SESSION_TTL:10m}
+      register-phone-number: ${META_WHATSAPP_REGISTER_PHONE_NUMBER:true}
+      coexistence-enabled: ${META_WHATSAPP_COEXISTENCE_ENABLED:false}
+      health-cache-ttl: ${META_WHATSAPP_HEALTH_CACHE_TTL:15m}
+      healthy-reconcile-interval: ${META_WHATSAPP_HEALTHY_RECONCILE_INTERVAL:30m}
+      degraded-reconcile-interval: ${META_WHATSAPP_DEGRADED_RECONCILE_INTERVAL:5m}
+      manual-reconcile-min-interval: ${META_WHATSAPP_MANUAL_RECONCILE_MIN_INTERVAL:15s}
+      reconcile-poll-interval: ${META_WHATSAPP_RECONCILE_POLL_INTERVAL:1m}
+      provisioning-claim-lease: ${META_WHATSAPP_PROVISIONING_CLAIM_LEASE:2m}
+      retry-initial-backoff: ${META_WHATSAPP_RETRY_INITIAL_BACKOFF:2s}
+      retry-max-backoff: ${META_WHATSAPP_RETRY_MAX_BACKOFF:5m}
+      runtime:
+        webhook-max-body: ${META_WHATSAPP_WEBHOOK_MAX_BODY:1MB}
+        webhook-max-effects: ${META_WHATSAPP_WEBHOOK_MAX_EFFECTS:200}
+        worker-batch-size: ${META_WHATSAPP_WORKER_BATCH_SIZE:100}
+        worker-lease: ${META_WHATSAPP_WORKER_LEASE:60s}
+        worker-max-attempts: ${META_WHATSAPP_WORKER_MAX_ATTEMPTS:10}
+        retry-base-delay: ${META_WHATSAPP_RUNTIME_RETRY_BASE_DELAY:2s}
+        retry-max-delay: ${META_WHATSAPP_RUNTIME_RETRY_MAX_DELAY:15m}
+        processed-retention: ${META_WHATSAPP_PROCESSED_RETENTION:7d}
+        dead-retention: ${META_WHATSAPP_DEAD_RETENTION:30d}
+        customer-service-window: ${META_WHATSAPP_CUSTOMER_SERVICE_WINDOW:24h}
+        template-max-age: ${META_WHATSAPP_TEMPLATE_MAX_AGE:15m}
+        provider-connect-timeout: ${META_WHATSAPP_PROVIDER_CONNECT_TIMEOUT:3s}
+        provider-read-timeout: ${META_WHATSAPP_PROVIDER_READ_TIMEOUT:10s}
+        inbound-media-hard-limit: ${META_WHATSAPP_INBOUND_MEDIA_HARD_LIMIT:20MB}
+        outbound-max-per-second: ${META_WHATSAPP_OUTBOUND_MAX_PER_SECOND:10}
+        outbound-rate-window: ${META_WHATSAPP_OUTBOUND_RATE_WINDOW:1s}
+        provider-retry-after-fallback: ${META_WHATSAPP_PROVIDER_RETRY_AFTER_FALLBACK:5s}
+        pending-outcome-timeout: ${META_WHATSAPP_PENDING_OUTCOME_TIMEOUT:2m}
+        graph-base-url: ${META_WHATSAPP_GRAPH_BASE_URL:https://graph.facebook.com}
+    gmail:
+      enabled: ${GMAIL_OAUTH_ENABLED:false}
+      client-id: ${GMAIL_OAUTH_CLIENT_ID:}
+      client-secret: ${GMAIL_OAUTH_CLIENT_SECRET:}
+      redirect-uri: ${GMAIL_OAUTH_REDIRECT_URI:https://api.unifydesk.in/api/v1/oauth/gmail/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
+      scope: ${GMAIL_OAUTH_SCOPE:https://www.googleapis.com/auth/gmail.modify}
+      oauth-state-ttl: ${GMAIL_OAUTH_STATE_TTL:10m}
+      token-refresh-skew: ${GMAIL_OAUTH_TOKEN_REFRESH_SKEW:2m}
+      initial-sync-days: ${GMAIL_INITIAL_SYNC_DAYS:30}
+      initial-sync-max-messages: ${GMAIL_INITIAL_SYNC_MAX_MESSAGES:200}
+      sync-max-range-days: ${GMAIL_SYNC_MAX_RANGE_DAYS:366}
+      sync-max-messages: ${GMAIL_SYNC_MAX_MESSAGES:100000}
+      sync-batch-size: ${GMAIL_SYNC_BATCH_SIZE:25}
+      sync-user-quota-units-per-minute: ${GMAIL_SYNC_USER_QUOTA_UNITS_PER_MINUTE:6000}
+      sync-message-get-quota-units: ${GMAIL_SYNC_MESSAGE_GET_QUOTA_UNITS:20}
+      sync-quota-utilization-percent: ${GMAIL_SYNC_QUOTA_UTILIZATION_PERCENT:80}
+      quota-control-enabled: ${GMAIL_QUOTA_CONTROL_ENABLED:true}
+      quota-project-units-per-minute: ${GMAIL_QUOTA_PROJECT_UNITS_PER_MINUTE:1200000}
+      quota-interactive-reserve-percent: ${GMAIL_QUOTA_INTERACTIVE_RESERVE_PERCENT:20}
+      quota-user-burst-units: ${GMAIL_QUOTA_USER_BURST_UNITS:600}
+      quota-project-burst-units: ${GMAIL_QUOTA_PROJECT_BURST_UNITS:50000}
+      quota-background-user-burst-units: ${GMAIL_QUOTA_BACKGROUND_USER_BURST_UNITS:500}
+      quota-background-project-burst-units: ${GMAIL_QUOTA_BACKGROUND_PROJECT_BURST_UNITS:40000}
+      quota-bucket-ttl: ${GMAIL_QUOTA_BUCKET_TTL:2m}
+      quota-cooldown-initial: ${GMAIL_QUOTA_COOLDOWN_INITIAL:30s}
+      quota-cooldown-max: ${GMAIL_QUOTA_COOLDOWN_MAX:5m}
+      sync-batch-retry-max-attempts: ${GMAIL_SYNC_BATCH_RETRY_MAX_ATTEMPTS:12}
+      sync-batch-retry-initial-backoff: ${GMAIL_SYNC_BATCH_RETRY_INITIAL_BACKOFF:2s}
+      sync-batch-retry-max-backoff: ${GMAIL_SYNC_BATCH_RETRY_MAX_BACKOFF:64s}
+      sync-batch-recovery-interval: ${GMAIL_SYNC_BATCH_RECOVERY_INTERVAL:1m}
+      sync-batch-stale-after: ${GMAIL_SYNC_BATCH_STALE_AFTER:5m}
+      sync-batch-recovery-size: ${GMAIL_SYNC_BATCH_RECOVERY_SIZE:100}
+      worker-concurrency: ${GMAIL_WORKER_CONCURRENCY:12}
+      worker-poll-interval-ms: ${GMAIL_WORKER_POLL_INTERVAL_MS:250}
+      api-retry-max-attempts: ${GMAIL_API_RETRY_MAX_ATTEMPTS:4}
+      api-retry-initial-backoff: ${GMAIL_API_RETRY_INITIAL_BACKOFF:1s}
+      api-retry-max-backoff: ${GMAIL_API_RETRY_MAX_BACKOFF:8s}
+
+      # Gmail server push: users.watch -> Google Cloud Pub/Sub -> webhook -> history.list.
+      pubsub-topic-name: ${GMAIL_PUBSUB_TOPIC_NAME:}
+      pubsub-push-verification-token: ${GMAIL_PUBSUB_PUSH_VERIFICATION_TOKEN:}
+      watch-renew-interval: ${GMAIL_WATCH_RENEW_INTERVAL:1h}
+      watch-renew-initial-delay: ${GMAIL_WATCH_RENEW_INITIAL_DELAY:1m}
+      watch-renew-after: ${GMAIL_WATCH_RENEW_AFTER:24h}
+      realtime-worker-concurrency: ${GMAIL_REALTIME_WORKER_CONCURRENCY:4}
+      realtime-worker-poll-interval-ms: ${GMAIL_REALTIME_WORKER_POLL_INTERVAL_MS:500}
+      realtime-stale-after: ${GMAIL_REALTIME_STALE_AFTER:5m}
+      realtime-max-attempts: ${GMAIL_REALTIME_MAX_ATTEMPTS:12}
+      realtime-history-page-size: ${GMAIL_REALTIME_HISTORY_PAGE_SIZE:200}
+      realtime-batch-size: ${GMAIL_REALTIME_BATCH_SIZE:25}
+      realtime-safety-sync-interval: ${GMAIL_REALTIME_SAFETY_SYNC_INTERVAL:5m}
+      realtime-safety-sync-initial-delay: ${GMAIL_REALTIME_SAFETY_SYNC_INITIAL_DELAY:2m}
+      realtime-recovery-days: ${GMAIL_REALTIME_RECOVERY_DAYS:30}
+      realtime-recovery-max-messages: ${GMAIL_REALTIME_RECOVERY_MAX_MESSAGES:1000}
+    zoho-mail:
+      enabled: ${ZOHO_MAIL_OAUTH_ENABLED:false}
+      client-id: ${ZOHO_MAIL_OAUTH_CLIENT_ID:}
+      client-secret: ${ZOHO_MAIL_OAUTH_CLIENT_SECRET:}
+      redirect-uri: ${ZOHO_MAIL_OAUTH_REDIRECT_URI:https://api.unifydesk.in/api/v1/oauth/zoho-mail/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
+      authorization-accounts-base-url: ${ZOHO_MAIL_OAUTH_ACCOUNTS_BASE_URL:https://accounts.zoho.com}
+      scope: ${ZOHO_MAIL_OAUTH_SCOPE:ZohoMail.accounts.READ,ZohoMail.folders.READ,ZohoMail.messages.ALL}
+      oauth-state-ttl: ${ZOHO_MAIL_OAUTH_STATE_TTL:10m}
+      token-refresh-skew: ${ZOHO_MAIL_OAUTH_TOKEN_REFRESH_SKEW:2m}
+      webhook-enabled: ${ZOHO_MAIL_WEBHOOK_ENABLED:false}
+      webhook-public-base-url: ${ZOHO_MAIL_WEBHOOK_PUBLIC_BASE_URL:https://api.unifydesk.in}
+      webhook-worker-interval: ${ZOHO_MAIL_WEBHOOK_WORKER_INTERVAL:1s}
+      poll-interval: ${ZOHO_MAIL_POLL_INTERVAL:2m}
+      poll-initial-delay: ${ZOHO_MAIL_POLL_INITIAL_DELAY:1m}
+      poll-page-size: ${ZOHO_MAIL_POLL_PAGE_SIZE:100}
+      poll-max-pages-per-folder: ${ZOHO_MAIL_POLL_MAX_PAGES_PER_FOLDER:50}
+      sync-max-messages: ${ZOHO_MAIL_SYNC_MAX_MESSAGES:10000}
+      sync-max-range-days: ${ZOHO_MAIL_SYNC_MAX_RANGE_DAYS:366}
+      worker-concurrency: ${ZOHO_MAIL_WORKER_CONCURRENCY:4}
+      worker-poll-interval-ms: ${ZOHO_MAIL_WORKER_POLL_INTERVAL_MS:500}
+      stale-job-after: ${ZOHO_MAIL_STALE_JOB_AFTER:10m}
+      api-retry-max-attempts: ${ZOHO_MAIL_API_RETRY_MAX_ATTEMPTS:4}
+      api-retry-initial-backoff: ${ZOHO_MAIL_API_RETRY_INITIAL_BACKOFF:1s}
+      api-retry-max-backoff: ${ZOHO_MAIL_API_RETRY_MAX_BACKOFF:20s}
+
+    imap-smtp:
+      enabled: ${IMAP_SMTP_ENABLED:true}
+      connect-timeout: ${IMAP_SMTP_CONNECT_TIMEOUT:10s}
+      read-timeout: ${IMAP_SMTP_READ_TIMEOUT:20s}
+      write-timeout: ${IMAP_SMTP_WRITE_TIMEOUT:20s}
+      incremental-poll-interval: ${IMAP_SMTP_INCREMENTAL_POLL_INTERVAL:1m}
+      incremental-initial-delay: ${IMAP_SMTP_INCREMENTAL_INITIAL_DELAY:1m}
+      incremental-max-messages-per-folder: ${IMAP_SMTP_INCREMENTAL_MAX_MESSAGES_PER_FOLDER:250}
+      incremental-max-attempts: ${IMAP_SMTP_INCREMENTAL_MAX_ATTEMPTS:12}
+      sync-max-messages: ${IMAP_SMTP_SYNC_MAX_MESSAGES:10000}
+      sync-max-range-days: ${IMAP_SMTP_SYNC_MAX_RANGE_DAYS:366}
+      worker-concurrency: ${IMAP_SMTP_WORKER_CONCURRENCY:4}
+      worker-poll-interval-ms: ${IMAP_SMTP_WORKER_POLL_INTERVAL_MS:500}
+      stale-job-after: ${IMAP_SMTP_STALE_JOB_AFTER:10m}
+    microsoft:
+      enabled: ${MICROSOFT_OAUTH_ENABLED:false}
+      tenant: ${MICROSOFT_OAUTH_TENANT:common}
+      client-id: ${MICROSOFT_OAUTH_CLIENT_ID:}
+      client-secret: ${MICROSOFT_OAUTH_CLIENT_SECRET:}
+      redirect-uri: ${MICROSOFT_OAUTH_REDIRECT_URI:https://api.unifydesk.in/api/v1/oauth/microsoft/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
+      webhook-notification-url: ${MICROSOFT_WEBHOOK_NOTIFICATION_URL:https://api.unifydesk.in/api/v1/webhooks/microsoft}
+      scope: ${MICROSOFT_OAUTH_SCOPE:openid profile email offline_access User.Read Mail.ReadWrite Mail.Send}
+      oauth-state-ttl: ${MICROSOFT_OAUTH_STATE_TTL:10m}
+      token-refresh-skew: ${MICROSOFT_OAUTH_TOKEN_REFRESH_SKEW:2m}
+      live-initial-lookback: ${MICROSOFT_LIVE_INITIAL_LOOKBACK:5m}
+      backfill-max-messages: ${MICROSOFT_BACKFILL_MAX_MESSAGES:10000}
+      backfill-max-range-days: ${MICROSOFT_BACKFILL_MAX_RANGE_DAYS:365}
+      backfill-worker-concurrency: ${MICROSOFT_BACKFILL_WORKER_CONCURRENCY:4}
+      backfill-poll-interval-ms: ${MICROSOFT_BACKFILL_POLL_INTERVAL_MS:500}
+      backfill-max-attempts: ${MICROSOFT_BACKFILL_MAX_ATTEMPTS:12}
+      subscription-lifetime: ${MICROSOFT_SUBSCRIPTION_LIFETIME:PT167H}
+      subscription-renew-before: ${MICROSOFT_SUBSCRIPTION_RENEW_BEFORE:24h}
+      subscription-renew-interval: ${MICROSOFT_SUBSCRIPTION_RENEW_INTERVAL:12h}
+      delta-page-size: ${MICROSOFT_DELTA_PAGE_SIZE:50}
+      worker-concurrency: ${MICROSOFT_WORKER_CONCURRENCY:8}
+      worker-poll-interval-ms: ${MICROSOFT_WORKER_POLL_INTERVAL_MS:500}
+      safety-sync-interval: ${MICROSOFT_SAFETY_SYNC_INTERVAL:5m}
+      safety-sync-initial-delay: ${MICROSOFT_SAFETY_SYNC_INITIAL_DELAY:2m}
+      api-retry-max-attempts: ${MICROSOFT_API_RETRY_MAX_ATTEMPTS:4}
+      api-retry-initial-backoff: ${MICROSOFT_API_RETRY_INITIAL_BACKOFF:1s}
+      api-retry-max-backoff: ${MICROSOFT_API_RETRY_MAX_BACKOFF:30s}
+  ads:
+    meta:
+      enabled: ${META_ADS_ENABLED:false}
+      app-id: ${META_ADS_APP_ID:}
+      app-secret: ${META_ADS_APP_SECRET:}
+      redirect-uri: ${META_ADS_REDIRECT_URI:https://api.unifydesk.in/api/v1/oauth/meta-ads/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
+      graph-api-version: ${META_ADS_GRAPH_API_VERSION:v26.0}
+      scope: ${META_ADS_SCOPE:ads_management,business_management,pages_show_list,pages_read_engagement,instagram_basic}
+      oauth-state-ttl: ${META_ADS_OAUTH_STATE_TTL:10m}
+      webhook-verify-token: ${META_ADS_WEBHOOK_VERIFY_TOKEN:}
+    google:
+      enabled: ${GOOGLE_ADS_ENABLED:false}
+      client-id: ${GOOGLE_ADS_CLIENT_ID:}
+      client-secret: ${GOOGLE_ADS_CLIENT_SECRET:}
+      redirect-uri: ${GOOGLE_ADS_REDIRECT_URI:https://api.unifydesk.in/api/v1/oauth/google-ads/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
+      api-version: ${GOOGLE_ADS_API_VERSION:v25}
+      scope: ${GOOGLE_ADS_SCOPE:openid email profile https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/datamanager https://www.googleapis.com/auth/content}
+      developer-token: ${GOOGLE_ADS_DEVELOPER_TOKEN:}
+      oauth-state-ttl: ${GOOGLE_ADS_OAUTH_STATE_TTL:10m}
+      token-refresh-skew: ${GOOGLE_ADS_TOKEN_REFRESH_SKEW:2m}
+      background-sync-enabled: ${GOOGLE_ADS_BACKGROUND_SYNC_ENABLED:true}
+      background-sync-interval: ${GOOGLE_ADS_BACKGROUND_SYNC_INTERVAL:30m}
+      background-sync-initial-delay: ${GOOGLE_ADS_BACKGROUND_SYNC_INITIAL_DELAY:5m}
+      background-sync-lock-ttl: ${GOOGLE_ADS_BACKGROUND_SYNC_LOCK_TTL:20m}
+  redis:
+    key-prefix: ${REDIS_KEY_PREFIX:messaging}
+    ttl:
+      otp: ${REDIS_TTL_OTP:5m}
+      otp-attempts: ${REDIS_TTL_OTP_ATTEMPTS:10m}
+      login-attempts: ${REDIS_TTL_LOGIN_ATTEMPTS:15m}
+      idempotency: ${REDIS_TTL_IDEMPOTENCY:24h}
+      short-cache: ${REDIS_TTL_SHORT_CACHE:5m}
+      configuration-cache: ${REDIS_TTL_CONFIGURATION_CACHE:30m}
+      broadcast-progress: ${REDIS_TTL_BROADCAST_PROGRESS:7d}
+  notification:
+    email:
+      ses-region: ${APP_MAIL_SES_REGION:${APP_MANAGED_EMAIL_AWS_REGION:ap-southeast-2}}
+      otp-from: ${APP_MAIL_OTP_FROM:no-reply@unifydesk.in}
+      security-from: ${APP_MAIL_SECURITY_FROM:security@unifydesk.in}
+      billing-from: ${APP_MAIL_BILLING_FROM:billing@unifydesk.in}
+      notification-from: ${APP_MAIL_NOTIFICATION_FROM:notification@unifydesk.in}
+  invitation:
+    frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
+    expiry: ${APP_INVITATION_EXPIRY:72h}
+  storage:
+    reconciliation:
+      cron: ${STORAGE_RECONCILIATION_CRON:0 30 3 * * *}
+      zone: ${STORAGE_RECONCILIATION_ZONE:UTC}
+      batch-size: ${STORAGE_RECONCILIATION_BATCH_SIZE:100}
+  media:
+    cleanup:
+      initial-delay: ${MEDIA_PENDING_CLEANUP_INITIAL_DELAY:1m}
+      interval: ${MEDIA_PENDING_CLEANUP_INTERVAL:12h}
+    storage:
+      default-provider: ${MEDIA_STORAGE_DEFAULT_PROVIDER}
+      upload-url-expiry: ${MEDIA_UPLOAD_URL_EXPIRY}
+      download-url-expiry: ${MEDIA_DOWNLOAD_URL_EXPIRY}
+      http-connect-timeout: ${MEDIA_STORAGE_HTTP_CONNECT_TIMEOUT:3s}
+      http-read-timeout: ${MEDIA_STORAGE_HTTP_READ_TIMEOUT:5s}
+      supabase:
+        base-url: ${SUPABASE_URL:}
+        service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+        bucket: ${SUPABASE_MEDIA_BUCKET:}
+      s3:
+        region: ${S3_MEDIA_REGION:${AWS_REGION:}}
+        bucket: ${S3_MEDIA_BUCKET:}
+        endpoint: ${S3_MEDIA_ENDPOINT:}
+        access-key-id: ${S3_MEDIA_ACCESS_KEY_ID:}
+        secret-access-key: ${S3_MEDIA_SECRET_ACCESS_KEY:}
+        path-style-access-enabled: ${S3_MEDIA_PATH_STYLE_ACCESS_ENABLED:false}
+    validation:
+      image-max-size: ${MEDIA_IMAGE_MAX_SIZE}
+      document-max-size: ${MEDIA_DOCUMENT_MAX_SIZE}
+      video-max-size: ${MEDIA_VIDEO_MAX_SIZE}
+      audio-max-size: ${MEDIA_AUDIO_MAX_SIZE}
+      other-max-size: ${MEDIA_OTHER_MAX_SIZE}
+      pending-ttl: ${MEDIA_PENDING_TTL}
+      allowed-mime-types: ${MEDIA_ALLOWED_MIME_TYPES}
+  kafka:
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl-mechanism: ${KAFKA_SASL_MECHANISM:}
+      sasl-jaas-config: ${KAFKA_SASL_JAAS_CONFIG:}
+    retry:
+      max-attempts: ${KAFKA_RETRY_MAX_ATTEMPTS:4}
+      initial-delay: ${KAFKA_RETRY_INITIAL_DELAY:5s}
+      multiplier: ${KAFKA_RETRY_MULTIPLIER:2}
+      max-delay: ${KAFKA_RETRY_MAX_DELAY:2m}
+    idempotency:
+      ttl: ${KAFKA_IDEMPOTENCY_TTL:7d}
+    topics:
+      replication-factor: ${KAFKA_REPLICATION_FACTOR:1}
+      min-insync-replicas: ${KAFKA_MIN_INSYNC_REPLICAS:1}
+      dlt-retention: ${KAFKA_DLT_RETENTION:14d}
+      critical:
+        name: ${KAFKA_CRITICAL_TOPIC:messaging.jobs.critical}
+        retry-name: ${KAFKA_CRITICAL_RETRY_TOPIC:messaging.jobs.critical.retry}
+        dlt-name: ${KAFKA_CRITICAL_DLT_TOPIC:messaging.jobs.critical.dlt}
+        partitions: ${KAFKA_CRITICAL_PARTITIONS:12}
+        concurrency: ${KAFKA_CRITICAL_CONCURRENCY:6}
+        max-poll-records: ${KAFKA_CRITICAL_MAX_POLL_RECORDS:10}
+        retention: ${KAFKA_CRITICAL_RETENTION:3d}
+        consumer-group: ${KAFKA_CRITICAL_CONSUMER_GROUP:messaging-critical-workers}
+      high:
+        name: ${KAFKA_HIGH_TOPIC:messaging.jobs.high}
+        retry-name: ${KAFKA_HIGH_RETRY_TOPIC:messaging.jobs.high.retry}
+        dlt-name: ${KAFKA_HIGH_DLT_TOPIC:messaging.jobs.high.dlt}
+        partitions: ${KAFKA_HIGH_PARTITIONS:12}
+        concurrency: ${KAFKA_HIGH_CONCURRENCY:6}
+        max-poll-records: ${KAFKA_HIGH_MAX_POLL_RECORDS:25}
+        retention: ${KAFKA_HIGH_RETENTION:5d}
+        consumer-group: ${KAFKA_HIGH_CONSUMER_GROUP:messaging-high-workers}
+      medium:
+        name: ${KAFKA_MEDIUM_TOPIC:messaging.jobs.medium}
+        retry-name: ${KAFKA_MEDIUM_RETRY_TOPIC:messaging.jobs.medium.retry}
+        dlt-name: ${KAFKA_MEDIUM_DLT_TOPIC:messaging.jobs.medium.dlt}
+        partitions: ${KAFKA_MEDIUM_PARTITIONS:12}
+        concurrency: ${KAFKA_MEDIUM_CONCURRENCY:6}
+        max-poll-records: ${KAFKA_MEDIUM_MAX_POLL_RECORDS:50}
+        retention: ${KAFKA_MEDIUM_RETENTION:5d}
+        consumer-group: ${KAFKA_MEDIUM_CONSUMER_GROUP:messaging-medium-workers}
+      low:
+        name: ${KAFKA_LOW_TOPIC:messaging.jobs.low}
+        retry-name: ${KAFKA_LOW_RETRY_TOPIC:messaging.jobs.low.retry}
+        dlt-name: ${KAFKA_LOW_DLT_TOPIC:messaging.jobs.low.dlt}
+        partitions: ${KAFKA_LOW_PARTITIONS:6}
+        concurrency: ${KAFKA_LOW_CONCURRENCY:2}
+        max-poll-records: ${KAFKA_LOW_MAX_POLL_RECORDS:100}
+        retention: ${KAFKA_LOW_RETENTION:7d}
+        consumer-group: ${KAFKA_LOW_CONSUMER_GROUP:messaging-low-workers}
+
+server:
+  tomcat:
+    threads:
+      max: 25
+      min-spare: 2
+    max-connections: 200
+    accept-count: 50
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+  pattern:
+    level: "%5p [requestId=%X{requestId:-}]"
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  
