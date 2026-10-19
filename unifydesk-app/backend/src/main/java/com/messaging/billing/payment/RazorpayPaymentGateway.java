@@ -246,46 +246,43 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
   @Override
   public String verifyMandateToken(
       String orderId, String paymentId, String signature, String customerId) {
-    if (signature != null && !signature.isBlank() && orderId != null && paymentId != null) {
-      String expected = hmacSha256(orderId + "|" + paymentId, properties.getKeySecret());
-      if (!expected.equalsIgnoreCase(signature)) {
-        log.error("Razorpay signature mismatch for order {} payment {}: expected {}, received {}",
-            orderId, paymentId, expected, signature);
-        throw new ConflictException("Razorpay mandate payment signature verification failed");
-      }
+    assertRecurringEnabled();
+    if (orderId == null || !orderId.startsWith("order_")
+        || paymentId == null || !paymentId.startsWith("pay_")
+        || customerId == null || !customerId.startsWith("cust_")
+        || signature == null || signature.isBlank()) {
+      throw new ConflictException("Incomplete recurring mandate checkout evidence");
     }
-
-    try {
-      JsonNode p = get("/payments/" + encode(paymentId));
-      String status = text(p, "status");
-      log.info("Razorpay mandate authorization payment {}: status={}", paymentId, status);
-      if ("authorized".equalsIgnoreCase(status)) {
-        try {
-          post("/payments/" + encode(paymentId) + "/capture",
-              Map.of("amount", p.path("amount").asLong(100), "currency", "INR"));
-        } catch (Exception capEx) {
-          log.warn("Could not capture auth payment {}: {}", paymentId, capEx.getMessage());
+    String expected = hmacSha256(orderId + "|" + paymentId, properties.getKeySecret());
+    if (!java.security.MessageDigest.isEqual(
+        expected.getBytes(StandardCharsets.US_ASCII),
+        signature.toLowerCase(java.util.Locale.ROOT).getBytes(StandardCharsets.US_ASCII))) {
+      throw new ConflictException("Invalid recurring mandate checkout signature");
+    }
+    JsonNode payment = get("/payments/" + encode(paymentId));
+    if (!orderId.equals(text(payment, "order_id"))
+        || !customerId.equals(text(payment, "customer_id"))
+        || payment.path("amount").asLong(-1) != 100
+        || !"INR".equalsIgnoreCase(text(payment, "currency"))
+        || !"captured".equalsIgnoreCase(text(payment, "status"))
+        || !"upi".equalsIgnoreCase(text(payment, "method"))) {
+      throw new ConflictException("Mandate payment does not match the expected captured UPI authorization");
+    }
+    String tokenId = text(payment, "token_id");
+    if (tokenId == null || !tokenId.startsWith("token_")) {
+      throw new ConflictException("The authorization payment has no recurring token");
+    }
+    JsonNode tokens = get("/customers/" + encode(customerId) + "/tokens").path("items");
+    if (tokens.isArray()) {
+      for (JsonNode token : tokens) {
+        if (tokenId.equals(text(token, "id"))
+            && token.path("recurring").asBoolean(false)
+            && "confirmed".equalsIgnoreCase(text(token.path("recurring_details"), "status"))) {
+          return tokenId;
         }
       }
-
-      String tokenId = text(p, "token_id");
-      if (tokenId == null && customerId != null && !customerId.isBlank()) {
-        try {
-          JsonNode tokensJson = get("/customers/" + encode(customerId) + "/tokens");
-          JsonNode items = tokensJson.path("items");
-          if (items.isArray() && !items.isEmpty()) {
-            tokenId = text(items.get(items.size() - 1), "id");
-            log.info("Resolved token {} for customer {}", tokenId, customerId);
-          }
-        } catch (Exception tokEx) {
-          log.warn("Could not fetch tokens for customer {}: {}", customerId, tokEx.getMessage());
-        }
-      }
-      return tokenId != null ? tokenId : paymentId;
-    } catch (Exception e) {
-      log.warn("Could not fetch or verify payment {} on Razorpay: {}", paymentId, e.getMessage());
-      return paymentId;
     }
+    throw new ConflictException("Razorpay has not confirmed this recurring token");
   }
 
   @Override
