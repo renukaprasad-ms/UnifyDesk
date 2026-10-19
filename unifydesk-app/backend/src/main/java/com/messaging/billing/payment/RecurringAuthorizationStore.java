@@ -27,7 +27,7 @@ class RecurringAuthorizationStore {
                    provider_subscription_id, provider_subscription_session_id,
                    authorization_payment_id, authorization_status, max_amount, currency
               from payment_provider_authorizations
-             where company_id = ? and subscription_id = ? and provider = 'CASHFREE'
+             where company_id = ? and subscription_id = ? and provider = 'RAZORPAY'
              for update
             """,
             companyId,
@@ -54,7 +54,7 @@ class RecurringAuthorizationStore {
                    provider_subscription_id, provider_subscription_session_id,
                    authorization_payment_id, authorization_status, max_amount, currency
               from payment_provider_authorizations
-             where company_id = ? and checkout_intent_id = ? and provider in ('RAZORPAY', 'CASHFREE')
+             where company_id = ? and checkout_intent_id = ? and provider = 'RAZORPAY'
              for update
             """,
             companyId,
@@ -81,7 +81,7 @@ class RecurringAuthorizationStore {
                    authorization_payment_id, authorization_status, max_amount, currency,
                    provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
-             where company_id = ? and is_company_autopay = true and provider in ('RAZORPAY', 'CASHFREE')
+             where company_id = ? and is_company_autopay = true and provider = 'RAZORPAY'
              order by case when authorization_status = 'ACTIVE' then 0 else 1 end, id desc
              for update
             """,
@@ -126,7 +126,7 @@ class RecurringAuthorizationStore {
                    authorization_payment_id, authorization_status, max_amount, currency,
                    provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
-             where company_id = ? and is_company_autopay = true and provider in ('RAZORPAY', 'CASHFREE')
+             where company_id = ? and is_company_autopay = true and provider = 'RAZORPAY'
                and authorization_status = 'ACTIVE'
              order by id desc
             """,
@@ -144,7 +144,7 @@ class RecurringAuthorizationStore {
                    authorization_payment_id, authorization_status, max_amount, currency,
                    provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
-             where company_id = ? and is_company_autopay = true and provider in ('RAZORPAY', 'CASHFREE')
+             where company_id = ? and is_company_autopay = true and provider = 'RAZORPAY'
              order by case when authorization_status = 'ACTIVE' then 0 else 1 end, id desc
             """,
             companyId);
@@ -278,7 +278,7 @@ class RecurringAuthorizationStore {
                    authorization_payment_id, authorization_status, max_amount, currency,
                    provider_authorization_payment_id
               from payment_provider_authorizations
-             where company_id = ? and checkout_intent_id = ? and provider = 'CASHFREE'
+             where company_id = ? and checkout_intent_id = ? and provider = 'RAZORPAY'
              for update
             """,
             companyId,
@@ -299,7 +299,7 @@ class RecurringAuthorizationStore {
             """
             select count(*)
               from payment_provider_authorizations
-             where company_id=? and subscription_id=? and provider='CASHFREE' and id<>?
+             where company_id=? and subscription_id=? and provider='RAZORPAY' and id<>?
             """,
             Integer.class,
             companyId,
@@ -349,7 +349,7 @@ class RecurringAuthorizationStore {
                    authorization_payment_id, authorization_status, max_amount, currency,
                    provider_authorization_payment_id
               from payment_provider_authorizations
-             where company_id = ? and subscription_id = ? and provider in ('RAZORPAY', 'CASHFREE')
+             where company_id = ? and subscription_id = ? and provider = 'RAZORPAY'
                and authorization_status = 'ACTIVE'
             """,
             companyId,
@@ -367,7 +367,7 @@ class RecurringAuthorizationStore {
                    authorization_payment_id, authorization_status, max_amount, currency,
                    provider_authorization_payment_id
               from payment_provider_authorizations
-             where company_id = ? and subscription_id = ? and provider in ('RAZORPAY', 'CASHFREE')
+             where company_id = ? and subscription_id = ? and provider = 'RAZORPAY'
             """,
             companyId,
             subscriptionId);
