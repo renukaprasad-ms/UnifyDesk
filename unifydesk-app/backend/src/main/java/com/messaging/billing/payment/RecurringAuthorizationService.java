@@ -99,8 +99,14 @@ public class RecurringAuthorizationService {
       if (orderId == null || !orderId.equals(prepared.subscriptionSessionId())) {
         throw new ConflictException("Mandate checkout order does not match the company");
       }
+      if (orderId == null || !orderId.equals(prepared.subscriptionSessionId())) {
+        throw new ConflictException("Mandate order does not belong to this company");
+      }
       String customerId = prepared.customerId();
       String tokenId = gateway.verifyMandateToken(orderId, paymentId, signature, customerId);
+      if (tokenId == null || !tokenId.startsWith("token_")) {
+        throw new ConflictException("Confirmed recurring token required");
+      }
       if (tokenId == null || !tokenId.startsWith("token_")) {
         throw new ConflictException("A verified recurring token is required");
       }
