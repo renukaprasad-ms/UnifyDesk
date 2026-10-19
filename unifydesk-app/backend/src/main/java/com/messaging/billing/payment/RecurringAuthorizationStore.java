@@ -423,7 +423,7 @@ class RecurringAuthorizationStore {
           id, company_id, subscription_id, checkout_intent_id, is_company_autopay, provider,
           provider_subscription_id, authorization_payment_id,
           authorization_status, max_amount, currency, expires_at, created_at, updated_at
-        ) values (?, ?, null, null, true, 'RAZORPAY', ?, ?, 'CREATE_PENDING', ?, ?, now() + interval '20 years', now(), now())
+        ) values (?, ?, null, null, true, 'RAZORPAY', ?, ?, 'CREATE_PENDING', ?, ?, now() + interval '3 years', now(), now())
         """,
         id,
         companyId,
