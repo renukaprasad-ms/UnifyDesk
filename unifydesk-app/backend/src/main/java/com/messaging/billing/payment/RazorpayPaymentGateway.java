@@ -454,21 +454,53 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
 
   @Override
   public RemoteSubscriptionPayment fetchSubscriptionPayment(
-      String subscriptionId, String paymentId) {
-    try {
-      JsonNode p = get("/payments/" + encode(paymentId));
+      String tokenReference, String commandId) {
+    // Authorization checkout commands do not represent collected money.
+    if (commandId != null && commandId.startsWith("UDA-")) {
       return new RemoteSubscriptionPayment(
-          paymentId,
-          text(p, "id"),
-          mapPaymentStatus(text(p, "status")),
-          fromPaise(p.path("amount").asLong(0)),
-          text(p, "currency"),
-          instantFromEpochSeconds(p.path("created_at").asLong(0)),
-          null,
-          null);
-    } catch (Exception ex) {
-      throw new ServiceUnavailableException("Provider payment status could not be verified", ex);
+          commandId, null, "PENDING", BigDecimal.ONE, "INR", Instant.now(), null, null);
     }
+    List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+        "select provider_order_id, provider_token_id, amount, currency, provider_payment_id "
+            + "from razorpay_recurring_charge_intents where command_id = ?", commandId);
+    if (rows.size() != 1) {
+      throw new ConflictException("No provider order has been persisted for this recurring command");
+    }
+    Map<String, Object> row = rows.getFirst();
+    if (!tokenReference.equals(row.get("provider_token_id"))) {
+      throw new ConflictException("Recurring command is bound to another provider token");
+    }
+    String providerOrderId = (String) row.get("provider_order_id");
+    BigDecimal expectedAmount = (BigDecimal) row.get("amount");
+    String expectedCurrency = (String) row.get("currency");
+    String knownPaymentId = (String) row.get("provider_payment_id");
+    List<RemotePayment> payments = fetchOrderPayments(providerOrderId);
+    List<RemotePayment> captured = payments.stream()
+        .filter(p -> "SUCCESS".equalsIgnoreCase(p.status())).toList();
+    if (captured.size() > 1) {
+      throw new ConflictException("Multiple captured payments require financial reconciliation");
+    }
+    if (captured.size() == 1) {
+      RemotePayment p = captured.getFirst();
+      if (p.providerPaymentId() == null
+          || (knownPaymentId != null && !knownPaymentId.equals(p.providerPaymentId()))
+          || p.amount().compareTo(expectedAmount) != 0
+          || !expectedCurrency.equalsIgnoreCase(p.currency())
+          || !"paid".equalsIgnoreCase(fetchOrder(providerOrderId).status())) {
+        throw new ConflictException("Captured recurring payment does not match canonical order");
+      }
+      jdbcTemplate.update(
+          "update razorpay_recurring_charge_intents "
+              + "set provider_payment_id=?, updated_at=now() where command_id=?",
+          p.providerPaymentId(), commandId);
+      return new RemoteSubscriptionPayment(
+          commandId, p.providerPaymentId(), "SUCCESS", p.amount(), p.currency(),
+          p.providerCreatedAt(), null, null);
+    }
+    boolean failed = payments.stream().anyMatch(p -> "FAILED".equalsIgnoreCase(p.status()));
+    return new RemoteSubscriptionPayment(
+        commandId, knownPaymentId, failed ? "FAILED" : "PENDING", expectedAmount,
+        expectedCurrency, Instant.now(), null, failed ? "PROVIDER_DECLINED" : null);
   }
 
   private String ensurePlanExists(BigDecimal maxAmount, String currency) {
