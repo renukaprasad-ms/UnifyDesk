@@ -30,7 +30,7 @@ class AutomaticRenewalStore {
             select id, company_id, current_period_end
               from company_subscriptions
              where status = 'ACTIVE'
-               and payment_policy = 'CASHFREE'
+               and payment_policy = 'RAZORPAY'
                and cancel_at_period_end = false
                and current_period_end is not null
                and current_period_end <= ?
