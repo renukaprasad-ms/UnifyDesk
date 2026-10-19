@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import {
   broadcastApi,
@@ -23,16 +23,10 @@ import { useIam } from '../../features/iam/useIam'
 import type { ContactSummary, ListSummary, SegmentDefinition } from '../../features/contacts/types'
 import type { ChannelType } from '../../features/channel/types'
 import { whatsappApi } from '../../features/whatsapp/whatsappApi'
-import type {
-  WhatsAppTemplate,
-  WhatsAppTemplateParameters,
-} from '../../features/whatsapp/types'
+import type { WhatsAppTemplate, WhatsAppTemplateParameters } from '../../features/whatsapp/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
-import {
-  selectSelectedCompanyId,
-  selectWorkspaceEpoch,
-} from '../../store/workspace/workspaceSlice'
+import { selectSelectedCompanyId, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
 import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 import { templateVariableCounts } from '../whatsapp/whatsappTemplateUtils'
 import { managedSmsApi } from '../../features/managedSms/managedSmsApi'
@@ -103,7 +97,11 @@ const blankWhatsAppParameters = (template: WhatsAppTemplate): WhatsAppTemplatePa
   }
 }
 
-const sourceLabel = (selector: AudienceSelector | null, lists: ListSummary[], segments: SegmentDefinition[]) => {
+const sourceLabel = (
+  selector: AudienceSelector | null,
+  lists: ListSummary[],
+  segments: SegmentDefinition[],
+) => {
   if (!selector) return 'Choose an audience'
   if (selector.sourceType === 'CONTACT_LIST') {
     return lists.find((item) => item.id === selector.sourceId)?.name ?? 'Contact List'
@@ -154,8 +152,7 @@ export const buildCanonicalBroadcastPayload = ({
     managedSmsTemplateId: usesManagedSms ? managedSmsTemplateId : null,
     templateVariables: usesManagedSms || usesEmailTemplate ? templateVariables : undefined,
     whatsappTemplateId: channel === 'WHATSAPP' ? whatsappTemplateId || null : null,
-    whatsappTemplateParameters:
-      channel === 'WHATSAPP' ? whatsappTemplateParameters : null,
+    whatsappTemplateParameters: channel === 'WHATSAPP' ? whatsappTemplateParameters : null,
   }
 }
 
@@ -181,9 +178,9 @@ export const canonicalSmsContentReady = ({
   const selected = templates.find((template) => template.id === managedSmsTemplateId)
   return Boolean(
     selected &&
-      managedSmsTemplateReadyForHeader(selected, managedSmsHeaderId) &&
-      Object.keys(managedSmsVariableErrors(selected, templateVariables)).length === 0 &&
-      (preview?.validationErrors.length ?? 0) === 0,
+    managedSmsTemplateReadyForHeader(selected, managedSmsHeaderId) &&
+    Object.keys(managedSmsVariableErrors(selected, templateVariables)).length === 0 &&
+    (preview?.validationErrors.length ?? 0) === 0,
   )
 }
 
@@ -223,7 +220,9 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplateSummary[]>([])
   const [emailTemplateId, setEmailTemplateId] = useState('')
   const [emailTemplateVariables, setEmailTemplateVariables] = useState<Record<string, string>>({})
-  const [emailProviderBindings, setEmailProviderBindings] = useState<EmailTemplateProviderBinding[]>([])
+  const [emailProviderBindings, setEmailProviderBindings] = useState<
+    EmailTemplateProviderBinding[]
+  >([])
   const [emailTemplatesLoading, setEmailTemplatesLoading] = useState(false)
   const [templateId, setTemplateId] = useState('')
   const [whatsappTemplates, setWhatsappTemplates] = useState<WhatsAppTemplate[]>([])
@@ -242,6 +241,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   const [managedSmsLoading, setManagedSmsLoading] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('')
   const [busy, setBusy] = useState(false)
+  const savedDraft = useRef<{ key: string; id: string } | null>(null)
   const [launchConfirmOpen, setLaunchConfirmOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -279,12 +279,14 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
       emailTemplates.filter((template) => {
         if (!usesMsg91Email) return true
         if (template.purpose !== 'TRANSACTIONAL' || template.publishedVersion == null) return false
-        return emailBindingByVersion.get(`${template.id}:${template.publishedVersion}`)?.sendable === true
+        return (
+          emailBindingByVersion.get(`${template.id}:${template.publishedVersion}`)?.sendable ===
+          true
+        )
       }),
     [emailBindingByVersion, emailTemplates, usesMsg91Email],
   )
-  const selectedEmailTemplate =
-    emailTemplates.find((item) => item.id === emailTemplateId) ?? null
+  const selectedEmailTemplate = emailTemplates.find((item) => item.id === emailTemplateId) ?? null
   const whatsappParametersReady = [
     ...whatsappParameters.header,
     ...whatsappParameters.body,
@@ -292,7 +294,8 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   ].every((value) => value.trim().length > 0)
   const usesManagedSms = channel === 'SMS' && isManagedSmsSender(selectedBroadcastSender)
   const managedSmsHeader = usesManagedSms
-    ? managedSmsHeaders.find((item) => item.header === selectedBroadcastSender?.fromAddress) ?? null
+    ? (managedSmsHeaders.find((item) => item.header === selectedBroadcastSender?.fromAddress) ??
+      null)
     : null
   const availableManagedSmsTemplates = useMemo(
     () =>
@@ -320,7 +323,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         ? emailTemplateId
           ? Boolean(
               selectedEmailTemplate &&
-                availableEmailTemplates.some((template) => template.id === emailTemplateId),
+              availableEmailTemplates.some((template) => template.id === emailTemplateId),
             )
           : !usesMsg91Email && Boolean(subject.trim() && body.trim())
         : canonicalSmsContentReady({
@@ -388,27 +391,30 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   useEffect(() => {
     if (!companyId || sourceType !== 'CONTACTS') return
     const token = captureScope()
-    const timer = window.setTimeout(() => {
-      setContactSearchLoading(true)
-      contactsApi
-        .list(companyId, {
-          q: contactSearch.trim().length >= 2 ? contactSearch.trim() : undefined,
-          status: 'ACTIVE',
-          size: 30,
-          sort: 'UPDATED_DESC',
-        })
-        .then((page) => {
-          if (scopeIsCurrent(token)) setContacts(page.items)
-        })
-        .catch((requestError) => {
-          if (scopeIsCurrent(token)) {
-            setError(apiErrorMessage(requestError, 'Unable to search Contacts.'))
-          }
-        })
-        .finally(() => {
-          if (scopeIsCurrent(token)) setContactSearchLoading(false)
-        })
-    }, contactSearch.trim().length >= 2 ? 250 : 0)
+    const timer = window.setTimeout(
+      () => {
+        setContactSearchLoading(true)
+        contactsApi
+          .list(companyId, {
+            q: contactSearch.trim().length >= 2 ? contactSearch.trim() : undefined,
+            status: 'ACTIVE',
+            size: 30,
+            sort: 'UPDATED_DESC',
+          })
+          .then((page) => {
+            if (scopeIsCurrent(token)) setContacts(page.items)
+          })
+          .catch((requestError) => {
+            if (scopeIsCurrent(token)) {
+              setError(apiErrorMessage(requestError, 'Unable to search Contacts.'))
+            }
+          })
+          .finally(() => {
+            if (scopeIsCurrent(token)) setContactSearchLoading(false)
+          })
+      },
+      contactSearch.trim().length >= 2 ? 250 : 0,
+    )
 
     return () => window.clearTimeout(timer)
   }, [captureScope, companyId, contactSearch, epoch, scopeIsCurrent, sourceType])
@@ -433,7 +439,10 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         if (!active || !scopeIsCurrent(token)) return
         setEmailTemplates(templates)
 
-        if (selectedBroadcastSender?.provider === 'MSG91_EMAIL' && selectedBroadcastSender.connectionId) {
+        if (
+          selectedBroadcastSender?.provider === 'MSG91_EMAIL' &&
+          selectedBroadcastSender.connectionId
+        ) {
           const bindings = await emailTemplateApi.providerBindings(companyId, {
             connectionId: selectedBroadcastSender.connectionId,
           })
@@ -448,7 +457,9 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
           }
 
           const refreshed = await Promise.allSettled(
-            refreshable.map((binding) => emailTemplateApi.refreshProviderBinding(companyId, binding.id)),
+            refreshable.map((binding) =>
+              emailTemplateApi.refreshProviderBinding(companyId, binding.id),
+            ),
           )
           if (!active || !scopeIsCurrent(token)) return
           const updates = new Map(
@@ -561,12 +572,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
 
   useEffect(() => {
     setManagedSmsPreview(null)
-    if (
-      !companyId ||
-      !usesManagedSms ||
-      !managedSmsHeader ||
-      !managedSmsTemplateId
-    ) {
+    if (!companyId || !usesManagedSms || !managedSmsHeader || !managedSmsTemplateId) {
       return
     }
 
@@ -586,10 +592,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
           if (!active || !scopeIsCurrent(token)) return
           setManagedSmsPreview(null)
           setError(
-            managedSmsErrorMessage(
-              requestError,
-              'Unable to preview this Managed SMS template.',
-            ),
+            managedSmsErrorMessage(requestError, 'Unable to preview this Managed SMS template.'),
           )
         })
     }, 250)
@@ -611,12 +614,15 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
 
   useEffect(() => {
     if (!sourceId) return
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current)
-      next.set('audienceType', sourceType)
-      next.set('audienceId', sourceId)
-      return next
-    }, { replace: true })
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.set('audienceType', sourceType)
+        next.set('audienceId', sourceId)
+        return next
+      },
+      { replace: true },
+    )
   }, [setSearchParams, sourceId, sourceType])
 
   const runPreview = async () => {
@@ -667,27 +673,30 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
             ? { sourceType: 'SEGMENT' as const, sourceId: selector.sourceId }
             : { sourceType: 'CONTACTS' as const, contactIds: selector.contactIds }
 
-      const draft = await broadcastApi.createAudienceMessage(
-        companyId,
-        buildCanonicalBroadcastPayload({
-          source,
-          channel,
-          senderId,
-          subject,
-          body,
-          whatsappTemplateId: templateId,
-          whatsappTemplateParameters: whatsappParameters,
-          emailTemplateId: channel === 'EMAIL' ? emailTemplateId : null,
-          managedSmsTemplateId: usesManagedSms ? managedSmsTemplateId : null,
-          templateVariables:
-            channel === 'EMAIL' && emailTemplateId
-              ? emailTemplateVariables
-              : usesManagedSms
-                ? managedSmsTemplateVariables
-                : undefined,
-        }),
-      )
+      const payload = buildCanonicalBroadcastPayload({
+        source,
+        channel,
+        senderId,
+        subject,
+        body,
+        whatsappTemplateId: templateId,
+        whatsappTemplateParameters: whatsappParameters,
+        emailTemplateId: channel === 'EMAIL' ? emailTemplateId : null,
+        managedSmsTemplateId: usesManagedSms ? managedSmsTemplateId : null,
+        templateVariables:
+          channel === 'EMAIL' && emailTemplateId
+            ? emailTemplateVariables
+            : usesManagedSms
+              ? managedSmsTemplateVariables
+              : undefined,
+      })
+      const draftKey = JSON.stringify({ companyId, epoch, journeyScopeKey, payload })
+      const draft =
+        savedDraft.current?.key === draftKey
+          ? { id: savedDraft.current.id }
+          : await broadcastApi.createAudienceMessage(companyId, payload)
       if (!scopeIsCurrent(token)) return
+      savedDraft.current = { key: draftKey, id: draft.id }
 
       let launched
       if (scheduledAt) {
@@ -702,11 +711,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
           confirmedPreview.sourceDescriptor,
         )
       } else {
-        launched = await broadcastApi.send(
-          companyId,
-          draft.id,
-          confirmedPreview.sourceDescriptor,
-        )
+        launched = await broadcastApi.send(companyId, draft.id, confirmedPreview.sourceDescriptor)
       }
       if (scopeIsCurrent(token)) onCreated(launched.id)
     } catch (requestError) {
@@ -740,7 +745,8 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                 Create {channelLabel(channel)} Broadcast
               </h1>
               <p className="mt-1 text-sm text-slate-500">
-                Choose who should receive the message, confirm sending eligibility, then review and launch.
+                Choose who should receive the message, confirm sending eligibility, then review and
+                launch.
               </p>
             </div>
             <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
@@ -749,14 +755,19 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
           </div>
 
           {error && (
-            <div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div
+              role="alert"
+              className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+            >
               {error}
             </div>
           )}
 
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">1. Audience source</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                1. Audience source
+              </p>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {(['CONTACT_LIST', 'SEGMENT', 'CONTACTS'] as const).map((type) => (
                   <button
@@ -782,10 +793,17 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                   onChange={(event) => setSourceId(event.target.value)}
                   aria-label="Audience"
                 >
-                  <option value="">Choose {sourceType === 'CONTACT_LIST' ? 'a List' : 'a Segment'}</option>
+                  <option value="">
+                    Choose {sourceType === 'CONTACT_LIST' ? 'a List' : 'a Segment'}
+                  </option>
                   {(sourceType === 'CONTACT_LIST' ? currentLists : currentSegments).map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.name} ({(sourceType === 'CONTACT_LIST' ? (item as ListSummary).memberCount : (item as SegmentDefinition).count ?? 0).toLocaleString()})
+                      {item.name} (
+                      {(sourceType === 'CONTACT_LIST'
+                        ? (item as ListSummary).memberCount
+                        : ((item as SegmentDefinition).count ?? 0)
+                      ).toLocaleString()}
+                      )
                     </option>
                   ))}
                 </select>
@@ -802,30 +820,45 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                     />
                   </label>
                   <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-slate-200">
-                  {contactSearchLoading ? (
-                    <p className="px-3 py-5 text-center text-xs text-slate-500">Searching contacts…</p>
-                  ) : currentContacts.length === 0 ? (
-                    <p className="px-3 py-5 text-center text-xs text-slate-500">No contacts found.</p>
-                  ) : currentContacts.map((contact) => (
-                    <label key={contact.id} className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0">
-                      <input
-                        type="checkbox"
-                        checked={contactIds.has(contact.id)}
-                        onChange={() =>
-                          setContactIds((current) => {
-                            const next = new Set(current)
-                            if (next.has(contact.id)) next.delete(contact.id)
-                            else if (next.size < 200) next.add(contact.id)
-                            return next
-                          })
-                        }
-                      />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-slate-800">{contact.displayName}</span>
-                        <span className="block truncate text-xs text-slate-500">{contact.primaryEmail || contact.primaryPhone || 'No primary identity'}</span>
-                      </span>
-                    </label>
-                  ))}
+                    {contactSearchLoading ? (
+                      <p className="px-3 py-5 text-center text-xs text-slate-500">
+                        Searching contacts…
+                      </p>
+                    ) : currentContacts.length === 0 ? (
+                      <p className="px-3 py-5 text-center text-xs text-slate-500">
+                        No contacts found.
+                      </p>
+                    ) : (
+                      currentContacts.map((contact) => (
+                        <label
+                          key={contact.id}
+                          className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={contactIds.has(contact.id)}
+                            onChange={() =>
+                              setContactIds((current) => {
+                                const next = new Set(current)
+                                if (next.has(contact.id)) next.delete(contact.id)
+                                else if (next.size < 200) next.add(contact.id)
+                                return next
+                              })
+                            }
+                          />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-slate-800">
+                              {contact.displayName}
+                            </span>
+                            <span className="block truncate text-xs text-slate-500">
+                              {contact.primaryEmail ||
+                                contact.primaryPhone ||
+                                'No primary identity'}
+                            </span>
+                          </span>
+                        </label>
+                      ))
+                    )}
                   </div>
                   <p className="mt-2 text-[11px] text-slate-500">
                     {contactIds.size > 0 ? `${contactIds.size} selected. ` : ''}
@@ -839,10 +872,17 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">2. Sender</p>
               <div className="mt-2 rounded-xl border border-slate-200 p-3">
                 <p className="text-sm font-semibold text-slate-900">
-                  {readySenders.length > 0 ? 'Ready to send' : loading ? 'Checking sender…' : 'Sender setup needed'}
+                  {readySenders.length > 0
+                    ? 'Ready to send'
+                    : loading
+                      ? 'Checking sender…'
+                      : 'Sender setup needed'}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {currentReadiness?.nextAction || (readySenders.length ? 'Choose a ready sender.' : 'No ready sender is available.')}
+                  {currentReadiness?.nextAction ||
+                    (readySenders.length
+                      ? 'Choose a ready sender.'
+                      : 'No ready sender is available.')}
                 </p>
                 <select
                   className="form-input mt-3"
@@ -852,14 +892,19 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                 >
                   <option value="">Choose sender</option>
                   {currentReadiness?.senders.map((sender) => (
-                    <option key={sender.senderId} value={sender.senderId} disabled={sender.state !== 'READY'}>
+                    <option
+                      key={sender.senderId}
+                      value={sender.senderId}
+                      disabled={sender.state !== 'READY'}
+                    >
                       {sender.label} — {sender.state.replaceAll('_', ' ')}
                     </option>
                   ))}
                 </select>
                 {selectedReadiness && (
                   <p className="mt-2 text-[11px] leading-5 text-slate-500">
-                    Tracking: {selectedReadiness.capabilities.providerAcceptance ? 'accepted' : 'basic'}
+                    Tracking:{' '}
+                    {selectedReadiness.capabilities.providerAcceptance ? 'accepted' : 'basic'}
                     {selectedReadiness.capabilities.deliveryEvents ? ' · delivered' : ''}
                     {selectedReadiness.capabilities.readEvents ? ' · read' : ''}
                   </p>
@@ -887,29 +932,58 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         {currentPreview && (
           <section className="panel p-4 sm:p-5" aria-label="Recipient eligibility preview">
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Selected</p><strong className="text-xl">{currentPreview.selectedCount.toLocaleString()}</strong></div>
-              <div className="rounded-xl bg-emerald-50 p-3"><p className="text-xs text-emerald-700">Eligible</p><strong className="text-xl text-emerald-800">{currentPreview.eligibleCount.toLocaleString()}</strong></div>
-              <div className="rounded-xl bg-amber-50 p-3"><p className="text-xs text-amber-700">Excluded</p><strong className="text-xl text-amber-800">{currentPreview.excludedCount.toLocaleString()}</strong></div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-xs text-slate-500">Selected</p>
+                <strong className="text-xl">{currentPreview.selectedCount.toLocaleString()}</strong>
+              </div>
+              <div className="rounded-xl bg-emerald-50 p-3">
+                <p className="text-xs text-emerald-700">Eligible</p>
+                <strong className="text-xl text-emerald-800">
+                  {currentPreview.eligibleCount.toLocaleString()}
+                </strong>
+              </div>
+              <div className="rounded-xl bg-amber-50 p-3">
+                <p className="text-xs text-amber-700">Excluded</p>
+                <strong className="text-xl text-amber-800">
+                  {currentPreview.excludedCount.toLocaleString()}
+                </strong>
+              </div>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {Object.entries(currentPreview.exclusions).filter(([, count]) => Number(count) > 0).map(([reason, count]) => (
-                <div key={reason} className="rounded-lg border border-slate-200 px-3 py-2 text-xs">
-                  <span className="font-semibold text-slate-800">{exclusionLabels[reason as RecipientExclusionReason]}</span>
-                  <span className="float-right text-slate-500">{Number(count).toLocaleString()}</span>
-                </div>
-              ))}
+              {Object.entries(currentPreview.exclusions)
+                .filter(([, count]) => Number(count) > 0)
+                .map(([reason, count]) => (
+                  <div
+                    key={reason}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                  >
+                    <span className="font-semibold text-slate-800">
+                      {exclusionLabels[reason as RecipientExclusionReason]}
+                    </span>
+                    <span className="float-right text-slate-500">
+                      {Number(count).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
             </div>
-            {currentPreview.selectedCount !== currentPreview.eligibleCount + currentPreview.excludedCount && (
-              <p className="mt-3 text-xs font-semibold text-rose-700">Preview counts are inconsistent. Refresh before sending.</p>
+            {currentPreview.selectedCount !==
+              currentPreview.eligibleCount + currentPreview.excludedCount && (
+              <p className="mt-3 text-xs font-semibold text-rose-700">
+                Preview counts are inconsistent. Refresh before sending.
+              </p>
             )}
             {currentPreview.eligibleCount === 0 && (
-              <p className="mt-3 text-sm font-semibold text-amber-700">No eligible recipients. Resolve exclusions before sending.</p>
+              <p className="mt-3 text-sm font-semibold text-amber-700">
+                No eligible recipients. Resolve exclusions before sending.
+              </p>
             )}
           </section>
         )}
 
         <section className="panel p-4 sm:p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">3. Message & send</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            3. Message & send
+          </p>
           <div className="mt-3 grid gap-3">
             {channel === 'WHATSAPP' ? (
               <>
@@ -948,11 +1022,8 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                           key={`${section}-${index}`}
                           className="text-xs font-semibold text-slate-700"
                         >
-                          {section === 'body'
-                            ? 'Body'
-                            : section === 'header'
-                              ? 'Header'
-                              : 'Button'} variable {index + 1}
+                          {section === 'body' ? 'Body' : section === 'header' ? 'Header' : 'Button'}{' '}
+                          variable {index + 1}
                           <input
                             className="form-input mt-1"
                             value={value}
@@ -1129,7 +1200,11 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                       ? 'No approved transactional templates are ready for this MSG91 Email sender.'
                       : 'No published email templates yet.'}
                     <Link
-                      to={usesMsg91Email ? '/templates?create=transactional' : '/templates?create=marketing'}
+                      to={
+                        usesMsg91Email
+                          ? '/templates?create=transactional'
+                          : '/templates?create=marketing'
+                      }
                       className="mt-2 inline-flex font-semibold text-indigo-600"
                     >
                       Create an email template
@@ -1142,22 +1217,35 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                     <p className="text-sm font-bold text-slate-900">{selectedEmailTemplate.name}</p>
                     <p className="mt-1 text-xs text-slate-600">
                       Published template content is locked for this broadcast.
-                      {selectedEmailTemplate.subject ? ` Subject: ${selectedEmailTemplate.subject}` : ''}
+                      {selectedEmailTemplate.subject
+                        ? ` Subject: ${selectedEmailTemplate.subject}`
+                        : ''}
                     </p>
                     {selectedEmailTemplate.variables.length > 0 && (
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
                         {selectedEmailTemplate.variables.map((variable) => {
                           if (automaticEmailVariables.has(variable)) {
                             return (
-                              <div key={variable} className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2">
-                                <p className="text-xs font-semibold text-emerald-800">{'{{'}{variable}{'}}'}</p>
-                                <p className="mt-0.5 text-[10px] text-emerald-600">Filled automatically for each recipient</p>
+                              <div
+                                key={variable}
+                                className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2"
+                              >
+                                <p className="text-xs font-semibold text-emerald-800">
+                                  {'{{'}
+                                  {variable}
+                                  {'}}'}
+                                </p>
+                                <p className="mt-0.5 text-[10px] text-emerald-600">
+                                  Filled automatically for each recipient
+                                </p>
                               </div>
                             )
                           }
                           return (
                             <label key={variable} className="text-xs font-semibold text-slate-700">
-                              {'{{'}{variable}{'}}'}
+                              {'{{'}
+                              {variable}
+                              {'}}'}
                               <input
                                 className="form-input mt-1"
                                 value={emailTemplateVariables[variable] ?? ''}
@@ -1189,11 +1277,21 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                   <>
                     <label className="text-xs font-semibold text-slate-700">
                       Subject
-                      <input className="form-input mt-1" value={subject} onChange={(event) => setSubject(event.target.value)} maxLength={998} />
+                      <input
+                        className="form-input mt-1"
+                        value={subject}
+                        onChange={(event) => setSubject(event.target.value)}
+                        maxLength={998}
+                      />
                     </label>
                     <label className="text-xs font-semibold text-slate-700">
                       Message
-                      <textarea className="form-input mt-1 min-h-36" value={body} onChange={(event) => setBody(event.target.value)} maxLength={500000} />
+                      <textarea
+                        className="form-input mt-1 min-h-36"
+                        value={body}
+                        onChange={(event) => setBody(event.target.value)}
+                        maxLength={500000}
+                      />
                     </label>
                   </>
                 )}
@@ -1201,22 +1299,46 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
             ) : (
               <label className="text-xs font-semibold text-slate-700">
                 Message
-                <textarea className="form-input mt-1 min-h-36" value={body} onChange={(event) => setBody(event.target.value)} maxLength={500000} />
+                <textarea
+                  className="form-input mt-1 min-h-36"
+                  value={body}
+                  onChange={(event) => setBody(event.target.value)}
+                  maxLength={500000}
+                />
               </label>
             )}
             <label className="text-xs font-semibold text-slate-700">
               Schedule (optional)
-              <input type="datetime-local" className="form-input mt-1" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
-              <span className="mt-1 block font-normal text-slate-500">Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}</span>
+              <input
+                type="datetime-local"
+                className="form-input mt-1"
+                value={scheduledAt}
+                onChange={(event) => setScheduledAt(event.target.value)}
+              />
+              <span className="mt-1 block font-normal text-slate-500">
+                Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}
+              </span>
             </label>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-slate-500">
-              Final delivery and read tracking appears when the selected provider supports those events.
+              Final delivery and read tracking appears when the selected provider supports those
+              events.
             </p>
-            <button type="button" className="primary-button" disabled={!canLaunch} onClick={() => setLaunchConfirmOpen(true)}>
-              {busy ? 'Starting…' : scheduledAt ? 'Schedule Broadcast' : 'Send Broadcast'}
+            <button
+              type="button"
+              className="primary-button"
+              disabled={!canLaunch}
+              onClick={() => setLaunchConfirmOpen(true)}
+            >
+              {busy
+                ? 'Starting…'
+                : error && currentPreview && savedDraft.current
+                  ? 'Retry Broadcast'
+                  : scheduledAt
+                    ? 'Schedule Broadcast'
+                    : 'Send Broadcast'}
             </button>
           </div>
         </section>

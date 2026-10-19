@@ -12,8 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Controller for managing CRM Deal attachments (proposals, contracts, documents).
- * Base path: /api/v1/companies/{companyId}/crm/deals/{dealId}/attachments
+ * Controller for managing CRM Deal attachments (proposals, contracts, documents). Base path:
+ * /api/v1/companies/{companyId}/crm/deals/{dealId}/attachments
  */
 @RestController
 @RequestMapping("/api/v1/companies/{companyId}/crm/deals/{dealId}/attachments")
@@ -60,9 +60,7 @@ public class CrmDealAttachmentController {
 
   @DeleteMapping("/{attachmentId}")
   public ResponseEntity<ApiResponse<Void>> delete(
-      @PathVariable long companyId,
-      @PathVariable long dealId,
-      @PathVariable long attachmentId) {
+      @PathVariable long companyId, @PathVariable long dealId, @PathVariable long attachmentId) {
     long actor = requireModify(companyId);
     attachmentService.delete(companyId, dealId, attachmentId, actor);
     return ResponseEntity.ok(ApiResponse.success(200, "Attachment removed"));

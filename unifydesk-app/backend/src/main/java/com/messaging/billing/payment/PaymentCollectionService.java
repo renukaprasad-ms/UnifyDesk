@@ -6,7 +6,6 @@ import com.messaging.common.exception.BadRequestException;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientResponseException;
 
 @Service
 @RequiredArgsConstructor
@@ -17,8 +16,8 @@ public class PaymentCollectionService {
   private final RazorpayProperties razorpayProperties;
 
   /**
-   * Durable orchestration boundary:
-   * local intent commit -> remote provider call -> local provider result commit.
+   * Durable orchestration boundary: local intent commit -> remote provider call -> local provider
+   * result commit.
    */
   public CheckoutResult createOrResolve(
       Long companyId,
@@ -62,10 +61,7 @@ public class PaymentCollectionService {
       Long companyId, Long invoiceId, Long subscriptionId) {
     PaymentCollectionStore.Prepared prepared =
         store.prepareRecurringRenewal(
-            companyId,
-            invoiceId,
-            "payment:renewal:auto:" + invoiceId,
-            subscriptionId);
+            companyId, invoiceId, "payment:renewal:auto:" + invoiceId, subscriptionId);
     return toResult(prepared);
   }
 

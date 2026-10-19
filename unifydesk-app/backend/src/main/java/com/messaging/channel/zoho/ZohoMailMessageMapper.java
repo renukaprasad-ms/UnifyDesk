@@ -4,7 +4,6 @@ import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.zoho.ZohoMailApiClient.ZohoAttachment;
 import com.messaging.channel.zoho.ZohoMailApiClient.ZohoMessage;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -20,10 +19,7 @@ public class ZohoMailMessageMapper {
       Pattern.compile("(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}");
 
   public ZohoMailMessageSnapshot map(
-      ZohoMessage message,
-      String content,
-      EmailFolder folder,
-      List<ZohoAttachment> attachments) {
+      ZohoMessage message, String content, EmailFolder folder, List<ZohoAttachment> attachments) {
     if (message == null || !hasText(message.messageId())) {
       throw new IllegalArgumentException("Zoho message id is missing");
     }
@@ -52,8 +48,7 @@ public class ZohoMailMessageMapper {
         attachmentSnapshots(attachments));
   }
 
-  private List<ZohoMailAttachmentSnapshot> attachmentSnapshots(
-      List<ZohoAttachment> attachments) {
+  private List<ZohoMailAttachmentSnapshot> attachmentSnapshots(List<ZohoAttachment> attachments) {
     if (attachments == null || attachments.isEmpty()) return List.of();
     return attachments.stream()
         .filter(java.util.Objects::nonNull)

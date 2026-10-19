@@ -69,9 +69,7 @@ public class ZohoMailPollingScheduler {
       if (available-- <= 0) break;
       if (asyncJobService
           .findActive(
-              connection.getCompanyId(),
-              AsyncJobType.ZOHO_MAIL_SYNC,
-              connection.getId().toString())
+              connection.getCompanyId(), AsyncJobType.ZOHO_MAIL_SYNC, connection.getId().toString())
           .isPresent()) {
         continue;
       }
@@ -92,19 +90,19 @@ public class ZohoMailPollingScheduler {
   }
 
   /**
-   * Called only by the durable webhook worker. Uses the same watermark and
-   * per-process mailbox lock as safety polling, preventing overlapping work.
+   * Called only by the durable webhook worker. Uses the same watermark and per-process mailbox lock
+   * as safety polling, preventing overlapping work.
    */
   public boolean pollWebhookConnection(Long connectionId) {
-    if (!properties.isEnabled()
-        || inFlight.get() >= Math.max(1, properties.getWorkerConcurrency())) return false;
+    if (!properties.isEnabled() || inFlight.get() >= Math.max(1, properties.getWorkerConcurrency()))
+      return false;
     ChannelConnection connection = connectionRepository.findById(connectionId).orElse(null);
     if (connection == null
         || connection.getProviderType() != ProviderType.ZOHO_MAIL
         || connection.getStatus() != ChannelConnectionStatus.ACTIVE) return false;
-    if (asyncJobService.findActive(
-            connection.getCompanyId(), AsyncJobType.ZOHO_MAIL_SYNC,
-            connectionId.toString()).isPresent()) return false;
+    if (asyncJobService
+        .findActive(connection.getCompanyId(), AsyncJobType.ZOHO_MAIL_SYNC, connectionId.toString())
+        .isPresent()) return false;
     if (!activeConnectionIds.add(connectionId)) return false;
     inFlight.incrementAndGet();
     try {
@@ -117,7 +115,9 @@ public class ZohoMailPollingScheduler {
 
   private boolean sync(ChannelConnection connection) {
     Instant baseline =
-        (connection.getLastSyncAt() == null ? connection.getCreatedAt() : connection.getLastSyncAt())
+        (connection.getLastSyncAt() == null
+                ? connection.getCreatedAt()
+                : connection.getLastSyncAt())
             .minus(2, ChronoUnit.MINUTES);
     Set<Long> conversations = new LinkedHashSet<>();
     Set<Long> messages = new LinkedHashSet<>();

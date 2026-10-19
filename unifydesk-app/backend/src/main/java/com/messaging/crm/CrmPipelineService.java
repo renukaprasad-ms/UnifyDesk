@@ -2,7 +2,6 @@ package com.messaging.crm;
 
 import com.messaging.common.exception.ApiException;
 import com.messaging.common.id.IdGenerator;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -50,10 +49,7 @@ public class CrmPipelineService {
       String color) {}
 
   public record CreatePipelineInput(
-      String name,
-      String description,
-      Boolean isDefault,
-      List<StageInput> stages) {}
+      String name, String description, Boolean isDefault, List<StageInput> stages) {}
 
   public record UpdatePipelineInput(
       String name,
@@ -263,15 +259,15 @@ public class CrmPipelineService {
     if (dealCount != null && dealCount > 0) {
       throw new ApiException(
           HttpStatus.BAD_REQUEST,
-          "PIPELINE_HAS_DEALS: Cannot delete pipeline with " + dealCount + " active deals. Please reassign them first.");
+          "PIPELINE_HAS_DEALS: Cannot delete pipeline with "
+              + dealCount
+              + " active deals. Please reassign them first.");
     }
 
-    jdbc.update(
-        "delete from crm_pipelines where company_id = ? and id = ?", companyId, pipelineId);
+    jdbc.update("delete from crm_pipelines where company_id = ? and id = ?", companyId, pipelineId);
   }
 
-  private void saveStages(
-      long companyId, long pipelineId, List<StageInput> stages, Timestamp now) {
+  private void saveStages(long companyId, long pipelineId, List<StageInput> stages, Timestamp now) {
     // Delete existing stages for this pipeline and recreate cleanly
     jdbc.update(
         "delete from crm_pipeline_stages where company_id = ? and pipeline_id = ?",
@@ -285,11 +281,15 @@ public class CrmPipelineService {
         key = "STAGE_" + order;
       }
       String stageName = s.name() != null ? s.name().trim() : key;
-      String category = s.category() != null ? s.category().trim().toUpperCase(Locale.ROOT) : "OPEN";
+      String category =
+          s.category() != null ? s.category().trim().toUpperCase(Locale.ROOT) : "OPEN";
       if (!List.of("OPEN", "WON", "LOST").contains(category)) {
         category = "OPEN";
       }
-      int prob = s.probability() != null ? Math.max(0, Math.min(100, s.probability())) : (category.equals("WON") ? 100 : (category.equals("LOST") ? 0 : 20));
+      int prob =
+          s.probability() != null
+              ? Math.max(0, Math.min(100, s.probability()))
+              : (category.equals("WON") ? 100 : (category.equals("LOST") ? 0 : 20));
       String color = s.color() != null && !s.color().isBlank() ? s.color().trim() : "indigo";
 
       long stageId = IdGenerator.nextId();

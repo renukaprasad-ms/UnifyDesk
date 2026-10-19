@@ -23,7 +23,6 @@ import com.messaging.ads.campaign.repository.CreativePackAssetRepository;
 import com.messaging.ads.campaign.repository.CreativePackRepository;
 import com.messaging.ads.campaign.repository.ReachlyoCampaignRepository;
 import com.messaging.ads.campaign.service.ProviderDeploymentService;
-import com.messaging.ads.dto.AdCampaignResponse;
 import com.messaging.ads.dto.AdResponse;
 import com.messaging.ads.entity.Ad;
 import com.messaging.ads.entity.AdAccount;
@@ -101,8 +100,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
       Long companyId, LaunchRun run, ProviderCampaignPlan plan) {
     List<ProviderPlanIssue> issues = new ArrayList<>();
     ReachlyoCampaign campaign = campaign(companyId, run.getReachlyoCampaignId());
-    CampaignChannel channel =
-        channel(companyId, campaign.getId(), Long.valueOf(plan.channelId()));
+    CampaignChannel channel = channel(companyId, campaign.getId(), Long.valueOf(plan.channelId()));
     AdAccount account = account(companyId, Long.valueOf(plan.adAccountId()));
     JsonNode override = override(channel);
 
@@ -114,7 +112,8 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
               "Display requires an explicit EU political advertising declaration."));
     }
 
-    String bidStrategy = firstText(text(override, "bidStrategy"), defaultBidStrategy(campaign.getBusinessGoal()));
+    String bidStrategy =
+        firstText(text(override, "bidStrategy"), defaultBidStrategy(campaign.getBusinessGoal()));
     if (!Set.of("MANUAL_CPC", "MAXIMIZE_CONVERSIONS", "TARGET_CPA").contains(bidStrategy)) {
       issues.add(
           error(
@@ -122,16 +121,14 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
               "providerOverride.bidStrategy",
               "Display bid strategy must be Manual CPC, Maximize Conversions, or Target CPA."));
     }
-    if ("TARGET_CPA".equals(bidStrategy)
-        && positiveLong(override, "targetCpaMinor") == null) {
+    if ("TARGET_CPA".equals(bidStrategy) && positiveLong(override, "targetCpaMinor") == null) {
       issues.add(
           error(
               "DISPLAY_TARGET_CPA_REQUIRED",
               "providerOverride.targetCpaMinor",
               "Display Target CPA requires a positive target CPA."));
     }
-    if ("MANUAL_CPC".equals(bidStrategy)
-        && positiveLong(override, "adGroupCpcBidMinor") == null) {
+    if ("MANUAL_CPC".equals(bidStrategy) && positiveLong(override, "adGroupCpcBidMinor") == null) {
       issues.add(
           warning(
               "DISPLAY_CPC_BID_DERIVED",
@@ -147,8 +144,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
               "Display needs a daily budget, or a total budget with a valid start/end schedule."));
     }
 
-    CreativePack pack =
-        creativePack(companyId, campaign.getId(), plan.creativePackId(), false);
+    CreativePack pack = creativePack(companyId, campaign.getId(), plan.creativePackId(), false);
     if (pack == null) {
       issues.add(
           error(
@@ -176,8 +172,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
                 "creativePack.descriptions",
                 "Display requires 1 to 5 descriptions, each at most 90 characters."));
       }
-      if (!hasText(pack.getBusinessName())
-          || pack.getBusinessName().trim().length() > 25) {
+      if (!hasText(pack.getBusinessName()) || pack.getBusinessName().trim().length() > 25) {
         issues.add(
             error(
                 "DISPLAY_BUSINESS_NAME_INVALID",
@@ -254,16 +249,9 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
     if (audience != null) {
       try {
         campaignTargetingService.resolve(
-            companyId,
-            account.getId(),
-            geoLanguageOnly(audience),
-            objectMapper.createObjectNode());
+            companyId, account.getId(), geoLanguageOnly(audience), objectMapper.createObjectNode());
       } catch (RuntimeException exception) {
-        issues.add(
-            error(
-                "DISPLAY_GEO_LANGUAGE_INVALID",
-                "audience",
-                exception.getMessage()));
+        issues.add(error("DISPLAY_GEO_LANGUAGE_INVALID", "audience", exception.getMessage()));
       }
       if (audience.getAgeMin() != null
           || audience.getAgeMax() != null
@@ -285,16 +273,10 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
         conversionGoalService.validate(
             companyId,
             account.getId(),
-            conversion(
-                companyId,
-                campaign.getId(),
-                plan.conversionGoalMappingId()));
+            conversion(companyId, campaign.getId(), plan.conversionGoalMappingId()));
       } catch (RuntimeException exception) {
         issues.add(
-            error(
-                "GOOGLE_CONVERSION_MAPPING_INVALID",
-                "conversion",
-                exception.getMessage()));
+            error("GOOGLE_CONVERSION_MAPPING_INVALID", "conversion", exception.getMessage()));
       }
     }
 
@@ -303,23 +285,16 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
 
   @Override
   public LaunchStepExecutionResult execute(
-      Long companyId,
-      LaunchRun run,
-      ProviderCampaignPlan plan,
-      LaunchStep step) {
+      Long companyId, LaunchRun run, ProviderCampaignPlan plan, LaunchStep step) {
     ReachlyoCampaign campaign = campaign(companyId, run.getReachlyoCampaignId());
-    CampaignChannel channel =
-        channel(companyId, campaign.getId(), step.getCampaignChannelId());
+    CampaignChannel channel = channel(companyId, campaign.getId(), step.getCampaignChannelId());
 
     return switch (step.getOperationKey()) {
-      case "create-display-paused" ->
-          createDisplay(companyId, run, plan, step, campaign, channel);
+      case "create-display-paused" -> createDisplay(companyId, run, plan, step, campaign, channel);
       case "configure-display-targeting" ->
           configureTargeting(companyId, plan, step, campaign, channel);
-      case "create-responsive-display-ad" ->
-          createCreative(companyId, run, plan, step, campaign);
-      case "configure-conversion-goal" ->
-          configureConversion(companyId, run, plan, step, campaign);
+      case "create-responsive-display-ad" -> createCreative(companyId, run, plan, step, campaign);
+      case "configure-conversion-goal" -> configureConversion(companyId, run, plan, step, campaign);
       default ->
           throw new BadRequestException(
               "Unsupported Display launch operation: " + step.getOperationKey());
@@ -336,10 +311,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
     AdAccount account = account(companyId, step.getAdAccountId());
     String name = launchName(campaign.getName(), run.getId(), plan.channelId());
     String adGroupName =
-        launchName(
-            campaign.getName() + " Display Audience",
-            run.getId(),
-            plan.channelId());
+        launchName(campaign.getName() + " Display Audience", run.getId(), plan.channelId());
 
     if (step.getAttemptCount() > 1) {
       campaignSyncService.sync(companyId, account.getId());
@@ -348,10 +320,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
     AdCampaign existing =
         adCampaignRepository
             .findFirstByCompanyIdAndAdAccountIdAndProviderAndNameOrderByIdAsc(
-                companyId,
-                account.getId(),
-                AdProvider.GOOGLE_ADS,
-                name)
+                companyId, account.getId(), AdProvider.GOOGLE_ADS, name)
             .filter(value -> "DISPLAY".equalsIgnoreCase(value.getObjective()))
             .orElse(null);
 
@@ -371,9 +340,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
     } else {
       JsonNode override = override(channel);
       String bidStrategy =
-          firstText(
-              text(override, "bidStrategy"),
-              defaultBidStrategy(campaign.getBusinessGoal()));
+          firstText(text(override, "bidStrategy"), defaultBidStrategy(campaign.getBusinessGoal()));
       var result =
           displayCampaignService.create(
               companyId,
@@ -387,28 +354,20 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
                   "MANUAL_CPC".equals(bidStrategy)
                       ? firstPositive(
                           positiveLong(override, "adGroupCpcBidMinor"),
-                          Math.max(
-                              1L,
-                              dailyBudget(plan, campaign, account, true) / 20L))
+                          Math.max(1L, dailyBudget(plan, campaign, account, true) / 20L))
                       : null,
-                  override
-                      .path("containsEuPoliticalAdvertising")
-                      .booleanValue(),
+                  override.path("containsEuPoliticalAdvertising").booleanValue(),
                   localDate(campaign.getStartAt(), account),
                   localDate(campaign.getEndAt(), account)),
               run.getRequestedByUserId());
       localCampaign =
           adCampaignRepository
-              .findByIdAndCompanyId(
-                  Long.valueOf(result.campaign().id()), companyId)
-              .orElseThrow(
-                  () -> new NotFoundException("Created Display campaign not found"));
+              .findByIdAndCompanyId(Long.valueOf(result.campaign().id()), companyId)
+              .orElseThrow(() -> new NotFoundException("Created Display campaign not found"));
       localAdGroup =
           adSetRepository
-              .findByIdAndCompanyId(
-                  Long.valueOf(result.adGroup().id()), companyId)
-              .orElseThrow(
-                  () -> new NotFoundException("Created Display ad group not found"));
+              .findByIdAndCompanyId(Long.valueOf(result.adGroup().id()), companyId)
+              .orElseThrow(() -> new NotFoundException("Created Display ad group not found"));
     }
 
     deploymentService.bindProviderCampaign(
@@ -433,26 +392,17 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
       ReachlyoCampaign campaign,
       CampaignChannel channel) {
     AudienceDefinition audience =
-        audience(
-            companyId,
-            campaign.getId(),
-            plan.audienceDefinitionId(),
-            false);
+        audience(companyId, campaign.getId(), plan.audienceDefinitionId(), false);
     JsonNode override = override(channel);
-    List<Long> includedAudienceIds =
-        longsFromOverride(override, "googleAudienceIds");
-    List<Long> excludedAudienceIds =
-        longsFromOverride(override, "googleExcludedAudienceIds");
+    List<Long> includedAudienceIds = longsFromOverride(override, "googleAudienceIds");
+    List<Long> excludedAudienceIds = longsFromOverride(override, "googleExcludedAudienceIds");
 
-    if (audience == null
-        && includedAudienceIds.isEmpty()
-        && excludedAudienceIds.isEmpty()) {
+    if (audience == null && includedAudienceIds.isEmpty() && excludedAudienceIds.isEmpty()) {
       return LaunchStepExecutionResult.skipped(
           "No canonical or provider-backed Display audience was selected.");
     }
 
-    AdCampaign providerCampaign =
-        providerCampaign(companyId, step.getProviderDeploymentId());
+    AdCampaign providerCampaign = providerCampaign(companyId, step.getProviderDeploymentId());
 
     var geoResult =
         audience == null
@@ -468,16 +418,11 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
             companyId,
             step.getProviderDeploymentId(),
             launchName(
-                campaign.getName() + " Display Audience",
-                step.getLaunchRunId(),
-                plan.channelId()));
+                campaign.getName() + " Display Audience", step.getLaunchRunId(), plan.channelId()));
 
     var audienceResult =
         visualAudienceService.applyDisplayUserLists(
-            companyId,
-            adGroup.getId(),
-            includedAudienceIds,
-            excludedAudienceIds);
+            companyId, adGroup.getId(), includedAudienceIds, excludedAudienceIds);
 
     return LaunchStepExecutionResult.succeeded(
         adGroup.getId(),
@@ -502,15 +447,8 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
         providerAdGroup(
             companyId,
             step.getProviderDeploymentId(),
-            launchName(
-                campaign.getName() + " Display Audience",
-                run.getId(),
-                plan.channelId()));
-    String adName =
-        launchName(
-            campaign.getName() + " Display Ad",
-            run.getId(),
-            plan.channelId());
+            launchName(campaign.getName() + " Display Audience", run.getId(), plan.channelId()));
+    String adName = launchName(campaign.getName() + " Display Ad", run.getId(), plan.channelId());
 
     if (step.getAttemptCount() > 1) {
       adSyncService.sync(companyId, adGroup.getId());
@@ -518,22 +456,14 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
 
     Ad existing =
         adRepository
-            .findFirstByCompanyIdAndAdSetIdAndNameOrderByIdAsc(
-                companyId, adGroup.getId(), adName)
+            .findFirstByCompanyIdAndAdSetIdAndNameOrderByIdAsc(companyId, adGroup.getId(), adName)
             .orElse(null);
     if (existing != null) {
       return LaunchStepExecutionResult.succeeded(
-          existing.getId(),
-          existing.getExternalAdId(),
-          Map.of("reused", true));
+          existing.getId(), existing.getExternalAdId(), Map.of("reused", true));
     }
 
-    CreativePack pack =
-        creativePack(
-            companyId,
-            campaign.getId(),
-            plan.creativePackId(),
-            true);
+    CreativePack pack = creativePack(companyId, campaign.getId(), plan.creativePackId(), true);
     List<String> headlines = strings(pack.getHeadlinesJson());
 
     AdResponse created =
@@ -542,38 +472,21 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
             adGroup.getId(),
             new CreateGoogleResponsiveDisplayAdRequest(
                 adName,
-                firstText(
-                    pack.getDestinationUrl(),
-                    campaign.getLandingPageUrl()),
+                firstText(pack.getDestinationUrl(), campaign.getLandingPageUrl()),
                 pack.getBusinessName(),
                 headlines,
                 displayLongHeadline(pack, headlines, true),
                 strings(pack.getDescriptionsJson()),
+                imageBase64(companyId, pack.getId(), CreativeAssetRole.MARKETING_IMAGE, true),
                 imageBase64(
-                    companyId,
-                    pack.getId(),
-                    CreativeAssetRole.MARKETING_IMAGE,
-                    true),
-                imageBase64(
-                    companyId,
-                    pack.getId(),
-                    CreativeAssetRole.SQUARE_MARKETING_IMAGE,
-                    true),
-                imageBase64(
-                    companyId,
-                    pack.getId(),
-                    CreativeAssetRole.LOGO,
-                    false)),
+                    companyId, pack.getId(), CreativeAssetRole.SQUARE_MARKETING_IMAGE, true),
+                imageBase64(companyId, pack.getId(), CreativeAssetRole.LOGO, false)),
             run.getRequestedByUserId());
 
     return LaunchStepExecutionResult.succeeded(
         Long.valueOf(created.id()),
         created.externalAdId(),
-        Map.of(
-            "reused",
-            false,
-            "creativeType",
-            "RESPONSIVE_DISPLAY_AD"));
+        Map.of("reused", false, "creativeType", "RESPONSIVE_DISPLAY_AD"));
   }
 
   private LaunchStepExecutionResult configureConversion(
@@ -583,22 +496,17 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
       LaunchStep step,
       ReachlyoCampaign campaign) {
     if (!hasText(plan.conversionGoalMappingId())) {
-      return LaunchStepExecutionResult.skipped(
-          "No Google conversion mapping is configured.");
+      return LaunchStepExecutionResult.skipped("No Google conversion mapping is configured.");
     }
 
-    AdCampaign providerCampaign =
-        providerCampaign(companyId, step.getProviderDeploymentId());
+    AdCampaign providerCampaign = providerCampaign(companyId, step.getProviderDeploymentId());
     var result =
         conversionGoalService.apply(
             companyId,
             step.getAdAccountId(),
             providerCampaign.getExternalCampaignId(),
             run.getReachlyoCampaignId(),
-            conversion(
-                companyId,
-                campaign.getId(),
-                plan.conversionGoalMappingId()));
+            conversion(companyId, campaign.getId(), plan.conversionGoalMappingId()));
 
     return LaunchStepExecutionResult.succeeded(
         null,
@@ -628,16 +536,13 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
       if (required) {
         issues.add(
             error(
-                "DISPLAY_REQUIRED_ASSET_MISSING",
-                "creativePack.assets",
-                label + " is required."));
+                "DISPLAY_REQUIRED_ASSET_MISSING", "creativePack.assets", label + " is required."));
       }
       return;
     }
 
     try {
-      var media =
-          mediaService.requireActiveCompanyMedia(asset.getMediaId(), companyId);
+      var media = mediaService.requireActiveCompanyMedia(asset.getMediaId(), companyId);
       if (media.getMediaType() != MediaType.IMAGE) {
         issues.add(
             error(
@@ -647,8 +552,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
         return;
       }
 
-      byte[] bytes =
-          mediaService.readTrustedObject(asset.getMediaId(), companyId);
+      byte[] bytes = mediaService.readTrustedObject(asset.getMediaId(), companyId);
       if (bytes.length == 0 || bytes.length > MAX_IMAGE_BYTES) {
         issues.add(
             error(
@@ -657,8 +561,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
                 label + " must be non-empty and at most 5 MB."));
         return;
       }
-      BufferedImage image =
-          ImageIO.read(new ByteArrayInputStream(bytes));
+      BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
       if (image == null) {
         issues.add(
             error(
@@ -672,12 +575,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
             error(
                 "DISPLAY_IMAGE_DIMENSIONS_INVALID",
                 "creativePack.assets",
-                label
-                    + " must be at least "
-                    + minWidth
-                    + "x"
-                    + minHeight
-                    + " pixels."));
+                label + " must be at least " + minWidth + "x" + minHeight + " pixels."));
         return;
       }
       double actual = (double) image.getWidth() / (double) image.getHeight();
@@ -689,11 +587,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
                 label + " has an invalid aspect ratio."));
       }
     } catch (RuntimeException exception) {
-      issues.add(
-          error(
-              "DISPLAY_IMAGE_INVALID",
-              "creativePack.assets",
-              exception.getMessage()));
+      issues.add(error("DISPLAY_IMAGE_INVALID", "creativePack.assets", exception.getMessage()));
     } catch (Exception exception) {
       issues.add(
           error(
@@ -704,41 +598,29 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
   }
 
   private String imageBase64(
-      Long companyId,
-      Long packId,
-      CreativeAssetRole role,
-      boolean required) {
+      Long companyId, Long packId, CreativeAssetRole role, boolean required) {
     CreativePackAsset asset = asset(companyId, packId, role, required);
     if (asset == null) return null;
     return Base64.getEncoder()
-        .encodeToString(
-            mediaService.readTrustedObject(asset.getMediaId(), companyId));
+        .encodeToString(mediaService.readTrustedObject(asset.getMediaId(), companyId));
   }
 
   private CreativePackAsset asset(
-      Long companyId,
-      Long packId,
-      CreativeAssetRole role,
-      boolean required) {
+      Long companyId, Long packId, CreativeAssetRole role, boolean required) {
     CreativePackAsset found =
         creativePackAssetRepository
-            .findByCompanyIdAndCreativePackIdOrderBySortOrderAscIdAsc(
-                companyId, packId)
+            .findByCompanyIdAndCreativePackIdOrderBySortOrderAscIdAsc(companyId, packId)
             .stream()
             .filter(value -> value.getRole() == role)
             .findFirst()
             .orElse(null);
     if (found == null && required) {
-      throw new BadRequestException(
-          "Display requires " + role.name() + " media");
+      throw new BadRequestException("Display requires " + role.name() + " media");
     }
     return found;
   }
 
-  private String displayLongHeadline(
-      CreativePack pack,
-      List<String> headlines,
-      boolean required) {
+  private String displayLongHeadline(CreativePack pack, List<String> headlines, boolean required) {
     String primary = pack.getPrimaryMessage();
     String value =
         hasText(primary) && primary.trim().length() <= 90
@@ -746,8 +628,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
             : headlines.isEmpty() ? null : headlines.getFirst();
     if (!hasText(value)) {
       if (required) {
-        throw new BadRequestException(
-            "Display long headline is required");
+        throw new BadRequestException("Display long headline is required");
       }
       return null;
     }
@@ -763,8 +644,8 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
 
   private String defaultBidStrategy(CampaignBusinessGoal goal) {
     return switch (goal) {
-      case PURCHASE, LEAD, QUALIFIED_LEAD, SIGN_UP, PHONE_CALL,
-          WHATSAPP_CONVERSATION -> "MAXIMIZE_CONVERSIONS";
+      case PURCHASE, LEAD, QUALIFIED_LEAD, SIGN_UP, PHONE_CALL, WHATSAPP_CONVERSATION ->
+          "MAXIMIZE_CONVERSIONS";
       default -> "MANUAL_CPC";
     };
   }
@@ -772,31 +653,23 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
   private ReachlyoCampaign campaign(Long companyId, Long campaignId) {
     return campaignRepository
         .findByIdAndCompanyId(campaignId, companyId)
-        .orElseThrow(
-            () -> new NotFoundException("Reachlyo campaign not found"));
+        .orElseThrow(() -> new NotFoundException("Reachlyo campaign not found"));
   }
 
-  private CampaignChannel channel(
-      Long companyId, Long campaignId, Long channelId) {
+  private CampaignChannel channel(Long companyId, Long campaignId, Long channelId) {
     return channelRepository
-        .findByIdAndCompanyIdAndReachlyoCampaignId(
-            channelId, companyId, campaignId)
-        .orElseThrow(
-            () -> new NotFoundException("Campaign channel not found"));
+        .findByIdAndCompanyIdAndReachlyoCampaignId(channelId, companyId, campaignId)
+        .orElseThrow(() -> new NotFoundException("Campaign channel not found"));
   }
 
   private AdAccount account(Long companyId, Long accountId) {
     return accountRepository
         .findByIdAndCompanyId(accountId, companyId)
-        .orElseThrow(
-            () -> new NotFoundException("Advertising account not found"));
+        .orElseThrow(() -> new NotFoundException("Advertising account not found"));
   }
 
   private CreativePack creativePack(
-      Long companyId,
-      Long campaignId,
-      String packId,
-      boolean required) {
+      Long companyId, Long campaignId, String packId, boolean required) {
     if (!hasText(packId)) {
       if (required) {
         throw new BadRequestException("Creative Pack is required");
@@ -804,17 +677,12 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
       return null;
     }
     return creativePackRepository
-        .findByIdAndCompanyIdAndReachlyoCampaignId(
-            Long.valueOf(packId), companyId, campaignId)
-        .orElseThrow(
-            () -> new NotFoundException("Creative pack not found"));
+        .findByIdAndCompanyIdAndReachlyoCampaignId(Long.valueOf(packId), companyId, campaignId)
+        .orElseThrow(() -> new NotFoundException("Creative pack not found"));
   }
 
   private AudienceDefinition audience(
-      Long companyId,
-      Long campaignId,
-      String audienceId,
-      boolean required) {
+      Long companyId, Long campaignId, String audienceId, boolean required) {
     if (!hasText(audienceId)) {
       if (required) {
         throw new BadRequestException("Audience definition is required");
@@ -822,48 +690,33 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
       return null;
     }
     return audienceDefinitionRepository
-        .findByIdAndCompanyIdAndReachlyoCampaignId(
-            Long.valueOf(audienceId), companyId, campaignId)
-        .orElseThrow(
-            () -> new NotFoundException("Audience definition not found"));
+        .findByIdAndCompanyIdAndReachlyoCampaignId(Long.valueOf(audienceId), companyId, campaignId)
+        .orElseThrow(() -> new NotFoundException("Audience definition not found"));
   }
 
-  private ConversionGoalMapping conversion(
-      Long companyId, Long campaignId, String mappingId) {
+  private ConversionGoalMapping conversion(Long companyId, Long campaignId, String mappingId) {
     return conversionGoalMappingRepository
-        .findByIdAndCompanyIdAndReachlyoCampaignId(
-            Long.valueOf(mappingId), companyId, campaignId)
-        .orElseThrow(
-            () -> new NotFoundException("Conversion goal mapping not found"));
+        .findByIdAndCompanyIdAndReachlyoCampaignId(Long.valueOf(mappingId), companyId, campaignId)
+        .orElseThrow(() -> new NotFoundException("Conversion goal mapping not found"));
   }
 
-  private AdCampaign providerCampaign(
-      Long companyId, Long deploymentId) {
+  private AdCampaign providerCampaign(Long companyId, Long deploymentId) {
     var deployment = deploymentService.get(companyId, deploymentId);
     if (deployment.getLocalCampaignId() == null) {
-      throw new BadRequestException(
-          "Provider campaign has not been created yet");
+      throw new BadRequestException("Provider campaign has not been created yet");
     }
     return adCampaignRepository
-        .findByIdAndCompanyId(
-            deployment.getLocalCampaignId(), companyId)
-        .orElseThrow(
-            () -> new NotFoundException("Advertising campaign not found"));
+        .findByIdAndCompanyId(deployment.getLocalCampaignId(), companyId)
+        .orElseThrow(() -> new NotFoundException("Advertising campaign not found"));
   }
 
-  private AdSet providerAdGroup(
-      Long companyId,
-      Long deploymentId,
-      String expectedName) {
-    AdCampaign providerCampaign =
-        providerCampaign(companyId, deploymentId);
+  private AdSet providerAdGroup(Long companyId, Long deploymentId, String expectedName) {
+    AdCampaign providerCampaign = providerCampaign(companyId, deploymentId);
     return adSetRepository
         .findFirstByCompanyIdAndCampaignIdAndNameOrderByIdAsc(
             companyId, providerCampaign.getId(), expectedName)
         .orElseThrow(
-            () ->
-                new BadRequestException(
-                    "Display launch ad group has not been created yet"));
+            () -> new BadRequestException("Display launch ad group has not been created yet"));
   }
 
   private JsonNode override(CampaignChannel channel) {
@@ -872,16 +725,12 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
           ? objectMapper.readTree(channel.getProviderOverrideJson())
           : objectMapper.createObjectNode();
     } catch (Exception exception) {
-      throw new BadRequestException(
-          "Campaign channel provider override is invalid JSON");
+      throw new BadRequestException("Campaign channel provider override is invalid JSON");
     }
   }
 
   private Long dailyBudget(
-      ProviderCampaignPlan plan,
-      ReachlyoCampaign campaign,
-      AdAccount account,
-      boolean required) {
+      ProviderCampaignPlan plan, ReachlyoCampaign campaign, AdAccount account, boolean required) {
     Long budget = plan.effectiveBudgetMinor();
     if (budget == null || budget <= 0) {
       return required ? failBudget() : null;
@@ -932,11 +781,9 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
   private List<String> strings(String json) {
     if (!hasText(json)) return List.of();
     try {
-      return objectMapper.readValue(
-          json, new TypeReference<List<String>>() {});
+      return objectMapper.readValue(json, new TypeReference<List<String>>() {});
     } catch (Exception exception) {
-      throw new BadRequestException(
-          "Creative/audience text list is invalid JSON");
+      throw new BadRequestException("Creative/audience text list is invalid JSON");
     }
   }
 
@@ -957,9 +804,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
     JsonNode value = node.get(key);
     if (value == null || value.isNull()) return null;
     String result = value.asText(null);
-    return result == null || result.isBlank()
-        ? null
-        : result.trim();
+    return result == null || result.isBlank() ? null : result.trim();
   }
 
   private String firstText(String... values) {
@@ -969,31 +814,22 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
     return null;
   }
 
-  private String launchName(
-      String base, Long runId, String channelId) {
+  private String launchName(String base, Long runId, String channelId) {
     String suffix = " [RLY-" + runId + "-" + channelId + "]";
-    String normalized =
-        hasText(base) ? base.trim() : "UnifyDesk";
+    String normalized = hasText(base) ? base.trim() : "UnifyDesk";
     int maxBase = Math.max(1, 255 - suffix.length());
-    return (normalized.length() > maxBase
-            ? normalized.substring(0, maxBase)
-            : normalized)
-        + suffix;
+    return (normalized.length() > maxBase ? normalized.substring(0, maxBase) : normalized) + suffix;
   }
 
   private boolean hasText(String value) {
     return value != null && !value.isBlank();
   }
 
-  private ProviderPlanIssue error(
-      String code, String field, String message) {
-    return new ProviderPlanIssue(
-        PlanIssueSeverity.ERROR, code, field, message);
+  private ProviderPlanIssue error(String code, String field, String message) {
+    return new ProviderPlanIssue(PlanIssueSeverity.ERROR, code, field, message);
   }
 
-  private ProviderPlanIssue warning(
-      String code, String field, String message) {
-    return new ProviderPlanIssue(
-        PlanIssueSeverity.WARNING, code, field, message);
+  private ProviderPlanIssue warning(String code, String field, String message) {
+    return new ProviderPlanIssue(PlanIssueSeverity.WARNING, code, field, message);
   }
 }

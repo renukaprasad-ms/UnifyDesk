@@ -9,9 +9,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import java.util.List;
 import java.time.Instant;
-import org.springframework.web.bind.annotation.RequestParam;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,11 +19,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Explicit Super Admin verification required. External Mail project identifiers are never
- * inferred from or conflated with platform company identifiers.
+ * Explicit Super Admin verification required. External Mail project identifiers are never inferred
+ * from or conflated with platform company identifiers.
  */
 @RestController
 @RequestMapping("/api/v1/admin/billing/mail-project-links")
@@ -57,16 +57,19 @@ public class BillingMailProjectLinkController {
   @GetMapping
   public ResponseEntity<ApiResponse<List<MailProjectBillingBridgeService.Link>>> list() {
     authorize();
-    return ResponseEntity.ok(ApiResponse.success(
-        HttpStatus.OK.value(), bridge.links(), "Mail project links fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(HttpStatus.OK.value(), bridge.links(), "Mail project links fetched"));
   }
 
   @GetMapping("/usage")
   public ResponseEntity<ApiResponse<List<MailProjectBillingBridgeService.MailUsageTotals>>> usage(
       @RequestParam Instant from, @RequestParam Instant to) {
     authorize();
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
-        bridge.usage(from, to), "Imported Mail project handoff totals fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            bridge.usage(from, to),
+            "Imported Mail project handoff totals fetched"));
   }
 
   @PostMapping
@@ -74,20 +77,27 @@ public class BillingMailProjectLinkController {
       @Valid @RequestBody CreateLinkRequest request) {
     authorize();
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ApiResponse.success(HttpStatus.CREATED.value(),
-            bridge.link(id(request.companyId(), "company"),
-                id(request.mailProjectId(), "Mail project"),
-                currentUserService.currentUserId(), request.ownershipProof(),
-                request.ownershipVerified()),
-            "Mail project linked for reporting; no platform charges created"));
+        .body(
+            ApiResponse.success(
+                HttpStatus.CREATED.value(),
+                bridge.link(
+                    id(request.companyId(), "company"),
+                    id(request.mailProjectId(), "Mail project"),
+                    currentUserService.currentUserId(),
+                    request.ownershipProof(),
+                    request.ownershipVerified()),
+                "Mail project linked for reporting; no platform charges created"));
   }
 
   @PostMapping("/{projectId}/sync")
   public ResponseEntity<ApiResponse<MailProjectBillingBridgeService.SyncResult>> sync(
       @PathVariable String projectId) {
     authorize();
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
-        bridge.sync(id(projectId, "Mail project")), "Mail handoff usage synchronized"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            bridge.sync(id(projectId, "Mail project")),
+            "Mail handoff usage synchronized"));
   }
 
   public record MailReplayRequest(
@@ -104,24 +114,32 @@ public class BillingMailProjectLinkController {
     } catch (NumberFormatException exception) {
       throw new BadRequestException("Invalid Mail replay cursor");
     }
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
-        bridge.replay(id(projectId, "Mail project"), request.from(), cursor),
-        "Mail handoff replay completed without financial charges"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            bridge.replay(id(projectId, "Mail project"), request.from(), cursor),
+            "Mail handoff replay completed without financial charges"));
   }
 
   @PostMapping("/{projectId}/pause")
   public ResponseEntity<ApiResponse<MailProjectBillingBridgeService.Link>> pause(
       @PathVariable String projectId) {
     authorize();
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
-        bridge.setState(id(projectId, "Mail project"), "PAUSED"), "Mail usage sync paused"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            bridge.setState(id(projectId, "Mail project"), "PAUSED"),
+            "Mail usage sync paused"));
   }
 
   @PostMapping("/{projectId}/resume")
   public ResponseEntity<ApiResponse<MailProjectBillingBridgeService.Link>> resume(
       @PathVariable String projectId) {
     authorize();
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
-        bridge.setState(id(projectId, "Mail project"), "ACTIVE"), "Mail usage sync resumed"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            bridge.setState(id(projectId, "Mail project"), "ACTIVE"),
+            "Mail usage sync resumed"));
   }
 }

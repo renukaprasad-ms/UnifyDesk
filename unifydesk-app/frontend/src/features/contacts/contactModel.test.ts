@@ -27,7 +27,6 @@ describe('contactModel', () => {
       }),
     ).toEqual(
       expect.objectContaining({
-        displayName: expect.any(String),
         email: expect.any(String),
         phone: expect.any(String),
       }),

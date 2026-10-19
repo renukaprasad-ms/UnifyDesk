@@ -1,5 +1,7 @@
 package com.messaging.billing.payment;
 
+import com.messaging.common.validation.ValidPhone;
+
 import com.messaging.billing.dto.InvoiceIdentitySnapshot;
 import com.messaging.billing.entity.Payment;
 import com.messaging.billing.repository.PaymentRepository;
@@ -228,7 +230,7 @@ public class BillingPaymentController {
   }
 
   public record CustomerDetails(
-      String name, @NotBlank @Email String email, @NotBlank String phone) {
+      String name, @NotBlank @Email String email, @NotBlank @ValidPhone String phone) {
     PaymentProviderGateway.Customer toProviderCustomer(Long companyId) {
       return new PaymentProviderGateway.Customer(
           "company-" + companyId, name, email.trim(), phone.trim());
@@ -243,7 +245,7 @@ public class BillingPaymentController {
       String subscriptionId,
       String idempotencyKey,
       InvoiceIdentitySnapshot invoiceIdentity,
-      CustomerDetails customer) {}
+      @Valid CustomerDetails customer) {}
 
   public record InitialCheckoutRequest(
       @NotBlank String planId,

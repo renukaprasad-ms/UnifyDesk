@@ -111,19 +111,10 @@ public class CrmForecastService {
       Instant updatedAt) {}
 
   public record SetQuotaInput(
-      Long userId,
-      String periodType,
-      String periodKey,
-      BigDecimal targetAmount,
-      String currency) {}
+      Long userId, String periodType, String periodKey, BigDecimal targetAmount, String currency) {}
 
   private record StageMeta(
-      String key,
-      String name,
-      String category,
-      int probability,
-      String color,
-      int displayOrder) {}
+      String key, String name, String category, int probability, String color, int displayOrder) {}
 
   @Transactional(readOnly = true)
   public ForecastResponse getForecast(
@@ -201,7 +192,9 @@ public class CrmForecastService {
     Map<String, StageMeta> stageMap = loadStageMap(companyId, pipelineId);
 
     // Query deals
-    StringBuilder sql = new StringBuilder("""
+    StringBuilder sql =
+        new StringBuilder(
+            """
         select d.id, d.title, d.stage, d.amount, d.currency, d.expected_close_date,
                d.owner_user_id, u.name as owner_name,
                a.name as account_name, c.display_name as contact_name
@@ -226,10 +219,12 @@ public class CrmForecastService {
     }
 
     // Date filtering:
-    // For OPEN deals: filter by expected_close_date (if dates specified) or include if expected_close_date is null/future
+    // For OPEN deals: filter by expected_close_date (if dates specified) or include if
+    // expected_close_date is null/future
     // For WON/LOST deals: filter by expected_close_date or updated_at within range
     if (startDate != null && endDate != null) {
-      sql.append("""
+      sql.append(
+          """
           and (
             (d.stage not in ('WON', 'LOST') and (d.expected_close_date between ? and ? or d.expected_close_date is null))
             or
@@ -281,14 +276,18 @@ public class CrmForecastService {
       Object closeDateObj = r.get("expected_close_date");
       String expectedCloseDate = closeDateObj != null ? closeDateObj.toString() : null;
 
-      Long repId = r.get("owner_user_id") != null ? ((Number) r.get("owner_user_id")).longValue() : null;
+      Long repId =
+          r.get("owner_user_id") != null ? ((Number) r.get("owner_user_id")).longValue() : null;
       String repName = (String) r.get("owner_name");
       String accountName = (String) r.get("account_name");
       String contactName = (String) r.get("contact_name");
 
       StageMeta meta = stageMap.get(stage);
       String stageName = meta != null ? meta.name() : stage;
-      String category = meta != null ? meta.category() : ("WON".equals(stage) ? "WON" : "LOST".equals(stage) ? "LOST" : "OPEN");
+      String category =
+          meta != null
+              ? meta.category()
+              : ("WON".equals(stage) ? "WON" : "LOST".equals(stage) ? "LOST" : "OPEN");
       int probability = meta != null ? meta.probability() : defaultProbability(stage, category);
 
       BigDecimal weighted;
@@ -301,7 +300,10 @@ public class CrmForecastService {
         lostDealsCount++;
         lostAmount = lostAmount.add(amount);
       } else {
-        weighted = amount.multiply(BigDecimal.valueOf(probability)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        weighted =
+            amount
+                .multiply(BigDecimal.valueOf(probability))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         totalOpenDeals++;
         unweightedPipeline = unweightedPipeline.add(amount);
         weightedPipeline = weightedPipeline.add(weighted);
@@ -325,14 +327,23 @@ public class CrmForecastService {
               contactName));
 
       // Stage aggregation
-      StageAggregator sa = stageAggs.computeIfAbsent(stage, k -> new StageAggregator(new StageMeta(stage, stageName, category, probability, "slate", 99)));
+      StageAggregator sa =
+          stageAggs.computeIfAbsent(
+              stage,
+              k ->
+                  new StageAggregator(
+                      new StageMeta(stage, stageName, category, probability, "slate", 99)));
       sa.dealsCount++;
       sa.totalAmount = sa.totalAmount.add(amount);
       sa.weightedAmount = sa.weightedAmount.add(weighted);
 
       // Timeline aggregation (bucket by YYYY-MM)
-      String monthKey = expectedCloseDate != null && expectedCloseDate.length() >= 7 ? expectedCloseDate.substring(0, 7) : "No Date";
-      TimelineAggregator ta = timelineAggs.computeIfAbsent(monthKey, k -> new TimelineAggregator(k));
+      String monthKey =
+          expectedCloseDate != null && expectedCloseDate.length() >= 7
+              ? expectedCloseDate.substring(0, 7)
+              : "No Date";
+      TimelineAggregator ta =
+          timelineAggs.computeIfAbsent(monthKey, k -> new TimelineAggregator(k));
       if ("WON".equalsIgnoreCase(category)) {
         ta.wonDealsCount++;
         ta.wonAmount = ta.wonAmount.add(amount);
@@ -344,7 +355,9 @@ public class CrmForecastService {
 
       // Rep aggregation
       long rKey = repId != null ? repId : 0L;
-      RepAggregator ra = repAggs.computeIfAbsent(rKey, k -> new RepAggregator(k, repName != null ? repName : "Unassigned"));
+      RepAggregator ra =
+          repAggs.computeIfAbsent(
+              rKey, k -> new RepAggregator(k, repName != null ? repName : "Unassigned"));
       if ("WON".equalsIgnoreCase(category)) {
         ra.wonDealsCount++;
         ra.wonAmount = ra.wonAmount.add(amount);
@@ -362,9 +375,10 @@ public class CrmForecastService {
     // Quotas matching for the period
     BigDecimal targetQuota = BigDecimal.ZERO;
     String quotaPeriodType = p.contains("quarter") ? "QUARTERLY" : "MONTHLY";
-    String quotaPeriodKey = p.contains("quarter")
-        ? today.getYear() + "-Q" + today.get(IsoFields.QUARTER_OF_YEAR)
-        : today.getYear() + "-" + String.format("%02d", today.getMonthValue());
+    String quotaPeriodKey =
+        p.contains("quarter")
+            ? today.getYear() + "-Q" + today.get(IsoFields.QUARTER_OF_YEAR)
+            : today.getYear() + "-" + String.format("%02d", today.getMonthValue());
 
     List<SalesQuotaDto> quotas = getQuotas(companyId, quotaPeriodType, quotaPeriodKey);
     Map<Long, BigDecimal> repQuotaMap = new HashMap<>();
@@ -374,16 +388,25 @@ public class CrmForecastService {
       }
       try {
         repQuotaMap.put(Long.parseLong(q.userId()), q.targetAmount());
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
 
-    double quotaAttainmentPct = targetQuota.compareTo(BigDecimal.ZERO) > 0
-        ? wonAmount.multiply(BigDecimal.valueOf(100)).divide(targetQuota, 2, RoundingMode.HALF_UP).doubleValue()
-        : 0.0;
+    double quotaAttainmentPct =
+        targetQuota.compareTo(BigDecimal.ZERO) > 0
+            ? wonAmount
+                .multiply(BigDecimal.valueOf(100))
+                .divide(targetQuota, 2, RoundingMode.HALF_UP)
+                .doubleValue()
+            : 0.0;
 
-    double projectedAttainmentPct = targetQuota.compareTo(BigDecimal.ZERO) > 0
-        ? totalForecast.multiply(BigDecimal.valueOf(100)).divide(targetQuota, 2, RoundingMode.HALF_UP).doubleValue()
-        : 0.0;
+    double projectedAttainmentPct =
+        targetQuota.compareTo(BigDecimal.ZERO) > 0
+            ? totalForecast
+                .multiply(BigDecimal.valueOf(100))
+                .divide(targetQuota, 2, RoundingMode.HALF_UP)
+                .doubleValue()
+            : 0.0;
 
     ForecastSummary summary =
         new ForecastSummary(
@@ -424,7 +447,8 @@ public class CrmForecastService {
         try {
           YearMonth ym = YearMonth.parse(ta.monthKey);
           label = ym.format(DateTimeFormatter.ofPattern("MMM yyyy"));
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
       }
       timelineList.add(
           new TimelineCohort(
@@ -441,13 +465,21 @@ public class CrmForecastService {
     List<RepForecast> repList = new ArrayList<>();
     for (RepAggregator ra : repAggs.values()) {
       BigDecimal repTarget = repQuotaMap.getOrDefault(ra.userId, BigDecimal.ZERO);
-      double repAttain = repTarget.compareTo(BigDecimal.ZERO) > 0
-          ? ra.wonAmount.multiply(BigDecimal.valueOf(100)).divide(repTarget, 2, RoundingMode.HALF_UP).doubleValue()
-          : 0.0;
+      double repAttain =
+          repTarget.compareTo(BigDecimal.ZERO) > 0
+              ? ra.wonAmount
+                  .multiply(BigDecimal.valueOf(100))
+                  .divide(repTarget, 2, RoundingMode.HALF_UP)
+                  .doubleValue()
+              : 0.0;
       BigDecimal repTotal = ra.wonAmount.add(ra.weightedAmount);
-      double repProjected = repTarget.compareTo(BigDecimal.ZERO) > 0
-          ? repTotal.multiply(BigDecimal.valueOf(100)).divide(repTarget, 2, RoundingMode.HALF_UP).doubleValue()
-          : 0.0;
+      double repProjected =
+          repTarget.compareTo(BigDecimal.ZERO) > 0
+              ? repTotal
+                  .multiply(BigDecimal.valueOf(100))
+                  .divide(repTarget, 2, RoundingMode.HALF_UP)
+                  .doubleValue()
+              : 0.0;
 
       repList.add(
           new RepForecast(
@@ -483,7 +515,8 @@ public class CrmForecastService {
 
   @Transactional(readOnly = true)
   public List<SalesQuotaDto> getQuotas(long companyId, String periodType, String periodKey) {
-    String sql = """
+    String sql =
+        """
         select q.id, q.user_id, u.name as user_name, q.period_type, q.period_key, q.target_amount, q.currency, q.updated_at
         from crm_sales_quotas q
         join users u on u.id = q.user_id
@@ -522,16 +555,21 @@ public class CrmForecastService {
     if (input.userId() == null) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "USER_REQUIRED");
     }
-    if (input.periodType() == null || !List.of("MONTHLY", "QUARTERLY").contains(input.periodType().toUpperCase(Locale.ROOT))) {
+    if (input.periodType() == null
+        || !List.of("MONTHLY", "QUARTERLY").contains(input.periodType().toUpperCase(Locale.ROOT))) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_PERIOD_TYPE");
     }
     if (input.periodKey() == null || input.periodKey().isBlank()) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "PERIOD_KEY_REQUIRED");
     }
-    BigDecimal target = input.targetAmount() != null && input.targetAmount().compareTo(BigDecimal.ZERO) >= 0
-        ? input.targetAmount()
-        : BigDecimal.ZERO;
-    String currency = input.currency() != null && !input.currency().isBlank() ? input.currency().toUpperCase(Locale.ROOT) : "INR";
+    BigDecimal target =
+        input.targetAmount() != null && input.targetAmount().compareTo(BigDecimal.ZERO) >= 0
+            ? input.targetAmount()
+            : BigDecimal.ZERO;
+    String currency =
+        input.currency() != null && !input.currency().isBlank()
+            ? input.currency().toUpperCase(Locale.ROOT)
+            : "INR";
     String pType = input.periodType().toUpperCase(Locale.ROOT);
     String pKey = input.periodKey().trim();
 
@@ -568,7 +606,8 @@ public class CrmForecastService {
   private Map<String, StageMeta> loadStageMap(long companyId, Long pipelineId) {
     Map<String, StageMeta> map = new LinkedHashMap<>();
 
-    String sql = """
+    String sql =
+        """
         select s.key, s.name, s.category, s.probability, s.color, s.display_order
         from crm_pipeline_stages s
         where s.company_id = ?
@@ -580,7 +619,8 @@ public class CrmForecastService {
       sql += " and s.pipeline_id = ? ";
       params.add(pipelineId);
     } else {
-      sql += " and s.pipeline_id = (select id from crm_pipelines where company_id = ? and is_default = true limit 1) ";
+      sql +=
+          " and s.pipeline_id = (select id from crm_pipelines where company_id = ? and is_default = true limit 1) ";
       params.add(companyId);
     }
     sql += " order by s.display_order asc ";
@@ -606,7 +646,8 @@ public class CrmForecastService {
     map.putIfAbsent("NEW", new StageMeta("NEW", "New", "OPEN", 10, "slate", 1));
     map.putIfAbsent("QUALIFIED", new StageMeta("QUALIFIED", "Qualified", "OPEN", 25, "blue", 2));
     map.putIfAbsent("PROPOSAL", new StageMeta("PROPOSAL", "Proposal", "OPEN", 50, "indigo", 3));
-    map.putIfAbsent("NEGOTIATION", new StageMeta("NEGOTIATION", "Negotiation", "OPEN", 80, "amber", 4));
+    map.putIfAbsent(
+        "NEGOTIATION", new StageMeta("NEGOTIATION", "Negotiation", "OPEN", 80, "amber", 4));
     map.putIfAbsent("WON", new StageMeta("WON", "Won", "WON", 100, "emerald", 5));
     map.putIfAbsent("LOST", new StageMeta("LOST", "Lost", "LOST", 0, "rose", 6));
 

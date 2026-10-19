@@ -1,3 +1,4 @@
+import PhoneInput from '../ui/PhoneInput'
 import { useState, type FormEvent } from 'react'
 import {
   FiAlertCircle,
@@ -5,7 +6,6 @@ import {
   FiExternalLink,
   FiLock,
   FiMail,
-  FiPhone,
   FiShield,
   FiUser,
   FiX,
@@ -278,15 +278,13 @@ export default function AutoPayModal({
 
               <div>
                 <label htmlFor="autopay-phone" className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Billing Phone (10 digits)
+                  Billing Phone
                 </label>
                 <div className="relative">
-                  <FiPhone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 size-4" />
-                  <input
+                  <PhoneInput
                     id="autopay-phone"
-                    type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(value) => setPhone(value)}
                     placeholder="9876543210"
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     required

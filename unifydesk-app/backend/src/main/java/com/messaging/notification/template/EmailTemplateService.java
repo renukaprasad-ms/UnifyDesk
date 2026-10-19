@@ -4,7 +4,6 @@ import com.messaging.common.exception.BadRequestException;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
 
@@ -16,8 +15,7 @@ public class EmailTemplateService {
 
   public EmailTemplateService(EmailBaseLayout layout, List<OtpEmailTemplate> templates) {
     this.layout = layout;
-    EnumMap<EmailTemplateType, OtpEmailTemplate> byType =
-        new EnumMap<>(EmailTemplateType.class);
+    EnumMap<EmailTemplateType, OtpEmailTemplate> byType = new EnumMap<>(EmailTemplateType.class);
     for (OtpEmailTemplate template : templates) {
       if (byType.put(template.type(), template) != null) {
         throw new IllegalStateException("Duplicate email template: " + template.type());
@@ -26,8 +24,7 @@ public class EmailTemplateService {
     this.otpTemplates = Map.copyOf(byType);
   }
 
-  public EmailTemplateContent renderOtp(
-      EmailTemplateType type, String code, long expiryMinutes) {
+  public EmailTemplateContent renderOtp(EmailTemplateType type, String code, long expiryMinutes) {
     OtpEmailTemplate template = otpTemplates.get(type);
     if (template == null) {
       throw new BadRequestException("Unsupported OTP email template");
@@ -38,8 +35,7 @@ public class EmailTemplateService {
 
     long minutes = Math.max(1, expiryMinutes);
     String normalizedCode = code.trim();
-    String expiryText =
-        minutes == 1 ? "1 minute" : minutes + " minutes";
+    String expiryText = minutes == 1 ? "1 minute" : minutes + " minutes";
 
     String textBody =
         """
@@ -81,11 +77,7 @@ public class EmailTemplateService {
                 HtmlUtils.htmlEscape(expiryText),
                 HtmlUtils.htmlEscape(template.securityNote()));
 
-    String htmlBody =
-        layout.render(
-            template.message(),
-            template.title(),
-            content);
+    String htmlBody = layout.render(template.message(), template.title(), content);
 
     return new EmailTemplateContent(template.subject(), textBody, htmlBody);
   }

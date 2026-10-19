@@ -27,6 +27,7 @@ describe('IdentityManager', () => {
 
     const removeButtons = screen.getAllByRole('button', { name: 'Remove' })
     fireEvent.click(removeButtons[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove identity' }))
     await waitFor(() => expect(onRemove).toHaveBeenCalledWith('email-1'))
   })
 

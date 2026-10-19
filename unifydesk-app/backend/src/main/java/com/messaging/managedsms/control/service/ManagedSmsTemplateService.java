@@ -11,7 +11,6 @@ import com.messaging.managedsms.control.repository.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.Instant;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,7 +37,9 @@ public class ManagedSmsTemplateService {
 
   @Transactional(readOnly = true)
   public List<TemplateResponse> list(Long companyId) {
-    return templateRepository.findByCompanyIdAndArchivedAtIsNullOrderByUpdatedAtDesc(companyId).stream()
+    return templateRepository
+        .findByCompanyIdAndArchivedAtIsNullOrderByUpdatedAtDesc(companyId)
+        .stream()
         .map(template -> response(companyId, template))
         .toList();
   }
@@ -128,11 +129,7 @@ public class ManagedSmsTemplateService {
                   BroadcastSenderProvider.MSG91_SMS)
               .orElseGet(
                   () ->
-                      newBinding(
-                          companyId,
-                          tenant.getId(),
-                          versionId,
-                          link.getId().getHeaderId()));
+                      newBinding(companyId, tenant.getId(), versionId, link.getId().getHeaderId()));
       binding.setStatus(ProviderBindingStatus.SYNCING);
       bindingRepository.save(binding);
       provisioningService.enqueueOrReset(
@@ -154,11 +151,13 @@ public class ManagedSmsTemplateService {
     ManagedSmsTemplateVersion version = requireVersion(companyId, templateId, versionId);
     version.setStatus(TemplateVersionStatus.ARCHIVED);
     versionRepository.save(version);
-    bindingRepository.findByCompanyIdAndTemplateVersionId(companyId, versionId).forEach(
-        binding -> {
-          binding.setStatus(ProviderBindingStatus.ARCHIVED);
-          bindingRepository.save(binding);
-        });
+    bindingRepository
+        .findByCompanyIdAndTemplateVersionId(companyId, versionId)
+        .forEach(
+            binding -> {
+              binding.setStatus(ProviderBindingStatus.ARCHIVED);
+              bindingRepository.save(binding);
+            });
     boolean anyActive =
         versionRepository
             .findFirstByTemplateIdAndCompanyIdAndStatusOrderByVersionNoDesc(
@@ -171,8 +170,7 @@ public class ManagedSmsTemplateService {
   }
 
   @Transactional(readOnly = true)
-  public PreviewResponse preview(
-      Long companyId, Long templateId, PreviewRequest request) {
+  public PreviewResponse preview(Long companyId, Long templateId, PreviewRequest request) {
     ManagedSmsTemplate template = requireTemplate(companyId, templateId);
     Long headerId = parseId(request.headerId(), "headerId");
     ManagedSmsHeader header = headerService.require(companyId, headerId);
@@ -236,7 +234,8 @@ public class ManagedSmsTemplateService {
         template.getUpdatedAt());
   }
 
-  public TemplateVersionResponse versionResponse(Long companyId, ManagedSmsTemplateVersion version) {
+  public TemplateVersionResponse versionResponse(
+      Long companyId, ManagedSmsTemplateVersion version) {
     List<String> headerIds =
         templateHeaderRepository
             .findByCompanyIdAndIdTemplateVersionId(companyId, version.getId())
@@ -314,7 +313,8 @@ public class ManagedSmsTemplateService {
     version.setBodyFingerprint(sha256(bodyText));
     version.setVariablesSchemaJson(jsonSupport.variables(variables));
     version.setCtaPolicyJson(jsonSupport.json(ctaPolicy, "{}"));
-    version.setConsentPolicyJson(consentPolicy == null ? null : jsonSupport.json(consentPolicy, "{}"));
+    version.setConsentPolicyJson(
+        consentPolicy == null ? null : jsonSupport.json(consentPolicy, "{}"));
     version.setOptOutPolicyJson(optOutPolicy == null ? null : jsonSupport.json(optOutPolicy, "{}"));
     version.setRulesetVersion("INDIA_TCCCPR_2025");
     version.setDltStatus(DltTemplateStatus.DRAFT);
@@ -361,7 +361,8 @@ public class ManagedSmsTemplateService {
       String key = item.asText();
       if (!keys.contains(key)
           || variables.stream()
-              .noneMatch(variable -> variable.key().equals(key) && variable.type() == requiredType)) {
+              .noneMatch(
+                  variable -> variable.key().equals(key) && variable.type() == requiredType)) {
         throw new BadRequestException(
             "MANAGED_SMS_CTA_NOT_APPROVED: CTA variables must use their approved variable type");
       }
@@ -374,7 +375,8 @@ public class ManagedSmsTemplateService {
       Map<String, String> values,
       Map<String, String> ctaErrors,
       List<String> errors) {
-    Set<String> declared = schema.stream().map(VariableDefinition::key).collect(java.util.stream.Collectors.toSet());
+    Set<String> declared =
+        schema.stream().map(VariableDefinition::key).collect(java.util.stream.Collectors.toSet());
     values.keySet().stream()
         .filter(key -> !declared.contains(key))
         .forEach(key -> errors.add("Unknown variable: " + key));
@@ -397,8 +399,7 @@ public class ManagedSmsTemplateService {
     return output.toString();
   }
 
-  private String validateValue(
-      VariableDefinition definition, String value, List<String> errors) {
+  private String validateValue(VariableDefinition definition, String value, List<String> errors) {
     if (value == null || value.isBlank()) {
       errors.add("Missing variable: " + definition.key());
       return "";
@@ -462,8 +463,7 @@ public class ManagedSmsTemplateService {
   private String sha256(String value) {
     try {
       byte[] bytes =
-          MessageDigest.getInstance("SHA-256")
-              .digest(value.getBytes(StandardCharsets.UTF_8));
+          MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
       return java.util.HexFormat.of().formatHex(bytes);
     } catch (Exception exception) {
       throw new IllegalStateException("Unable to fingerprint Managed SMS template", exception);

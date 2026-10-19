@@ -26,10 +26,10 @@ public class BroadcastAudienceFreezeService {
   private final AudienceSourceResolver sourceResolver;
 
   /**
-   * Freezes membership only. Eligibility remains bounded/asynchronous in Broadcast preparation.
-   * The first canonical freeze must be bound to the exact source descriptor confirmed by the
-   * customer. Once frozen, retries reuse the immutable snapshot without consulting mutable source
-   * state again.
+   * Freezes membership only. Eligibility remains bounded/asynchronous in Broadcast preparation. The
+   * first canonical freeze must be bound to the exact source descriptor confirmed by the customer.
+   * Once frozen, retries reuse the immutable snapshot without consulting mutable source state
+   * again.
    */
   public FrozenAudience freeze(
       BroadcastMessage message, BroadcastExpectedSourceDescriptor expectedDescriptor) {
@@ -37,9 +37,7 @@ public class BroadcastAudienceFreezeService {
 
     AudienceSnapshotRepository.Snapshot snapshot;
     if (message.getFrozenAudienceSnapshotId() != null) {
-      snapshot =
-          snapshotService.get(
-              message.getCompanyId(), message.getFrozenAudienceSnapshotId());
+      snapshot = snapshotService.get(message.getCompanyId(), message.getFrozenAudienceSnapshotId());
     } else {
       BroadcastSourceState current = validateExpectedDescriptor(message, expectedDescriptor);
       try {
@@ -121,6 +119,5 @@ public class BroadcastAudienceFreezeService {
     return new ConflictException(STALE_PREVIEW);
   }
 
-  public record FrozenAudience(
-      AudienceSnapshotRepository.Snapshot snapshot, long candidateCount) {}
+  public record FrozenAudience(AudienceSnapshotRepository.Snapshot snapshot, long candidateCount) {}
 }

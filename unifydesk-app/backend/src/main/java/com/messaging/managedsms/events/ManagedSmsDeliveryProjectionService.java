@@ -11,7 +11,6 @@ import com.messaging.contacts.integration.TrustedProviderSuppressionBridge;
 import com.messaging.managedsms.metering.ManagedSmsUsageService;
 import com.messaging.managedsms.runtime.ManagedSmsRuntimeRepository;
 import java.sql.Timestamp;
-import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -174,8 +173,7 @@ public class ManagedSmsDeliveryProjectionService {
   }
 
   private void convergeSuppression(
-      ManagedSmsProviderEvent event,
-      ManagedSmsRuntimeRepository.CorrelationRuntime correlation) {
+      ManagedSmsProviderEvent event, ManagedSmsRuntimeRepository.CorrelationRuntime correlation) {
     if (event.type() != ManagedSmsProviderEventType.REJECTED || !isNdnc(event)) {
       return;
     }
@@ -211,7 +209,8 @@ public class ManagedSmsDeliveryProjectionService {
         Channel.SMS,
         SuppressionReason.DND,
         PreferenceSource.MANAGED_SMS_EVENT,
-        (event.providerAccountKey().startsWith("metareach:") ? "metareach:" : "msg91:") + event.eventKey(),
+        (event.providerAccountKey().startsWith("metareach:") ? "metareach:" : "msg91:")
+            + event.eventKey(),
         event.eventAt(),
         "managed-sms:" + event.eventKey());
   }

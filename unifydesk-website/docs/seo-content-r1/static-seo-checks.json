@@ -14,11 +14,7 @@
       "images": 3,
       "intentionallyEmptyBrandAlt": 3,
       "internalLinks": 33,
-      "schemaTypes": [
-        "Organization",
-        "WebSite",
-        "SoftwareApplication"
-      ]
+      "schemaTypes": ["Organization", "WebSite", "SoftwareApplication"]
     },
     {
       "route": "/product",
@@ -30,11 +26,7 @@
       "images": 3,
       "intentionallyEmptyBrandAlt": 3,
       "internalLinks": 25,
-      "schemaTypes": [
-        "Organization",
-        "WebSite",
-        "SoftwareApplication"
-      ]
+      "schemaTypes": ["Organization", "WebSite", "SoftwareApplication"]
     },
     {
       "route": "/solutions",
@@ -46,11 +38,7 @@
       "images": 2,
       "intentionallyEmptyBrandAlt": 2,
       "internalLinks": 27,
-      "schemaTypes": [
-        "Organization",
-        "WebSite",
-        "SoftwareApplication"
-      ]
+      "schemaTypes": ["Organization", "WebSite", "SoftwareApplication"]
     },
     {
       "route": "/integrations",
@@ -62,11 +50,7 @@
       "images": 2,
       "intentionallyEmptyBrandAlt": 2,
       "internalLinks": 33,
-      "schemaTypes": [
-        "Organization",
-        "WebSite",
-        "SoftwareApplication"
-      ]
+      "schemaTypes": ["Organization", "WebSite", "SoftwareApplication"]
     },
     {
       "route": "/pricing",
@@ -78,11 +62,7 @@
       "images": 2,
       "intentionallyEmptyBrandAlt": 2,
       "internalLinks": 25,
-      "schemaTypes": [
-        "Organization",
-        "WebSite",
-        "SoftwareApplication"
-      ]
+      "schemaTypes": ["Organization", "WebSite", "SoftwareApplication"]
     },
     {
       "route": "/security",
@@ -94,11 +74,7 @@
       "images": 2,
       "intentionallyEmptyBrandAlt": 2,
       "internalLinks": 23,
-      "schemaTypes": [
-        "Organization",
-        "WebSite",
-        "SoftwareApplication"
-      ]
+      "schemaTypes": ["Organization", "WebSite", "SoftwareApplication"]
     },
     {
       "route": "/about",
@@ -110,11 +86,7 @@
       "images": 2,
       "intentionallyEmptyBrandAlt": 2,
       "internalLinks": 18,
-      "schemaTypes": [
-        "Organization",
-        "WebSite",
-        "SoftwareApplication"
-      ]
+      "schemaTypes": ["Organization", "WebSite", "SoftwareApplication"]
     },
     {
       "route": "/contact",
@@ -126,11 +98,7 @@
       "images": 2,
       "intentionallyEmptyBrandAlt": 2,
       "internalLinks": 21,
-      "schemaTypes": [
-        "Organization",
-        "WebSite",
-        "SoftwareApplication"
-      ]
+      "schemaTypes": ["Organization", "WebSite", "SoftwareApplication"]
     },
     {
       "route": "/privacy",
@@ -142,11 +110,7 @@
       "images": 2,
       "intentionallyEmptyBrandAlt": 2,
       "internalLinks": 17,
-      "schemaTypes": [
-        "Organization",
-        "WebSite",
-        "SoftwareApplication"
-      ]
+      "schemaTypes": ["Organization", "WebSite", "SoftwareApplication"]
     },
     {
       "route": "/terms",
@@ -158,11 +122,7 @@
       "images": 2,
       "intentionallyEmptyBrandAlt": 2,
       "internalLinks": 17,
-      "schemaTypes": [
-        "Organization",
-        "WebSite",
-        "SoftwareApplication"
-      ]
+      "schemaTypes": ["Organization", "WebSite", "SoftwareApplication"]
     },
     {
       "route": "/whatsapp-shared-inbox",

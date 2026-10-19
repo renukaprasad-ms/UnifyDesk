@@ -19,9 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Manages workspace-scoped custom field definitions for CRM entities (LEAD, DEAL, ACCOUNT).
- * Values are stored as JSONB on the parent entity row — no separate value table.
- * Validation against definitions happens at write time in this service.
+ * Manages workspace-scoped custom field definitions for CRM entities (LEAD, DEAL, ACCOUNT). Values
+ * are stored as JSONB on the parent entity row — no separate value table. Validation against
+ * definitions happens at write time in this service.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,12 +32,20 @@ public class CrmCustomFieldService {
 
   /** The three entity types that support custom fields. */
   public enum EntityType {
-    LEAD, DEAL, ACCOUNT
+    LEAD,
+    DEAL,
+    ACCOUNT
   }
 
   /** All supported field types. */
   public enum FieldType {
-    TEXT, NUMBER, DATE, BOOLEAN, DROPDOWN, MULTI_SELECT, URL
+    TEXT,
+    NUMBER,
+    DATE,
+    BOOLEAN,
+    DROPDOWN,
+    MULTI_SELECT,
+    URL
   }
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -67,10 +75,7 @@ public class CrmCustomFieldService {
       Integer displayOrder) {}
 
   public record UpdateInput(
-      String label,
-      List<String> options,
-      boolean required,
-      Integer displayOrder) {}
+      String label, List<String> options, boolean required, Integer displayOrder) {}
 
   // ── Queries ──────────────────────────────────────────────────────────────────
 
@@ -89,11 +94,12 @@ public class CrmCustomFieldService {
 
   @Transactional(readOnly = true)
   public FieldDef get(long companyId, long fieldId) {
-    List<FieldDef> rows = jdbc.query(
-        "select * from crm_custom_field_defs where company_id = ? and id = ?",
-        CrmCustomFieldService::mapDef,
-        companyId,
-        fieldId);
+    List<FieldDef> rows =
+        jdbc.query(
+            "select * from crm_custom_field_defs where company_id = ? and id = ?",
+            CrmCustomFieldService::mapDef,
+            companyId,
+            fieldId);
     if (rows.isEmpty()) throw notFound();
     return rows.getFirst();
   }
@@ -103,11 +109,12 @@ public class CrmCustomFieldService {
   @Transactional
   public FieldDef create(long companyId, long actor, CreateInput input) {
     validate(input);
-    Integer count = jdbc.queryForObject(
-        "select count(*) from crm_custom_field_defs where company_id = ? and entity_type = ?",
-        Integer.class,
-        companyId,
-        input.entityType().name());
+    Integer count =
+        jdbc.queryForObject(
+            "select count(*) from crm_custom_field_defs where company_id = ? and entity_type = ?",
+            Integer.class,
+            companyId,
+            input.entityType().name());
     if (count != null && count >= MAX_FIELDS_PER_ENTITY) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_CUSTOM_FIELD_LIMIT_REACHED");
     }
@@ -140,7 +147,8 @@ public class CrmCustomFieldService {
   public FieldDef update(long companyId, long fieldId, UpdateInput input) {
     FieldDef existing = get(companyId, fieldId);
     FieldType fieldType = FieldType.valueOf(existing.fieldType());
-    List<String> opts = OPTIONS_REQUIRED.contains(fieldType) ? validateOptions(input.options()) : null;
+    List<String> opts =
+        OPTIONS_REQUIRED.contains(fieldType) ? validateOptions(input.options()) : null;
     String safeLabel = input.label() == null ? null : input.label().trim();
     if (safeLabel == null || safeLabel.isBlank() || safeLabel.length() > 120) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_CUSTOM_FIELD_INVALID_LABEL");
@@ -165,24 +173,32 @@ public class CrmCustomFieldService {
   public void delete(long companyId, long fieldId) {
     FieldDef def = get(companyId, fieldId);
     // Remove the key from all entity rows in one update per table
-    String table = switch (EntityType.valueOf(def.entityType())) {
-      case LEAD    -> "crm_leads";
-      case DEAL    -> "crm_deals";
-      case ACCOUNT -> "crm_accounts";
-    };
-    String column = switch (EntityType.valueOf(def.entityType())) {
-      case LEAD, DEAL, ACCOUNT -> "custom_fields";
-    };
+    String table =
+        switch (EntityType.valueOf(def.entityType())) {
+          case LEAD -> "crm_leads";
+          case DEAL -> "crm_deals";
+          case ACCOUNT -> "crm_accounts";
+        };
+    String column =
+        switch (EntityType.valueOf(def.entityType())) {
+          case LEAD, DEAL, ACCOUNT -> "custom_fields";
+        };
     // Strip key from existing JSONB values so no orphan data remains
     jdbc.update(
-        "update " + table + " set " + column + " = " + column + " - ? where company_id = ? and " + column + " ? ?",
+        "update "
+            + table
+            + " set "
+            + column
+            + " = "
+            + column
+            + " - ? where company_id = ? and "
+            + column
+            + " ? ?",
         def.fieldKey(),
         companyId,
         def.fieldKey());
     jdbc.update(
-        "delete from crm_custom_field_defs where company_id = ? and id = ?",
-        companyId,
-        fieldId);
+        "delete from crm_custom_field_defs where company_id = ? and id = ?", companyId, fieldId);
   }
 
   // ── Value validation (called by other CRM services at write time) ─────────────
@@ -191,18 +207,21 @@ public class CrmCustomFieldService {
    * Validates and sanitizes a client-supplied custom field map against the current definitions.
    * Returns a clean map safe to serialize as JSONB. Throws 400 on any violation.
    */
-  public Map<String, Object> validateValues(long companyId, EntityType entityType,
-      Map<String, Object> incoming) {
+  public Map<String, Object> validateValues(
+      long companyId, EntityType entityType, Map<String, Object> incoming) {
     return validateValues(companyId, entityType, incoming, true);
   }
 
   /**
-   * Validates and sanitizes a client-supplied custom field map.
-   * When enforceRequired is false, only fields actually provided in incoming are validated/coerced,
-   * without demanding that every globally required custom field be present.
+   * Validates and sanitizes a client-supplied custom field map. When enforceRequired is false, only
+   * fields actually provided in incoming are validated/coerced, without demanding that every
+   * globally required custom field be present.
    */
-  public Map<String, Object> validateValues(long companyId, EntityType entityType,
-      Map<String, Object> incoming, boolean enforceRequired) {
+  public Map<String, Object> validateValues(
+      long companyId,
+      EntityType entityType,
+      Map<String, Object> incoming,
+      boolean enforceRequired) {
     if (incoming == null || incoming.isEmpty()) return Map.of();
     List<FieldDef> defs = list(companyId, entityType);
     Map<String, FieldDef> byKey =
@@ -211,8 +230,8 @@ public class CrmCustomFieldService {
     if (enforceRequired) {
       for (FieldDef def : defs) {
         if (def.required() && !incoming.containsKey(def.fieldKey())) {
-          throw new ApiException(HttpStatus.BAD_REQUEST,
-              "CRM_CUSTOM_FIELD_REQUIRED:" + def.fieldKey());
+          throw new ApiException(
+              HttpStatus.BAD_REQUEST, "CRM_CUSTOM_FIELD_REQUIRED:" + def.fieldKey());
         }
       }
     }
@@ -264,46 +283,51 @@ public class CrmCustomFieldService {
     return switch (FieldType.valueOf(def.fieldType())) {
       case TEXT, URL -> {
         String s = value.toString().trim();
-        if (s.length() > 1000) throw new ApiException(HttpStatus.BAD_REQUEST,
-            "CRM_CUSTOM_FIELD_VALUE_TOO_LONG:" + def.fieldKey());
+        if (s.length() > 1000)
+          throw new ApiException(
+              HttpStatus.BAD_REQUEST, "CRM_CUSTOM_FIELD_VALUE_TOO_LONG:" + def.fieldKey());
         yield s;
       }
       case NUMBER -> {
-        try { yield new java.math.BigDecimal(value.toString()); }
-        catch (NumberFormatException e) {
-          throw new ApiException(HttpStatus.BAD_REQUEST,
-              "CRM_CUSTOM_FIELD_INVALID_NUMBER:" + def.fieldKey());
+        try {
+          yield new java.math.BigDecimal(value.toString());
+        } catch (NumberFormatException e) {
+          throw new ApiException(
+              HttpStatus.BAD_REQUEST, "CRM_CUSTOM_FIELD_INVALID_NUMBER:" + def.fieldKey());
         }
       }
       case DATE -> {
-        try { yield java.time.LocalDate.parse(value.toString()); }
-        catch (Exception e) {
-          throw new ApiException(HttpStatus.BAD_REQUEST,
-              "CRM_CUSTOM_FIELD_INVALID_DATE:" + def.fieldKey());
+        try {
+          yield java.time.LocalDate.parse(value.toString());
+        } catch (Exception e) {
+          throw new ApiException(
+              HttpStatus.BAD_REQUEST, "CRM_CUSTOM_FIELD_INVALID_DATE:" + def.fieldKey());
         }
       }
       case BOOLEAN -> {
         if (value instanceof Boolean b) yield b;
         if ("true".equalsIgnoreCase(value.toString())) yield true;
         if ("false".equalsIgnoreCase(value.toString())) yield false;
-        throw new ApiException(HttpStatus.BAD_REQUEST,
-            "CRM_CUSTOM_FIELD_INVALID_BOOLEAN:" + def.fieldKey());
+        throw new ApiException(
+            HttpStatus.BAD_REQUEST, "CRM_CUSTOM_FIELD_INVALID_BOOLEAN:" + def.fieldKey());
       }
       case DROPDOWN -> {
         String s = value.toString();
-        if (!def.options().contains(s)) throw new ApiException(HttpStatus.BAD_REQUEST,
-            "CRM_CUSTOM_FIELD_INVALID_OPTION:" + def.fieldKey());
+        if (!def.options().contains(s))
+          throw new ApiException(
+              HttpStatus.BAD_REQUEST, "CRM_CUSTOM_FIELD_INVALID_OPTION:" + def.fieldKey());
         yield s;
       }
       case MULTI_SELECT -> {
         @SuppressWarnings("unchecked")
-        List<String> selected = value instanceof List<?> l
-            ? l.stream().map(Object::toString).toList()
-            : Arrays.asList(value.toString().split(","));
-        List<String> invalid = selected.stream()
-            .filter(s -> !def.options().contains(s)).toList();
-        if (!invalid.isEmpty()) throw new ApiException(HttpStatus.BAD_REQUEST,
-            "CRM_CUSTOM_FIELD_INVALID_OPTION:" + def.fieldKey());
+        List<String> selected =
+            value instanceof List<?> l
+                ? l.stream().map(Object::toString).toList()
+                : Arrays.asList(value.toString().split(","));
+        List<String> invalid = selected.stream().filter(s -> !def.options().contains(s)).toList();
+        if (!invalid.isEmpty())
+          throw new ApiException(
+              HttpStatus.BAD_REQUEST, "CRM_CUSTOM_FIELD_INVALID_OPTION:" + def.fieldKey());
         yield selected;
       }
     };
@@ -324,7 +348,8 @@ public class CrmCustomFieldService {
     if (raw != null) {
       try {
         options = MAPPER.readValue(raw, STRING_LIST_REF);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
     return new FieldDef(
         Long.toString(rs.getLong("id")),

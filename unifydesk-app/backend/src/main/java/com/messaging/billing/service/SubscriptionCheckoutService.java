@@ -37,8 +37,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * B1-owned provider-neutral commercial contracts for initial paid subscription checkout and
- * renewal preparation.
+ * B1-owned provider-neutral commercial contracts for initial paid subscription checkout and renewal
+ * preparation.
  *
  * <p>B2 must collect the exact finalized UnifyDesk invoice returned by these contracts. B2 must not
  * recalculate plan pricing, derive service-period boundaries, construct platform invoice lines, or
@@ -174,8 +174,7 @@ public class SubscriptionCheckoutService {
       return toSubscriptionResponse(intent.getSubscription());
     }
 
-    BillingPeriod period =
-        invoiceService.requirePaidCanonicalPlatformInvoice(companyId, invoiceId);
+    BillingPeriod period = invoiceService.requirePaidCanonicalPlatformInvoice(companyId, invoiceId);
     assertIntentMatchesPeriod(intent, period);
 
     var current = lifecycleService.currentOptional(companyId);
@@ -221,10 +220,7 @@ public class SubscriptionCheckoutService {
    */
   @Transactional
   public InvoiceResponse createOrResolveRenewalInvoice(
-      Long companyId,
-      Long subscriptionId,
-      Instant requestedAt,
-      InvoiceIdentitySnapshot identity) {
+      Long companyId, Long subscriptionId, Instant requestedAt, InvoiceIdentitySnapshot identity) {
     if (requestedAt == null) {
       throw new BadRequestException("Renewal invoice request time is required");
     }
@@ -296,8 +292,7 @@ public class SubscriptionCheckoutService {
     }
   }
 
-  private void assertIntentMatchesPeriod(
-      SubscriptionCheckoutIntent intent, BillingPeriod period) {
+  private void assertIntentMatchesPeriod(SubscriptionCheckoutIntent intent, BillingPeriod period) {
     if (!period.getCompany().getId().equals(intent.getCompany().getId())
         || period.getPlan() == null
         || !period.getPlan().getId().equals(intent.getPlan().getId())
@@ -318,7 +313,8 @@ public class SubscriptionCheckoutService {
         planPriceRepository
             .findById(priceId)
             .orElseThrow(() -> new NotFoundException("Plan price not found"));
-    if (!price.getPlan().getId().equals(plan.getId()) || price.getStatus() != RateCardStatus.ACTIVE) {
+    if (!price.getPlan().getId().equals(plan.getId())
+        || price.getStatus() != RateCardStatus.ACTIVE) {
       throw new BadRequestException("Plan price does not belong to the selected plan");
     }
     assertEffectiveInrPrice(price, at);
@@ -327,8 +323,8 @@ public class SubscriptionCheckoutService {
 
   private PlanPrice resolveEffectivePrice(Plan plan, BillingCycle cycle, Instant at) {
     List<PlanPrice> candidates =
-        planPriceRepository
-            .findByPlanIdAndStatusOrderByEffectiveFromDesc(plan.getId(), RateCardStatus.ACTIVE);
+        planPriceRepository.findByPlanIdAndStatusOrderByEffectiveFromDesc(
+            plan.getId(), RateCardStatus.ACTIVE);
     candidates.forEach(
         price ->
             FinancialEffectiveTime.assertStoredActiveRange(

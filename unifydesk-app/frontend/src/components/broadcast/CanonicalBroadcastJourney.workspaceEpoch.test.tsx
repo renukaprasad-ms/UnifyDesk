@@ -265,7 +265,9 @@ describe('CanonicalBroadcastJourney workspace epoch remediation', () => {
         : Promise.resolve(readiness(companyId === 'company-b' ? 'B Sender' : 'A2 Sender')),
     )
     vi.mocked(broadcastApi.senders).mockImplementation((companyId) =>
-      companyId === 'company-a' && aCalls === 1 ? gate.promise.then(() => [sender]) : Promise.resolve([sender]),
+      companyId === 'company-a' && aCalls === 1
+        ? gate.promise.then(() => [sender])
+        : Promise.resolve([sender]),
     )
 
     const view = renderJourney()
@@ -352,6 +354,7 @@ describe('CanonicalBroadcastJourney workspace epoch remediation', () => {
     const view = renderJourney()
     await chooseReadyEmail()
     fireEvent.click(screen.getByRole('button', { name: 'Send Broadcast' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, send broadcast' }))
     await waitFor(() => expect(broadcastApi.createAudienceMessage).toHaveBeenCalledTimes(1))
 
     currentCompanyId = 'company-b'
@@ -380,6 +383,7 @@ describe('CanonicalBroadcastJourney workspace epoch remediation', () => {
     renderJourney()
     await chooseReadyEmail()
     fireEvent.click(screen.getByRole('button', { name: 'Send Broadcast' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, send broadcast' }))
 
     await waitFor(() => expect(broadcastApi.send).toHaveBeenCalledTimes(1))
     expect(vi.mocked(broadcastApi.send).mock.calls[0]).toEqual([
@@ -388,6 +392,21 @@ describe('CanonicalBroadcastJourney workspace epoch remediation', () => {
       sourceDescriptor,
     ])
     expect(vi.mocked(broadcastApi.send).mock.calls[0][2]).toBe(sourceDescriptor)
+  })
+
+  it('retries a failed send using the saved broadcast', async () => {
+    vi.mocked(broadcastApi.send).mockRejectedValueOnce(new Error('Send failed'))
+
+    renderJourney()
+    await chooseReadyEmail()
+    fireEvent.click(screen.getByRole('button', { name: 'Send Broadcast' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, send broadcast' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry Broadcast' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, send broadcast' }))
+
+    await waitFor(() => expect(broadcastApi.send).toHaveBeenCalledTimes(2))
+    expect(broadcastApi.createAudienceMessage).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(broadcastApi.send).mock.calls[1][1]).toBe('broadcast-1')
   })
 
   it('passes the exact preview descriptor object to canonical Schedule', async () => {
@@ -400,6 +419,7 @@ describe('CanonicalBroadcastJourney workspace epoch remediation', () => {
       target: { value: '2099-01-01T10:00' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Schedule Broadcast' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, schedule broadcast' }))
 
     await waitFor(() => expect(broadcastApi.schedule).toHaveBeenCalledTimes(1))
     expect(vi.mocked(broadcastApi.schedule).mock.calls[0][0]).toBe('company-a')
@@ -423,10 +443,9 @@ describe('CanonicalBroadcastJourney workspace epoch remediation', () => {
     renderJourney()
     await chooseReadyEmail()
     fireEvent.click(screen.getByRole('button', { name: 'Send Broadcast' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, send broadcast' }))
 
-    expect(
-      await screen.findByText(/audience changed since this preview/i),
-    ).toBeInTheDocument()
+    expect(await screen.findByText(/audience changed since this preview/i)).toBeInTheDocument()
     expect(screen.queryByLabelText('Recipient eligibility preview')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Send Broadcast' })).toBeDisabled()
     expect(broadcastApi.previewAudience).toHaveBeenCalledTimes(1)

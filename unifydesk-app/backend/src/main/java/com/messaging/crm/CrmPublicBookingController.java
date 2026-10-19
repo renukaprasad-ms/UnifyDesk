@@ -1,5 +1,7 @@
 package com.messaging.crm;
 
+import jakarta.validation.Valid;
+
 import com.messaging.common.response.ApiResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +33,7 @@ public class CrmPublicBookingController {
   @PostMapping("/{slug}/book")
   public ResponseEntity<ApiResponse<CrmBookingService.BookResult>> bookMeeting(
       @PathVariable String slug,
-      @RequestBody CrmBookingService.BookMeetingInput input) {
+      @Valid @RequestBody CrmBookingService.BookMeetingInput input) {
     return ResponseEntity.ok(
         ApiResponse.success(200, bookingService.bookPublicMeeting(slug, input), "Meeting booked successfully"));
   }

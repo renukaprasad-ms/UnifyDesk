@@ -18,20 +18,15 @@ public class RefundService {
   private final PaymentProviderGateway gateway;
 
   /**
-   * Durable orchestration boundary:
-   * local refund intent commit -> provider call -> provider result commit.
+   * Durable orchestration boundary: local refund intent commit -> provider call -> provider result
+   * commit.
    */
   public Refund refund(
-      Long companyId,
-      Long paymentId,
-      BigDecimal amount,
-      String idempotencyKey,
-      String note) {
+      Long companyId, Long paymentId, BigDecimal amount, String idempotencyKey, String note) {
     if (amount == null || amount.signum() <= 0) {
       throw new BadRequestException("Refund amount must be positive");
     }
-    String key =
-        idempotencyKey == null || idempotencyKey.isBlank() ? null : idempotencyKey.trim();
+    String key = idempotencyKey == null || idempotencyKey.isBlank() ? null : idempotencyKey.trim();
     if (key == null) throw new BadRequestException("Refund idempotency key is required");
 
     RefundStore.Prepared prepared = store.prepare(companyId, paymentId, amount, key);

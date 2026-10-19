@@ -17,7 +17,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -30,10 +29,12 @@ import org.springframework.stereotype.Service;
 public class GoogleAdsPerformanceMaxListingGroupService {
 
   private static final Set<String> DIMENSIONS =
-      Set.of("BRAND", "CONDITION", "PRODUCT_TYPE", "CATEGORY", "CUSTOM_LABEL", "CHANNEL", "ITEM_ID");
+      Set.of(
+          "BRAND", "CONDITION", "PRODUCT_TYPE", "CATEGORY", "CUSTOM_LABEL", "CHANNEL", "ITEM_ID");
   private static final Set<String> CONDITIONS = Set.of("NEW", "USED", "REFURBISHED");
   private static final Set<String> CHANNELS = Set.of("ONLINE", "LOCAL");
-  private static final Set<String> LEVELS = Set.of("LEVEL1", "LEVEL2", "LEVEL3", "LEVEL4", "LEVEL5");
+  private static final Set<String> LEVELS =
+      Set.of("LEVEL1", "LEVEL2", "LEVEL3", "LEVEL4", "LEVEL5");
   private static final Set<String> CUSTOM_INDEXES =
       Set.of("INDEX0", "INDEX1", "INDEX2", "INDEX3", "INDEX4");
 
@@ -61,9 +62,7 @@ public class GoogleAdsPerformanceMaxListingGroupService {
     JsonNode shopping = rows.getFirst().path("campaign").path("shoppingSetting");
     String merchantId = text(shopping, "merchantId");
     return new GooglePerformanceMaxRetailSettingsResponse(
-        merchantId != null,
-        merchantId,
-        text(shopping, "feedLabel"));
+        merchantId != null, merchantId, text(shopping, "feedLabel"));
   }
 
   public List<GooglePerformanceMaxListingGroupResponse> list(
@@ -171,52 +170,34 @@ public class GoogleAdsPerformanceMaxListingGroupService {
     root.put("assetGroup", assetGroupResource);
     root.put("listingSource", "SHOPPING");
     root.put("type", dimensionType == null ? "UNIT_INCLUDED" : "SUBDIVISION");
-    operations.add(
-        Map.of(
-            "assetGroupListingGroupFilterOperation",
-            Map.of("create", root)));
+    operations.add(Map.of("assetGroupListingGroupFilterOperation", Map.of("create", root)));
 
     if (dimensionType != null) {
       for (ValueSpec value : values) {
         nextId--;
         Map<String, Object> child = new LinkedHashMap<>();
-        child.put(
-            "resourceName",
-            listingResource(customerId, context.assetGroupId(), nextId));
+        child.put("resourceName", listingResource(customerId, context.assetGroupId(), nextId));
         child.put("assetGroup", assetGroupResource);
         child.put("parentListingGroupFilter", rootResource);
         child.put("listingSource", "SHOPPING");
         child.put("type", value.included() ? "UNIT_INCLUDED" : "UNIT_EXCLUDED");
         child.put("caseValue", caseValue(dimensionType, value));
-        operations.add(
-            Map.of(
-                "assetGroupListingGroupFilterOperation",
-                Map.of("create", child)));
+        operations.add(Map.of("assetGroupListingGroupFilterOperation", Map.of("create", child)));
       }
 
       nextId--;
       Map<String, Object> other = new LinkedHashMap<>();
-      other.put(
-          "resourceName",
-          listingResource(customerId, context.assetGroupId(), nextId));
+      other.put("resourceName", listingResource(customerId, context.assetGroupId(), nextId));
       other.put("assetGroup", assetGroupResource);
       other.put("parentListingGroupFilter", rootResource);
       other.put("listingSource", "SHOPPING");
-      other.put(
-          "type",
-          request.includeOtherProducts() ? "UNIT_INCLUDED" : "UNIT_EXCLUDED");
+      other.put("type", request.includeOtherProducts() ? "UNIT_INCLUDED" : "UNIT_EXCLUDED");
       other.put("caseValue", Map.of());
-      operations.add(
-          Map.of(
-              "assetGroupListingGroupFilterOperation",
-              Map.of("create", other)));
+      operations.add(Map.of("assetGroupListingGroupFilterOperation", Map.of("create", other)));
     }
 
     apiClient.mutateAll(
-        context.google().accessToken(),
-        customerId,
-        context.google().loginCustomerId(),
-        operations);
+        context.google().accessToken(), customerId, context.google().loginCustomerId(), operations);
 
     List<GooglePerformanceMaxListingGroupResponse> after =
         list(companyId, campaignId, assetGroupId, 30);
@@ -275,8 +256,7 @@ public class GoogleAdsPerformanceMaxListingGroupService {
   }
 
   private List<ValueSpec> validateValues(
-      String dimensionType,
-      List<GooglePerformanceMaxListingGroupValueRequest> requested) {
+      String dimensionType, List<GooglePerformanceMaxListingGroupValueRequest> requested) {
     if (requested == null || requested.isEmpty()) return List.of();
     if (dimensionType == null) {
       throw new BadRequestException(
@@ -296,15 +276,9 @@ public class GoogleAdsPerformanceMaxListingGroupService {
       String canonical = canonicalValue(dimensionType, raw);
       String key = dimensionType + "|" + level + "|" + customIndex + "|" + canonical;
       if (!seen.add(key)) {
-        throw new BadRequestException(
-            "Duplicate Performance Max product group value: " + raw);
+        throw new BadRequestException("Duplicate Performance Max product group value: " + raw);
       }
-      result.add(
-          new ValueSpec(
-              canonical,
-              level,
-              customIndex,
-              value.included()));
+      result.add(new ValueSpec(canonical, level, customIndex, value.included()));
     }
     return List.copyOf(result);
   }
@@ -318,8 +292,7 @@ public class GoogleAdsPerformanceMaxListingGroupService {
       case "CHANNEL" -> enumValue(value, CHANNELS, "product channel");
       case "CATEGORY" -> {
         if (!value.matches("\\d+")) {
-          throw new BadRequestException(
-              "Google product category must use its numeric taxonomy ID");
+          throw new BadRequestException("Google product category must use its numeric taxonomy ID");
         }
         yield value;
       }
@@ -332,12 +305,9 @@ public class GoogleAdsPerformanceMaxListingGroupService {
       return null;
     }
     String normalized =
-        value == null || value.isBlank()
-            ? "LEVEL1"
-            : value.trim().toUpperCase(Locale.ROOT);
+        value == null || value.isBlank() ? "LEVEL1" : value.trim().toUpperCase(Locale.ROOT);
     if (!LEVELS.contains(normalized)) {
-      throw new BadRequestException(
-          "Performance Max product level must be LEVEL1 through LEVEL5");
+      throw new BadRequestException("Performance Max product level must be LEVEL1 through LEVEL5");
     }
     return normalized;
   }
@@ -345,9 +315,7 @@ public class GoogleAdsPerformanceMaxListingGroupService {
   private String normalizeCustomIndex(String value, String dimensionType) {
     if (!"CUSTOM_LABEL".equals(dimensionType)) return null;
     String normalized =
-        value == null || value.isBlank()
-            ? "INDEX0"
-            : value.trim().toUpperCase(Locale.ROOT);
+        value == null || value.isBlank() ? "INDEX0" : value.trim().toUpperCase(Locale.ROOT);
     if (!CUSTOM_INDEXES.contains(normalized)) {
       throw new BadRequestException(
           "Performance Max custom-label index must be INDEX0 through INDEX4");
@@ -358,8 +326,7 @@ public class GoogleAdsPerformanceMaxListingGroupService {
   private Map<String, Object> caseValue(String dimensionType, ValueSpec value) {
     return switch (dimensionType) {
       case "BRAND" -> Map.of("productBrand", Map.of("value", value.value()));
-      case "CONDITION" ->
-          Map.of("productCondition", Map.of("condition", value.value()));
+      case "CONDITION" -> Map.of("productCondition", Map.of("condition", value.value()));
       case "PRODUCT_TYPE" ->
           Map.of(
               "productType",
@@ -378,12 +345,11 @@ public class GoogleAdsPerformanceMaxListingGroupService {
               Map.of(
                   "index", value.customIndex(),
                   "value", value.value()));
-      case "CHANNEL" ->
-          Map.of("productChannel", Map.of("channel", value.value()));
-      case "ITEM_ID" ->
-          Map.of("productItemId", Map.of("value", value.value()));
-      default -> throw new BadRequestException(
-          "Unsupported Performance Max product grouping: " + dimensionType);
+      case "CHANNEL" -> Map.of("productChannel", Map.of("channel", value.value()));
+      case "ITEM_ID" -> Map.of("productItemId", Map.of("value", value.value()));
+      default ->
+          throw new BadRequestException(
+              "Unsupported Performance Max product grouping: " + dimensionType);
     };
   }
 
@@ -416,8 +382,7 @@ public class GoogleAdsPerformanceMaxListingGroupService {
     node = caseValue.path("productCustomAttribute");
     value = text(node, "value");
     if (value != null) {
-      return new Dimension(
-          "CUSTOM_LABEL", value, null, text(node, "index"));
+      return new Dimension("CUSTOM_LABEL", value, null, text(node, "index"));
     }
 
     node = caseValue.path("productChannel");
@@ -432,9 +397,7 @@ public class GoogleAdsPerformanceMaxListingGroupService {
   }
 
   private int depth(
-      String resourceName,
-      Map<String, String> parentByResource,
-      Map<String, Integer> memo) {
+      String resourceName, Map<String, String> parentByResource, Map<String, Integer> memo) {
     if (resourceName == null) return 0;
     Integer cached = memo.get(resourceName);
     if (cached != null) return cached;
@@ -487,9 +450,7 @@ public class GoogleAdsPerformanceMaxListingGroupService {
 
   private String listingResource(String customerId, String assetGroupId, long id) {
     return apiClient.customerResourceName(
-        customerId,
-        "assetGroupListingGroupFilters",
-        assetGroupId + "~" + id);
+        customerId, "assetGroupListingGroupFilters", assetGroupId + "~" + id);
   }
 
   private String normalizeDimension(String value) {
@@ -550,31 +511,15 @@ public class GoogleAdsPerformanceMaxListingGroupService {
   }
 
   private record Context(
-      AdCampaign campaign,
-      GoogleAdsAccountContextService.Context google,
-      String assetGroupId) {}
+      AdCampaign campaign, GoogleAdsAccountContextService.Context google, String assetGroupId) {}
 
-  private record ValueSpec(
-      String value,
-      String level,
-      String customIndex,
-      boolean included) {}
+  private record ValueSpec(String value, String level, String customIndex, boolean included) {}
 
-  private record Dimension(
-      String type,
-      String value,
-      String level,
-      String customIndex) {
-    private static final Dimension EMPTY =
-        new Dimension(null, null, null, null);
+  private record Dimension(String type, String value, String level, String customIndex) {
+    private static final Dimension EMPTY = new Dimension(null, null, null, null);
   }
 
-  private record Metrics(
-      Long impressions,
-      Long clicks,
-      Double conversions,
-      Long costMicros) {
-    private static final Metrics EMPTY =
-        new Metrics(null, null, null, null);
+  private record Metrics(Long impressions, Long clicks, Double conversions, Long costMicros) {
+    private static final Metrics EMPTY = new Metrics(null, null, null, null);
   }
 }

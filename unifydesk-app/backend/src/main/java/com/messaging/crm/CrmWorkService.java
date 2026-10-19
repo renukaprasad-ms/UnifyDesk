@@ -11,7 +11,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -284,7 +283,8 @@ public class CrmWorkService {
     if (rawCustom != null && !rawCustom.isBlank()) {
       try {
         customFields = MAPPER.readValue(rawCustom, MAP_REF);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
     return new Account(
         id(rs, "id"),
@@ -754,7 +754,8 @@ public class CrmWorkService {
       Long accountId,
       long actor) {
     return createTask(
-        companyId, title, details, priority, dueAt, assignee, contactId, accountId, null, null, actor, "OPEN", "TODO");
+        companyId, title, details, priority, dueAt, assignee, contactId, accountId, null, null,
+        actor, "OPEN", "TODO");
   }
 
   @Transactional
@@ -770,7 +771,8 @@ public class CrmWorkService {
       long actor,
       String columnKey) {
     return createTask(
-        companyId, title, details, priority, dueAt, assignee, contactId, accountId, null, null, actor, columnKey, "TODO");
+        companyId, title, details, priority, dueAt, assignee, contactId, accountId, null, null,
+        actor, columnKey, "TODO");
   }
 
   @Transactional
@@ -787,7 +789,8 @@ public class CrmWorkService {
       String columnKey,
       String taskType) {
     return createTask(
-        companyId, title, details, priority, dueAt, assignee, contactId, accountId, null, null, actor, columnKey, taskType);
+        companyId, title, details, priority, dueAt, assignee, contactId, accountId, null, null,
+        actor, columnKey, taskType);
   }
 
   @Transactional
@@ -811,7 +814,8 @@ public class CrmWorkService {
     if (!List.of("LOW", "NORMAL", "HIGH").contains(priority)) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_PRIORITY_INVALID");
     }
-    String safeType = (taskType == null || taskType.isBlank()) ? "TODO" : taskType.trim().toUpperCase();
+    String safeType =
+        (taskType == null || taskType.isBlank()) ? "TODO" : taskType.trim().toUpperCase();
     activeMember(companyId, assignee);
     requireContact(companyId, contactId);
     requireAccount(companyId, accountId);
@@ -862,7 +866,8 @@ public class CrmWorkService {
       Long accountId,
       long actor) {
     return updateTask(
-        companyId, taskId, version, title, details, priority, dueAt, assignee, contactId, accountId, null, null, null, actor, null);
+        companyId, taskId, version, title, details, priority, dueAt, assignee, contactId, accountId,
+        null, null, null, actor, null);
   }
 
   @Transactional
@@ -880,7 +885,8 @@ public class CrmWorkService {
       long actor,
       String taskType) {
     return updateTask(
-        companyId, taskId, version, title, details, priority, dueAt, assignee, contactId, accountId, null, null, null, actor, taskType);
+        companyId, taskId, version, title, details, priority, dueAt, assignee, contactId, accountId,
+        null, null, null, actor, taskType);
   }
 
   @Transactional
@@ -908,7 +914,10 @@ public class CrmWorkService {
     if (priority == null || !List.of("LOW", "NORMAL", "HIGH").contains(priority)) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_TASK_PRIORITY_INVALID");
     }
-    String safeType = (taskType == null || taskType.isBlank()) ? previous.taskType() : taskType.trim().toUpperCase();
+    String safeType =
+        (taskType == null || taskType.isBlank())
+            ? previous.taskType()
+            : taskType.trim().toUpperCase();
     activeMember(companyId, assignee);
     requireContact(companyId, contactId);
     requireAccount(companyId, accountId);
@@ -957,7 +966,8 @@ public class CrmWorkService {
     if (!Objects.equals(previous.accountId(), result.accountId())) changed.add("Company");
     if (!Objects.equals(previous.dealId(), result.dealId())) changed.add("Deal");
     if (!Objects.equals(previous.taskType(), result.taskType())) changed.add("Type");
-    if (!Objects.equals(previous.estimatedMinutes(), result.estimatedMinutes())) changed.add("Estimate");
+    if (!Objects.equals(previous.estimatedMinutes(), result.estimatedMinutes()))
+      changed.add("Estimate");
     if (previous.loggedMinutes() != result.loggedMinutes()) changed.add("Logged time");
     if (!changed.isEmpty())
       appendTaskEvent(
@@ -991,13 +1001,7 @@ public class CrmWorkService {
             version);
     if (updated == 0) throw new ApiException(HttpStatus.CONFLICT, "CRM_TASK_VERSION_CONFLICT");
     appendTaskEvent(
-        companyId,
-        taskId,
-        "UPDATED",
-        null,
-        null,
-        "Logged " + minutesToLog + " minutes",
-        actor);
+        companyId, taskId, "UPDATED", null, null, "Logged " + minutesToLog + " minutes", actor);
     return getTask(companyId, taskId);
   }
 

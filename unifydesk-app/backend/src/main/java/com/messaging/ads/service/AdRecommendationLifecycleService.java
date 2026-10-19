@@ -5,7 +5,6 @@ import com.messaging.ads.dto.AdRecommendationsResponse;
 import com.messaging.ads.dto.UpdateAdRecommendationStateRequest;
 import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.entity.AdRecommendationState;
-import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.enums.AdRecommendationLifecycleAction;
 import com.messaging.ads.enums.AdRecommendationLifecycleStatus;
 import com.messaging.ads.enums.AdRecommendationSeverity;
@@ -44,8 +43,7 @@ public class AdRecommendationLifecycleService {
   @Transactional(readOnly = true)
   public AdRecommendationsResponse feed(Long companyId, Long accountId) {
     AdAccount account = requireAccount(companyId, accountId);
-    AdRecommendationsResponse raw =
-        recommendationService.recommendations(companyId, accountId);
+    AdRecommendationsResponse raw = recommendationService.recommendations(companyId, accountId);
     return overlay(account, raw);
   }
 
@@ -101,11 +99,9 @@ public class AdRecommendationLifecycleService {
   }
 
   @Transactional
-  public AdRecommendationsResponse reconcile(
-      Long companyId, Long accountId, Long actorUserId) {
+  public AdRecommendationsResponse reconcile(Long companyId, Long accountId, Long actorUserId) {
     AdAccount account = requireAccount(companyId, accountId);
-    AdRecommendationsResponse raw =
-        recommendationService.recommendations(companyId, accountId);
+    AdRecommendationsResponse raw = recommendationService.recommendations(companyId, accountId);
 
     Instant now = Instant.now();
     Map<String, AdRecommendationState> existing =
@@ -118,9 +114,7 @@ public class AdRecommendationLifecycleService {
                     HashMap::new));
 
     Set<String> currentKeys =
-        raw.items().stream()
-            .map(AdRecommendationsResponse.Item::key)
-            .collect(Collectors.toSet());
+        raw.items().stream().map(AdRecommendationsResponse.Item::key).collect(Collectors.toSet());
 
     List<AdRecommendationState> changed = new ArrayList<>();
 
@@ -145,8 +139,7 @@ public class AdRecommendationLifecycleService {
       boolean fingerprintChanged = !fingerprint.equals(state.getFingerprint());
       boolean snoozeExpired =
           state.getStatus() == AdRecommendationLifecycleStatus.SNOOZED
-              && (state.getSnoozedUntil() == null
-                  || !state.getSnoozedUntil().isAfter(now));
+              && (state.getSnoozedUntil() == null || !state.getSnoozedUntil().isAfter(now));
 
       if (fingerprintChanged
           || state.getStatus() == AdRecommendationLifecycleStatus.RESOLVED
@@ -197,8 +190,7 @@ public class AdRecommendationLifecycleService {
       UpdateAdRecommendationStateRequest request,
       Long actorUserId) {
     AdAccount account = requireAccount(companyId, accountId);
-    AdRecommendationsResponse raw =
-        recommendationService.recommendations(companyId, accountId);
+    AdRecommendationsResponse raw = recommendationService.recommendations(companyId, accountId);
     AdRecommendationsResponse.Item item =
         raw.items().stream()
             .filter(candidate -> candidate.key().equals(recommendationKey))
@@ -264,8 +256,7 @@ public class AdRecommendationLifecycleService {
     return feed(companyId, accountId);
   }
 
-  private void dismiss(
-      AdRecommendationsResponse.Item item, AdRecommendationState state) {
+  private void dismiss(AdRecommendationsResponse.Item item, AdRecommendationState state) {
     if (item.severity() == AdRecommendationSeverity.CRITICAL) {
       throw new BadRequestException(
           "Critical recommendations cannot be dismissed; resolve the source issue or snooze it briefly");
@@ -305,12 +296,11 @@ public class AdRecommendationLifecycleService {
     state.setSnoozedUntil(null);
   }
 
-  private AdRecommendationsResponse overlay(
-      AdAccount account, AdRecommendationsResponse raw) {
+  private AdRecommendationsResponse overlay(AdAccount account, AdRecommendationsResponse raw) {
     Instant now = Instant.now();
     Map<String, AdRecommendationState> states =
-        stateRepository.findByCompanyIdAndAdAccountId(
-                account.getCompanyId(), account.getId())
+        stateRepository
+            .findByCompanyIdAndAdAccountId(account.getCompanyId(), account.getId())
             .stream()
             .collect(
                 Collectors.toMap(
@@ -331,8 +321,7 @@ public class AdRecommendationLifecycleService {
       }
 
       if (state.getStatus() == AdRecommendationLifecycleStatus.DISMISSED) {
-        suppressed.add(
-            withLifecycle(item, AdRecommendationLifecycleStatus.DISMISSED, null));
+        suppressed.add(withLifecycle(item, AdRecommendationLifecycleStatus.DISMISSED, null));
         continue;
       }
 
@@ -340,10 +329,7 @@ public class AdRecommendationLifecycleService {
           && state.getSnoozedUntil() != null
           && state.getSnoozedUntil().isAfter(now)) {
         suppressed.add(
-            withLifecycle(
-                item,
-                AdRecommendationLifecycleStatus.SNOOZED,
-                state.getSnoozedUntil()));
+            withLifecycle(item, AdRecommendationLifecycleStatus.SNOOZED, state.getSnoozedUntil()));
         continue;
       }
 
@@ -360,17 +346,11 @@ public class AdRecommendationLifecycleService {
         count(visible, AdRecommendationSeverity.INFO),
         (int)
             suppressed.stream()
-                .filter(
-                    item ->
-                        item.lifecycleStatus()
-                            == AdRecommendationLifecycleStatus.DISMISSED)
+                .filter(item -> item.lifecycleStatus() == AdRecommendationLifecycleStatus.DISMISSED)
                 .count(),
         (int)
             suppressed.stream()
-                .filter(
-                    item ->
-                        item.lifecycleStatus()
-                            == AdRecommendationLifecycleStatus.SNOOZED)
+                .filter(item -> item.lifecycleStatus() == AdRecommendationLifecycleStatus.SNOOZED)
                 .count(),
         raw.generatedAt(),
         raw.healthLastSyncAt(),
@@ -402,9 +382,7 @@ public class AdRecommendationLifecycleService {
         true);
   }
 
-  private int count(
-      List<AdRecommendationsResponse.Item> items,
-      AdRecommendationSeverity severity) {
+  private int count(List<AdRecommendationsResponse.Item> items, AdRecommendationSeverity severity) {
     return (int) items.stream().filter(item -> item.severity() == severity).count();
   }
 

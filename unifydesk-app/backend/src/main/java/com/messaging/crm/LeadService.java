@@ -8,7 +8,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -32,11 +31,11 @@ public class LeadService {
       JdbcTemplate jdbc,
       ContactRepository contacts,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
-      CrmCustomFieldService crmCustomFields,
+          CrmCustomFieldService crmCustomFields,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
-      CrmLeadScoringService crmLeadScoringService,
+          CrmLeadScoringService crmLeadScoringService,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
-      CrmAutomationService crmAutomationService) {
+          CrmAutomationService crmAutomationService) {
     this.jdbc = jdbc;
     this.contacts = contacts;
     this.crmCustomFields = crmCustomFields;
@@ -50,11 +49,15 @@ public class LeadService {
 
   private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
       new com.fasterxml.jackson.databind.ObjectMapper();
-  private static final com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>> MAP_REF =
-      new com.fasterxml.jackson.core.type.TypeReference<>() {};
+  private static final com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>
+      MAP_REF = new com.fasterxml.jackson.core.type.TypeReference<>() {};
 
   public enum Stage {
-    NEW, CONTACTED, QUALIFIED, UNQUALIFIED, CONVERTED
+    NEW,
+    CONTACTED,
+    QUALIFIED,
+    UNQUALIFIED,
+    CONVERTED
   }
 
   public record Lead(
@@ -75,8 +78,13 @@ public class LeadService {
   public record LeadSummary(long total, long newLeads, long qualified, long converted) {}
 
   public record StageEvent(
-      String id, Stage previousStage, Stage newStage, String actorUserId, Instant occurredAt,
-      String actorName, String actorUsername) {}
+      String id,
+      Stage previousStage,
+      Stage newStage,
+      String actorUserId,
+      Instant occurredAt,
+      String actorName,
+      String actorUsername) {}
 
   @Transactional
   public Lead enroll(long companyId, long contactId, long actorUserId) {
@@ -108,7 +116,11 @@ public class LeadService {
             (company_id, contact_id, stage, custom_fields, created_by_user_id, updated_by_user_id)
           values (?, ?, 'NEW', cast(? as jsonb), ?, ?)
           """,
-          companyId, contactId, json, actorUserId, actorUserId);
+          companyId,
+          contactId,
+          json,
+          actorUserId,
+          actorUserId);
     } catch (DuplicateKeyException e) {
       throw new ApiException(HttpStatus.CONFLICT, "CRM_LEAD_ALREADY_EXISTS");
     }
@@ -116,7 +128,8 @@ public class LeadService {
     if (crmLeadScoringService != null) {
       try {
         crmLeadScoringService.calculateScore(companyId, contactId);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
     Lead created = get(companyId, contactId);
     if (crmAutomationService != null) {
@@ -127,11 +140,16 @@ public class LeadService {
             "LEAD",
             String.valueOf(contactId),
             java.util.Map.of(
-                "contactId", contactId,
-                "contactName", created.displayName() != null ? created.displayName() : "Lead",
-                "ownerUserId", created.ownerUserId() != null ? created.ownerUserId() : "",
-                "stage", "NEW"));
-      } catch (Exception ignored) {}
+                "contactId",
+                contactId,
+                "contactName",
+                created.displayName() != null ? created.displayName() : "Lead",
+                "ownerUserId",
+                created.ownerUserId() != null ? created.ownerUserId() : "",
+                "stage",
+                "NEW"));
+      } catch (Exception ignored) {
+      }
     }
     return created;
   }
@@ -161,26 +179,32 @@ public class LeadService {
         set custom_fields = cast(? as jsonb), updated_by_user_id = ?, updated_at = now()
         where company_id = ? and contact_id = ?
         """,
-        json, actorUserId, companyId, contactId);
+        json,
+        actorUserId,
+        companyId,
+        contactId);
     if (crmLeadScoringService != null) {
       try {
         crmLeadScoringService.calculateScore(companyId, contactId);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
     return get(companyId, contactId);
   }
 
   @Transactional(readOnly = true)
   public Lead get(long companyId, long contactId) {
-    List<Lead> found = jdbc.query(
-        """
+    List<Lead> found =
+        jdbc.query(
+            """
         select l.*, c.display_name, c.organization, c.owner_user_id
         from crm_leads l
         join contacts c on c.company_id = l.company_id and c.id = l.contact_id
         where l.company_id = ? and l.contact_id = ? and c.status = 'ACTIVE'
         """,
-        LeadService::mapLead,
-        companyId, contactId);
+            LeadService::mapLead,
+            companyId,
+            contactId);
     if (found.isEmpty()) throw new ApiException(HttpStatus.NOT_FOUND, "CRM_LEAD_NOT_FOUND");
     return found.getFirst();
   }
@@ -192,8 +216,9 @@ public class LeadService {
     if (beforeContactId != null && beforeContactId <= 0) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_INVALID_CURSOR");
     }
-    List<Lead> rows = jdbc.query(
-        """
+    List<Lead> rows =
+        jdbc.query(
+            """
         select l.*, c.display_name, c.organization, c.owner_user_id
         from crm_leads l
         join contacts c on c.company_id = l.company_id and c.id = l.contact_id
@@ -205,21 +230,18 @@ public class LeadService {
         order by l.score desc, l.contact_id desc
         limit ?
         """,
-        LeadService::mapLead,
-        companyId,
-        stage == null ? null : stage.name(),
-        stage == null ? null : stage.name(),
-        temperature == null || temperature.isBlank() ? null : temperature.trim().toUpperCase(),
-        temperature == null || temperature.isBlank() ? null : temperature.trim().toUpperCase(),
-        beforeContactId,
-        beforeContactId,
-        size + 1);
+            LeadService::mapLead,
+            companyId,
+            stage == null ? null : stage.name(),
+            stage == null ? null : stage.name(),
+            temperature == null || temperature.isBlank() ? null : temperature.trim().toUpperCase(),
+            temperature == null || temperature.isBlank() ? null : temperature.trim().toUpperCase(),
+            beforeContactId,
+            beforeContactId,
+            size + 1);
     boolean more = rows.size() > size;
     List<Lead> items = more ? rows.subList(0, size) : rows;
-    return new LeadPage(
-        items,
-        more && !items.isEmpty() ? items.getLast().contactId() : null,
-        more);
+    return new LeadPage(items, more && !items.isEmpty() ? items.getLast().contactId() : null, more);
   }
 
   @Transactional(readOnly = true)
@@ -228,21 +250,24 @@ public class LeadService {
   }
 
   @Transactional
-  public Lead move(long companyId, long contactId, Stage stage, long expectedVersion, long actorUserId) {
+  public Lead move(
+      long companyId, long contactId, Stage stage, long expectedVersion, long actorUserId) {
     if (stage == null || expectedVersion < 0) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "CRM_INVALID_STAGE_CHANGE");
     }
     requireActiveContact(companyId, contactId);
-    List<Lead> locked = jdbc.query(
-        """
+    List<Lead> locked =
+        jdbc.query(
+            """
         select l.*, c.display_name, c.organization, c.owner_user_id
         from crm_leads l
         join contacts c on c.company_id = l.company_id and c.id = l.contact_id
         where l.company_id = ? and l.contact_id = ? and c.status = 'ACTIVE'
         for update of l
         """,
-        LeadService::mapLead,
-        companyId, contactId);
+            LeadService::mapLead,
+            companyId,
+            contactId);
     if (locked.isEmpty()) throw new ApiException(HttpStatus.NOT_FOUND, "CRM_LEAD_NOT_FOUND");
     Lead previous = locked.getFirst();
     if (previous.version() != expectedVersion) {
@@ -255,12 +280,17 @@ public class LeadService {
         set stage = ?, version = version + 1, updated_by_user_id = ?, updated_at = now()
         where company_id = ? and contact_id = ? and version = ?
         """,
-        stage.name(), actorUserId, companyId, contactId, expectedVersion);
+        stage.name(),
+        actorUserId,
+        companyId,
+        contactId,
+        expectedVersion);
     appendEvent(companyId, contactId, previous.stage(), stage, actorUserId);
     if (crmLeadScoringService != null) {
       try {
         crmLeadScoringService.calculateScore(companyId, contactId);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
     Lead moved = get(companyId, contactId);
     if (crmAutomationService != null) {
@@ -271,12 +301,18 @@ public class LeadService {
             "LEAD",
             String.valueOf(contactId),
             java.util.Map.of(
-                "contactId", contactId,
-                "contactName", moved.displayName() != null ? moved.displayName() : "Lead",
-                "fromStage", previous.stage().name(),
-                "toStage", stage.name(),
-                "ownerUserId", moved.ownerUserId() != null ? moved.ownerUserId() : ""));
-      } catch (Exception ignored) {}
+                "contactId",
+                contactId,
+                "contactName",
+                moved.displayName() != null ? moved.displayName() : "Lead",
+                "fromStage",
+                previous.stage().name(),
+                "toStage",
+                stage.name(),
+                "ownerUserId",
+                moved.ownerUserId() != null ? moved.ownerUserId() : ""));
+      } catch (Exception ignored) {
+      }
     }
     return moved;
   }
@@ -294,15 +330,19 @@ public class LeadService {
         order by event.occurred_at desc, event.id desc
         limit 100
         """,
-        (rs, row) -> new StageEvent(
-            Long.toString(rs.getLong("id")),
-            rs.getString("previous_stage") == null ? null : Stage.valueOf(rs.getString("previous_stage")),
-            Stage.valueOf(rs.getString("new_stage")),
-            nullableId(rs, "actor_user_id"),
-            rs.getTimestamp("occurred_at").toInstant(),
-            rs.getString("actor_name"),
-            rs.getString("actor_username")),
-        companyId, contactId);
+        (rs, row) ->
+            new StageEvent(
+                Long.toString(rs.getLong("id")),
+                rs.getString("previous_stage") == null
+                    ? null
+                    : Stage.valueOf(rs.getString("previous_stage")),
+                Stage.valueOf(rs.getString("new_stage")),
+                nullableId(rs, "actor_user_id"),
+                rs.getTimestamp("occurred_at").toInstant(),
+                rs.getString("actor_name"),
+                rs.getString("actor_username")),
+        companyId,
+        contactId);
   }
 
   @Transactional(readOnly = true)
@@ -317,9 +357,10 @@ public class LeadService {
         join contacts c on c.company_id = l.company_id and c.id = l.contact_id
         where l.company_id = ? and c.status = 'ACTIVE'
         """,
-        (rs, row) -> new LeadSummary(
-            rs.getLong("total"), rs.getLong("new_leads"),
-            rs.getLong("qualified"), rs.getLong("converted")),
+        (rs, row) ->
+            new LeadSummary(
+                rs.getLong("total"), rs.getLong("new_leads"),
+                rs.getLong("qualified"), rs.getLong("converted")),
         companyId);
   }
 
@@ -330,13 +371,19 @@ public class LeadService {
           (id, company_id, contact_id, previous_stage, new_stage, actor_user_id)
         values (?, ?, ?, ?, ?, ?)
         """,
-        IdGenerator.nextId(), companyId, contactId,
-        before == null ? null : before.name(), after.name(), actor);
+        IdGenerator.nextId(),
+        companyId,
+        contactId,
+        before == null ? null : before.name(),
+        after.name(),
+        actor);
   }
 
   private void requireActiveContact(long companyId, long contactId) {
-    if (contacts.find(companyId, contactId)
-        .filter(contact -> contact.status() == ContactStatus.ACTIVE).isEmpty()) {
+    if (contacts
+        .find(companyId, contactId)
+        .filter(contact -> contact.status() == ContactStatus.ACTIVE)
+        .isEmpty()) {
       throw new ApiException(HttpStatus.NOT_FOUND, "CRM_CONTACT_NOT_FOUND");
     }
   }
@@ -347,17 +394,20 @@ public class LeadService {
     if (rawCustom != null && !rawCustom.isBlank()) {
       try {
         customFields = MAPPER.readValue(rawCustom, MAP_REF);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
     int score = 0;
     try {
       score = rs.getInt("score");
-    } catch (Exception ignored) {}
+    } catch (Exception ignored) {
+    }
     String temperature = "COLD";
     try {
       String rawTemp = rs.getString("temperature");
       if (rawTemp != null && !rawTemp.isBlank()) temperature = rawTemp.toUpperCase();
-    } catch (Exception ignored) {}
+    } catch (Exception ignored) {
+    }
 
     return new Lead(
         Long.toString(rs.getLong("contact_id")),

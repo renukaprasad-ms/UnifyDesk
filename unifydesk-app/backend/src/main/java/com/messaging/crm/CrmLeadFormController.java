@@ -12,8 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Controller for managing CRM Web-to-Lead Forms.
- * Base path: /api/v1/companies/{companyId}/crm/forms
+ * Controller for managing CRM Web-to-Lead Forms. Base path: /api/v1/companies/{companyId}/crm/forms
  */
 @RestController
 @RequestMapping("/api/v1/companies/{companyId}/crm/forms")
@@ -47,7 +46,8 @@ public class CrmLeadFormController {
   public ResponseEntity<ApiResponse<CrmLeadFormService.LeadFormDto>> getForm(
       @PathVariable long companyId, @PathVariable long formId) {
     requireRead(companyId);
-    return ResponseEntity.ok(ApiResponse.success(200, service.get(companyId, formId), "Form fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(200, service.get(companyId, formId), "Form fetched"));
   }
 
   @PostMapping
@@ -64,7 +64,8 @@ public class CrmLeadFormController {
       @PathVariable long formId,
       @Valid @RequestBody CrmLeadFormService.UpdateFormInput input) {
     long actor = requireModify(companyId);
-    return ResponseEntity.ok(ApiResponse.success(200, service.update(companyId, formId, input, actor), "Form updated"));
+    return ResponseEntity.ok(
+        ApiResponse.success(200, service.update(companyId, formId, input, actor), "Form updated"));
   }
 
   @DeleteMapping("/{formId}")
@@ -81,6 +82,8 @@ public class CrmLeadFormController {
       @PathVariable long formId,
       @RequestParam(defaultValue = "50") int limit) {
     requireRead(companyId);
-    return ResponseEntity.ok(ApiResponse.success(200, service.submissions(companyId, formId, limit), "Submissions fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, service.submissions(companyId, formId, limit), "Submissions fetched"));
   }
 }

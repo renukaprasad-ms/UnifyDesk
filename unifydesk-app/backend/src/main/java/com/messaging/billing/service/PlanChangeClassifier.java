@@ -5,7 +5,6 @@ import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanEntitlement;
 import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.enums.BillingCycle;
-import com.messaging.billing.enums.EntitlementValueType;
 import com.messaging.billing.enums.PlanChangeDirection;
 import com.messaging.billing.repository.EntitlementDefinitionRepository;
 import com.messaging.billing.repository.PlanEntitlementRepository;
@@ -55,8 +54,7 @@ public class PlanChangeClassifier {
       return PlanChangeDirection.DOWNGRADE;
     }
 
-    int priceComparison =
-        normalizedAnnual(targetPrice).compareTo(normalizedAnnual(currentPrice));
+    int priceComparison = normalizedAnnual(targetPrice).compareTo(normalizedAnnual(currentPrice));
     if (priceComparison > 0) {
       return PlanChangeDirection.UPGRADE;
     }
@@ -78,21 +76,16 @@ public class PlanChangeClassifier {
       EntitlementDefinition definition, String currentValue, String targetValue) {
     return switch (definition.getValueType()) {
       case BOOLEAN ->
-          Boolean.compare(parseBoolean(targetValue, definition), parseBoolean(currentValue, definition));
-      case INTEGER ->
-          compareNumericLike(currentValue, targetValue, definition, true);
-      case DECIMAL ->
-          compareNumericLike(currentValue, targetValue, definition, false);
-      case TEXT ->
-          Objects.equals(normalize(currentValue), normalize(targetValue)) ? 0 : null;
+          Boolean.compare(
+              parseBoolean(targetValue, definition), parseBoolean(currentValue, definition));
+      case INTEGER -> compareNumericLike(currentValue, targetValue, definition, true);
+      case DECIMAL -> compareNumericLike(currentValue, targetValue, definition, false);
+      case TEXT -> Objects.equals(normalize(currentValue), normalize(targetValue)) ? 0 : null;
     };
   }
 
   private int compareNumericLike(
-      String currentValue,
-      String targetValue,
-      EntitlementDefinition definition,
-      boolean integer) {
+      String currentValue, String targetValue, EntitlementDefinition definition, boolean integer) {
     boolean currentUnlimited = unlimited(currentValue);
     boolean targetUnlimited = unlimited(targetValue);
     if (currentUnlimited || targetUnlimited) {

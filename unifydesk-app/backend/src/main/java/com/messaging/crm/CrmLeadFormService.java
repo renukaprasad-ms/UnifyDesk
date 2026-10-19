@@ -1,5 +1,7 @@
 package com.messaging.crm;
 
+import com.messaging.common.validation.PhoneValidator;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.ApiException;
@@ -8,13 +10,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -32,11 +32,11 @@ public class CrmLeadFormService {
   public CrmLeadFormService(
       JdbcTemplate jdbc,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
-      CrmCustomFieldService crmCustomFields,
+          CrmCustomFieldService crmCustomFields,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
-      CrmAutomationService crmAutomationService,
+          CrmAutomationService crmAutomationService,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
-      CrmLeadScoringService crmLeadScoringService) {
+          CrmLeadScoringService crmLeadScoringService) {
     this.jdbc = jdbc;
     this.crmCustomFields = crmCustomFields;
     this.crmAutomationService = crmAutomationService;
@@ -93,10 +93,7 @@ public class CrmLeadFormService {
       Instant submittedAt) {}
 
   public record SubmitResult(
-      boolean success,
-      String message,
-      String redirectUrl,
-      String contactId) {}
+      boolean success, String message, String redirectUrl, String contactId) {}
 
   public record CreateFormInput(
       String title,
@@ -155,9 +152,7 @@ public class CrmLeadFormService {
     Timestamp now = Timestamp.from(Instant.now());
 
     List<FormFieldConfig> fields =
-        input.fields() != null && !input.fields().isEmpty()
-            ? input.fields()
-            : defaultFields();
+        input.fields() != null && !input.fields().isEmpty() ? input.fields() : defaultFields();
 
     String fieldsJson;
     try {
@@ -179,7 +174,9 @@ public class CrmLeadFormService {
         formKey,
         input.title().trim(),
         input.description() != null ? input.description().trim() : null,
-        input.defaultLeadStage() != null ? input.defaultLeadStage().trim().toUpperCase(Locale.ROOT) : "NEW",
+        input.defaultLeadStage() != null
+            ? input.defaultLeadStage().trim().toUpperCase(Locale.ROOT)
+            : "NEW",
         input.assigneeUserId(),
         input.successMessage() != null ? input.successMessage().trim() : null,
         normalizeRedirectUrl(input.redirectUrl()),
@@ -197,7 +194,8 @@ public class CrmLeadFormService {
     String title = input.title() != null ? input.title().trim() : existing.title();
     if (title.isBlank()) throw new ApiException(HttpStatus.BAD_REQUEST, "FORM_TITLE_INVALID");
 
-    String status = input.status() != null ? input.status().trim().toUpperCase(Locale.ROOT) : existing.status();
+    String status =
+        input.status() != null ? input.status().trim().toUpperCase(Locale.ROOT) : existing.status();
     if (!List.of("ACTIVE", "PAUSED").contains(status)) status = "ACTIVE";
 
     Timestamp now = Timestamp.from(Instant.now());
@@ -231,7 +229,9 @@ public class CrmLeadFormService {
         input.defaultLeadStage(),
         input.assigneeUserId(),
         input.successMessage(),
-        input.redirectUrl() != null ? normalizeRedirectUrl(input.redirectUrl()) : existing.redirectUrl(),
+        input.redirectUrl() != null
+            ? normalizeRedirectUrl(input.redirectUrl())
+            : existing.redirectUrl(),
         fieldsJson,
         now,
         companyId,
@@ -268,7 +268,8 @@ public class CrmLeadFormService {
           if (raw != null && !raw.isBlank()) {
             try {
               payload = MAPPER.readValue(raw, MAP_REF);
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
           }
           return new FormSubmissionDto(
               String.valueOf(rs.getLong("id")),
@@ -305,7 +306,8 @@ public class CrmLeadFormService {
               if (raw != null && !raw.isBlank()) {
                 try {
                   fields = MAPPER.readValue(raw, FIELDS_REF);
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
               }
               return new PublicFormDto(
                   rs.getString("form_key"),
@@ -340,7 +342,9 @@ public class CrmLeadFormService {
                     rs.getString("title"),
                     rs.getString("status"),
                     rs.getString("default_lead_stage"),
-                    rs.getObject("assignee_user_id") != null ? rs.getLong("assignee_user_id") : null,
+                    rs.getObject("assignee_user_id") != null
+                        ? rs.getLong("assignee_user_id")
+                        : null,
                     rs.getString("success_message"),
                     rs.getString("redirect_url"),
                     rs.getString("fields_config")),
@@ -357,7 +361,8 @@ public class CrmLeadFormService {
     if (form.fieldsConfig() != null && !form.fieldsConfig().isBlank()) {
       try {
         formFields = MAPPER.readValue(form.fieldsConfig(), FIELDS_REF);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
 
     // Validate required fields explicitly configured on this form
@@ -377,6 +382,9 @@ public class CrmLeadFormService {
     // Extract core attributes
     String email = extractString(data, "email", "primaryEmail", "mail");
     String phone = extractString(data, "phone", "phoneNumber", "mobile", "tel");
+    if (!new PhoneValidator().isValid(phone, null)) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "Enter a valid phone number with country code; India requires 10 national digits");
+    }
     String fullName = extractString(data, "name", "fullName", "displayName");
     String firstName = extractString(data, "firstName", "first_name");
     String lastName = extractString(data, "lastName", "last_name");
@@ -518,15 +526,30 @@ public class CrmLeadFormService {
 
     // Custom fields extraction: exclude standard contact and message attributes
     Map<String, Object> customMap = new HashMap<>();
-    java.util.Set<String> coreKeys = java.util.Set.of(
-        "email", "primaryemail", "mail",
-        "phone", "phonenumber", "mobile", "tel",
-        "name", "fullname", "displayname",
-        "firstname", "first_name",
-        "lastname", "last_name",
-        "company", "organization", "companyname", "org",
-        "message", "notes", "comment", "inquiry"
-    );
+    java.util.Set<String> coreKeys =
+        java.util.Set.of(
+            "email",
+            "primaryemail",
+            "mail",
+            "phone",
+            "phonenumber",
+            "mobile",
+            "tel",
+            "name",
+            "fullname",
+            "displayname",
+            "firstname",
+            "first_name",
+            "lastname",
+            "last_name",
+            "company",
+            "organization",
+            "companyname",
+            "org",
+            "message",
+            "notes",
+            "comment",
+            "inquiry");
     if (data != null) {
       for (Map.Entry<String, Object> entry : data.entrySet()) {
         String k = entry.getKey();
@@ -542,7 +565,8 @@ public class CrmLeadFormService {
 
     Map<String, Object> validatedCustom =
         (crmCustomFields != null && !customMap.isEmpty())
-            ? crmCustomFields.validateValues(companyId, CrmCustomFieldService.EntityType.LEAD, customMap, false)
+            ? crmCustomFields.validateValues(
+                companyId, CrmCustomFieldService.EntityType.LEAD, customMap, false)
             : Map.of();
 
     String customJson;
@@ -610,7 +634,9 @@ public class CrmLeadFormService {
         contactId,
         payloadJson,
         ipAddress,
-        userAgent != null && userAgent.length() > 500 ? userAgent.substring(0, 497) + "..." : userAgent,
+        userAgent != null && userAgent.length() > 500
+            ? userAgent.substring(0, 497) + "..."
+            : userAgent,
         now);
 
     // Increment submissions count
@@ -627,20 +653,30 @@ public class CrmLeadFormService {
             "FORM_SUBMISSION",
             String.valueOf(contactId),
             Map.of(
-                "formId", form.id(),
-                "formKey", formKey,
-                "formTitle", form.title(),
-                "contactId", contactId));
-      } catch (Exception ignored) {}
+                "formId",
+                form.id(),
+                "formKey",
+                formKey,
+                "formTitle",
+                form.title(),
+                "contactId",
+                contactId));
+      } catch (Exception ignored) {
+      }
     }
 
     if (crmLeadScoringService != null) {
       try {
         crmLeadScoringService.calculateScore(companyId, contactId);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
 
-    return new SubmitResult(true, form.successMessage(), normalizeRedirectUrl(form.redirectUrl()), String.valueOf(contactId));
+    return new SubmitResult(
+        true,
+        form.successMessage(),
+        normalizeRedirectUrl(form.redirectUrl()),
+        String.valueOf(contactId));
   }
 
   private LeadFormDto mapForm(ResultSet rs, int row) throws SQLException {
@@ -649,7 +685,8 @@ public class CrmLeadFormService {
     if (raw != null && !raw.isBlank()) {
       try {
         fields = MAPPER.readValue(raw, FIELDS_REF);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
     return new LeadFormDto(
         String.valueOf(rs.getLong("id")),
@@ -658,7 +695,9 @@ public class CrmLeadFormService {
         rs.getString("description"),
         rs.getString("status"),
         rs.getString("default_lead_stage"),
-        rs.getObject("assignee_user_id") != null ? String.valueOf(rs.getLong("assignee_user_id")) : null,
+        rs.getObject("assignee_user_id") != null
+            ? String.valueOf(rs.getLong("assignee_user_id"))
+            : null,
         rs.getString("assignee_name"),
         rs.getString("success_message"),
         rs.getString("redirect_url"),
@@ -671,10 +710,17 @@ public class CrmLeadFormService {
   private static List<FormFieldConfig> defaultFields() {
     return List.of(
         new FormFieldConfig("fullName", "Full Name", "text", true, "John Doe", List.of()),
-        new FormFieldConfig("email", "Business Email", "email", true, "john@company.com", List.of()),
+        new FormFieldConfig(
+            "email", "Business Email", "email", true, "john@company.com", List.of()),
         new FormFieldConfig("phone", "Phone Number", "tel", false, "+1 555 123 4567", List.of()),
         new FormFieldConfig("organization", "Company Name", "text", false, "Acme Inc.", List.of()),
-        new FormFieldConfig("message", "How can we help?", "textarea", false, "Tell us about your project...", List.of()));
+        new FormFieldConfig(
+            "message",
+            "How can we help?",
+            "textarea",
+            false,
+            "Tell us about your project...",
+            List.of()));
   }
 
   private static String extractString(Map<String, Object> data, String... keys) {
@@ -690,7 +736,9 @@ public class CrmLeadFormService {
       return null;
     }
     String trimmed = url.trim();
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/")) {
+    if (trimmed.startsWith("http://")
+        || trimmed.startsWith("https://")
+        || trimmed.startsWith("/")) {
       return trimmed;
     }
     return "https://" + trimmed;

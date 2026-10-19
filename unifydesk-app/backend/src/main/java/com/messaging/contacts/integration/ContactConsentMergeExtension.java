@@ -1,7 +1,7 @@
 package com.messaging.contacts.integration;
 
-import com.messaging.contacts.consent.ContactPreferenceProjectionPolicy;
 import com.messaging.contacts.consent.ConsentTypes.PreferenceState;
+import com.messaging.contacts.consent.ContactPreferenceProjectionPolicy;
 import com.messaging.contacts.core.service.ContactMergeExtension;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -110,8 +110,8 @@ public class ContactConsentMergeExtension implements ContactMergeExtension {
   }
 
   /**
-   * Merge the effective projections using the same event-time policy as normal preference
-   * mutation. Newer evidence wins; equal-time conflicts fail closed.
+   * Merge the effective projections using the same event-time policy as normal preference mutation.
+   * Newer evidence wins; equal-time conflicts fail closed.
    */
   private PreferenceRow restrictive(PreferenceRow left, PreferenceRow right) {
     return ContactPreferenceProjectionPolicy.shouldReplace(

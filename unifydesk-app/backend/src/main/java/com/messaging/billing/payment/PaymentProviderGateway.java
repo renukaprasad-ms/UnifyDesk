@@ -4,7 +4,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
-/** Provider-neutral money movement boundary. All remote calls must be invoked outside local DB transactions. */
+/**
+ * Provider-neutral money movement boundary. All remote calls must be invoked outside local DB
+ * transactions.
+ */
 public interface PaymentProviderGateway {
 
   Checkout createOrder(

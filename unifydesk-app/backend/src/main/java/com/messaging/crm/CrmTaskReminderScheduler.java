@@ -13,10 +13,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Bounded, cluster-safe CRM reminder scan. It only records durable in-app notification events.
- * The existing notification outbox handles materialization; no synchronous email/provider IO.
+ * Bounded, cluster-safe CRM reminder scan. It only records durable in-app notification events. The
+ * existing notification outbox handles materialization; no synchronous email/provider IO.
  *
- * Disabled by default until Flyway V110 and notification delivery are verified.
+ * <p>Disabled by default until Flyway V110 and notification delivery are verified.
  */
 @Slf4j
 @Component
@@ -32,8 +32,11 @@ public class CrmTaskReminderScheduler {
 
   private static Due mapDue(ResultSet rs, int row) throws SQLException {
     return new Due(
-        rs.getLong("id"), rs.getLong("company_id"), rs.getLong("assignee_user_id"),
-        rs.getLong("reminder_generation"), rs.getString("title"));
+        rs.getLong("id"),
+        rs.getLong("company_id"),
+        rs.getLong("assignee_user_id"),
+        rs.getLong("reminder_generation"),
+        rs.getString("title"));
   }
 
   @Scheduled(
@@ -41,8 +44,9 @@ public class CrmTaskReminderScheduler {
       initialDelayString = "${app.crm.task-reminders.initial-delay-ms:30000}")
   @Transactional
   public void scan() {
-    List<Due> due = jdbc.query(
-        """
+    List<Due> due =
+        jdbc.query(
+            """
         select t.id, t.company_id, t.assignee_user_id, t.reminder_generation, t.title
         from crm_tasks t
         join company_members m on m.company_id = t.company_id
@@ -58,7 +62,8 @@ public class CrmTaskReminderScheduler {
         limit ?
         for update of t skip locked
         """,
-        CrmTaskReminderScheduler::mapDue, MAX_BATCH);
+            CrmTaskReminderScheduler::mapDue,
+            MAX_BATCH);
 
     for (Due task : due) {
       events.recordCrmTaskDue(
@@ -69,7 +74,9 @@ public class CrmTaskReminderScheduler {
           update crm_tasks set reminded_generation = reminder_generation
           where company_id = ? and id = ? and reminder_generation = ?
           """,
-          task.companyId(), task.id(), task.generation());
+          task.companyId(),
+          task.id(),
+          task.generation());
     }
     if (!due.isEmpty()) {
       log.debug("CRM reminder events recorded: {}", due.size());

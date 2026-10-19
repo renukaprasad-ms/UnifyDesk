@@ -102,7 +102,8 @@ public class SubscriptionLifecycleService {
       throw new ConflictException("Only active or trial subscriptions can be scheduled to cancel");
     }
     if (subscription.getCurrentPeriodEnd() == null) {
-      throw new BadRequestException("Subscription has no period boundary for scheduled cancellation");
+      throw new BadRequestException(
+          "Subscription has no period boundary for scheduled cancellation");
     }
     if (subscription.isCancelAtPeriodEnd()) {
       return subscription;
@@ -237,8 +238,8 @@ public class SubscriptionLifecycleService {
    * B1-owned zero-due commercial boundary.
    *
    * <p>This path applies a scheduled downgrade whose canonical target requires no provider
-   * collection. It deliberately consumes a finalized zero-value invoice without marking it PAID
-   * and without creating a Payment.
+   * collection. It deliberately consumes a finalized zero-value invoice without marking it PAID and
+   * without creating a Payment.
    */
   @Transactional
   public CompanySubscription applyZeroDueBoundaryTransition(
@@ -322,9 +323,10 @@ public class SubscriptionLifecycleService {
         || targetPrice.getStatus() != com.messaging.billing.enums.RateCardStatus.ACTIVE
         || !targetPrice.getPlan().getId().equals(targetPlan.getId())
         || !FinancialEffectiveTime.includes(
-            targetPrice.getEffectiveFrom(), targetPrice.getEffectiveTo(), nextPeriod.getStartAt())) {
-      throw new ConflictException(
-          "Boundary target PlanPrice is invalid at the canonical boundary");
+            targetPrice.getEffectiveFrom(),
+            targetPrice.getEffectiveTo(),
+            nextPeriod.getStartAt())) {
+      throw new ConflictException("Boundary target PlanPrice is invalid at the canonical boundary");
     }
 
     boolean targetRequiresNoPayment =

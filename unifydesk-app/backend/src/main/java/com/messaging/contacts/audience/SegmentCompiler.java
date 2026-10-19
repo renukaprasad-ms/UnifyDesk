@@ -5,11 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.contacts.audience.SegmentFieldMetadataRepository.CustomFieldType;
 import com.messaging.contacts.audience.SegmentFilter.*;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.Instant;
-import java.time.LocalDate;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,8 +35,7 @@ public class SegmentCompiler {
     if (state.predicateCount == 0) {
       throw invalid();
     }
-    String where =
-        "c.company_id = :companyId AND c.status = 'ACTIVE' AND (" + expression + ")";
+    String where = "c.company_id = :companyId AND c.status = 'ACTIVE' AND (" + expression + ")";
     state.params.put("companyId", companyId);
     return new CompiledSegment(
         where, Map.copyOf(state.params), state.cost, hash(filter), state.predicateCount);
@@ -84,7 +80,9 @@ public class SegmentCompiler {
   }
 
   private String compilePredicate(PredicateNode predicate, CompileState state) {
-    if (predicate.field() == null || predicate.field().kind() == null || predicate.operator() == null) {
+    if (predicate.field() == null
+        || predicate.field().kind() == null
+        || predicate.operator() == null) {
       throw invalid();
     }
     return switch (predicate.field().kind()) {
@@ -228,8 +226,7 @@ public class SegmentCompiler {
       return sql + " IS NULL";
     }
     if (operator == SegmentOperator.EQ || operator == SegmentOperator.NE) {
-      String expression =
-          sql + " @> ARRAY[" + param(state, requireText(value)) + "]::text[]";
+      String expression = sql + " @> ARRAY[" + param(state, requireText(value)) + "]::text[]";
       return operator == SegmentOperator.EQ ? expression : "NOT (" + expression + ")";
     }
     if (operator == SegmentOperator.IN || operator == SegmentOperator.NOT_IN) {
@@ -244,8 +241,7 @@ public class SegmentCompiler {
       for (String item : texts.value()) {
         placeholders.add(param(state, item));
       }
-      String expression =
-          sql + " && ARRAY[" + String.join(", ", placeholders) + "]::text[]";
+      String expression = sql + " && ARRAY[" + String.join(", ", placeholders) + "]::text[]";
       return operator == SegmentOperator.IN ? expression : "NOT (" + expression + ")";
     }
     throw invalid();
@@ -328,7 +324,11 @@ public class SegmentCompiler {
         String text = requireText(value);
         if (text.length() < 2) throw invalid();
         state.raise(CostClass.HIGH);
-        yield "lower(" + sql + ") like " + param(state, "%" + escapeLike(text.toLowerCase(Locale.ROOT)) + "%") + " escape '\\'";
+        yield "lower("
+            + sql
+            + ") like "
+            + param(state, "%" + escapeLike(text.toLowerCase(Locale.ROOT)) + "%")
+            + " escape '\\'";
       }
       case IN, NOT_IN -> compileIn(sql, kind, operator, value, state);
       default -> throw invalid();
@@ -336,7 +336,11 @@ public class SegmentCompiler {
   }
 
   private String compileIn(
-      String sql, ValueKind kind, SegmentOperator operator, SegmentValue value, CompileState state) {
+      String sql,
+      ValueKind kind,
+      SegmentOperator operator,
+      SegmentValue value,
+      CompileState state) {
     List<?> values = list(kind, value);
     if (values.isEmpty() || values.size() > properties.getSegmentMaxListValues()) throw invalid();
     List<String> placeholders = new ArrayList<>(values.size());
@@ -429,7 +433,8 @@ public class SegmentCompiler {
       case DATETIME -> new CustomSql("ccfv.datetime_value", ValueKind.DATETIME);
       case MULTI_SELECT ->
           throw new BadRequestException(
-              "CONTACT_SEGMENT_INVALID"); // Round-1 list-array operators are intentionally deferred.
+              "CONTACT_SEGMENT_INVALID"); // Round-1 list-array operators are intentionally
+        // deferred.
     };
   }
 

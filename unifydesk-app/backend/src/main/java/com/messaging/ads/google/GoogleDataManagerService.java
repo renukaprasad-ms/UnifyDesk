@@ -14,10 +14,8 @@ import com.messaging.ads.repository.AdConversionRepository;
 import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -41,10 +39,7 @@ public class GoogleDataManagerService {
   private final AdActivityLogService activityLogService;
 
   public GoogleDataManagerUploadResponse uploadAudienceMembers(
-      Long companyId,
-      Long audienceId,
-      GoogleCustomerMatchUploadRequest request,
-      Long actorUserId) {
+      Long companyId, Long audienceId, GoogleCustomerMatchUploadRequest request, Long actorUserId) {
     AdAudience audience =
         audienceRepository
             .findByIdAndCompanyId(audienceId, companyId)
@@ -64,8 +59,7 @@ public class GoogleDataManagerService {
       throw new BadRequestException("Customer Match upload requires at least one member");
     }
 
-    List<Map<String, Object>> prepared =
-        members.stream().map(this::audienceMember).toList();
+    List<Map<String, Object>> prepared = members.stream().map(this::audienceMember).toList();
 
     List<String> requestIds = new ArrayList<>();
     List<String> warnings = new ArrayList<>();
@@ -73,22 +67,11 @@ public class GoogleDataManagerService {
     for (int from = 0; from < prepared.size(); from += MAX_AUDIENCE_MEMBERS_PER_REQUEST) {
       int to = Math.min(prepared.size(), from + MAX_AUDIENCE_MEMBERS_PER_REQUEST);
       Map<String, Object> body = new LinkedHashMap<>();
-      body.put(
-          "destinations",
-          List.of(
-              destination(
-                  context,
-                  audience.getExternalAudienceId())));
+      body.put("destinations", List.of(destination(context, audience.getExternalAudienceId())));
       body.put("audienceMembers", prepared.subList(from, to));
       body.put("encoding", "HEX");
-      body.put(
-          "consent",
-          consent(
-              request.adUserDataConsent(),
-              request.adPersonalizationConsent()));
-      body.put(
-          "termsOfService",
-          Map.of("customerMatchTermsOfServiceStatus", "ACCEPTED"));
+      body.put("consent", consent(request.adUserDataConsent(), request.adPersonalizationConsent()));
+      body.put("termsOfService", Map.of("customerMatchTermsOfServiceStatus", "ACCEPTED"));
       body.put("validateOnly", request.validateOnly());
 
       JsonNode response = apiClient.ingestAudienceMembers(context.accessToken(), body);
@@ -117,10 +100,7 @@ public class GoogleDataManagerService {
             "adPersonalizationConsent", request.adPersonalizationConsent()));
 
     return new GoogleDataManagerUploadResponse(
-        List.copyOf(requestIds),
-        members.size(),
-        request.validateOnly(),
-        List.copyOf(warnings));
+        List.copyOf(requestIds), members.size(), request.validateOnly(), List.copyOf(warnings));
   }
 
   public GoogleDataManagerUploadResponse uploadConversionEvents(
@@ -150,18 +130,9 @@ public class GoogleDataManagerService {
     for (int from = 0; from < prepared.size(); from += MAX_EVENTS_PER_REQUEST) {
       int to = Math.min(prepared.size(), from + MAX_EVENTS_PER_REQUEST);
       Map<String, Object> body = new LinkedHashMap<>();
-      body.put(
-          "destinations",
-          List.of(
-              destination(
-                  context,
-                  conversion.getExternalConversionId())));
+      body.put("destinations", List.of(destination(context, conversion.getExternalConversionId())));
       body.put("events", prepared.subList(from, to));
-      body.put(
-          "consent",
-          consent(
-              request.adUserDataConsent(),
-              request.adPersonalizationConsent()));
+      body.put("consent", consent(request.adUserDataConsent(), request.adPersonalizationConsent()));
       body.put("encoding", "HEX");
       body.put("validateOnly", request.validateOnly());
 
@@ -191,10 +162,7 @@ public class GoogleDataManagerService {
             "adPersonalizationConsent", request.adPersonalizationConsent()));
 
     return new GoogleDataManagerUploadResponse(
-        List.copyOf(requestIds),
-        events.size(),
-        request.validateOnly(),
-        List.copyOf(warnings));
+        List.copyOf(requestIds), events.size(), request.validateOnly(), List.copyOf(warnings));
   }
 
   private Map<String, Object> audienceMember(GoogleCustomerMatchMember member) {
@@ -202,8 +170,7 @@ public class GoogleDataManagerService {
       throw new BadRequestException("Customer Match member cannot be null");
     }
 
-    boolean hasContact =
-        hasValues(member.emails()) || hasValues(member.phoneNumbers());
+    boolean hasContact = hasValues(member.emails()) || hasValues(member.phoneNumbers());
     boolean hasMobile = hasValues(member.mobileIds());
     boolean hasUserId = member.userId() != null && !member.userId().isBlank();
 
@@ -220,28 +187,20 @@ public class GoogleDataManagerService {
             .filter(this::hasText)
             .limit(10)
             .forEach(
-                email ->
-                    identifiers.add(
-                        Map.of("emailAddress", sha256(normalizeEmail(email)))));
+                email -> identifiers.add(Map.of("emailAddress", sha256(normalizeEmail(email)))));
       }
       if (member.phoneNumbers() != null) {
         member.phoneNumbers().stream()
             .filter(this::hasText)
             .limit(Math.max(0, 10 - identifiers.size()))
             .forEach(
-                phone ->
-                    identifiers.add(
-                        Map.of("phoneNumber", sha256(normalizePhone(phone)))));
+                phone -> identifiers.add(Map.of("phoneNumber", sha256(normalizePhone(phone)))));
       }
       if (identifiers.isEmpty()) {
         throw new BadRequestException(
             "Customer Match contact member requires an email or phone number");
       }
-      return Map.of(
-          "compositeData",
-          Map.of(
-              "userData",
-              Map.of("userIdentifiers", identifiers)));
+      return Map.of("compositeData", Map.of("userData", Map.of("userIdentifiers", identifiers)));
     }
 
     if (hasMobile) {
@@ -296,19 +255,13 @@ public class GoogleDataManagerService {
       event.emails().stream()
           .filter(this::hasText)
           .limit(10)
-          .forEach(
-              email ->
-                  identifiers.add(
-                      Map.of("emailAddress", sha256(normalizeEmail(email)))));
+          .forEach(email -> identifiers.add(Map.of("emailAddress", sha256(normalizeEmail(email)))));
     }
     if (event.phoneNumbers() != null) {
       event.phoneNumbers().stream()
           .filter(this::hasText)
           .limit(Math.max(0, 10 - identifiers.size()))
-          .forEach(
-              phone ->
-                  identifiers.add(
-                      Map.of("phoneNumber", sha256(normalizePhone(phone)))));
+          .forEach(phone -> identifiers.add(Map.of("phoneNumber", sha256(normalizePhone(phone)))));
     }
     if (!identifiers.isEmpty()) {
       result.put("userData", Map.of("userIdentifiers", identifiers));
@@ -326,21 +279,24 @@ public class GoogleDataManagerService {
   }
 
   private Map<String, Object> destination(
-      GoogleAdsAccountContextService.Context context,
-      String productDestinationId) {
+      GoogleAdsAccountContextService.Context context, String productDestinationId) {
     Map<String, Object> destination = new LinkedHashMap<>();
     destination.put(
         "operatingAccount",
         Map.of(
-            "accountId", context.account().getExternalAccountId().replace("-", ""),
-            "accountType", "GOOGLE_ADS"));
+            "accountId",
+            context.account().getExternalAccountId().replace("-", ""),
+            "accountType",
+            "GOOGLE_ADS"));
 
     if (context.loginCustomerId() != null && !context.loginCustomerId().isBlank()) {
       destination.put(
           "loginAccount",
           Map.of(
-              "accountId", context.loginCustomerId().replace("-", ""),
-              "accountType", "GOOGLE_ADS"));
+              "accountId",
+              context.loginCustomerId().replace("-", ""),
+              "accountType",
+              "GOOGLE_ADS"));
     }
     destination.put("productDestinationId", productDestinationId);
     return destination;
@@ -349,8 +305,7 @@ public class GoogleDataManagerService {
   private Map<String, Object> consent(boolean adUserData, boolean adPersonalization) {
     return Map.of(
         "adUserData", adUserData ? "CONSENT_GRANTED" : "CONSENT_DENIED",
-        "adPersonalization",
-            adPersonalization ? "CONSENT_GRANTED" : "CONSENT_DENIED");
+        "adPersonalization", adPersonalization ? "CONSENT_GRANTED" : "CONSENT_DENIED");
   }
 
   private void collectWarnings(JsonNode response, List<String> warnings) {

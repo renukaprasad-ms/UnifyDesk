@@ -29,7 +29,6 @@ import jakarta.mail.search.ComparisonTerm;
 import jakarta.mail.search.ReceivedDateTerm;
 import jakarta.mail.search.SearchTerm;
 import jakarta.mail.search.SentDateTerm;
-import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -174,7 +173,8 @@ public class ImapSmtpMailClient {
     } catch (ServiceUnavailableException exception) {
       throw exception;
     } catch (Exception exception) {
-      throw new ServiceUnavailableException("Unable to read messages from the IMAP server", exception);
+      throw new ServiceUnavailableException(
+          "Unable to read messages from the IMAP server", exception);
     } finally {
       closeQuietly(store);
     }
@@ -233,7 +233,8 @@ public class ImapSmtpMailClient {
     } catch (BadRequestException exception) {
       throw exception;
     } catch (Exception exception) {
-      throw new ServiceUnavailableException("Unable to incrementally sync the IMAP mailbox", exception);
+      throw new ServiceUnavailableException(
+          "Unable to incrementally sync the IMAP mailbox", exception);
     } finally {
       closeQuietly(store);
     }
@@ -278,8 +279,7 @@ public class ImapSmtpMailClient {
                 ? List.of()
                 : java.util.Arrays.stream(messages).filter(java.util.Objects::nonNull).toList();
         if (!existing.isEmpty()) {
-          folder.setFlags(
-              existing.toArray(Message[]::new), new Flags(Flags.Flag.SEEN), read);
+          folder.setFlags(existing.toArray(Message[]::new), new Flags(Flags.Flag.SEEN), read);
         }
       } finally {
         folder.close(false);
@@ -338,8 +338,7 @@ public class ImapSmtpMailClient {
       setRecipients(message, Message.RecipientType.CC, cc);
       setRecipients(message, Message.RecipientType.BCC, bcc);
       message.setSubject(
-          request.subject() == null ? "" : request.subject().trim(),
-          StandardCharsets.UTF_8.name());
+          request.subject() == null ? "" : request.subject().trim(), StandardCharsets.UTF_8.name());
       if (attachments == null || attachments.isEmpty()) {
         message.setText(request.bodyText(), StandardCharsets.UTF_8.name());
       } else {
@@ -397,7 +396,8 @@ public class ImapSmtpMailClient {
     } catch (BadRequestException exception) {
       throw exception;
     } catch (Exception exception) {
-      throw new ServiceUnavailableException("Unable to send email through the SMTP server", exception);
+      throw new ServiceUnavailableException(
+          "Unable to send email through the SMTP server", exception);
     }
   }
 
@@ -520,8 +520,8 @@ public class ImapSmtpMailClient {
     return folder.getMessages(start, messageCount);
   }
 
-  private List<MailboxMessage> snapshots(
-      Folder folder, Message[] messages, EmailFolder emailFolder) throws Exception {
+  private List<MailboxMessage> snapshots(Folder folder, Message[] messages, EmailFolder emailFolder)
+      throws Exception {
     if (!(folder instanceof UIDFolder uidFolder)) {
       throw new BadRequestException("IMAP server does not support UID-based synchronization");
     }

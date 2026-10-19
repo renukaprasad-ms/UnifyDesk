@@ -1,7 +1,5 @@
 package com.messaging.channel.zoho;
 
-import com.messaging.channel.enums.ChannelConnectionStatus;
-import com.messaging.channel.enums.ProviderType;
 import jakarta.annotation.PreDestroy;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -16,9 +14,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Durable webhook wakeups. A successful HTTP callback only sets pending_at;
- * worker claims are DB-backed and safe across app replicas/restarts. Events
- * arriving during a claimed poll remain pending for a second pass.
+ * Durable webhook wakeups. A successful HTTP callback only sets pending_at; worker claims are
+ * DB-backed and safe across app replicas/restarts. Events arriving during a claimed poll remain
+ * pending for a second pass.
  */
 @Slf4j
 @Component
@@ -37,8 +35,9 @@ public class ZohoMailWebhookSyncWorker {
     int available = Math.max(0, properties.getWorkerConcurrency() - inFlight.get());
     if (available == 0) return;
 
-    List<Claim> claims = jdbc.query(
-        """
+    List<Claim> claims =
+        jdbc.query(
+            """
         with due as (
           select registration.connection_id
           from zoho_mail_webhook_registrations registration
@@ -59,30 +58,34 @@ public class ZohoMailWebhookSyncWorker {
         returning registration.connection_id, registration.last_received_at,
                   registration.lease_until, registration.attempts
         """,
-        (rs, row) -> new Claim(
-            rs.getLong("connection_id"),
-            rs.getTimestamp("last_received_at").toInstant(),
-            rs.getTimestamp("lease_until").toInstant(),
-            rs.getInt("attempts")),
-        available);
+            (rs, row) ->
+                new Claim(
+                    rs.getLong("connection_id"),
+                    rs.getTimestamp("last_received_at").toInstant(),
+                    rs.getTimestamp("lease_until").toInstant(),
+                    rs.getInt("attempts")),
+            available);
 
     for (Claim claim : claims) {
       inFlight.incrementAndGet();
-      executor.submit(() -> {
-        try {
-          if (pollingScheduler.pollWebhookConnection(claim.connectionId())) {
-            finish(claim);
-          } else {
-            retry(claim);
-          }
-        } catch (RuntimeException exception) {
-          log.warn("zoho_webhook_sync_failed connectionId={} reason={}",
-              claim.connectionId(), exception.getClass().getSimpleName());
-          retry(claim);
-        } finally {
-          inFlight.decrementAndGet();
-        }
-      });
+      executor.submit(
+          () -> {
+            try {
+              if (pollingScheduler.pollWebhookConnection(claim.connectionId())) {
+                finish(claim);
+              } else {
+                retry(claim);
+              }
+            } catch (RuntimeException exception) {
+              log.warn(
+                  "zoho_webhook_sync_failed connectionId={} reason={}",
+                  claim.connectionId(),
+                  exception.getClass().getSimpleName());
+              retry(claim);
+            } finally {
+              inFlight.decrementAndGet();
+            }
+          });
     }
   }
 

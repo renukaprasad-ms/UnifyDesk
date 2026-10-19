@@ -23,8 +23,7 @@ public class AudienceSourceResolver {
     return describeForBroadcast(companyId, type, sourceId).source();
   }
 
-  public BroadcastSourceState describeForBroadcast(
-      long companyId, SourceType type, long sourceId) {
+  public BroadcastSourceState describeForBroadcast(long companyId, SourceType type, long sourceId) {
     return switch (type) {
       case LIST ->
           jdbcTemplate
@@ -36,10 +35,7 @@ public class AudienceSourceResolver {
                   (rs, rowNum) ->
                       new BroadcastSourceState(
                           new SourceDescriptor(
-                              type,
-                              rs.getLong("id"),
-                              Long.toString(rs.getLong("version")),
-                              null),
+                              type, rs.getLong("id"), Long.toString(rs.getLong("version")), null),
                           null,
                           null),
                   companyId,
@@ -66,8 +62,7 @@ public class AudienceSourceResolver {
                   (rs, rowNum) -> {
                     String selectionHash = rs.getString("selection_hash");
                     return new BroadcastSourceState(
-                        new SourceDescriptor(
-                            type, rs.getLong("id"), selectionHash, selectionHash),
+                        new SourceDescriptor(type, rs.getLong("id"), selectionHash, selectionHash),
                         null,
                         selectionHash);
                   },
@@ -121,8 +116,7 @@ public class AudienceSourceResolver {
     };
   }
 
-  public List<Long> page(
-      long companyId, SourceDescriptor source, long afterContactId, int limit) {
+  public List<Long> page(long companyId, SourceDescriptor source, long afterContactId, int limit) {
     int bounded = Math.max(1, Math.min(limit, 2000));
     return switch (source.type()) {
       case LIST -> {
@@ -175,13 +169,11 @@ public class AudienceSourceResolver {
    * Captures immutable candidate IDs in one database operation while holding a source-row lock.
    * Eligibility is intentionally deferred to bounded snapshot batches.
    */
-  public long captureCandidates(
-      long companyId, SourceDescriptor source, long snapshotId) {
+  public long captureCandidates(long companyId, SourceDescriptor source, long snapshotId) {
     return captureCandidates(companyId, source, null, snapshotId);
   }
 
-  public long captureCandidates(
-      long companyId, BroadcastSourceState sourceState, long snapshotId) {
+  public long captureCandidates(long companyId, BroadcastSourceState sourceState, long snapshotId) {
     return captureCandidates(
         companyId, sourceState.source(), sourceState.filterVersion(), snapshotId);
   }
@@ -222,7 +214,8 @@ public class AudienceSourceResolver {
               (snapshot_id, company_id, contact_id, created_at)
             select :snapshotId, c.company_id, c.id, now()
             from contacts c
-            where """
+            where
+            """
                 + compiled.whereSql()
                 + " on conflict do nothing",
             params);
@@ -349,8 +342,7 @@ public class AudienceSourceResolver {
     if (!Long.toString(version).equals(source.sourceVersion())) changed();
   }
 
-  private void requireFrozenSegment(
-      SourceDescriptor source, SegmentRepository.SegmentRow segment) {
+  private void requireFrozenSegment(SourceDescriptor source, SegmentRepository.SegmentRow segment) {
     if (!segment.filterHash().equals(source.filterHash())
         || !Long.toString(segment.version()).equals(source.sourceVersion())) {
       changed();

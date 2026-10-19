@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import type { ContactIdentity, IdentityType } from '../../features/contacts/types'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import PhoneInput from '../ui/PhoneInput'
 
 type Props = {
   identities: ContactIdentity[]
@@ -104,15 +105,17 @@ export default function IdentityManager({
           <label className="sr-only" htmlFor="identity-value">
             Identity value
           </label>
-          <input
-            id="identity-value"
-            className="form-input"
-            value={value}
-            placeholder={
-              type === 'EMAIL' ? 'name@example.com' : type === 'PHONE' ? '+91…' : 'External ID'
-            }
-            onChange={(event) => setValue(event.target.value)}
-          />
+          {type === 'PHONE' ? (
+            <PhoneInput id="identity-value" value={value} onChange={setValue} required />
+          ) : (
+            <input
+              id="identity-value"
+              className="form-input"
+              value={value}
+              placeholder={type === 'EMAIL' ? 'name@example.com' : 'External ID'}
+              onChange={(event) => setValue(event.target.value)}
+            />
+          )}
           {type === 'EXTERNAL' && (
             <>
               <label className="sr-only" htmlFor="identity-namespace">
@@ -138,7 +141,11 @@ export default function IdentityManager({
       <ConfirmDialog
         open={Boolean(identityToRemove)}
         title="Remove this identity?"
-        description={identityToRemove ? `Remove ${identityToRemove.value} from this contact? The contact record itself will remain.` : ''}
+        description={
+          identityToRemove
+            ? `Remove ${identityToRemove.value} from this contact? The contact record itself will remain.`
+            : ''
+        }
         confirmLabel="Yes, remove identity"
         cancelLabel="No, keep identity"
         tone="warning"

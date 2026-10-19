@@ -1,0 +1,36 @@
+[
+  {
+    "code": "A",
+    "name": "Ahal",
+    "cities": ["Änew", "Arçabil", "Bäherden", "Kaka", "Sarahs", "Tejen"]
+  },
+  { "code": "S", "name": "Ashgabat", "cities": ["Abadan", "Ashgabat"] },
+  {
+    "code": "B",
+    "name": "Balkan",
+    "cities": [
+      "Balkanabat",
+      "Bereket",
+      "Gumdag",
+      "Gyzylarbat",
+      "Jebel",
+      "Magtymguly",
+      "Türkmenbaşy"
+    ]
+  },
+  {
+    "code": "D",
+    "name": "Daşoguz",
+    "cities": ["Akdepe", "Andalyp", "Boldumsaz", "Daşoguz", "Görogly", "Gubadag", "Köneürgenç"]
+  },
+  {
+    "code": "L",
+    "name": "Lebap",
+    "cities": ["Farap", "Gazojak", "Halaç", "Kerki", "Magdanly", "Saýat", "Seydi", "Türkmenabat"]
+  },
+  {
+    "code": "M",
+    "name": "Mary",
+    "cities": ["Bayramaly", "Çaşgyn", "Mary", "Sakarçäge", "Serhetabat", "Türkmengala", "Yolöten"]
+  }
+]

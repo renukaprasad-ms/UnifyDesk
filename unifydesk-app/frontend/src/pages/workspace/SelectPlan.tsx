@@ -1,3 +1,6 @@
+import StateSelect from '../../components/ui/StateSelect'
+import CountrySelect from '../../components/ui/CountrySelect'
+import PhoneInput from '../../components/ui/PhoneInput'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiCheckCircle, FiCreditCard, FiX } from 'react-icons/fi'
 import { Navigate, useNavigate, useParams } from 'react-router'
@@ -653,15 +656,14 @@ export default function SelectPlan() {
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-slate-300">Billing Phone</label>
-                      <input
+                      <PhoneInput
                         required
-                        type="tel"
                         className="form-input mt-1 w-full bg-slate-950 border-slate-800 text-white text-xs py-2 rounded-xl font-mono"
                         placeholder="9876543210"
                         value={billingPhone}
-                        onChange={(event) => {
-                          setBillingPhone(event.target.value)
-                          setBillingProfile({ ...billingProfile, billingPhone: event.target.value })
+                        onChange={(value) => {
+                          setBillingPhone(value)
+                          setBillingProfile({ ...billingProfile, billingPhone: value })
                         }}
                       />
                     </div>
@@ -681,29 +683,34 @@ export default function SelectPlan() {
                     />
                   </div>
 
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Country</label>
+                    <CountrySelect value={billingProfile.country ?? ''} valueType="name" required
+                      onChange={country => setBillingProfile({ ...billingProfile, country, state: '', city: '' })} />
+                  </div>
                   <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     <div>
-                      <label className="text-xs font-semibold text-slate-300">City</label>
-                      <CitySelect
-                        country={billingProfile.country || 'India'}
-                        value={billingProfile.city || ''}
-                        onChange={(city) => setBillingProfile({ ...billingProfile, city })}
-                        placeholder="Bengaluru"
-                        className="mt-1 w-full !bg-slate-950 !border-slate-800 !text-white text-xs py-2 rounded-xl"
+                      <label className="text-xs font-semibold text-slate-300">State</label>
+                      <StateSelect country={billingProfile.country}
                         required
+                        className="form-input mt-1 w-full bg-slate-950 border-slate-800 text-white text-xs py-2 rounded-xl"
+                        placeholder="Select state"
+                        value={billingProfile.state || ''}
+                        onChange={(state) =>
+                          setBillingProfile({ ...billingProfile, state, city: '' })
+                        }
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-slate-300">State</label>
-                      <input
+                      <label className="text-xs font-semibold text-slate-300">City</label>
+                      <CitySelect
+                        state={billingProfile.state}
+                        country={billingProfile.country || 'India'}
+                        value={billingProfile.city || ''}
+                        onChange={(city) => setBillingProfile({ ...billingProfile, city })}
+                        placeholder="Select city"
+                        className="mt-1 w-full !bg-slate-950 !border-slate-800 !text-white text-xs py-2 rounded-xl"
                         required
-                        type="text"
-                        className="form-input mt-1 w-full bg-slate-950 border-slate-800 text-white text-xs py-2 rounded-xl"
-                        placeholder="Karnataka"
-                        value={billingProfile.state || ''}
-                        onChange={(event) =>
-                          setBillingProfile({ ...billingProfile, state: event.target.value })
-                        }
                       />
                     </div>
                     <div>

@@ -14,8 +14,9 @@ describe('ContactFormDialog', () => {
         onSubmit={onSubmit}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
-    expect(screen.getByText('Display name is required.')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Primary phone'), { target: { value: '987654321' } })
+    fireEvent.submit(screen.getByRole('dialog'))
+    expect(screen.getByText('Enter exactly 10 digits for an Indian phone number.')).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
   })
 

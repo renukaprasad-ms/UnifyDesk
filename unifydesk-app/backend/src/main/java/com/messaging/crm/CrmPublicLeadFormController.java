@@ -8,9 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Public REST Controller for Web-to-Lead Forms.
- * Base path: /api/v1/public/crm/forms
- * No authentication required.
+ * Public REST Controller for Web-to-Lead Forms. Base path: /api/v1/public/crm/forms No
+ * authentication required.
  */
 @RestController
 @RequestMapping("/api/v1/public/crm/forms")
@@ -22,7 +21,8 @@ public class CrmPublicLeadFormController {
   @GetMapping("/{formKey}")
   public ResponseEntity<ApiResponse<CrmLeadFormService.PublicFormDto>> getPublicForm(
       @PathVariable String formKey) {
-    return ResponseEntity.ok(ApiResponse.success(200, service.getPublicForm(formKey), "Public form loaded"));
+    return ResponseEntity.ok(
+        ApiResponse.success(200, service.getPublicForm(formKey), "Public form loaded"));
   }
 
   @PostMapping("/{formKey}/submit")

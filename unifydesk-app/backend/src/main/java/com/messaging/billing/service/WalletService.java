@@ -1,5 +1,9 @@
 package com.messaging.billing.service;
 
+import com.google.i18n.phonenumbers.NumberParseException;
+import com.google.i18n.phonenumbers.PhoneNumberUtil;
+import com.messaging.common.validation.PhoneValidator;
+
 import com.messaging.billing.dto.CompanyWalletResponse;
 import com.messaging.billing.dto.ConfigureAutoRechargeRequest;
 import com.messaging.billing.dto.WalletTopupOrderRequest;
@@ -399,11 +403,15 @@ public class WalletService {
   }
 
   private String sanitizePhone(String phone) {
-    String digits = phone.replaceAll("[^0-9]", "");
-    if (digits.length() >= 10) {
-      return digits.substring(digits.length() - 10);
+    if (!new PhoneValidator().isValid(phone, null)) {
+      throw new BadRequestException("Enter a valid billing phone number with country code");
     }
-    return "9999999999";
+    try {
+      PhoneNumberUtil phones = PhoneNumberUtil.getInstance();
+      return phones.format(phones.parse(phone, "IN"), PhoneNumberUtil.PhoneNumberFormat.E164);
+    } catch (NumberParseException exception) {
+      throw new BadRequestException("Enter a valid billing phone number with country code");
+    }
   }
 
   private String resolveCustomerEmail(Long companyId, WalletTopupOrderRequest.WalletCustomerDetails customer) {

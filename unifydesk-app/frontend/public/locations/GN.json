@@ -1,0 +1,116 @@
+[
+  { "code": "BE", "name": "Beyla", "cities": [] },
+  { "code": "BF", "name": "Boffa", "cities": [] },
+  {
+    "code": "B",
+    "name": "Boké",
+    "cities": [
+      "Boffa",
+      "Boké",
+      "Boke Prefecture",
+      "Fria",
+      "Gaoual",
+      "Gaoual Prefecture",
+      "Kimbo",
+      "Koundara",
+      "Koundara Prefecture",
+      "Sanguéya",
+      "Youkounkoun"
+    ]
+  },
+  { "code": "BK", "name": "Boké", "cities": [] },
+  { "code": "C", "name": "Conakry", "cities": ["Camayenne", "Conakry"] },
+  { "code": "CO", "name": "Coyah", "cities": [] },
+  { "code": "DB", "name": "Dabola", "cities": ["Bissikrima", "Dabola"] },
+  { "code": "DL", "name": "Dalaba", "cities": [] },
+  { "code": "DI", "name": "Dinguiraye", "cities": [] },
+  { "code": "DU", "name": "Dubréka", "cities": [] },
+  { "code": "F", "name": "Faranah", "cities": [] },
+  { "code": "FA", "name": "Faranah", "cities": ["Faranah"] },
+  { "code": "FO", "name": "Forécariah", "cities": [] },
+  { "code": "FR", "name": "Fria", "cities": [] },
+  { "code": "GA", "name": "Gaoual", "cities": [] },
+  { "code": "GU", "name": "Guéckédou", "cities": [] },
+  { "code": "KA", "name": "Kankan", "cities": [] },
+  {
+    "code": "K",
+    "name": "Kankan",
+    "cities": [
+      "Kankan",
+      "Kankan Prefecture",
+      "Kérouané",
+      "Kerouane Prefecture",
+      "Kouroussa",
+      "Mandiana",
+      "Mandiana Prefecture",
+      "Siguiri",
+      "Siguiri Prefecture",
+      "Tokonou"
+    ]
+  },
+  { "code": "KE", "name": "Kérouané", "cities": [] },
+  {
+    "code": "D",
+    "name": "Kindia",
+    "cities": [
+      "Coyah",
+      "Dubréka",
+      "Forécariah",
+      "Kindia",
+      "Préfecture de Dubréka",
+      "Préfecture de Forécariah",
+      "Télimélé",
+      "Telimele Prefecture",
+      "Tondon"
+    ]
+  },
+  { "code": "KD", "name": "Kindia", "cities": [] },
+  { "code": "KS", "name": "Kissidougou", "cities": ["Kissidougou"] },
+  { "code": "KB", "name": "Koubia", "cities": [] },
+  { "code": "KN", "name": "Koundara", "cities": [] },
+  { "code": "KO", "name": "Kouroussa", "cities": ["Douako"] },
+  { "code": "LA", "name": "Labé", "cities": [] },
+  {
+    "code": "L",
+    "name": "Labé",
+    "cities": [
+      "Koubia",
+      "Labé",
+      "Labe Prefecture",
+      "Lélouma",
+      "Lelouma Prefecture",
+      "Mali",
+      "Mali Prefecture",
+      "Tougué",
+      "Tougue Prefecture"
+    ]
+  },
+  { "code": "LE", "name": "Lélouma", "cities": [] },
+  { "code": "LO", "name": "Lola", "cities": [] },
+  { "code": "MC", "name": "Macenta", "cities": [] },
+  { "code": "ML", "name": "Mali", "cities": [] },
+  { "code": "M", "name": "Mamou", "cities": ["Dalaba", "Mamou", "Mamou Prefecture", "Pita"] },
+  { "code": "MM", "name": "Mamou", "cities": [] },
+  { "code": "MD", "name": "Mandiana", "cities": [] },
+  {
+    "code": "N",
+    "name": "Nzérékoré",
+    "cities": [
+      "Beyla",
+      "Beyla Prefecture",
+      "Gueckedou",
+      "Lola",
+      "Macenta",
+      "Nzérékoré",
+      "Nzerekore Prefecture",
+      "Préfecture de Guékédou",
+      "Yomou"
+    ]
+  },
+  { "code": "NZ", "name": "Nzérékoré", "cities": [] },
+  { "code": "PI", "name": "Pita", "cities": [] },
+  { "code": "SI", "name": "Siguiri", "cities": [] },
+  { "code": "TE", "name": "Télimélé", "cities": [] },
+  { "code": "TO", "name": "Tougué", "cities": [] },
+  { "code": "YO", "name": "Yomou", "cities": [] }
+]

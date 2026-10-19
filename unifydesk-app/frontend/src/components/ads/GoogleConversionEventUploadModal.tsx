@@ -1,3 +1,4 @@
+import PhoneInput from '../ui/PhoneInput'
 import { useState, type FormEvent } from 'react'
 import { FiUploadCloud, FiX } from 'react-icons/fi'
 import type { AdConversion, GoogleConversionEventUploadInput } from '../../features/ads/types'
@@ -196,11 +197,11 @@ export default function GoogleConversionEventUploadModal({
               </label>
               <label className="text-xs font-semibold text-slate-700">
                 Phone (E.164)
-                <input
+                <PhoneInput
                   className="form-input mt-2"
                   placeholder="+919876543210"
                   value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
+                  onChange={(value) => setPhone(value)}
                 />
               </label>
             </div>

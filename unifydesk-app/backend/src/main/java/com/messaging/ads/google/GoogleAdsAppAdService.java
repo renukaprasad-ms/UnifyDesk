@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -65,10 +64,7 @@ public class GoogleAdsAppAdService {
   }
 
   public AdSetResponse createAdGroup(
-      Long companyId,
-      Long campaignId,
-      CreateGoogleAppAdGroupRequest request,
-      Long actorUserId) {
+      Long companyId, Long campaignId, CreateGoogleAppAdGroupRequest request, Long actorUserId) {
     CampaignContext context = requireAppCampaign(companyId, campaignId);
     String subtype = context.campaign().getBuyingType();
     String customerId = context.google().account().getExternalAccountId();
@@ -76,15 +72,13 @@ public class GoogleAdsAppAdService {
         apiClient.customerResourceName(
             customerId, "campaigns", context.campaign().getExternalCampaignId());
 
-    if (!"APP_CAMPAIGN_FOR_ENGAGEMENT".equals(subtype)
-        && request.targetCpaMinor() != null) {
+    if (!"APP_CAMPAIGN_FOR_ENGAGEMENT".equals(subtype) && request.targetCpaMinor() != null) {
       throw new BadRequestException(
           "Only App engagement campaigns can override target CPA at ad-group level");
     }
     if ("APP_CAMPAIGN_FOR_ENGAGEMENT".equals(subtype)
         && (request.userListId() == null || request.userListId().isBlank())) {
-      throw new BadRequestException(
-          "App engagement ad groups must target a Google user list");
+      throw new BadRequestException("App engagement ad groups must target a Google user list");
     }
     if (!"APP_CAMPAIGN_FOR_ENGAGEMENT".equals(subtype)
         && request.userListId() != null
@@ -110,17 +104,19 @@ public class GoogleAdsAppAdService {
     operations.add(Map.of("adGroupOperation", Map.of("create", adGroup)));
 
     if ("APP_CAMPAIGN_FOR_ENGAGEMENT".equals(subtype)) {
-      String userListResource =
-          normalizeUserListResource(customerId, request.userListId());
+      String userListResource = normalizeUserListResource(customerId, request.userListId());
       operations.add(
           Map.of(
               "adGroupCriterionOperation",
               Map.of(
                   "create",
                   Map.of(
-                      "adGroup", adGroupResource,
-                      "userList", Map.of("userList", userListResource),
-                      "negative", false))));
+                      "adGroup",
+                      adGroupResource,
+                      "userList",
+                      Map.of("userList", userListResource),
+                      "negative",
+                      false))));
     }
 
     JsonNode response =
@@ -134,13 +130,9 @@ public class GoogleAdsAppAdService {
 
     JsonNode row =
         adGroupSyncService.adGroup(
-            context.google(),
-            context.campaign().getExternalCampaignId(),
-            externalAdGroupId);
+            context.google(), context.campaign().getExternalCampaignId(), externalAdGroupId);
     AdSetResponse created =
-        AdSetResponse.from(
-            adGroupPersistenceService.persistOne(
-                companyId, campaignId, row));
+        AdSetResponse.from(adGroupPersistenceService.persistOne(companyId, campaignId, row));
 
     activityLogService.record(
         companyId,
@@ -152,17 +144,12 @@ public class GoogleAdsAppAdService {
         externalAdGroupId,
         null,
         created,
-        Map.of(
-            "subtype", subtype,
-            "initialStatus", "PAUSED"));
+        Map.of("subtype", subtype, "initialStatus", "PAUSED"));
     return created;
   }
 
   public AdResponse createAd(
-      Long companyId,
-      Long adGroupId,
-      CreateGoogleAppAdRequest request,
-      Long actorUserId) {
+      Long companyId, Long adGroupId, CreateGoogleAppAdRequest request, Long actorUserId) {
     AdContext context = requireAppAdGroup(companyId, adGroupId);
     String subtype = context.campaign().getBuyingType();
     validateTextList(request.headlines(), 1, 5, 30, "headline");
@@ -228,13 +215,9 @@ public class GoogleAdsAppAdService {
     String externalAdId = suffix(apiClient.firstMutatedResourceName(response), "ad");
 
     JsonNode row =
-        adSyncService.ad(
-            context.google(),
-            context.adGroup().getExternalAdSetId(),
-            externalAdId);
+        adSyncService.ad(context.google(), context.adGroup().getExternalAdSetId(), externalAdId);
     AdResponse created =
-        AdResponse.from(
-            adPersistenceService.persistOne(companyId, adGroupId, row));
+        AdResponse.from(adPersistenceService.persistOne(companyId, adGroupId, row));
 
     activityLogService.record(
         companyId,
@@ -247,10 +230,14 @@ public class GoogleAdsAppAdService {
         null,
         created,
         Map.of(
-            "subtype", subtype,
-            "initialStatus", "PAUSED",
-            "imageAssetCount", images.size(),
-            "videoAssetCount", videos.size()));
+            "subtype",
+            subtype,
+            "initialStatus",
+            "PAUSED",
+            "imageAssetCount",
+            images.size(),
+            "videoAssetCount",
+            videos.size()));
     return created;
   }
 
@@ -285,9 +272,7 @@ public class GoogleAdsAppAdService {
       throw new BadRequestException("Google App ad group is not available");
     }
     return new AdContext(
-        adGroup,
-        campaign,
-        contextService.requireManaged(companyId, adGroup.getAdAccountId()));
+        adGroup, campaign, contextService.requireManaged(companyId, adGroup.getAdAccountId()));
   }
 
   private String text(JsonNode node, String field) {
@@ -356,11 +341,8 @@ public class GoogleAdsAppAdService {
   }
 
   private record CampaignContext(
-      AdCampaign campaign,
-      GoogleAdsAccountContextService.Context google) {}
+      AdCampaign campaign, GoogleAdsAccountContextService.Context google) {}
 
   private record AdContext(
-      AdSet adGroup,
-      AdCampaign campaign,
-      GoogleAdsAccountContextService.Context google) {}
+      AdSet adGroup, AdCampaign campaign, GoogleAdsAccountContextService.Context google) {}
 }

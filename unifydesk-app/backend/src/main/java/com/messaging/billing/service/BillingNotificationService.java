@@ -13,7 +13,6 @@ import com.messaging.notification.dto.SendNotificationRequest;
 import com.messaging.notification.service.NotificationService;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
-import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +30,8 @@ public class BillingNotificationService {
   private final InvoiceRepository invoiceRepository;
   private final CompanySubscriptionRepository subscriptionRepository;
 
-  private static final NumberFormat INR_FORMAT = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
+  private static final NumberFormat INR_FORMAT =
+      NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
 
   public void sendRenewalInvoiceEmail(Long companyId, Long invoiceId) {
     try {
@@ -48,7 +48,10 @@ public class BillingNotificationService {
       }
 
       String companyName = resolveCompanyName(companyId);
-      String invoiceNum = invoice.getInvoiceNumber() != null ? invoice.getInvoiceNumber() : String.valueOf(invoiceId);
+      String invoiceNum =
+          invoice.getInvoiceNumber() != null
+              ? invoice.getInvoiceNumber()
+              : String.valueOf(invoiceId);
       String formattedAmount = formatCurrency(invoice.getTotal());
 
       String subject = String.format("Invoice Paid: Subscription Renewal (%s)", invoiceNum);
@@ -94,7 +97,8 @@ public class BillingNotificationService {
           SendNotificationRequest.billingEmail(recipient, subject, html, true));
       log.info("Sent renewal invoice email to {} for invoice {}", recipient, invoiceId);
     } catch (Exception e) {
-      log.error("Failed to send renewal invoice email for company {}: {}", companyId, e.getMessage());
+      log.error(
+          "Failed to send renewal invoice email for company {}: {}", companyId, e.getMessage());
     }
   }
 
@@ -104,10 +108,12 @@ public class BillingNotificationService {
       if (recipient == null || recipient.isBlank()) return;
 
       CompanySubscription sub = subscriptionRepository.findById(subscriptionId).orElse(null);
-      String planName = sub != null && sub.getPlan() != null ? sub.getPlan().getName() : "Subscription Plan";
+      String planName =
+          sub != null && sub.getPlan() != null ? sub.getPlan().getName() : "Subscription Plan";
       String companyName = resolveCompanyName(companyId);
 
-      String subject = String.format("[Action Required] AutoPay Renewal Failed (Day %d of 2)", dayCount);
+      String subject =
+          String.format("[Action Required] AutoPay Renewal Failed (Day %d of 2)", dayCount);
       String html =
           String.format(
               """
@@ -130,15 +136,14 @@ public class BillingNotificationService {
                 </div>
               </div>
               """,
-              companyName,
-              planName,
-              notificationProperties.getEmail().getWebsiteUrl());
+              companyName, planName, notificationProperties.getEmail().getWebsiteUrl());
 
       notificationService.send(
           SendNotificationRequest.billingEmail(recipient, subject, html, true));
       log.info("Sent renewal failure notice (day {}) to company {}", dayCount, companyId);
     } catch (Exception e) {
-      log.error("Failed to send renewal failure email for company {}: {}", companyId, e.getMessage());
+      log.error(
+          "Failed to send renewal failure email for company {}: {}", companyId, e.getMessage());
     }
   }
 
@@ -148,7 +153,8 @@ public class BillingNotificationService {
       if (recipient == null || recipient.isBlank()) return;
 
       CompanySubscription sub = subscriptionRepository.findById(subscriptionId).orElse(null);
-      String planName = sub != null && sub.getPlan() != null ? sub.getPlan().getName() : "Subscription Plan";
+      String planName =
+          sub != null && sub.getPlan() != null ? sub.getPlan().getName() : "Subscription Plan";
       String companyName = resolveCompanyName(companyId);
 
       String subject = "[URGENT] Workspace Suspended Due to Unpaid Subscription Renewal";
@@ -174,8 +180,7 @@ public class BillingNotificationService {
                 </div>
               </div>
               """,
-              companyName,
-              notificationProperties.getEmail().getWebsiteUrl());
+              companyName, notificationProperties.getEmail().getWebsiteUrl());
 
       notificationService.send(
           SendNotificationRequest.billingEmail(recipient, subject, html, true));
@@ -185,7 +190,8 @@ public class BillingNotificationService {
     }
   }
 
-  public void sendWalletTopupSuccessEmail(Long companyId, BigDecimal amount, BigDecimal newBalance) {
+  public void sendWalletTopupSuccessEmail(
+      Long companyId, BigDecimal amount, BigDecimal newBalance) {
     try {
       String recipient = resolveBillingEmail(companyId);
       if (recipient == null || recipient.isBlank()) return;
@@ -230,11 +236,15 @@ public class BillingNotificationService {
           SendNotificationRequest.billingEmail(recipient, subject, html, true));
       log.info("Sent wallet auto-recharge success email to company {}", companyId);
     } catch (Exception e) {
-      log.error("Failed to send wallet topup success email for company {}: {}", companyId, e.getMessage());
+      log.error(
+          "Failed to send wallet topup success email for company {}: {}",
+          companyId,
+          e.getMessage());
     }
   }
 
-  public void sendWalletTopupFailureEmail(Long companyId, BigDecimal amount, int attemptCount, boolean paused) {
+  public void sendWalletTopupFailureEmail(
+      Long companyId, BigDecimal amount, int attemptCount, boolean paused) {
     try {
       String recipient = resolveBillingEmail(companyId);
       if (recipient == null || recipient.isBlank()) return;
@@ -243,12 +253,15 @@ public class BillingNotificationService {
       String subject =
           paused
               ? "[Action Required] Wallet Auto-Recharge Paused after 3 Failed Attempts"
-              : String.format("[Alert] Wallet Auto-Recharge Failed (Attempt %d of 3)", attemptCount);
+              : String.format(
+                  "[Alert] Wallet Auto-Recharge Failed (Attempt %d of 3)", attemptCount);
 
       String alertMessage =
           paused
               ? "We tried to automatically reload your wallet 3 consecutive times, but all attempts failed. To protect your account, <strong>Auto-Recharge has been paused</strong>. Please update your payment method to ensure uninterrupted messaging."
-              : String.format("An automatic wallet reload of %s failed (attempt %d of 3). We will retry automatically. Please ensure sufficient funds or a valid mandate on your linked payment method.", formatCurrency(amount), attemptCount);
+              : String.format(
+                  "An automatic wallet reload of %s failed (attempt %d of 3). We will retry automatically. Please ensure sufficient funds or a valid mandate on your linked payment method.",
+                  formatCurrency(amount), attemptCount);
 
       String html =
           String.format(
@@ -269,15 +282,20 @@ public class BillingNotificationService {
                 </div>
               </div>
               """,
-              companyName,
-              alertMessage,
-              notificationProperties.getEmail().getWebsiteUrl());
+              companyName, alertMessage, notificationProperties.getEmail().getWebsiteUrl());
 
       notificationService.send(
           SendNotificationRequest.billingEmail(recipient, subject, html, true));
-      log.info("Sent wallet auto-recharge failure notice (attempt {}, paused={}) to company {}", attemptCount, paused, companyId);
+      log.info(
+          "Sent wallet auto-recharge failure notice (attempt {}, paused={}) to company {}",
+          attemptCount,
+          paused,
+          companyId);
     } catch (Exception e) {
-      log.error("Failed to send wallet topup failure email for company {}: {}", companyId, e.getMessage());
+      log.error(
+          "Failed to send wallet topup failure email for company {}: {}",
+          companyId,
+          e.getMessage());
     }
   }
 
@@ -286,7 +304,9 @@ public class BillingNotificationService {
         .findById(companyId)
         .map(CompanyBillingProfile::getBillingEmail)
         .filter(e -> e != null && !e.isBlank())
-        .orElseGet(() -> companyRepository.findById(companyId).map(Company::getBusinessEmail).orElse(null));
+        .orElseGet(
+            () ->
+                companyRepository.findById(companyId).map(Company::getBusinessEmail).orElse(null));
   }
 
   private String resolveCompanyName(Long companyId) {

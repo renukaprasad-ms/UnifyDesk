@@ -25,8 +25,8 @@ public class RecurringAuthorizationService {
   }
 
   /**
-   * Creates/offers a future recurring mandate separately from the initial one-time collection.
-   * The provider identity is keyed to the durable B1 checkout intent until activation creates the
+   * Creates/offers a future recurring mandate separately from the initial one-time collection. The
+   * provider identity is keyed to the durable B1 checkout intent until activation creates the
    * CompanySubscription.
    */
   public AuthorizationResult prepareForInitialCheckout(
@@ -139,8 +139,7 @@ public class RecurringAuthorizationService {
     return store.cancelCompanyAutopay(companyId);
   }
 
-  public void bindInitialActivation(
-      Long companyId, Long checkoutIntentId, Long subscriptionId) {
+  public void bindInitialActivation(Long companyId, Long checkoutIntentId, Long subscriptionId) {
     store.bindInitialActivation(companyId, checkoutIntentId, subscriptionId);
   }
 
@@ -149,8 +148,7 @@ public class RecurringAuthorizationService {
   }
 
   private AuthorizationResult resolve(
-      RecurringAuthorizationStore.Prepared prepared,
-      PaymentProviderGateway.Customer customer) {
+      RecurringAuthorizationStore.Prepared prepared, PaymentProviderGateway.Customer customer) {
     if ("ACTIVE".equals(prepared.status())) {
       return result(prepared, null);
     }
@@ -162,13 +160,13 @@ public class RecurringAuthorizationService {
       if ("ACTIVE".equals(prepared.status())) {
         return result(prepared, null);
       }
-      if (prepared.subscriptionSessionId() == null
-          || prepared.subscriptionSessionId().isBlank()) {
+      if (prepared.subscriptionSessionId() == null || prepared.subscriptionSessionId().isBlank()) {
         throw new ConflictException(
             "Recurring authorization has no provider checkout continuation");
       }
 
-      if (prepared.providerSubscriptionId() != null && prepared.providerSubscriptionId().startsWith("UDS-AP-")) {
+      if (prepared.providerSubscriptionId() != null
+          && prepared.providerSubscriptionId().startsWith("UDS-AP-")) {
         return result(prepared, remoteSubscription.providerSubscriptionReference());
       }
 
@@ -183,8 +181,7 @@ public class RecurringAuthorizationService {
   }
 
   private PaymentProviderGateway.RecurringAuthorization createOrRecoverSubscription(
-      RecurringAuthorizationStore.Prepared prepared,
-      PaymentProviderGateway.Customer customer) {
+      RecurringAuthorizationStore.Prepared prepared, PaymentProviderGateway.Customer customer) {
     if (prepared.newlyCreated()) {
       return createSubscription(prepared, customer);
     }
@@ -199,8 +196,7 @@ public class RecurringAuthorizationService {
   }
 
   private PaymentProviderGateway.RecurringAuthorization createSubscription(
-      RecurringAuthorizationStore.Prepared prepared,
-      PaymentProviderGateway.Customer customer) {
+      RecurringAuthorizationStore.Prepared prepared, PaymentProviderGateway.Customer customer) {
     return gateway.createRecurringAuthorization(
         prepared.providerSubscriptionId(),
         prepared.maxAmount(),

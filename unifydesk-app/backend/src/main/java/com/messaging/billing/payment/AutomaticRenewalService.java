@@ -140,7 +140,8 @@ public class AutomaticRenewalService {
       authorizationService.bindPayment(authorization.authorizationId(), paymentId);
 
       // If an earlier or interrupted recurring command is unresolved, charge() first fetches that
-      // same command identity. It creates a new command only after provider truth proves there is no
+      // same command identity. It creates a new command only after provider truth proves there is
+      // no
       // unresolved command to recover.
       chargeService.charge(paymentId, job.dueBoundary());
 

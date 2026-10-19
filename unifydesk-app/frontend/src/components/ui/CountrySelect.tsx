@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { FiGlobe } from 'react-icons/fi'
 import { COUNTRIES, findCountry } from '../../data/countriesAndCities'
 
@@ -27,12 +27,19 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
   name,
   showIcon = false,
 }) => {
+  const [manual, setManual] = useState(false)
   // Determine matched country
   const matched = findCountry(value)
   const selectedValue = matched ? (valueType === 'code' ? matched.code : matched.name) : value
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedCode = e.target.value
+    if (selectedCode === '__other__') {
+      setManual(true)
+      onChange('')
+      return
+    }
+    setManual(false)
     const found = COUNTRIES.find((c) => c.code === selectedCode)
     if (found) {
       onChange(valueType === 'code' ? found.code : found.name)
@@ -42,26 +49,41 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
   }
 
   const selectElement = (
-    <select
-      id={id}
-      name={name}
-      disabled={disabled}
-      required={required}
-      value={matched ? matched.code : selectedValue}
-      onChange={handleChange}
-      className={`form-input bg-white dark:bg-slate-900 cursor-pointer ${
-        showIcon ? 'pl-9' : ''
-      } ${className}`}
-    >
-      <option value="" disabled>
-        {placeholder}
-      </option>
-      {COUNTRIES.map((country) => (
-        <option key={country.code} value={country.code}>
-          {country.flag} {country.name} ({country.code})
+    <>
+      <select
+        id={id}
+        name={name}
+        disabled={disabled}
+        required={required && !manual}
+        value={manual || (value && !matched) ? '__other__' : matched ? matched.code : selectedValue}
+        onChange={handleChange}
+        className={`form-input bg-white dark:bg-slate-900 cursor-pointer ${
+          showIcon ? 'pl-9' : ''
+        } ${className}`}
+      >
+        <option value="" disabled>
+          {placeholder}
         </option>
-      ))}
-    </select>
+        {COUNTRIES.map((country) => (
+          <option key={country.code} value={country.code}>
+            {country.flag} {country.name} ({country.code})
+          </option>
+        ))}
+        <option value="__other__">Other — enter manually</option>
+      </select>
+      {(manual || (value && !matched)) && (
+        <input
+          aria-label="Enter country manually"
+          className={`form-input mt-2 ${className}`}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          required={required}
+          disabled={disabled}
+          maxLength={80}
+          placeholder="Enter country"
+        />
+      )}
+    </>
   )
 
   if (showIcon) {

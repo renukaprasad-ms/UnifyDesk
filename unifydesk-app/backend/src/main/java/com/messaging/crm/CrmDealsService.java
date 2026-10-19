@@ -11,7 +11,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -27,18 +26,18 @@ public class CrmDealsService {
 
   private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
       new com.fasterxml.jackson.databind.ObjectMapper();
-  private static final com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>> MAP_REF =
-      new com.fasterxml.jackson.core.type.TypeReference<>() {};
+  private static final com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>
+      MAP_REF = new com.fasterxml.jackson.core.type.TypeReference<>() {};
 
   @org.springframework.beans.factory.annotation.Autowired
   public CrmDealsService(
       JdbcTemplate jdbc,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
-      CrmCustomFieldService crmCustomFields,
+          CrmCustomFieldService crmCustomFields,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
-      CrmPipelineService pipelineService,
+          CrmPipelineService pipelineService,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
-      CrmAutomationService crmAutomationService) {
+          CrmAutomationService crmAutomationService) {
     this.jdbc = jdbc;
     this.crmCustomFields = crmCustomFields;
     this.pipelineService = pipelineService != null ? pipelineService : new CrmPipelineService(jdbc);
@@ -245,7 +244,8 @@ public class CrmDealsService {
     if (rawCustom != null && !rawCustom.isBlank()) {
       try {
         customFields = MAPPER.readValue(rawCustom, MAP_REF);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
     return new Deal(
         id(rs, "id"),
@@ -263,7 +263,9 @@ public class CrmDealsService {
         rs.getString("account_name"),
         id(rs, "pipeline_id"),
         rs.getString("pipeline_name"),
-        rs.getString("attribution_channel") != null ? rs.getString("attribution_channel") : "DIRECT_SALES",
+        rs.getString("attribution_channel") != null
+            ? rs.getString("attribution_channel")
+            : "DIRECT_SALES",
         id(rs, "broadcast_message_id"),
         rs.getString("broadcast_subject"),
         id(rs, "ad_campaign_id"),
@@ -289,7 +291,8 @@ public class CrmDealsService {
   }
 
   @Transactional(readOnly = true)
-  public Page list(long companyId, Long pipelineId, String stage, Long before, String query, int size) {
+  public Page list(
+      long companyId, Long pipelineId, String stage, Long before, String query, int size) {
     if (before != null && before <= 0) throw invalid();
     String search = query == null ? "" : query.trim();
     if (search.length() > 100) throw invalid();
@@ -350,9 +353,10 @@ public class CrmDealsService {
       customJson = "{}";
     }
 
-    String channel = input.attributionChannel() != null && !input.attributionChannel().isBlank()
-        ? input.attributionChannel().trim()
-        : "DIRECT_SALES";
+    String channel =
+        input.attributionChannel() != null && !input.attributionChannel().isBlank()
+            ? input.attributionChannel().trim()
+            : "DIRECT_SALES";
 
     long key = IdGenerator.nextId();
     jdbc.update(
@@ -403,7 +407,8 @@ public class CrmDealsService {
                 "currency", input.currency(),
                 "ownerUserId", owner,
                 "contactId", input.contactId() != null ? input.contactId() : ""));
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
     return created;
   }
@@ -417,21 +422,29 @@ public class CrmDealsService {
     long pipelineId =
         input.pipelineId() != null
             ? input.pipelineId()
-            : (previous.pipelineId() != null ? Long.parseLong(previous.pipelineId()) : pipelineService.ensureDefaultPipeline(companyId));
+            : (previous.pipelineId() != null
+                ? Long.parseLong(previous.pipelineId())
+                : pipelineService.ensureDefaultPipeline(companyId));
 
-    String channel = input.attributionChannel() != null && !input.attributionChannel().isBlank()
-        ? input.attributionChannel().trim()
-        : previous.attributionChannel();
+    String channel =
+        input.attributionChannel() != null && !input.attributionChannel().isBlank()
+            ? input.attributionChannel().trim()
+            : previous.attributionChannel();
 
-    Long broadcastId = input.broadcastMessageId() != null
-        ? input.broadcastMessageId()
-        : (previous.broadcastMessageId() != null ? Long.parseLong(previous.broadcastMessageId()) : null);
-    Long adId = input.adCampaignId() != null
-        ? input.adCampaignId()
-        : (previous.adCampaignId() != null ? Long.parseLong(previous.adCampaignId()) : null);
-    Long formId = input.leadFormId() != null
-        ? input.leadFormId()
-        : (previous.leadFormId() != null ? Long.parseLong(previous.leadFormId()) : null);
+    Long broadcastId =
+        input.broadcastMessageId() != null
+            ? input.broadcastMessageId()
+            : (previous.broadcastMessageId() != null
+                ? Long.parseLong(previous.broadcastMessageId())
+                : null);
+    Long adId =
+        input.adCampaignId() != null
+            ? input.adCampaignId()
+            : (previous.adCampaignId() != null ? Long.parseLong(previous.adCampaignId()) : null);
+    Long formId =
+        input.leadFormId() != null
+            ? input.leadFormId()
+            : (previous.leadFormId() != null ? Long.parseLong(previous.leadFormId()) : null);
 
     java.util.Map<String, Object> customToSave =
         input.customFields() != null
@@ -537,8 +550,7 @@ public class CrmDealsService {
             dealId,
             version);
     if (count != 1) throw conflict();
-    event(
-        companyId, dealId, "STAGE_CHANGED", previous.stage(), stage, "Stage", actor);
+    event(companyId, dealId, "STAGE_CHANGED", previous.stage(), stage, "Stage", actor);
     Deal moved = get(companyId, dealId);
     if (crmAutomationService != null) {
       try {
@@ -548,13 +560,20 @@ public class CrmDealsService {
             "DEAL",
             String.valueOf(dealId),
             java.util.Map.of(
-                "dealId", dealId,
-                "dealName", moved.title(),
-                "fromStage", previous.stage(),
-                "toStage", stage,
-                "ownerUserId", moved.ownerUserId() != null ? moved.ownerUserId() : "",
-                "contactId", moved.contactId() != null ? moved.contactId() : ""));
-      } catch (Exception ignored) {}
+                "dealId",
+                dealId,
+                "dealName",
+                moved.title(),
+                "fromStage",
+                previous.stage(),
+                "toStage",
+                stage,
+                "ownerUserId",
+                moved.ownerUserId() != null ? moved.ownerUserId() : "",
+                "contactId",
+                moved.contactId() != null ? moved.contactId() : ""));
+      } catch (Exception ignored) {
+      }
     }
     return moved;
   }

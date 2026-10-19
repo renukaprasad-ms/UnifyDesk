@@ -1,3 +1,7 @@
+import PhoneInput from '../../components/ui/PhoneInput'
+import CountrySelect from '../../components/ui/CountrySelect'
+import StateSelect from '../../components/ui/StateSelect'
+import CitySelect from '../../components/ui/CitySelect'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router'
 import { FiCheckCircle, FiAlertCircle, FiSend } from 'react-icons/fi'
@@ -164,7 +168,16 @@ export default function PublicLeadFormPage() {
                   {field.required && <span className="ml-1 text-rose-500">*</span>}
                 </label>
 
-                {field.type === 'textarea' ? (
+                {field.fieldKey === 'country' ? (
+                  <CountrySelect value={formData.country || ''} valueType="name" required={field.required}
+                    onChange={country => setFormData(current => ({ ...current, country, state: '', city: '' }))} />
+                ) : field.fieldKey === 'state' ? (
+                  <StateSelect country={formData.country} value={formData.state || ''} required={field.required}
+                    onChange={state => setFormData(current => ({ ...current, state, city: '' }))} />
+                ) : field.fieldKey === 'city' ? (
+                  <CitySelect country={formData.country} state={formData.state} value={formData.city || ''} required={field.required}
+                    onChange={city => handleFieldChange('city', city)} />
+                ) : field.type === 'textarea' ? (
                   <textarea
                     rows={4}
                     required={field.required}
@@ -187,6 +200,9 @@ export default function PublicLeadFormPage() {
                       </option>
                     ))}
                   </select>
+                ) : field.type === 'tel' || field.fieldKey === 'phone' ? (
+                  <PhoneInput required={field.required} value={formData[field.fieldKey] || ''}
+                    onChange={value => handleFieldChange(field.fieldKey, value)} />
                 ) : (
                   <input
                     type={field.type || 'text'}

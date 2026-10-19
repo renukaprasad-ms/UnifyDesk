@@ -35,17 +35,10 @@ public class CrmLeadScoringService {
       Instant createdAt,
       Instant updatedAt) {}
 
-  public record ScoreSettingsDto(
-      int hotThreshold,
-      int warmThreshold,
-      Instant updatedAt) {}
+  public record ScoreSettingsDto(int hotThreshold, int warmThreshold, Instant updatedAt) {}
 
   public record ScoreBreakdownItem(
-      String ruleId,
-      String ruleName,
-      String ruleType,
-      int points,
-      String reason) {}
+      String ruleId, String ruleName, String ruleType, int points, String reason) {}
 
   public record LeadScoreResult(
       String contactId,
@@ -65,9 +58,7 @@ public class CrmLeadScoringService {
       Boolean isEnabled,
       Integer displayOrder) {}
 
-  public record SaveSettingsInput(
-      int hotThreshold,
-      int warmThreshold) {}
+  public record SaveSettingsInput(int hotThreshold, int warmThreshold) {}
 
   @Transactional
   public ScoreSettingsDto getSettings(long companyId) {
@@ -85,7 +76,8 @@ public class CrmLeadScoringService {
   @Transactional
   public ScoreSettingsDto updateSettings(long companyId, SaveSettingsInput input) {
     if (input.hotThreshold() <= input.warmThreshold()) {
-      throw new ApiException(HttpStatus.BAD_REQUEST, "Hot threshold must be greater than warm threshold");
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST, "Hot threshold must be greater than warm threshold");
     }
     if (input.warmThreshold() < 0) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "Warm threshold cannot be negative");
@@ -139,7 +131,8 @@ public class CrmLeadScoringService {
       if (input.conditionConfig() != null) {
         condJson = MAPPER.writeValueAsString(input.conditionConfig());
       }
-    } catch (Exception ignored) {}
+    } catch (Exception ignored) {
+    }
 
     int nextOrder =
         jdbc.queryForObject(
@@ -174,7 +167,8 @@ public class CrmLeadScoringService {
     if (input.conditionConfig() != null) {
       try {
         condJson = MAPPER.writeValueAsString(input.conditionConfig());
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
 
     jdbc.update(
@@ -208,7 +202,9 @@ public class CrmLeadScoringService {
 
   @Transactional
   public void deleteRule(long companyId, long ruleId) {
-    int rows = jdbc.update("delete from crm_lead_score_rules where company_id = ? and id = ?", companyId, ruleId);
+    int rows =
+        jdbc.update(
+            "delete from crm_lead_score_rules where company_id = ? and id = ?", companyId, ruleId);
     if (rows == 0) {
       throw new ApiException(HttpStatus.NOT_FOUND, "Score rule not found");
     }
@@ -278,7 +274,14 @@ public class CrmLeadScoringService {
             contactId);
 
     if (contactRows.isEmpty()) {
-      return new LeadScoreResult(String.valueOf(contactId), 0, "COLD", settings.hotThreshold(), settings.warmThreshold(), List.of(), Instant.now());
+      return new LeadScoreResult(
+          String.valueOf(contactId),
+          0,
+          "COLD",
+          settings.hotThreshold(),
+          settings.warmThreshold(),
+          List.of(),
+          Instant.now());
     }
 
     ContactScoreData contactData = contactRows.getFirst();
@@ -296,7 +299,14 @@ public class CrmLeadScoringService {
             contactId);
 
     if (leadRows.isEmpty()) {
-      return new LeadScoreResult(String.valueOf(contactId), 0, "COLD", settings.hotThreshold(), settings.warmThreshold(), List.of(), Instant.now());
+      return new LeadScoreResult(
+          String.valueOf(contactId),
+          0,
+          "COLD",
+          settings.hotThreshold(),
+          settings.warmThreshold(),
+          List.of(),
+          Instant.now());
     }
 
     String stage = leadRows.getFirst().stage();
@@ -305,7 +315,8 @@ public class CrmLeadScoringService {
     if (rawCustom != null && !rawCustom.isBlank()) {
       try {
         customFields = MAPPER.readValue(rawCustom, MAP_REF);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
 
     // 3. Additional activity checks (form submissions, deals, notes)
@@ -318,7 +329,8 @@ public class CrmLeadScoringService {
               companyId,
               contactId);
       if (cnt != null) formSubmissions = cnt;
-    } catch (Exception ignored) {}
+    } catch (Exception ignored) {
+    }
 
     long dealsCount = 0L;
     try {
@@ -329,7 +341,8 @@ public class CrmLeadScoringService {
               companyId,
               contactId);
       if (cnt != null) dealsCount = cnt;
-    } catch (Exception ignored) {}
+    } catch (Exception ignored) {
+    }
 
     long notesCount = 0L;
     try {
@@ -340,7 +353,8 @@ public class CrmLeadScoringService {
               companyId,
               contactId);
       if (cnt != null) notesCount = cnt;
-    } catch (Exception ignored) {}
+    } catch (Exception ignored) {
+    }
 
     // 4. Evaluate rules
     int totalScore = 0;
@@ -372,7 +386,8 @@ public class CrmLeadScoringService {
           }
         }
         case "STAGE_MATCH" -> {
-          Object targetStageObj = rule.conditionConfig() != null ? rule.conditionConfig().get("stage") : null;
+          Object targetStageObj =
+              rule.conditionConfig() != null ? rule.conditionConfig().get("stage") : null;
           String targetStage = targetStageObj != null ? targetStageObj.toString() : null;
           if (targetStage != null && targetStage.equalsIgnoreCase(stage)) {
             matched = true;
@@ -413,7 +428,8 @@ public class CrmLeadScoringService {
                   reason = "Custom attribute '" + fieldKey + "' is present";
                 }
               } else if ("EQUALS".equalsIgnoreCase(op)) {
-                if (currentVal != null && String.valueOf(currentVal).equalsIgnoreCase(String.valueOf(val))) {
+                if (currentVal != null
+                    && String.valueOf(currentVal).equalsIgnoreCase(String.valueOf(val))) {
                   matched = true;
                   reason = "Custom attribute '" + fieldKey + "' equals '" + val + "'";
                 }
@@ -425,7 +441,8 @@ public class CrmLeadScoringService {
                     matched = true;
                     reason = "Custom attribute '" + fieldKey + "' (" + num + ") >= " + threshold;
                   }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
               }
             }
           }
@@ -434,7 +451,9 @@ public class CrmLeadScoringService {
 
       if (matched) {
         totalScore += rule.points();
-        breakdown.add(new ScoreBreakdownItem(rule.id(), rule.ruleName(), rule.ruleType(), rule.points(), reason));
+        breakdown.add(
+            new ScoreBreakdownItem(
+                rule.id(), rule.ruleName(), rule.ruleType(), rule.points(), reason));
       }
     }
 
@@ -453,7 +472,8 @@ public class CrmLeadScoringService {
     String breakdownJson = "[]";
     try {
       breakdownJson = MAPPER.writeValueAsString(breakdown);
-    } catch (Exception ignored) {}
+    } catch (Exception ignored) {
+    }
 
     // Update crm_leads with score and breakdown
     jdbc.update(
@@ -478,16 +498,12 @@ public class CrmLeadScoringService {
         Instant.now());
   }
 
-  /**
-   * Recalculates scores for all leads in the company.
-   */
+  /** Recalculates scores for all leads in the company. */
   @Transactional
   public int recalculateAll(long companyId) {
     List<Long> contactIds =
         jdbc.queryForList(
-            "select contact_id from crm_leads where company_id = ?",
-            Long.class,
-            companyId);
+            "select contact_id from crm_leads where company_id = ?", Long.class, companyId);
 
     int count = 0;
     for (Long cid : contactIds) {
@@ -519,24 +535,94 @@ public class CrmLeadScoringService {
     if (count != null && count > 0) return;
 
     // Seed standard rules
-    insertSeedRule(companyId, "Has phone number", "Contact has an active phone number", "HAS_PHONE", Map.of(), 15, 1);
-    insertSeedRule(companyId, "Has email address", "Contact has an active email address", "HAS_EMAIL", Map.of(), 10, 2);
-    insertSeedRule(companyId, "Organization specified", "Contact organization or company is provided", "HAS_ORGANIZATION", Map.of(), 15, 3);
-    insertSeedRule(companyId, "Stage is Qualified", "Lead has been advanced to QUALIFIED stage", "STAGE_MATCH", Map.of("stage", "QUALIFIED"), 30, 4);
-    insertSeedRule(companyId, "Stage is Contacted", "Lead has been reached out to", "STAGE_MATCH", Map.of("stage", "CONTACTED"), 10, 5);
-    insertSeedRule(companyId, "Stage is Unqualified", "Lead marked unqualified", "STAGE_MATCH", Map.of("stage", "UNQUALIFIED"), -50, 6);
-    insertSeedRule(companyId, "Web form submission", "Contact submitted an inbound web lead form", "FORM_SUBMISSION", Map.of(), 25, 7);
-    insertSeedRule(companyId, "Has sales deal", "Contact is associated with an active deal", "HAS_DEAL", Map.of(), 20, 8);
-    insertSeedRule(companyId, "Has interaction / notes", "Recorded communication notes or WhatsApp interactions", "COMMUNICATION_ACTIVITY", Map.of(), 10, 9);
+    insertSeedRule(
+        companyId,
+        "Has phone number",
+        "Contact has an active phone number",
+        "HAS_PHONE",
+        Map.of(),
+        15,
+        1);
+    insertSeedRule(
+        companyId,
+        "Has email address",
+        "Contact has an active email address",
+        "HAS_EMAIL",
+        Map.of(),
+        10,
+        2);
+    insertSeedRule(
+        companyId,
+        "Organization specified",
+        "Contact organization or company is provided",
+        "HAS_ORGANIZATION",
+        Map.of(),
+        15,
+        3);
+    insertSeedRule(
+        companyId,
+        "Stage is Qualified",
+        "Lead has been advanced to QUALIFIED stage",
+        "STAGE_MATCH",
+        Map.of("stage", "QUALIFIED"),
+        30,
+        4);
+    insertSeedRule(
+        companyId,
+        "Stage is Contacted",
+        "Lead has been reached out to",
+        "STAGE_MATCH",
+        Map.of("stage", "CONTACTED"),
+        10,
+        5);
+    insertSeedRule(
+        companyId,
+        "Stage is Unqualified",
+        "Lead marked unqualified",
+        "STAGE_MATCH",
+        Map.of("stage", "UNQUALIFIED"),
+        -50,
+        6);
+    insertSeedRule(
+        companyId,
+        "Web form submission",
+        "Contact submitted an inbound web lead form",
+        "FORM_SUBMISSION",
+        Map.of(),
+        25,
+        7);
+    insertSeedRule(
+        companyId,
+        "Has sales deal",
+        "Contact is associated with an active deal",
+        "HAS_DEAL",
+        Map.of(),
+        20,
+        8);
+    insertSeedRule(
+        companyId,
+        "Has interaction / notes",
+        "Recorded communication notes or WhatsApp interactions",
+        "COMMUNICATION_ACTIVITY",
+        Map.of(),
+        10,
+        9);
   }
 
   private void insertSeedRule(
-      long companyId, String name, String desc, String type, Map<String, Object> config, int points, int order) {
+      long companyId,
+      String name,
+      String desc,
+      String type,
+      Map<String, Object> config,
+      int points,
+      int order) {
     long key = IdGenerator.nextId();
     String condJson = "{}";
     try {
       condJson = MAPPER.writeValueAsString(config);
-    } catch (Exception ignored) {}
+    } catch (Exception ignored) {
+    }
 
     jdbc.update(
         """
@@ -559,7 +645,8 @@ public class CrmLeadScoringService {
     if (raw != null && !raw.isBlank()) {
       try {
         config = MAPPER.readValue(raw, MAP_REF);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
 
     return new ScoreRuleDto(

@@ -18,8 +18,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Super-admin read-only managed usage analytics. This reports recorded, priced usage events,
- * not cash collected or provider delivery telemetry. All intervals are half-open [from, to).
+ * Super-admin read-only managed usage analytics. This reports recorded, priced usage events, not
+ * cash collected or provider delivery telemetry. All intervals are half-open [from, to).
  */
 @RestController
 @RequestMapping("/api/v1/admin/billing/analytics")
@@ -29,17 +29,29 @@ public class BillingUsageAnalyticsController {
   private final PlatformAdminAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
-  public record ChannelTotals(long emailMessages, long smsSegments, long whatsappMessages,
-                              BigDecimal managedChargesInr) {}
+  public record ChannelTotals(
+      long emailMessages, long smsSegments, long whatsappMessages, BigDecimal managedChargesInr) {}
 
-  public record CompanyUsage(String companyId, long emailMessages, long smsSegments,
-                             long whatsappMessages, BigDecimal managedChargesInr) {}
+  public record CompanyUsage(
+      String companyId,
+      long emailMessages,
+      long smsSegments,
+      long whatsappMessages,
+      BigDecimal managedChargesInr) {}
 
-  public record DailyUsage(String day, long emailMessages, long smsSegments,
-                           long whatsappMessages, BigDecimal managedChargesInr) {}
+  public record DailyUsage(
+      String day,
+      long emailMessages,
+      long smsSegments,
+      long whatsappMessages,
+      BigDecimal managedChargesInr) {}
 
-  public record UsageReport(Instant from, Instant to, ChannelTotals totals,
-                            List<CompanyUsage> companies, List<DailyUsage> daily) {}
+  public record UsageReport(
+      Instant from,
+      Instant to,
+      ChannelTotals totals,
+      List<CompanyUsage> companies,
+      List<DailyUsage> daily) {}
 
   @GetMapping("/managed-usage")
   public ResponseEntity<ApiResponse<UsageReport>> managedUsage(
@@ -54,13 +66,15 @@ public class BillingUsageAnalyticsController {
     Timestamp start = Timestamp.from(from);
     Timestamp end = Timestamp.from(to);
     // Billing is explicitly in INR. Do not mix foreign-currency monetary amounts.
-    String predicate = """
+    String predicate =
+        """
         from usage_events u
         where u.service_ownership = 'MANAGED'
           and u.currency = 'INR'
           and u.occurred_at >= ? and u.occurred_at < ?
         """;
-    String columns = """
+    String columns =
+        """
         coalesce(sum(case when u.billing_sku = 'MANAGED_EMAIL_OUTBOUND'
           then u.quantity else 0 end), 0) as email_count,
         coalesce(sum(case when u.billing_sku = 'MANAGED_SMS_SEGMENT'
@@ -69,26 +83,50 @@ public class BillingUsageAnalyticsController {
           then u.quantity else 0 end), 0) as whatsapp_count,
         coalesce(sum(u.total_price), 0) as charges
         """;
-    ChannelTotals totals = jdbcTemplate.queryForObject(
-        "select " + columns + predicate, (rs, n) -> new ChannelTotals(
-            rs.getLong("email_count"), rs.getLong("sms_count"),
-            rs.getLong("whatsapp_count"), rs.getBigDecimal("charges")), start, end);
-    List<CompanyUsage> companies = jdbcTemplate.query(
-        "select u.company_id, " + columns + predicate +
-            "group by u.company_id order by charges desc, u.company_id",
-        (rs, n) -> new CompanyUsage(Long.toString(rs.getLong("company_id")), rs.getLong("email_count"),
-            rs.getLong("sms_count"), rs.getLong("whatsapp_count"),
-            rs.getBigDecimal("charges")), start, end);
+    ChannelTotals totals =
+        jdbcTemplate.queryForObject(
+            "select " + columns + predicate,
+            (rs, n) ->
+                new ChannelTotals(
+                    rs.getLong("email_count"), rs.getLong("sms_count"),
+                    rs.getLong("whatsapp_count"), rs.getBigDecimal("charges")),
+            start,
+            end);
+    List<CompanyUsage> companies =
+        jdbcTemplate.query(
+            "select u.company_id, "
+                + columns
+                + predicate
+                + "group by u.company_id order by charges desc, u.company_id",
+            (rs, n) ->
+                new CompanyUsage(
+                    Long.toString(rs.getLong("company_id")),
+                    rs.getLong("email_count"),
+                    rs.getLong("sms_count"),
+                    rs.getLong("whatsapp_count"),
+                    rs.getBigDecimal("charges")),
+            start,
+            end);
     // UTC day boundaries are deliberate. Frontend must label the timezone.
-    List<DailyUsage> daily = jdbcTemplate.query(
-        "select to_char((u.occurred_at at time zone 'UTC')::date, 'YYYY-MM-DD') as day, " +
-            columns + predicate +
-            "group by (u.occurred_at at time zone 'UTC')::date order by day",
-        (rs, n) -> new DailyUsage(rs.getString("day"), rs.getLong("email_count"),
-            rs.getLong("sms_count"), rs.getLong("whatsapp_count"),
-            rs.getBigDecimal("charges")), start, end);
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(),
-        new UsageReport(from, to, totals, companies, daily),
-        "Managed usage analytics fetched"));
+    List<DailyUsage> daily =
+        jdbcTemplate.query(
+            "select to_char((u.occurred_at at time zone 'UTC')::date, 'YYYY-MM-DD') as day, "
+                + columns
+                + predicate
+                + "group by (u.occurred_at at time zone 'UTC')::date order by day",
+            (rs, n) ->
+                new DailyUsage(
+                    rs.getString("day"),
+                    rs.getLong("email_count"),
+                    rs.getLong("sms_count"),
+                    rs.getLong("whatsapp_count"),
+                    rs.getBigDecimal("charges")),
+            start,
+            end);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            new UsageReport(from, to, totals, companies, daily),
+            "Managed usage analytics fetched"));
   }
 }

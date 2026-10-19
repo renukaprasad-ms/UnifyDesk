@@ -1,3 +1,4 @@
+import PhoneInput from '../ui/PhoneInput'
 import { useState, type FormEvent } from 'react'
 import { FiPlus, FiTrash2 } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -289,11 +290,11 @@ export default function GoogleAdvancedAssetForm({ companyId, accountId, onCreate
             </label>
             <label className="text-xs font-semibold text-slate-700">
               Phone number
-              <input
+              <PhoneInput
                 className="form-input mt-2"
                 value={phone}
                 required
-                onChange={(event) => setPhone(event.target.value)}
+                onChange={(value) => setPhone(value)}
                 placeholder="+91 98765 43210"
               />
             </label>

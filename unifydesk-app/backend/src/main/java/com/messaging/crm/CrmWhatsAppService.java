@@ -1,5 +1,7 @@
 package com.messaging.crm;
 
+import com.messaging.common.validation.ValidPhone;
+
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
@@ -50,7 +52,7 @@ public class CrmWhatsAppService {
   public record SendInput(
       Long contactId,
       Long dealId,
-      String phone,
+      @ValidPhone String phone,
       Long connectionId,
       String type,
       String templateId,

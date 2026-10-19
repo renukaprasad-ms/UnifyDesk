@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -64,10 +63,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
   }
 
   public GoogleLifecycleGoalResponse upsertGoal(
-      Long companyId,
-      Long accountId,
-      GoogleLifecycleGoalUpsertRequest request,
-      Long actorUserId) {
+      Long companyId, Long accountId, GoogleLifecycleGoalUpsertRequest request, Long actorUserId) {
     var context = contextService.requireManaged(companyId, accountId);
     String goalType = goalType(request.goalType());
     validateGoalValues(
@@ -108,10 +104,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
           context.account().getExternalAccountId(),
           context.loginCustomerId(),
           "goals",
-          List.of(
-              Map.of(
-                  "update", update,
-                  "updateMask", accountUpdateMask(goalType))));
+          List.of(Map.of("update", update, "updateMask", accountUpdateMask(goalType))));
     }
 
     GoogleLifecycleGoalResponse after =
@@ -136,8 +129,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
     return after;
   }
 
-  public List<GoogleUserListCustomerTypeResponse> customerTypes(
-      Long companyId, Long accountId) {
+  public List<GoogleUserListCustomerTypeResponse> customerTypes(Long companyId, Long accountId) {
     var context = contextService.requireManaged(companyId, accountId);
     Map<String, AdAudience> localByExternal = new HashMap<>();
     for (AdAudience audience :
@@ -179,10 +171,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
   }
 
   public List<GoogleUserListCustomerTypeResponse> replaceCustomerTypes(
-      Long companyId,
-      Long accountId,
-      GoogleUserListCustomerTypeRequest request,
-      Long actorUserId) {
+      Long companyId, Long accountId, GoogleUserListCustomerTypeRequest request, Long actorUserId) {
     var context = contextService.requireManaged(companyId, accountId);
     AdAudience audience =
         audienceRepository
@@ -253,9 +242,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
   }
 
   public void validateCampaignConfiguration(
-      Long companyId,
-      Long accountId,
-      GooglePerformanceMaxLifecycleRequest request) {
+      Long companyId, Long accountId, GooglePerformanceMaxLifecycleRequest request) {
     String type = goalType(request.goalType());
     String target = targetOption(request.targetOption(), type);
     validateCampaignValues(
@@ -266,8 +253,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
         request.valueMultiplier());
 
     boolean goalExists =
-        goals(companyId, accountId).stream()
-            .anyMatch(goal -> type.equals(goal.goalType()));
+        goals(companyId, accountId).stream().anyMatch(goal -> type.equals(goal.goalType()));
     if (!goalExists) {
       throw new BadRequestException(
           "Configure the Google "
@@ -275,16 +261,17 @@ public class GoogleAdsPerformanceMaxLifecycleService {
               + " account lifecycle goal before launching this Performance Max campaign");
     }
 
-    List<GoogleUserListCustomerTypeResponse> classifications =
-        customerTypes(companyId, accountId);
+    List<GoogleUserListCustomerTypeResponse> classifications = customerTypes(companyId, accountId);
     if (classifications.isEmpty()) {
       throw new BadRequestException(
           "Classify at least one Google customer list before using lifecycle optimization");
     }
     if ("LOYALTY_RETENTION".equals(type)
         && classifications.stream()
-            .noneMatch(value -> value.customerTypeCategory() != null
-                && value.customerTypeCategory().startsWith("LOYALTY_TIER_"))) {
+            .noneMatch(
+                value ->
+                    value.customerTypeCategory() != null
+                        && value.customerTypeCategory().startsWith("LOYALTY_TIER_"))) {
       throw new BadRequestException(
           "Loyalty Retention requires at least one Google customer list classified into a loyalty tier");
     }
@@ -360,10 +347,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
           context.account().getExternalAccountId(),
           context.loginCustomerId(),
           "campaignGoalConfigs",
-          List.of(
-              Map.of(
-                  "update", update,
-                  "updateMask", campaignUpdateMask(type))));
+          List.of(Map.of("update", update, "updateMask", campaignUpdateMask(type))));
     }
 
     GooglePerformanceMaxLifecycleResponse after =
@@ -371,7 +355,9 @@ public class GoogleAdsPerformanceMaxLifecycleService {
             .filter(config -> type.equals(config.goalType()))
             .findFirst()
             .orElseThrow(
-                () -> new IllegalStateException("Google campaign lifecycle config could not be reloaded"));
+                () ->
+                    new IllegalStateException(
+                        "Google campaign lifecycle config could not be reloaded"));
 
     activityLogService.record(
         companyId,
@@ -389,10 +375,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
   }
 
   public List<GooglePerformanceMaxLifecycleResponse> removeCampaignLifecycle(
-      Long companyId,
-      Long campaignId,
-      String requestedGoalType,
-      Long actorUserId) {
+      Long companyId, Long campaignId, String requestedGoalType, Long actorUserId) {
     AdCampaign campaign = requirePerformanceMaxCampaign(companyId, campaignId);
     var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
     String type = goalType(requestedGoalType);
@@ -411,8 +394,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
         "campaignGoalConfigs",
         List.of(Map.of("remove", before.resourceName())));
 
-    List<GooglePerformanceMaxLifecycleResponse> after =
-        campaignLifecycle(companyId, campaignId);
+    List<GooglePerformanceMaxLifecycleResponse> after = campaignLifecycle(companyId, campaignId);
 
     activityLogService.record(
         companyId,
@@ -480,8 +462,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
         switch (type == null ? "" : type) {
           case "NEW_CUSTOMER_ACQUISITION" ->
               goal.path("newCustomerAcquisitionGoalSettings").path("valueSettings");
-          case "CUSTOMER_RETENTION" ->
-              goal.path("retentionGoalSettings").path("valueSettings");
+          case "CUSTOMER_RETENTION" -> goal.path("retentionGoalSettings").path("valueSettings");
           case "LOYALTY_RETENTION" ->
               goal.path("loyaltyRetentionGoalSettings").path("valueSettings");
           default -> goal.path("missing");
@@ -539,9 +520,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
     Map<String, Object> valueSettings = new LinkedHashMap<>();
     if ("LOYALTY_RETENTION".equals(type)) {
       if (multiplier != null) valueSettings.put("valueMultiplier", multiplier);
-      return Map.of(
-          "loyaltyRetentionGoalSettings",
-          Map.of("valueSettings", valueSettings));
+      return Map.of("loyaltyRetentionGoalSettings", Map.of("valueSettings", valueSettings));
     }
     if (value != null) valueSettings.put("additionalValue", value);
     if (highValue != null) valueSettings.put("additionalHighLifetimeValue", highValue);
@@ -553,14 +532,11 @@ public class GoogleAdsPerformanceMaxLifecycleService {
   }
 
   private Map<String, Object> campaignSettings(
-      String type,
-      String targetOption,
-      GooglePerformanceMaxLifecycleRequest request) {
+      String type, String targetOption, GooglePerformanceMaxLifecycleRequest request) {
     Map<String, Object> settings = new LinkedHashMap<>();
     Map<String, Object> values = new LinkedHashMap<>();
 
-    if ("NEW_CUSTOMER_ACQUISITION".equals(type)
-        || "CUSTOMER_RETENTION".equals(type)) {
+    if ("NEW_CUSTOMER_ACQUISITION".equals(type) || "CUSTOMER_RETENTION".equals(type)) {
       settings.put("targetOption", targetOption);
       if (request.additionalValue() != null) {
         values.put("additionalValue", request.additionalValue());
@@ -585,8 +561,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
     }
     if (request.enableBidAdjustmentsForLoyaltyMembers() != null) {
       settings.put(
-          "enableBidAdjustmentsForLoyaltyMembers",
-          request.enableBidAdjustmentsForLoyaltyMembers());
+          "enableBidAdjustmentsForLoyaltyMembers", request.enableBidAdjustmentsForLoyaltyMembers());
     }
     if (request.showTargetedLoyaltyMemberBenefitsInPla() != null) {
       settings.put(
@@ -598,8 +573,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
 
   private String accountUpdateMask(String type) {
     return switch (type) {
-      case "NEW_CUSTOMER_ACQUISITION" ->
-          "new_customer_acquisition_goal_settings.value_settings";
+      case "NEW_CUSTOMER_ACQUISITION" -> "new_customer_acquisition_goal_settings.value_settings";
       case "CUSTOMER_RETENTION" -> "retention_goal_settings.value_settings";
       case "LOYALTY_RETENTION" -> "loyalty_retention_goal_settings.value_settings";
       default -> throw new IllegalStateException("Unsupported lifecycle goal type");
@@ -608,16 +582,14 @@ public class GoogleAdsPerformanceMaxLifecycleService {
 
   private String campaignUpdateMask(String type) {
     return switch (type) {
-      case "NEW_CUSTOMER_ACQUISITION" ->
-          "campaign_new_customer_acquisition_settings";
+      case "NEW_CUSTOMER_ACQUISITION" -> "campaign_new_customer_acquisition_settings";
       case "CUSTOMER_RETENTION" -> "campaign_retention_settings";
       case "LOYALTY_RETENTION" -> "campaign_loyalty_retention_settings";
       default -> throw new IllegalStateException("Unsupported lifecycle goal type");
     };
   }
 
-  private void validateGoalValues(
-      String type, Double value, Double highValue, Double multiplier) {
+  private void validateGoalValues(String type, Double value, Double highValue, Double multiplier) {
     if ("LOYALTY_RETENTION".equals(type)) {
       if (multiplier == null || multiplier <= 0) {
         throw new BadRequestException(
@@ -637,11 +609,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
   }
 
   private void validateCampaignValues(
-      String type,
-      String targetOption,
-      Double value,
-      Double highValue,
-      Double multiplier) {
+      String type, String targetOption, Double value, Double highValue, Double multiplier) {
     if ("LOYALTY_RETENTION".equals(type)) {
       if (value != null || highValue != null) {
         throw new BadRequestException(
@@ -684,8 +652,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
     for (String value : values == null ? List.<String>of() : values) {
       String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
       if (!CUSTOMER_TYPES.contains(normalized)) {
-        throw new BadRequestException(
-            "Unsupported Google lifecycle customer type: " + value);
+        throw new BadRequestException("Unsupported Google lifecycle customer type: " + value);
       }
       if (!result.contains(normalized)) result.add(normalized);
     }
@@ -702,11 +669,9 @@ public class GoogleAdsPerformanceMaxLifecycleService {
     conflict(types, "DISENGAGED_CUSTOMERS", "QUALIFIED_LEADS");
     conflict(types, "DISENGAGED_CUSTOMERS", "CART_ABANDONERS");
 
-    long loyaltyTiers =
-        types.stream().filter(value -> value.startsWith("LOYALTY_TIER_")).count();
+    long loyaltyTiers = types.stream().filter(value -> value.startsWith("LOYALTY_TIER_")).count();
     if (loyaltyTiers > 1) {
-      throw new BadRequestException(
-          "A Google user list cannot belong to multiple loyalty tiers");
+      throw new BadRequestException("A Google user list cannot belong to multiple loyalty tiers");
     }
   }
 
@@ -729,9 +694,7 @@ public class GoogleAdsPerformanceMaxLifecycleService {
   private String targetOption(String value, String goalType) {
     if ("LOYALTY_RETENTION".equals(goalType)) return null;
     String normalized =
-        value == null || value.isBlank()
-            ? "TARGET_ALL"
-            : value.trim().toUpperCase(Locale.ROOT);
+        value == null || value.isBlank() ? "TARGET_ALL" : value.trim().toUpperCase(Locale.ROOT);
     if (!TARGET_OPTIONS.contains(normalized)) {
       throw new BadRequestException(
           "Google lifecycle target option must be TARGET_ALL or TARGET_SPECIFIC");

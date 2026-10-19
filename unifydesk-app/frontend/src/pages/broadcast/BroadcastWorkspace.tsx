@@ -1297,7 +1297,10 @@ export default function BroadcastWorkspace() {
               canSend={
                 can(PERMISSIONS.BROADCAST_SEND) &&
                 Boolean(selectedMessage?.senderId) &&
-                Boolean(selectedMessage?.groupId)
+                Boolean(
+                  selectedMessage?.groupId ||
+                    (selectedMessage?.audienceSourceType && selectedMessage?.audienceSourceId),
+                )
               }
               canEdit={can(PERMISSIONS.BROADCAST_MODIFY) && Boolean(selectedMessage?.groupId)}
               canControl={can(PERMISSIONS.BROADCAST_MODIFY)}

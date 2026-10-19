@@ -1,3 +1,5 @@
+import StateSelect from '../../components/ui/StateSelect'
+import PhoneInput from '../../components/ui/PhoneInput'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import {
@@ -10,7 +12,6 @@ import {
   FiDownload,
   FiLayers,
   FiPlus,
-  FiPhone,
   FiRefreshCw,
   FiSave,
   FiShield,
@@ -2225,10 +2226,9 @@ export default function BillingPage() {
                   <label className="block text-xs font-semibold text-foreground mb-1">
                     Billing Contact Phone
                   </label>
-                  <input
-                    type="tel"
+                  <PhoneInput
                     value={profile.billingPhone || ''}
-                    onChange={(e) => setProfile({ ...profile, billingPhone: e.target.value })}
+                    onChange={(value) => setProfile({ ...profile, billingPhone: value })}
                     placeholder="+91 9876543210"
                     className="input-field w-full text-sm py-2 rounded-xl "
                   />
@@ -2248,12 +2248,13 @@ export default function BillingPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">City</label>
-                  <CitySelect
-                    country={profile.country}
-                    value={profile.city || ''}
-                    onChange={(city) => setProfile({ ...profile, city })}
-                    placeholder="Select or enter city"
+                  <label className="block text-xs font-semibold text-foreground mb-1">
+                    Country
+                  </label>
+                  <CountrySelect
+                    value={profile.country ?? ''}
+                    valueType="name"
+                    onChange={(country) => setProfile({ ...profile, country, state: '', city: '' })}
                     className="input-field w-full text-sm py-2 rounded-xl "
                     showIcon
                   />
@@ -2261,12 +2262,23 @@ export default function BillingPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1">State</label>
-                  <input
-                    type="text"
+                  <StateSelect country={profile.country}
                     value={profile.state || ''}
-                    onChange={(e) => setProfile({ ...profile, state: e.target.value })}
-                    placeholder="Karnataka"
+                    onChange={(state) => setProfile({ ...profile, state, city: '' })}
+                    placeholder="Select state"
                     className="input-field w-full text-sm py-2 rounded-xl "
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1">City</label>
+                  <CitySelect
+                    state={profile.state}
+                    country={profile.country}
+                    value={profile.city || ''}
+                    onChange={(city) => setProfile({ ...profile, city })}
+                    placeholder="Select city"
+                    className="input-field w-full text-sm py-2 rounded-xl "
+                    showIcon
                   />
                 </div>
 
@@ -2283,18 +2295,6 @@ export default function BillingPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">
-                    Country
-                  </label>
-                  <CountrySelect
-                    value={profile.country || 'India'}
-                    valueType="name"
-                    onChange={(country) => setProfile({ ...profile, country })}
-                    className="input-field w-full text-sm py-2 rounded-xl "
-                    showIcon
-                  />
-                </div>
               </div>
 
               <div className="pt-3 flex justify-end">
@@ -2461,12 +2461,10 @@ export default function BillingPage() {
                   Billing Mobile Number (for Payment Gateway):
                 </label>
                 <div className="relative">
-                  <FiPhone className="absolute left-3.5 top-3 text-muted-foreground text-xs" />
-                  <input
-                    type="tel"
+                  <PhoneInput
                     required
                     value={customer.phone}
-                    onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+                    onChange={(value) => setCustomer({ ...customer, phone: value })}
                     placeholder="9876543210"
                     className="input-field pl-9 py-2.5 w-full text-xs font-medium rounded-xl "
                   />
@@ -2616,13 +2614,12 @@ export default function BillingPage() {
                       <label className="block text-[11px] text-muted-foreground mb-1">
                         Billing Phone <span className="text-red-400">*</span>
                       </label>
-                      <input
-                        type="tel"
+                      <PhoneInput
                         required
                         value={customer.phone || profile.billingPhone || ''}
-                        onChange={(e) => {
-                          setCustomer({ ...customer, phone: e.target.value })
-                          setProfile({ ...profile, billingPhone: e.target.value })
+                        onChange={(value) => {
+                          setCustomer({ ...customer, phone: value })
+                          setProfile({ ...profile, billingPhone: value })
                         }}
                         placeholder="9999999999"
                         className="input-field w-full text-xs py-2 rounded-xl "
@@ -2645,22 +2642,22 @@ export default function BillingPage() {
 
                   <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <label className="block text-[11px] text-muted-foreground mb-1">City</label>
-                      <CitySelect
-                        country={profile.country}
-                        value={profile.city || ''}
-                        onChange={(city) => setProfile({ ...profile, city })}
-                        placeholder="Bengaluru"
+                      <label className="block text-[11px] text-muted-foreground mb-1">State</label>
+                      <StateSelect country={profile.country}
+                        value={profile.state || ''}
+                        onChange={(state) => setProfile({ ...profile, state, city: '' })}
+                        placeholder="Select state"
                         className="input-field w-full text-xs py-2 rounded-xl "
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] text-muted-foreground mb-1">State</label>
-                      <input
-                        type="text"
-                        value={profile.state || ''}
-                        onChange={(e) => setProfile({ ...profile, state: e.target.value })}
-                        placeholder="Karnataka"
+                      <label className="block text-[11px] text-muted-foreground mb-1">City</label>
+                      <CitySelect
+                        state={profile.state}
+                        country={profile.country}
+                        value={profile.city || ''}
+                        onChange={(city) => setProfile({ ...profile, city })}
+                        placeholder="Select city"
                         className="input-field w-full text-xs py-2 rounded-xl "
                       />
                     </div>

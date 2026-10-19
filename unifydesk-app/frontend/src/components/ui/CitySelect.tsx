@@ -1,71 +1,31 @@
-import React, { useId } from 'react'
-import { FiMapPin } from 'react-icons/fi'
-import { getCitiesForCountry } from '../../data/countriesAndCities'
+import { useLocations } from '../../data/locations'
+import LocationSelect, { type LocationSelectProps } from './LocationSelect'
 
-export interface CitySelectProps {
+export type CitySelectProps = Omit<LocationSelectProps, 'options' | 'loading' | 'error'> & {
   country?: string | null
-  value: string
-  onChange: (value: string) => void
-  disabled?: boolean
-  className?: string
-  placeholder?: string
-  required?: boolean
-  id?: string
-  name?: string
-  showIcon?: boolean
+  state?: string | null
 }
-
-export const CitySelect: React.FC<CitySelectProps> = ({
+export default function CitySelect({
   country,
-  value,
-  onChange,
-  disabled = false,
-  className = '',
-  placeholder = 'Select or enter city',
-  required = false,
-  id,
-  name,
-  showIcon = false,
-}) => {
-  const datalistId = useId()
-  const cities = getCitiesForCountry(country)
-
-  const inputElement = (
-    <>
-      <input
-        id={id}
-        name={name}
-        type="text"
-        list={datalistId}
-        disabled={disabled}
-        required={required}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`form-input bg-white dark:bg-slate-900 ${showIcon ? 'pl-9' : ''} ${className}`}
-        autoComplete="address-level2"
-      />
-      <datalist id={datalistId}>
-        {cities.map((city) => (
-          <option key={city} value={city} />
-        ))}
-      </datalist>
-    </>
+  state,
+  placeholder = 'Select city',
+  ...props
+}: CitySelectProps) {
+  const { states, loading, error } = useLocations(country)
+  const selected = state
+    ? states.filter((item) => item.name === state || item.code === state)
+    : states
+  const cities = [...new Set(selected.flatMap((item) => item.cities))].sort((a, b) =>
+    a.localeCompare(b),
   )
-
-  if (showIcon) {
-    return (
-      <div className="relative">
-        <FiMapPin
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          aria-hidden="true"
-        />
-        {inputElement}
-      </div>
-    )
-  }
-
-  return inputElement
+  return (
+    <LocationSelect
+      key={`${country}|${state}`}
+      {...props}
+      placeholder={placeholder}
+      options={cities}
+      loading={loading}
+      error={error}
+    />
+  )
 }
-
-export default CitySelect

@@ -8,10 +8,10 @@ import org.springframework.stereotype.Component;
 /**
  * Reconciles CRM relationships in the canonical Contacts merge transaction.
  *
- * <p>The target Contact is authoritative when both contacts already have lead stages. Otherwise
- * the source lead is transferred. Source stage history is retained under the target, while linked
- * customer companies are deduplicated and follow-up tasks are reassigned. This extension does
- * not modify contact identities, consent, or messaging/suppression records.
+ * <p>The target Contact is authoritative when both contacts already have lead stages. Otherwise the
+ * source lead is transferred. Source stage history is retained under the target, while linked
+ * customer companies are deduplicated and follow-up tasks are reassigned. This extension does not
+ * modify contact identities, consent, or messaging/suppression records.
  */
 @Component
 @RequiredArgsConstructor
@@ -19,7 +19,8 @@ public class CrmContactMergeExtension implements ContactMergeExtension {
   private final JdbcTemplate jdbc;
 
   @Override
-  public void reconcile(long companyId, long sourceContactId, long targetContactId, long actorUserId) {
+  public void reconcile(
+      long companyId, long sourceContactId, long targetContactId, long actorUserId) {
     // ContactService locks both canonical contacts and wraps every extension in one transaction.
     // Insert target lead before reparenting events due to the composite stage-events FK.
     jdbc.update(
@@ -32,20 +33,26 @@ public class CrmContactMergeExtension implements ContactMergeExtension {
         where company_id = ? and contact_id = ?
         on conflict (company_id, contact_id) do nothing
         """,
-        targetContactId, actorUserId, companyId, sourceContactId);
+        targetContactId,
+        actorUserId,
+        companyId,
+        sourceContactId);
 
     jdbc.update(
         """
         update crm_lead_stage_events set contact_id = ?
         where company_id = ? and contact_id = ?
         """,
-        targetContactId, companyId, sourceContactId);
+        targetContactId,
+        companyId,
+        sourceContactId);
 
     jdbc.update(
         """
         delete from crm_leads where company_id = ? and contact_id = ?
         """,
-        companyId, sourceContactId);
+        companyId,
+        sourceContactId);
 
     jdbc.update(
         """
@@ -56,13 +63,16 @@ public class CrmContactMergeExtension implements ContactMergeExtension {
         where company_id = ? and contact_id = ?
         on conflict (company_id, account_id, contact_id) do nothing
         """,
-        targetContactId, companyId, sourceContactId);
+        targetContactId,
+        companyId,
+        sourceContactId);
 
     jdbc.update(
         """
         delete from crm_account_contacts where company_id = ? and contact_id = ?
         """,
-        companyId, sourceContactId);
+        companyId,
+        sourceContactId);
 
     jdbc.update(
         """
@@ -70,10 +80,18 @@ public class CrmContactMergeExtension implements ContactMergeExtension {
         set contact_id = ?, version = version + 1, updated_at = now()
         where company_id = ? and contact_id = ?
         """,
-        targetContactId, companyId, sourceContactId);
-    jdbc.update("update crm_deals set contact_id=?,version=version+1,updated_at=now() where company_id=? and contact_id=?",
-        targetContactId,companyId,sourceContactId);
-    jdbc.update("update crm_notes set contact_id=? where company_id=? and contact_id=?",
-        targetContactId,companyId,sourceContactId);
+        targetContactId,
+        companyId,
+        sourceContactId);
+    jdbc.update(
+        "update crm_deals set contact_id=?,version=version+1,updated_at=now() where company_id=? and contact_id=?",
+        targetContactId,
+        companyId,
+        sourceContactId);
+    jdbc.update(
+        "update crm_notes set contact_id=? where company_id=? and contact_id=?",
+        targetContactId,
+        companyId,
+        sourceContactId);
   }
 }

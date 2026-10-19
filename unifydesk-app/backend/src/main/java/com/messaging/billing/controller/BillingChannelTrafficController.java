@@ -17,11 +17,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Operational message activity—not financial charge units. Counts rows from distinct
- * channel message identity stores instead of provider webhook events to avoid retry inflation.
- * Coverage: connected inbox email, legacy managed email/SMS broadcast and Meta WhatsApp.
- * Includes explicitly linked and ingested standalone Mail product handoffs; unlinked
- * Mail projects are excluded. A source may appear in multiple stores until deduplicated.
+ * Operational message activity—not financial charge units. Counts rows from distinct channel
+ * message identity stores instead of provider webhook events to avoid retry inflation. Coverage:
+ * connected inbox email, legacy managed email/SMS broadcast and Meta WhatsApp. Includes explicitly
+ * linked and ingested standalone Mail product handoffs; unlinked Mail projects are excluded. A
+ * source may appear in multiple stores until deduplicated.
  */
 @RestController
 @RequestMapping("/api/v1/admin/billing/analytics")
@@ -32,7 +32,12 @@ public class BillingChannelTrafficController {
   private final CurrentUserService currentUserService;
 
   public record TrafficPoint(
-      String companyId, String day, String channel, String direction, String source, long messages) {}
+      String companyId,
+      String day,
+      String channel,
+      String direction,
+      String source,
+      long messages) {}
 
   public record TrafficReport(Instant from, Instant to, List<TrafficPoint> points) {}
 
@@ -40,14 +45,16 @@ public class BillingChannelTrafficController {
   public ResponseEntity<ApiResponse<TrafficReport>> channelTraffic(
       @RequestParam Instant from, @RequestParam Instant to) {
     authorization.requireSuperAdmin(currentUserService.currentUserId());
-    if (!from.isBefore(to) || to.isAfter(Instant.now().plusSeconds(60))
+    if (!from.isBefore(to)
+        || to.isAfter(Instant.now().plusSeconds(60))
         || from.isBefore(to.minusSeconds(93L * 86400))) {
       throw new BadRequestException("Channel traffic reporting is limited to 93 days");
     }
     Timestamp start = Timestamp.from(from);
     Timestamp end = Timestamp.from(to);
-    List<TrafficPoint> rows = jdbcTemplate.query(
-        """
+    List<TrafficPoint> rows =
+        jdbcTemplate.query(
+            """
         with observed as (
           select c.company_id, 'EMAIL' as channel, m.direction as direction,
                  'CONNECTED_INBOX' as source,
@@ -82,12 +89,23 @@ public class BillingChannelTrafficController {
          group by company_id, channel, direction, source, (occurred_at at time zone 'UTC')::date
          order by day, company_id, channel, direction, source
         """,
-        (rs, row) -> new TrafficPoint(
-            Long.toString(rs.getLong("company_id")), rs.getString("day"),
-            rs.getString("channel"), rs.getString("direction"),
-            rs.getString("source"), rs.getLong("message_count")),
-        start, end, start, end, start, end, start, end, start, end);
-    return ResponseEntity.ok(ApiResponse.success(
-        HttpStatus.OK.value(), new TrafficReport(from, to, rows), "Channel traffic fetched"));
+            (rs, row) ->
+                new TrafficPoint(
+                    Long.toString(rs.getLong("company_id")), rs.getString("day"),
+                    rs.getString("channel"), rs.getString("direction"),
+                    rs.getString("source"), rs.getLong("message_count")),
+            start,
+            end,
+            start,
+            end,
+            start,
+            end,
+            start,
+            end,
+            start,
+            end);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(), new TrafficReport(from, to, rows), "Channel traffic fetched"));
   }
 }

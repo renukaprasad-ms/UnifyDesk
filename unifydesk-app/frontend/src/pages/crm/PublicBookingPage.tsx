@@ -1,3 +1,4 @@
+import PhoneInput from '../../components/ui/PhoneInput'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router'
 import {
@@ -345,12 +346,11 @@ export default function PublicBookingPage() {
                     <FiPhone className="text-slate-400" />
                     Phone Number (Optional)
                   </span>
-                  <input
-                    type="tel"
+                  <PhoneInput
                     className="form-input mt-1.5 w-full text-xs"
                     placeholder="+91 98765 43210"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(value) => setPhone(value)}
                   />
                 </label>
 

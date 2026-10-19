@@ -22,11 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Zoho Mail outgoing webhooks are configured manually by each mailbox owner.
- * The high-entropy URL token binds the first signed handshake to a connection.
- * Zoho's X-Hook-Secret is delivered only on that first request; it is encrypted
- * at rest and subsequent requests must verify against that pinned secret.
- * The raw webhook payload is never trusted as mailbox data.
+ * Zoho Mail outgoing webhooks are configured manually by each mailbox owner. The high-entropy URL
+ * token binds the first signed handshake to a connection. Zoho's X-Hook-Secret is delivered only on
+ * that first request; it is encrypted at rest and subsequent requests must verify against that
+ * pinned secret. The raw webhook payload is never trusted as mailbox data.
  */
 @Service
 @RequiredArgsConstructor
@@ -72,8 +71,7 @@ public class ZohoMailWebhookService {
         companyId,
         sha256(token));
     String base = validatedWebhookBase();
-    String url =
-        base + "/api/v1/webhooks/zoho-mail/" + connectionId + "?token=" + token;
+    String url = base + "/api/v1/webhooks/zoho-mail/" + connectionId + "?token=" + token;
     return new Setup(url, "AWAITING_HANDSHAKE");
   }
 
@@ -92,12 +90,16 @@ public class ZohoMailWebhookService {
                     properties.isEnabled() && properties.isWebhookEnabled(),
                     rs.getString("status"),
                     rs.getTimestamp("last_received_at") == null
-                        ? null : rs.getTimestamp("last_received_at").toInstant(),
+                        ? null
+                        : rs.getTimestamp("last_received_at").toInstant(),
                     rs.getTimestamp("last_processed_at") == null
-                        ? null : rs.getTimestamp("last_processed_at").toInstant()),
+                        ? null
+                        : rs.getTimestamp("last_processed_at").toInstant()),
             connectionId,
             companyId);
-    return rows.isEmpty() ? new Status(properties.isEnabled() && properties.isWebhookEnabled(), "NOT_CONFIGURED", null, null)
+    return rows.isEmpty()
+        ? new Status(
+            properties.isEnabled() && properties.isWebhookEnabled(), "NOT_CONFIGURED", null, null)
         : rows.getFirst();
   }
 
@@ -106,25 +108,26 @@ public class ZohoMailWebhookService {
     connectionLookup.requireConnection(companyId, connectionId);
     jdbc.update(
         "delete from zoho_mail_webhook_registrations where company_id=? and connection_id=?",
-        companyId, connectionId);
+        companyId,
+        connectionId);
   }
 
   @Transactional
   public void disconnect(Long connectionId) {
-    jdbc.update(
-        "delete from zoho_mail_webhook_registrations where connection_id=?", connectionId);
+    jdbc.update("delete from zoho_mail_webhook_registrations where connection_id=?", connectionId);
   }
 
   @Transactional
   public boolean authenticateAndQueue(
-      Long connectionId,
-      String urlToken,
-      String signature,
-      String initialSecret,
-      byte[] body) {
-    if (!properties.isEnabled() || !properties.isWebhookEnabled()
-        || connectionId == null || urlToken == null || urlToken.length() > 128
-        || body == null || body.length == 0 || body.length > MAX_PAYLOAD_BYTES) {
+      Long connectionId, String urlToken, String signature, String initialSecret, byte[] body) {
+    if (!properties.isEnabled()
+        || !properties.isWebhookEnabled()
+        || connectionId == null
+        || urlToken == null
+        || urlToken.length() > 128
+        || body == null
+        || body.length == 0
+        || body.length > MAX_PAYLOAD_BYTES) {
       return false;
     }
 
@@ -137,7 +140,8 @@ public class ZohoMailWebhookService {
             """,
             (rs, row) ->
                 new Registration(
-                    rs.getLong("company_id"), rs.getString("token_sha256"),
+                    rs.getLong("company_id"),
+                    rs.getString("token_sha256"),
                     rs.getString("signing_secret_encrypted")),
             connectionId);
     if (rows.isEmpty()) return false;
@@ -147,9 +151,10 @@ public class ZohoMailWebhookService {
         sha256(urlToken).getBytes(StandardCharsets.UTF_8))) {
       return false;
     }
-    ChannelConnection connection = connections.findByIdAndCompanyId(connectionId, row.companyId())
-        .orElse(null);
-    if (connection == null || connection.getProviderType() != ProviderType.ZOHO_MAIL
+    ChannelConnection connection =
+        connections.findByIdAndCompanyId(connectionId, row.companyId()).orElse(null);
+    if (connection == null
+        || connection.getProviderType() != ProviderType.ZOHO_MAIL
         || connection.getStatus() != ChannelConnectionStatus.ACTIVE) return false;
 
     String secret;
@@ -157,8 +162,8 @@ public class ZohoMailWebhookService {
     if (encryptedSecret != null && !encryptedSecret.isBlank()) {
       secret = cipher.decrypt(encryptedSecret);
     } else {
-      if (initialSecret == null || initialSecret.length() < 16
-          || initialSecret.length() > 1024) return false;
+      if (initialSecret == null || initialSecret.length() < 16 || initialSecret.length() > 1024)
+        return false;
       secret = initialSecret;
     }
     if (!ZohoMailWebhookSignature.matches(secret, signature, body)) return false;
@@ -172,7 +177,8 @@ public class ZohoMailWebhookService {
 
     String encrypted =
         encryptedSecret == null || encryptedSecret.isBlank()
-            ? cipher.encrypt(secret) : encryptedSecret;
+            ? cipher.encrypt(secret)
+            : encryptedSecret;
     jdbc.update(
         """
         update zoho_mail_webhook_registrations
@@ -194,9 +200,12 @@ public class ZohoMailWebhookService {
     String value = properties.getWebhookPublicBaseUrl();
     try {
       URI uri = URI.create(value);
-      if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null
-          || uri.getRawQuery() != null || uri.getRawFragment() != null
-          || (uri.getRawPath() != null && !uri.getRawPath().isBlank()
+      if (!"https".equalsIgnoreCase(uri.getScheme())
+          || uri.getHost() == null
+          || uri.getRawQuery() != null
+          || uri.getRawFragment() != null
+          || (uri.getRawPath() != null
+              && !uri.getRawPath().isBlank()
               && !"/".equals(uri.getRawPath()))) {
         throw new IllegalArgumentException("Invalid Zoho webhook base URL");
       }
@@ -223,7 +232,9 @@ public class ZohoMailWebhookService {
   }
 
   public record Setup(String webhookUrl, String status) {}
-  public record Status(boolean configured, String status, Instant lastReceivedAt,
-                       Instant lastProcessedAt) {}
+
+  public record Status(
+      boolean configured, String status, Instant lastReceivedAt, Instant lastProcessedAt) {}
+
   private record Registration(long companyId, String tokenHash, String encryptedSecret) {}
 }

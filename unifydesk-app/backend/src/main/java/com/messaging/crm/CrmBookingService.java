@@ -1,5 +1,7 @@
 package com.messaging.crm;
 
+import com.messaging.common.validation.ValidPhone;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.ApiException;
@@ -8,7 +10,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import org.slf4j.Logger;
@@ -27,9 +28,7 @@ public class CrmBookingService {
   private final JdbcTemplate jdbc;
   private final CrmWorkService workService;
 
-  public CrmBookingService(
-      JdbcTemplate jdbc,
-      CrmWorkService workService) {
+  public CrmBookingService(JdbcTemplate jdbc, CrmWorkService workService) {
     this.jdbc = jdbc;
     this.workService = workService;
   }
@@ -103,7 +102,7 @@ public class CrmBookingService {
       String slotTime, // ISO string
       String name,
       String email,
-      String phone,
+      @ValidPhone String phone,
       String notes) {}
 
   public record BookResult(
@@ -138,7 +137,8 @@ public class CrmBookingService {
         left join users u on u.id = b.host_user_id
         where b.company_id = ? and b.id = ?
         """;
-    List<BookingTypeDto> list = jdbc.query(sql, (rs, rowNum) -> mapBookingType(rs, rowNum), companyId, id);
+    List<BookingTypeDto> list =
+        jdbc.query(sql, (rs, rowNum) -> mapBookingType(rs, rowNum), companyId, id);
     if (list.isEmpty()) {
       throw new ApiException(HttpStatus.NOT_FOUND, "BOOKING_TYPE_NOT_FOUND");
     }
@@ -146,21 +146,28 @@ public class CrmBookingService {
   }
 
   @Transactional
-  public BookingTypeDto createBookingType(long companyId, long actorUserId, SaveBookingTypeInput input) {
+  public BookingTypeDto createBookingType(
+      long companyId, long actorUserId, SaveBookingTypeInput input) {
     if (input == null || input.title() == null || input.title().trim().isEmpty()) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "BOOKING_TITLE_REQUIRED");
     }
 
     String slug = generateSlug(companyId, input.slug(), input.title());
-    int duration = input.durationMinutes() != null && input.durationMinutes() > 0 ? input.durationMinutes() : 30;
+    int duration =
+        input.durationMinutes() != null && input.durationMinutes() > 0
+            ? input.durationMinutes()
+            : 30;
     long hostId = input.hostUserId() != null ? input.hostUserId() : actorUserId;
-    String locationType = input.locationType() != null ? input.locationType().trim().toUpperCase() : "GOOGLE_MEET";
-    String locationDetails = input.locationDetails() != null ? input.locationDetails().trim() : null;
+    String locationType =
+        input.locationType() != null ? input.locationType().trim().toUpperCase() : "GOOGLE_MEET";
+    String locationDetails =
+        input.locationDetails() != null ? input.locationDetails().trim() : null;
     String start = input.workingHoursStart() != null ? input.workingHoursStart().trim() : "09:00";
     String end = input.workingHoursEnd() != null ? input.workingHoursEnd().trim() : "18:00";
-    List<String> days = input.daysOfWeek() != null && !input.daysOfWeek().isEmpty()
-        ? input.daysOfWeek()
-        : List.of("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY");
+    List<String> days =
+        input.daysOfWeek() != null && !input.daysOfWeek().isEmpty()
+            ? input.daysOfWeek()
+            : List.of("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY");
 
     long id = IdGenerator.nextId();
     String daysJson = toJson(days);
@@ -198,14 +205,33 @@ public class CrmBookingService {
   public BookingTypeDto updateBookingType(long companyId, long id, SaveBookingTypeInput input) {
     BookingTypeDto existing = getBookingType(companyId, id);
 
-    String title = input.title() != null && !input.title().trim().isEmpty() ? input.title().trim() : existing.title();
-    int duration = input.durationMinutes() != null && input.durationMinutes() > 0 ? input.durationMinutes() : existing.durationMinutes();
-    long hostId = input.hostUserId() != null ? input.hostUserId() : Long.parseLong(existing.hostUserId());
-    String locationType = input.locationType() != null ? input.locationType().trim().toUpperCase() : existing.locationType();
-    String locationDetails = input.locationDetails() != null ? input.locationDetails().trim() : existing.locationDetails();
+    String title =
+        input.title() != null && !input.title().trim().isEmpty()
+            ? input.title().trim()
+            : existing.title();
+    int duration =
+        input.durationMinutes() != null && input.durationMinutes() > 0
+            ? input.durationMinutes()
+            : existing.durationMinutes();
+    long hostId =
+        input.hostUserId() != null ? input.hostUserId() : Long.parseLong(existing.hostUserId());
+    String locationType =
+        input.locationType() != null
+            ? input.locationType().trim().toUpperCase()
+            : existing.locationType();
+    String locationDetails =
+        input.locationDetails() != null
+            ? input.locationDetails().trim()
+            : existing.locationDetails();
     boolean active = input.isActive() != null ? input.isActive() : existing.isActive();
-    String start = input.workingHoursStart() != null ? input.workingHoursStart().trim() : existing.workingHoursStart();
-    String end = input.workingHoursEnd() != null ? input.workingHoursEnd().trim() : existing.workingHoursEnd();
+    String start =
+        input.workingHoursStart() != null
+            ? input.workingHoursStart().trim()
+            : existing.workingHoursStart();
+    String end =
+        input.workingHoursEnd() != null
+            ? input.workingHoursEnd().trim()
+            : existing.workingHoursEnd();
     List<String> days = input.daysOfWeek() != null ? input.daysOfWeek() : existing.daysOfWeek();
     String daysJson = toJson(days);
 
@@ -228,8 +254,12 @@ public class CrmBookingService {
         start,
         end,
         daysJson,
-        input.bufferBeforeMinutes() != null ? input.bufferBeforeMinutes() : existing.bufferBeforeMinutes(),
-        input.bufferAfterMinutes() != null ? input.bufferAfterMinutes() : existing.bufferAfterMinutes(),
+        input.bufferBeforeMinutes() != null
+            ? input.bufferBeforeMinutes()
+            : existing.bufferBeforeMinutes(),
+        input.bufferAfterMinutes() != null
+            ? input.bufferAfterMinutes()
+            : existing.bufferAfterMinutes(),
         companyId,
         id);
 
@@ -249,14 +279,16 @@ public class CrmBookingService {
 
   @Transactional
   public void deleteBookingType(long companyId, long id) {
-    int updated = jdbc.update("delete from crm_booking_types where company_id = ? and id = ?", companyId, id);
+    int updated =
+        jdbc.update("delete from crm_booking_types where company_id = ? and id = ?", companyId, id);
     if (updated == 0) {
       throw new ApiException(HttpStatus.NOT_FOUND, "BOOKING_TYPE_NOT_FOUND");
     }
   }
 
   @Transactional(readOnly = true)
-  public List<MeetingBookingDto> listBookings(long companyId, Long bookingTypeId, Long contactId, int limit) {
+  public List<MeetingBookingDto> listBookings(
+      long companyId, Long bookingTypeId, Long contactId, int limit) {
     int safeLimit = Math.max(1, Math.min(limit, 100));
     String sql =
         """
@@ -270,15 +302,24 @@ public class CrmBookingService {
         order by m.start_time desc
         limit ?
         """;
-    return jdbc.query(sql, (rs, rowNum) -> mapMeetingBooking(rs, rowNum), companyId, bookingTypeId, bookingTypeId, contactId, contactId, safeLimit);
+    return jdbc.query(
+        sql,
+        (rs, rowNum) -> mapMeetingBooking(rs, rowNum),
+        companyId,
+        bookingTypeId,
+        bookingTypeId,
+        contactId,
+        contactId,
+        safeLimit);
   }
 
   @Transactional
   public void cancelBooking(long companyId, long bookingId) {
-    int updated = jdbc.update(
-        "update crm_meeting_bookings set status = 'CANCELLED', updated_at = now() where company_id = ? and id = ?",
-        companyId,
-        bookingId);
+    int updated =
+        jdbc.update(
+            "update crm_meeting_bookings set status = 'CANCELLED', updated_at = now() where company_id = ? and id = ?",
+            companyId,
+            bookingId);
     if (updated == 0) {
       throw new ApiException(HttpStatus.NOT_FOUND, "BOOKING_NOT_FOUND");
     }
@@ -295,18 +336,24 @@ public class CrmBookingService {
         left join users u on u.id = b.host_user_id
         where b.slug = ? and b.is_active = true
         """;
-    var list = jdbc.query(sql, (rs, rowNum) -> new PublicBookingTypeDto(
-        rs.getString("slug"),
-        rs.getString("title"),
-        rs.getString("description"),
-        rs.getInt("duration_minutes"),
-        rs.getString("location_type"),
-        rs.getString("location_details"),
-        rs.getString("host_name") != null ? rs.getString("host_name") : "Sales Representative",
-        rs.getString("working_hours_start"),
-        rs.getString("working_hours_end"),
-        fromJsonList(rs.getString("days_of_week"))),
-        slug);
+    var list =
+        jdbc.query(
+            sql,
+            (rs, rowNum) ->
+                new PublicBookingTypeDto(
+                    rs.getString("slug"),
+                    rs.getString("title"),
+                    rs.getString("description"),
+                    rs.getInt("duration_minutes"),
+                    rs.getString("location_type"),
+                    rs.getString("location_details"),
+                    rs.getString("host_name") != null
+                        ? rs.getString("host_name")
+                        : "Sales Representative",
+                    rs.getString("working_hours_start"),
+                    rs.getString("working_hours_end"),
+                    fromJsonList(rs.getString("days_of_week"))),
+            slug);
 
     if (list.isEmpty()) {
       throw new ApiException(HttpStatus.NOT_FOUND, "BOOKING_TYPE_NOT_FOUND_OR_INACTIVE");
@@ -347,25 +394,28 @@ public class CrmBookingService {
     ZonedDateTime dayStart = date.atStartOfDay(zone);
     ZonedDateTime dayEnd = date.plusDays(1).atStartOfDay(zone);
 
-    List<ZonedDateTime[]> busyIntervals = jdbc.query(
-        """
+    List<ZonedDateTime[]> busyIntervals =
+        jdbc.query(
+            """
         select start_time, end_time from crm_meeting_bookings
         where host_user_id = ? and status = 'CONFIRMED'
           and start_time >= ? and start_time < ?
         """,
-        (rs, rowNum) -> new ZonedDateTime[] {
-          rs.getTimestamp("start_time").toInstant().atZone(zone),
-          rs.getTimestamp("end_time").toInstant().atZone(zone)
-        },
-        Long.parseLong(bt.hostUserId()),
-        Timestamp.from(dayStart.toInstant()),
-        Timestamp.from(dayEnd.toInstant()));
+            (rs, rowNum) ->
+                new ZonedDateTime[] {
+                  rs.getTimestamp("start_time").toInstant().atZone(zone),
+                  rs.getTimestamp("end_time").toInstant().atZone(zone)
+                },
+            Long.parseLong(bt.hostUserId()),
+            Timestamp.from(dayStart.toInstant()),
+            Timestamp.from(dayEnd.toInstant()));
 
     List<String> available = new ArrayList<>();
     LocalTime current = startTime;
     Instant minAllowedTime = Instant.now().plus(30, ChronoUnit.MINUTES);
 
-    while (current.plusMinutes(duration).isBefore(endTime) || current.plusMinutes(duration).equals(endTime)) {
+    while (current.plusMinutes(duration).isBefore(endTime)
+        || current.plusMinutes(duration).equals(endTime)) {
       ZonedDateTime slotStart = date.atTime(current).atZone(zone);
       ZonedDateTime slotEnd = slotStart.plusMinutes(duration);
 
@@ -393,7 +443,10 @@ public class CrmBookingService {
 
   @Transactional
   public BookResult bookPublicMeeting(String slug, BookMeetingInput input) {
-    if (input == null || input.slotTime() == null || input.name() == null || input.name().trim().isEmpty()) {
+    if (input == null
+        || input.slotTime() == null
+        || input.name() == null
+        || input.name().trim().isEmpty()) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "NAME_AND_SLOT_REQUIRED");
     }
 
@@ -414,28 +467,32 @@ public class CrmBookingService {
     long hostId = Long.parseLong(bt.hostUserId());
 
     // Check collision
-    List<Long> conflicts = jdbc.query(
-        """
+    List<Long> conflicts =
+        jdbc.query(
+            """
         select id from crm_meeting_bookings
         where host_user_id = ? and status = 'CONFIRMED'
           and start_time < ? and end_time > ?
         """,
-        (rs, rowNum) -> rs.getLong(1),
-        hostId,
-        Timestamp.from(slotEnd),
-        Timestamp.from(slotInstant));
+            (rs, rowNum) -> rs.getLong(1),
+            hostId,
+            Timestamp.from(slotEnd),
+            Timestamp.from(slotInstant));
 
     if (!conflicts.isEmpty()) {
       throw new ApiException(HttpStatus.CONFLICT, "SLOT_ALREADY_BOOKED");
     }
 
     // Resolve or create contact
-    Long contactId = resolveOrCreateContact(companyId, input.name().trim(), input.email(), input.phone(), hostId);
+    Long contactId =
+        resolveOrCreateContact(
+            companyId, input.name().trim(), input.email(), input.phone(), hostId);
 
     long bookingId = IdGenerator.nextId();
-    String meetingLink = bt.locationDetails() != null && !bt.locationDetails().isEmpty()
-        ? bt.locationDetails()
-        : "https://meet.google.com/" + generateMeetingCode();
+    String meetingLink =
+        bt.locationDetails() != null && !bt.locationDetails().isEmpty()
+            ? bt.locationDetails()
+            : "https://meet.google.com/" + generateMeetingCode();
 
     jdbc.update(
         """
@@ -463,7 +520,14 @@ public class CrmBookingService {
       workService.createTask(
           companyId,
           "Meeting: " + bt.title() + " with " + input.name().trim(),
-          "Scheduled via booking link.\nGuest Email: " + input.email() + "\nGuest Phone: " + input.phone() + "\nNotes: " + (input.notes() != null ? input.notes() : "None") + "\nMeeting Link: " + meetingLink,
+          "Scheduled via booking link.\nGuest Email: "
+              + input.email()
+              + "\nGuest Phone: "
+              + input.phone()
+              + "\nNotes: "
+              + (input.notes() != null ? input.notes() : "None")
+              + "\nMeeting Link: "
+              + meetingLink,
           "HIGH",
           slotInstant,
           hostId,
@@ -486,32 +550,35 @@ public class CrmBookingService {
 
   // ================= HELPERS =================
 
-  private Long resolveOrCreateContact(long companyId, String name, String email, String phone, long ownerId) {
+  private Long resolveOrCreateContact(
+      long companyId, String name, String email, String phone, long ownerId) {
     if (email != null && !email.trim().isEmpty()) {
-      List<Long> found = jdbc.query(
-          """
+      List<Long> found =
+          jdbc.query(
+              """
           select c.id from contacts c
           join contact_identities i on i.contact_id = c.id
           where c.company_id = ? and i.type = 'EMAIL' and lower(i.value) = lower(?)
           limit 1
           """,
-          (rs, rowNum) -> rs.getLong(1),
-          companyId,
-          email.trim());
+              (rs, rowNum) -> rs.getLong(1),
+              companyId,
+              email.trim());
       if (!found.isEmpty()) return found.getFirst();
     }
 
     if (phone != null && !phone.trim().isEmpty()) {
-      List<Long> found = jdbc.query(
-          """
+      List<Long> found =
+          jdbc.query(
+              """
           select c.id from contacts c
           join contact_identities i on i.contact_id = c.id
           where c.company_id = ? and i.type = 'PHONE' and i.value = ?
           limit 1
           """,
-          (rs, rowNum) -> rs.getLong(1),
-          companyId,
-          phone.trim());
+              (rs, rowNum) -> rs.getLong(1),
+              companyId,
+              phone.trim());
       if (!found.isEmpty()) return found.getFirst();
     }
 
@@ -557,16 +624,18 @@ public class CrmBookingService {
   }
 
   private String generateSlug(long companyId, String requestedSlug, String title) {
-    String base = requestedSlug != null && !requestedSlug.trim().isEmpty()
-        ? sanitizeSlug(requestedSlug)
-        : sanitizeSlug(title);
+    String base =
+        requestedSlug != null && !requestedSlug.trim().isEmpty()
+            ? sanitizeSlug(requestedSlug)
+            : sanitizeSlug(title);
     String current = base;
     int counter = 1;
     while (true) {
-      List<Long> existing = jdbc.query(
-          "select id from crm_booking_types where slug = ?",
-          (rs, rowNum) -> rs.getLong(1),
-          current);
+      List<Long> existing =
+          jdbc.query(
+              "select id from crm_booking_types where slug = ?",
+              (rs, rowNum) -> rs.getLong(1),
+              current);
       if (existing.isEmpty()) return current;
       current = base + "-" + counter;
       counter++;
@@ -575,10 +644,12 @@ public class CrmBookingService {
 
   private static String sanitizeSlug(String text) {
     if (text == null) return "meeting";
-    String slug = text.trim().toLowerCase(Locale.ROOT)
-        .replaceAll("[^a-z0-9\\-]+", "-")
-        .replaceAll("-+", "-")
-        .replaceAll("^-|-$", "");
+    String slug =
+        text.trim()
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9\\-]+", "-")
+            .replaceAll("-+", "-")
+            .replaceAll("^-|-$", "");
     return slug.isEmpty() ? "meeting" : slug;
   }
 
@@ -593,7 +664,8 @@ public class CrmBookingService {
     String hostName = null;
     try {
       hostName = rs.getString("host_name");
-    } catch (Exception ignored) {}
+    } catch (Exception ignored) {
+    }
 
     return new BookingTypeDto(
         String.valueOf(rs.getLong("id")),

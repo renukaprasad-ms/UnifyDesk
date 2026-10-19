@@ -14,8 +14,8 @@ import software.amazon.awssdk.services.sesv2.model.Message;
 import software.amazon.awssdk.services.sesv2.model.SendEmailRequest;
 
 /**
- * First-party transactional email transport. Uses SES v2 HTTPS API and the AWS default
- * credential chain; it must never fall back to an SMTP account.
+ * First-party transactional email transport. Uses SES v2 HTTPS API and the AWS default credential
+ * chain; it must never fall back to an SMTP account.
  */
 @Component
 @RequiredArgsConstructor
@@ -29,7 +29,8 @@ public class PlatformSesEmailClient {
     if (!StringUtils.hasText(region)) {
       throw new IllegalStateException("Platform SES region is not configured");
     }
-    if (!StringUtils.hasText(from) || !StringUtils.hasText(to)
+    if (!StringUtils.hasText(from)
+        || !StringUtils.hasText(to)
         || !StringUtils.hasText(subject)
         || (!StringUtils.hasText(textBody) && !StringUtils.hasText(htmlBody))) {
       throw new IllegalArgumentException("Platform email has missing required fields");
@@ -43,13 +44,15 @@ public class PlatformSesEmailClient {
       body.html(utf8(htmlBody));
     }
 
-    SendEmailRequest request = SendEmailRequest.builder()
-        .fromEmailAddress(from)
-        .destination(Destination.builder().toAddresses(to).build())
-        .content(EmailContent.builder()
-            .simple(Message.builder().subject(utf8(subject)).body(body.build()).build())
-            .build())
-        .build();
+    SendEmailRequest request =
+        SendEmailRequest.builder()
+            .fromEmailAddress(from)
+            .destination(Destination.builder().toAddresses(to).build())
+            .content(
+                EmailContent.builder()
+                    .simple(Message.builder().subject(utf8(subject)).body(body.build()).build())
+                    .build())
+            .build();
     return sesClients.client(region.trim()).sendEmail(request).messageId();
   }
 

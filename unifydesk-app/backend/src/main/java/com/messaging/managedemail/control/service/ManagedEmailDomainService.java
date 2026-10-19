@@ -71,8 +71,7 @@ public class ManagedEmailDomainService {
 
     String normalized = domainNameService.normalizeCustomerDomain(request.domain());
     domainLock(normalized);
-    var claimed =
-        domainRepository.findLiveClaim(DomainType.CUSTOMER_DOMAIN, normalized, TERMINAL);
+    var claimed = domainRepository.findLiveClaim(DomainType.CUSTOMER_DOMAIN, normalized, TERMINAL);
     if (claimed.isPresent()) {
       if (claimed.get().getCompanyId().equals(companyId)) {
         return new CreateResult<>(mapper.domain(claimed.get()), true);
@@ -160,7 +159,8 @@ public class ManagedEmailDomainService {
         .orElseThrow(() -> new NotFoundException("Company not found"));
     ManagedEmailTenant tenant = tenantService.ensureDesired(companyId);
 
-    // 4. Save the hosted domain request in PENDING_APPROVAL status (provisioning enqueued upon approval)
+    // 4. Save the hosted domain request in PENDING_APPROVAL status (provisioning enqueued upon
+    // approval)
     ManagedEmailDomain domain = new ManagedEmailDomain();
     domain.setCompanyId(companyId);
     domain.setTenantId(tenant.getId());
@@ -252,8 +252,7 @@ public class ManagedEmailDomainService {
         String cleanAlternative =
             domainNameService.validateHostedSubdomain(decision.alternativeSubdomain());
         String alternativeDomain =
-            domainNameService.buildHostedDomain(
-                cleanAlternative, properties.getHostedBaseDomain());
+            domainNameService.buildHostedDomain(cleanAlternative, properties.getHostedBaseDomain());
         if (domainRepository.existsByNormalizedDomainIgnoreCase(alternativeDomain)) {
           throw new ConflictException(
               "The alternative subdomain '" + cleanAlternative + "' is already in use.");

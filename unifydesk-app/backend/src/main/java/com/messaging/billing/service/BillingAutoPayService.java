@@ -13,7 +13,6 @@ import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -27,13 +26,13 @@ public class BillingAutoPayService {
 
   public AutoPayDetailsResponse setup(Long companyId, AutoPaySetupRequest request) {
     PaymentProviderGateway.Customer customer = resolveCustomer(companyId, request);
-    BigDecimal maxAmount = request != null && request.maxAmount() != null
-        ? request.maxAmount()
-        : new BigDecimal("15000.00");
+    BigDecimal maxAmount =
+        request != null && request.maxAmount() != null
+            ? request.maxAmount()
+            : new BigDecimal("15000.00");
 
     var result =
-        recurringAuthorizationService.prepareCompanyAutopay(
-            companyId, maxAmount, "INR", customer);
+        recurringAuthorizationService.prepareCompanyAutopay(companyId, maxAmount, "INR", customer);
 
     log.info(
         "Prepared company AutoPay mandate for company {} with provider subscription {}",
@@ -71,11 +70,13 @@ public class BillingAutoPayService {
         result.customerId());
   }
 
-  public AutoPayDetailsResponse verify(Long companyId, com.messaging.billing.dto.AutoPayVerifyRequest request) {
-    var result = request != null && request.paymentId() != null
-        ? recurringAuthorizationService.verifyCompanyAutopay(
-            companyId, request.paymentId(), request.orderId(), request.signature())
-        : recurringAuthorizationService.verifyAndRefreshCompanyAutopay(companyId);
+  public AutoPayDetailsResponse verify(
+      Long companyId, com.messaging.billing.dto.AutoPayVerifyRequest request) {
+    var result =
+        request != null && request.paymentId() != null
+            ? recurringAuthorizationService.verifyCompanyAutopay(
+                companyId, request.paymentId(), request.orderId(), request.signature())
+            : recurringAuthorizationService.verifyAndRefreshCompanyAutopay(companyId);
     if (result == null) {
       return AutoPayDetailsResponse.notConfigured();
     }
@@ -105,26 +106,34 @@ public class BillingAutoPayService {
             .findById(companyId)
             .orElseThrow(() -> new BadRequestException("Company not found: " + companyId));
 
-    CompanyBillingProfile profile =
-        billingProfileRepository.findById(companyId).orElse(null);
+    CompanyBillingProfile profile = billingProfileRepository.findById(companyId).orElse(null);
 
-    String name = request != null && request.name() != null && !request.name().isBlank()
-        ? request.name().trim()
-        : (profile != null && profile.getLegalBusinessName() != null && !profile.getLegalBusinessName().isBlank()
-            ? profile.getLegalBusinessName().trim()
-            : company.getName().trim());
+    String name =
+        request != null && request.name() != null && !request.name().isBlank()
+            ? request.name().trim()
+            : (profile != null
+                    && profile.getLegalBusinessName() != null
+                    && !profile.getLegalBusinessName().isBlank()
+                ? profile.getLegalBusinessName().trim()
+                : company.getName().trim());
 
-    String email = request != null && request.email() != null && !request.email().isBlank()
-        ? request.email().trim()
-        : (profile != null && profile.getBillingEmail() != null && !profile.getBillingEmail().isBlank()
-            ? profile.getBillingEmail().trim()
-            : (company.getBusinessEmail() != null ? company.getBusinessEmail().trim() : null));
+    String email =
+        request != null && request.email() != null && !request.email().isBlank()
+            ? request.email().trim()
+            : (profile != null
+                    && profile.getBillingEmail() != null
+                    && !profile.getBillingEmail().isBlank()
+                ? profile.getBillingEmail().trim()
+                : (company.getBusinessEmail() != null ? company.getBusinessEmail().trim() : null));
 
-    String phone = request != null && request.phone() != null && !request.phone().isBlank()
-        ? request.phone().trim()
-        : (profile != null && profile.getBillingPhone() != null && !profile.getBillingPhone().isBlank()
-            ? profile.getBillingPhone().trim()
-            : "9999999999");
+    String phone =
+        request != null && request.phone() != null && !request.phone().isBlank()
+            ? request.phone().trim()
+            : (profile != null
+                    && profile.getBillingPhone() != null
+                    && !profile.getBillingPhone().isBlank()
+                ? profile.getBillingPhone().trim()
+                : "9999999999");
 
     return new PaymentProviderGateway.Customer("company-" + companyId, name, email, phone);
   }

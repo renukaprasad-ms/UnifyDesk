@@ -5,8 +5,8 @@ import org.springframework.stereotype.Component;
 /**
  * Deterministic pre-send SMS segmentation estimate.
  *
- * <p>GSM 03.38 extension-table characters consume two septets. Content outside the GSM default
- * and extension alphabets is treated as Unicode and counted in UTF-16 code units, matching the
+ * <p>GSM 03.38 extension-table characters consume two septets. Content outside the GSM default and
+ * extension alphabets is treated as Unicode and counted in UTF-16 code units, matching the
  * practical UCS-2/UTF-16 multipart accounting used by SMS providers. Provider billing truth may
  * still differ and must be reconciled immutably when an authoritative MSG91 source is available.
  */
@@ -88,7 +88,8 @@ public class ManagedSmsSegmentCalculator {
           'ö',
           'ñ',
           'ü',
-          'à' -> true;
+          'à' ->
+          true;
       default ->
           (value >= ' ' && value <= '?')
               || (value >= 'A' && value <= 'Z')

@@ -1,3 +1,4 @@
+import { phoneValidationMessage } from '../../utils/phone'
 import type {
   ContactChannel,
   ContactDetail,
@@ -70,8 +71,9 @@ export const validateContactDraft = (draft: ContactFormDraft, validateIdentities
   ) {
     errors.email = 'Enter a valid email address.'
   }
-  if (validateIdentities && draft.phone.trim() && draft.phone.trim().length < 7) {
-    errors.phone = 'Enter a complete phone number including country code.'
+  if (validateIdentities && draft.phone.trim()) {
+    const message = phoneValidationMessage(draft.phone)
+    if (message) errors.phone = message
   }
   return errors
 }

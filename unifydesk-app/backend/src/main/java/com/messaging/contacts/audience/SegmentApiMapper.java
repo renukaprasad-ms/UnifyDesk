@@ -26,7 +26,6 @@ import com.messaging.contacts.audience.SegmentFilter.SegmentOperator;
 import com.messaging.contacts.audience.SegmentFilter.SegmentValue;
 import com.messaging.contacts.audience.SegmentFilter.TextListValue;
 import com.messaging.contacts.audience.SegmentFilter.TextValue;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -166,20 +165,17 @@ public class SegmentApiMapper {
               scalarOrList(predicate.value(), operator));
       case IDENTITY ->
           new PredicateNode(
-              new SegmentFilter.SegmentField(
-                  FieldKind.IDENTITY, identityKey(field.key()), null),
+              new SegmentFilter.SegmentField(FieldKind.IDENTITY, identityKey(field.key()), null),
               operator,
               scalarOrList(predicate.value(), operator));
       case TAG ->
           new PredicateNode(
-              new SegmentFilter.SegmentField(
-                  FieldKind.TAG, null, requireId(predicate.value())),
+              new SegmentFilter.SegmentField(FieldKind.TAG, null, requireId(predicate.value())),
               operator,
               new NoValue());
       case LIST ->
           new PredicateNode(
-              new SegmentFilter.SegmentField(
-                  FieldKind.LIST, null, requireId(predicate.value())),
+              new SegmentFilter.SegmentField(FieldKind.LIST, null, requireId(predicate.value())),
               operator,
               new NoValue());
       case CUSTOM_FIELD -> customField(companyId, field, operator, predicate.value());
@@ -191,7 +187,8 @@ public class SegmentApiMapper {
               new NoValue());
       case SUPPRESSION ->
           new PredicateNode(
-              new SegmentFilter.SegmentField(FieldKind.SUPPRESSION, suppressionKey(field.key()), null),
+              new SegmentFilter.SegmentField(
+                  FieldKind.SUPPRESSION, suppressionKey(field.key()), null),
               operator,
               new NoValue());
       case CREATED_AT ->
@@ -221,9 +218,7 @@ public class SegmentApiMapper {
           case DATETIME -> temporalValue(value);
         };
     return new PredicateNode(
-        new SegmentFilter.SegmentField(FieldKind.CUSTOM_FIELD, null, fieldId),
-        operator,
-        mapped);
+        new SegmentFilter.SegmentField(FieldKind.CUSTOM_FIELD, null, fieldId), operator, mapped);
   }
 
   private SegmentValue scalarOrList(JsonNode value, SegmentOperator operator) {
@@ -370,8 +365,7 @@ public class SegmentApiMapper {
           case LIST -> new Field(field.kind(), "listId", null);
           case CUSTOM_FIELD ->
               new Field(field.kind(), "customField", Long.toString(requireDomainId(field.id())));
-          case CHANNEL_PREFERENCE ->
-              new Field(field.kind(), apiPreferenceKey(field.key()), null);
+          case CHANNEL_PREFERENCE -> new Field(field.kind(), apiPreferenceKey(field.key()), null);
           case SUPPRESSION -> new Field(field.kind(), "active", null);
           case CREATED_AT -> new Field(field.kind(), "createdAt", null);
           case LAST_ACTIVITY_AT -> new Field(field.kind(), "lastActivityAt", null);
@@ -402,7 +396,8 @@ public class SegmentApiMapper {
   }
 
   private long requireDomainId(Long value) {
-    if (value == null || value <= 0) throw new IllegalStateException("Stored segment ID is invalid");
+    if (value == null || value <= 0)
+      throw new IllegalStateException("Stored segment ID is invalid");
     return value;
   }
 

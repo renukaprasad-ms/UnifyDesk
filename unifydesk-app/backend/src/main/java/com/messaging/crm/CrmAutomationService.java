@@ -31,9 +31,7 @@ public class CrmAutomationService {
   private final CrmWorkService workService;
 
   public CrmAutomationService(
-      JdbcTemplate jdbc,
-      CompanyMemberRepository memberRepository,
-      CrmWorkService workService) {
+      JdbcTemplate jdbc, CompanyMemberRepository memberRepository, CrmWorkService workService) {
     this.jdbc = jdbc;
     this.memberRepository = memberRepository;
     this.workService = workService;
@@ -91,14 +89,15 @@ public class CrmAutomationService {
 
   @Transactional(readOnly = true)
   public AutomationRule getRule(long companyId, long ruleId) {
-    List<AutomationRule> list = jdbc.query(
-        """
+    List<AutomationRule> list =
+        jdbc.query(
+            """
         select * from crm_automation_rules
         where company_id = ? and id = ?
         """,
-        (rs, rowNum) -> mapRule(rs),
-        companyId,
-        ruleId);
+            (rs, rowNum) -> mapRule(rs),
+            companyId,
+            ruleId);
     if (list.isEmpty()) {
       throw new ApiException(HttpStatus.NOT_FOUND, "CRM_AUTOMATION_RULE_NOT_FOUND");
     }
@@ -148,14 +147,26 @@ public class CrmAutomationService {
   public AutomationRule updateRule(long companyId, long ruleId, SaveRuleInput input) {
     AutomationRule existing = getRule(companyId, ruleId);
 
-    String name = input.name() != null && !input.name().trim().isEmpty() ? input.name().trim() : existing.name();
-    String description = input.description() != null ? input.description().trim() : existing.description();
+    String name =
+        input.name() != null && !input.name().trim().isEmpty()
+            ? input.name().trim()
+            : existing.name();
+    String description =
+        input.description() != null ? input.description().trim() : existing.description();
     boolean enabled = input.isEnabled() != null ? input.isEnabled() : existing.isEnabled();
-    String triggerType = input.triggerType() != null ? input.triggerType().trim().toUpperCase() : existing.triggerType();
-    String actionType = input.actionType() != null ? input.actionType().trim().toUpperCase() : existing.actionType();
+    String triggerType =
+        input.triggerType() != null
+            ? input.triggerType().trim().toUpperCase()
+            : existing.triggerType();
+    String actionType =
+        input.actionType() != null
+            ? input.actionType().trim().toUpperCase()
+            : existing.actionType();
 
-    String triggerJson = toJson(input.triggerConfig() != null ? input.triggerConfig() : existing.triggerConfig());
-    String actionJson = toJson(input.actionConfig() != null ? input.actionConfig() : existing.actionConfig());
+    String triggerJson =
+        toJson(input.triggerConfig() != null ? input.triggerConfig() : existing.triggerConfig());
+    String actionJson =
+        toJson(input.actionConfig() != null ? input.actionConfig() : existing.actionConfig());
 
     jdbc.update(
         """
@@ -196,10 +207,9 @@ public class CrmAutomationService {
 
   @Transactional
   public void deleteRule(long companyId, long ruleId) {
-    int updated = jdbc.update(
-        "delete from crm_automation_rules where company_id = ? and id = ?",
-        companyId,
-        ruleId);
+    int updated =
+        jdbc.update(
+            "delete from crm_automation_rules where company_id = ? and id = ?", companyId, ruleId);
     if (updated == 0) {
       throw new ApiException(HttpStatus.NOT_FOUND, "CRM_AUTOMATION_RULE_NOT_FOUND");
     }
@@ -234,8 +244,8 @@ public class CrmAutomationService {
   }
 
   /**
-   * Main Event Trigger Dispatcher
-   * Executes matching enabled rules for a trigger event asynchronously or inline with isolated failure catching.
+   * Main Event Trigger Dispatcher Executes matching enabled rules for a trigger event
+   * asynchronously or inline with isolated failure catching.
    */
   public void fireEvent(
       long companyId,
@@ -244,15 +254,16 @@ public class CrmAutomationService {
       String entityId,
       Map<String, Object> eventContext) {
     try {
-      List<AutomationRule> rules = jdbc.query(
-          """
+      List<AutomationRule> rules =
+          jdbc.query(
+              """
           select * from crm_automation_rules
           where company_id = ? and is_enabled = true and trigger_type = ?
           order by created_at asc
           """,
-          (rs, rowNum) -> mapRule(rs),
-          companyId,
-          triggerType);
+              (rs, rowNum) -> mapRule(rs),
+              companyId,
+              triggerType);
 
       if (rules.isEmpty()) return;
 
@@ -264,7 +275,12 @@ public class CrmAutomationService {
             executeRuleAction(rule, entityType, entityId, ctx);
           }
         } catch (Exception ex) {
-          log.error("Failed to execute CRM automation rule id={} name={}: {}", rule.id(), rule.name(), ex.getMessage(), ex);
+          log.error(
+              "Failed to execute CRM automation rule id={} name={}: {}",
+              rule.id(),
+              rule.name(),
+              ex.getMessage(),
+              ex);
           recordLog(
               companyId,
               Long.parseLong(rule.id()),
@@ -278,7 +294,11 @@ public class CrmAutomationService {
         }
       }
     } catch (Exception e) {
-      log.error("Error evaluating CRM automation triggers for company={}: {}", companyId, e.getMessage(), e);
+      log.error(
+          "Error evaluating CRM automation triggers for company={}: {}",
+          companyId,
+          e.getMessage(),
+          e);
     }
   }
 
@@ -290,7 +310,9 @@ public class CrmAutomationService {
 
     if ("LEAD_STAGE_CHANGED".equalsIgnoreCase(triggerType)) {
       Object toStage = conf.get("toStage");
-      if (toStage != null && !toStage.toString().trim().isEmpty() && !"ALL".equalsIgnoreCase(toStage.toString())) {
+      if (toStage != null
+          && !toStage.toString().trim().isEmpty()
+          && !"ALL".equalsIgnoreCase(toStage.toString())) {
         Object actualStage = ctx.get("toStage");
         if (actualStage == null || !toStage.toString().equalsIgnoreCase(actualStage.toString())) {
           return false;
@@ -298,7 +320,9 @@ public class CrmAutomationService {
       }
     } else if ("DEAL_STAGE_CHANGED".equalsIgnoreCase(triggerType)) {
       Object toStage = conf.get("toStage");
-      if (toStage != null && !toStage.toString().trim().isEmpty() && !"ALL".equalsIgnoreCase(toStage.toString())) {
+      if (toStage != null
+          && !toStage.toString().trim().isEmpty()
+          && !"ALL".equalsIgnoreCase(toStage.toString())) {
         Object actualStage = ctx.get("toStage");
         if (actualStage == null || !toStage.toString().equalsIgnoreCase(actualStage.toString())) {
           return false;
@@ -306,9 +330,12 @@ public class CrmAutomationService {
       }
     } else if ("FORM_SUBMITTED".equalsIgnoreCase(triggerType)) {
       Object formKey = conf.get("formKey");
-      if (formKey != null && !formKey.toString().trim().isEmpty() && !"ALL".equalsIgnoreCase(formKey.toString())) {
+      if (formKey != null
+          && !formKey.toString().trim().isEmpty()
+          && !"ALL".equalsIgnoreCase(formKey.toString())) {
         Object actualFormKey = ctx.get("formKey");
-        if (actualFormKey == null || !formKey.toString().equalsIgnoreCase(actualFormKey.toString())) {
+        if (actualFormKey == null
+            || !formKey.toString().equalsIgnoreCase(actualFormKey.toString())) {
           return false;
         }
       }
@@ -318,10 +345,7 @@ public class CrmAutomationService {
   }
 
   private void executeRuleAction(
-      AutomationRule rule,
-      String entityType,
-      String entityId,
-      Map<String, Object> ctx) {
+      AutomationRule rule, String entityType, String entityId, Map<String, Object> ctx) {
     long companyId = Long.parseLong(rule.companyId());
     long ruleId = Long.parseLong(rule.id());
     Map<String, Object> conf = rule.actionConfig() != null ? rule.actionConfig() : Map.of();
@@ -334,20 +358,35 @@ public class CrmAutomationService {
         String titleTemplate = (String) conf.getOrDefault("taskTitle", "Follow up with prospect");
         String details = (String) conf.getOrDefault("taskDetails", "");
         String priority = (String) conf.getOrDefault("priority", "NORMAL");
-        int dueDays = conf.get("dueDaysOffset") != null ? Integer.parseInt(conf.get("dueDaysOffset").toString()) : 1;
+        int dueDays =
+            conf.get("dueDaysOffset") != null
+                ? Integer.parseInt(conf.get("dueDaysOffset").toString())
+                : 1;
         String assigneeType = (String) conf.getOrDefault("assigneeType", "ROUND_ROBIN");
         String specificUserId = (String) conf.get("assigneeUserId");
 
         // Format Title with tokens
         String contactName = (String) ctx.getOrDefault("contactName", "Lead");
-        String title = titleTemplate.replace("{contactName}", contactName)
-            .replace("{stage}", String.valueOf(ctx.getOrDefault("toStage", "")))
-            .replace("{dealName}", String.valueOf(ctx.getOrDefault("dealName", "")));
+        String title =
+            titleTemplate
+                .replace("{contactName}", contactName)
+                .replace("{stage}", String.valueOf(ctx.getOrDefault("toStage", "")))
+                .replace("{dealName}", String.valueOf(ctx.getOrDefault("dealName", "")));
 
         Long assignee = resolveAssignee(companyId, assigneeType, specificUserId, ctx);
         if (assignee == null) {
-          resultSummary = "Skipped task creation: No active company member available for assignment";
-          recordLog(companyId, ruleId, rule.name(), rule.triggerType(), entityType, entityId, actionType, "SKIPPED", resultSummary);
+          resultSummary =
+              "Skipped task creation: No active company member available for assignment";
+          recordLog(
+              companyId,
+              ruleId,
+              rule.name(),
+              rule.triggerType(),
+              entityType,
+              entityId,
+              actionType,
+              "SKIPPED",
+              resultSummary);
           return;
         }
 
@@ -355,11 +394,13 @@ public class CrmAutomationService {
         if ("LEAD".equalsIgnoreCase(entityType) || "FORM_SUBMISSION".equalsIgnoreCase(entityType)) {
           try {
             contactId = Long.parseLong(entityId);
-          } catch (Exception ignored) {}
+          } catch (Exception ignored) {
+          }
         } else if (ctx.get("contactId") != null) {
           try {
             contactId = Long.parseLong(ctx.get("contactId").toString());
-          } catch (Exception ignored) {}
+          } catch (Exception ignored) {
+          }
         }
 
         Instant dueAt = Instant.now().plus(dueDays, ChronoUnit.DAYS);
@@ -367,18 +408,10 @@ public class CrmAutomationService {
         // System actor id = 0 or company owner
         long actor = assignee;
         workService.createTask(
-            companyId,
-            title,
-            details,
-            priority,
-            dueAt,
-            assignee,
-            contactId,
-            null,
-            actor,
-            "OPEN");
+            companyId, title, details, priority, dueAt, assignee, contactId, null, actor, "OPEN");
 
-        resultSummary = "Created CRM task '" + title + "' assigned to user=" + assignee + " due=" + dueAt;
+        resultSummary =
+            "Created CRM task '" + title + "' assigned to user=" + assignee + " due=" + dueAt;
       }
       case "ASSIGN_OWNER" -> {
         String assigneeType = (String) conf.getOrDefault("assigneeType", "ROUND_ROBIN");
@@ -387,7 +420,16 @@ public class CrmAutomationService {
 
         if (targetOwner == null) {
           resultSummary = "Skipped owner assignment: No active member found";
-          recordLog(companyId, ruleId, rule.name(), rule.triggerType(), entityType, entityId, actionType, "SKIPPED", resultSummary);
+          recordLog(
+              companyId,
+              ruleId,
+              rule.name(),
+              rule.triggerType(),
+              entityType,
+              entityId,
+              actionType,
+              "SKIPPED",
+              resultSummary);
           return;
         }
 
@@ -395,7 +437,8 @@ public class CrmAutomationService {
         if ("LEAD".equalsIgnoreCase(entityType) || "FORM_SUBMISSION".equalsIgnoreCase(entityType)) {
           try {
             contactId = Long.parseLong(entityId);
-          } catch (Exception ignored) {}
+          } catch (Exception ignored) {
+          }
         }
 
         if (contactId != null) {
@@ -413,7 +456,16 @@ public class CrmAutomationService {
         String targetStage = (String) conf.get("targetStage");
         if (targetStage == null || targetStage.trim().isEmpty()) {
           resultSummary = "Skipped: targetStage not specified in rule configuration";
-          recordLog(companyId, ruleId, rule.name(), rule.triggerType(), entityType, entityId, actionType, "SKIPPED", resultSummary);
+          recordLog(
+              companyId,
+              ruleId,
+              rule.name(),
+              rule.triggerType(),
+              entityType,
+              entityId,
+              actionType,
+              "SKIPPED",
+              resultSummary);
           return;
         }
 
@@ -421,7 +473,8 @@ public class CrmAutomationService {
         if ("LEAD".equalsIgnoreCase(entityType) || "FORM_SUBMISSION".equalsIgnoreCase(entityType)) {
           try {
             contactId = Long.parseLong(entityId);
-          } catch (Exception ignored) {}
+          } catch (Exception ignored) {
+          }
         }
 
         if (contactId != null) {
@@ -449,35 +502,47 @@ public class CrmAutomationService {
         ruleId);
 
     // Record audit log
-    recordLog(companyId, ruleId, rule.name(), rule.triggerType(), entityType, entityId, actionType, "SUCCESS", resultSummary);
+    recordLog(
+        companyId,
+        ruleId,
+        rule.name(),
+        rule.triggerType(),
+        entityType,
+        entityId,
+        actionType,
+        "SUCCESS",
+        resultSummary);
   }
 
   private Long resolveAssignee(
-      long companyId,
-      String assigneeType,
-      String specificUserId,
-      Map<String, Object> ctx) {
-    if ("SPECIFIC_USER".equalsIgnoreCase(assigneeType) && specificUserId != null && !specificUserId.trim().isEmpty()) {
+      long companyId, String assigneeType, String specificUserId, Map<String, Object> ctx) {
+    if ("SPECIFIC_USER".equalsIgnoreCase(assigneeType)
+        && specificUserId != null
+        && !specificUserId.trim().isEmpty()) {
       try {
         return Long.parseLong(specificUserId.trim());
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
 
     if ("LEAD_OWNER".equalsIgnoreCase(assigneeType) && ctx.get("ownerUserId") != null) {
       try {
         return Long.parseLong(ctx.get("ownerUserId").toString());
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+      }
     }
 
     // Round-Robin among active company members
-    List<CompanyMember> activeMembers = memberRepository.findByCompanyIdAndStatus(companyId, CompanyMemberStatus.ACTIVE);
+    List<CompanyMember> activeMembers =
+        memberRepository.findByCompanyIdAndStatus(companyId, CompanyMemberStatus.ACTIVE);
     if (activeMembers.isEmpty()) return null;
 
     // Fetch or initialize round-robin state
-    List<Long> lastAssigned = jdbc.query(
-        "select last_assigned_user_id from crm_round_robin_state where company_id = ?",
-        (rs, rowNum) -> rs.getLong(1),
-        companyId);
+    List<Long> lastAssigned =
+        jdbc.query(
+            "select last_assigned_user_id from crm_round_robin_state where company_id = ?",
+            (rs, rowNum) -> rs.getLong(1),
+            companyId);
 
     Long lastUserId = lastAssigned.isEmpty() ? null : lastAssigned.getFirst();
 

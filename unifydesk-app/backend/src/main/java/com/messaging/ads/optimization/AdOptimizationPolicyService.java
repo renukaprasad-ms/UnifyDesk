@@ -23,7 +23,6 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -90,8 +89,7 @@ public class AdOptimizationPolicyService {
   }
 
   @Transactional
-  public AdOptimizationPolicyResponse setEnabled(
-      Long companyId, Long policyId, boolean enabled) {
+  public AdOptimizationPolicyResponse setEnabled(Long companyId, Long policyId, boolean enabled) {
     AdOptimizationPolicy policy =
         repository
             .findByIdAndCompanyId(policyId, companyId)
@@ -102,8 +100,7 @@ public class AdOptimizationPolicyService {
   }
 
   @Transactional
-  public AdOptimizationPolicyEvaluation evaluate(
-      Long companyId, Long policyId, Long actorUserId) {
+  public AdOptimizationPolicyEvaluation evaluate(Long companyId, Long policyId, Long actorUserId) {
     AdOptimizationPolicy policy =
         repository
             .findByIdAndCompanyId(policyId, companyId)
@@ -112,8 +109,7 @@ public class AdOptimizationPolicyService {
   }
 
   @Transactional
-  public AdOptimizationPolicyEvaluation approve(
-      Long companyId, Long policyId, Long actorUserId) {
+  public AdOptimizationPolicyEvaluation approve(Long companyId, Long policyId, Long actorUserId) {
     AdOptimizationPolicy policy =
         repository
             .findByIdAndCompanyId(policyId, companyId)
@@ -128,9 +124,12 @@ public class AdOptimizationPolicyService {
       policy.setLastResultJson(
           jsonString(
               java.util.Map.of(
-                  "approved", true,
-                  "action", action,
-                  "message", "Recommendation approved; apply the suggested change from the relevant management surface.")));
+                  "approved",
+                  true,
+                  "action",
+                  action,
+                  "message",
+                  "Recommendation approved; apply the suggested change from the relevant management surface.")));
       repository.save(policy);
       return new AdOptimizationPolicyEvaluation(
           policy.getId().toString(),
@@ -180,8 +179,8 @@ public class AdOptimizationPolicyService {
   private AdOptimizationPolicyEvaluation evaluate(
       AdOptimizationPolicy policy, Long actorUserId, boolean scheduled) {
     if (!policy.isEnabled()) {
-      return result(policy, false, "DISABLED", null, null, null, false, false,
-          "Policy is disabled.");
+      return result(
+          policy, false, "DISABLED", null, null, null, false, false, "Policy is disabled.");
     }
     JsonNode config = json(policy.getConfigJson());
     if ("LIFECYCLE_RETARGETING".equals(policy.getPolicyType())) {
@@ -194,11 +193,7 @@ public class AdOptimizationPolicyService {
     LocalDate from = to.minusDays(lookbackDays - 1L);
     AdAnalyticsResponse analytics =
         analyticsService.analytics(
-            policy.getCompanyId(),
-            scope.account().getId(),
-            from,
-            to,
-            AdInsightLevel.CAMPAIGN);
+            policy.getCompanyId(), scope.account().getId(), from, to, AdInsightLevel.CAMPAIGN);
 
     AdAnalyticsResponse.Summary summary = analytics.summary();
     AdAnalyticsResponse.EntityRow row = null;
@@ -224,8 +219,7 @@ public class AdOptimizationPolicyService {
       }
     }
 
-    BigDecimal conversions =
-        row == null ? summary.conversions() : row.conversions();
+    BigDecimal conversions = row == null ? summary.conversions() : row.conversions();
     BigDecimal minimumConversions =
         decimal(config, "minimumConversions") == null
             ? BigDecimal.ZERO
@@ -319,15 +313,7 @@ public class AdOptimizationPolicyService {
     return persistResult(
         policy,
         result(
-            policy,
-            true,
-            state,
-            metric,
-            observed,
-            threshold,
-            executed,
-            approvalRequired,
-            message));
+            policy, true, state, metric, observed, threshold, executed, approvalRequired, message));
   }
 
   private AdOptimizationPolicyEvaluation evaluateLifecycle(
@@ -338,11 +324,7 @@ public class AdOptimizationPolicyService {
     LocalDate from = to.minusDays(lookbackDays - 1L);
     AdAnalyticsResponse analytics =
         analyticsService.analytics(
-            policy.getCompanyId(),
-            scope.account().getId(),
-            from,
-            to,
-            AdInsightLevel.CAMPAIGN);
+            policy.getCompanyId(), scope.account().getId(), from, to, AdInsightLevel.CAMPAIGN);
     AdAnalyticsResponse.EntityRow row =
         scope.campaign() == null
             ? null
@@ -356,15 +338,13 @@ public class AdOptimizationPolicyService {
     String message;
     if ("CLICKED_NOT_CONVERTED".equals(segmentType)) {
       long clicks = row == null ? analytics.summary().clicks() : row.clicks();
-      BigDecimal conversions =
-          row == null ? analytics.summary().conversions() : row.conversions();
+      BigDecimal conversions = row == null ? analytics.summary().conversions() : row.conversions();
       candidates = BigDecimal.valueOf(clicks).subtract(conversions).max(BigDecimal.ZERO);
       message =
           "Aggregate click-minus-conversion evidence indicates retargeting demand. Use the first-party audience builder to upload consented identities; UnifyDesk does not infer identities from aggregate ad metrics.";
     } else if ("LEAD_NOT_PURCHASED".equals(segmentType)) {
       BigDecimal leads = row == null ? analytics.summary().leads() : row.leads();
-      BigDecimal purchases =
-          row == null ? analytics.summary().purchases() : row.purchases();
+      BigDecimal purchases = row == null ? analytics.summary().purchases() : row.purchases();
       candidates = leads.subtract(purchases).max(BigDecimal.ZERO);
       message =
           "Aggregate lead-minus-purchase evidence indicates a follow-up segment. Provider audience refresh still requires consented first-party identifiers.";
@@ -379,10 +359,8 @@ public class AdOptimizationPolicyService {
             ? BigDecimal.ONE
             : decimal(config, "minimumCandidateCount");
     boolean triggered = candidates.compareTo(threshold) >= 0;
-    String state =
-        triggered ? "AUDIENCE_REFRESH_RECOMMENDED" : "WAITING_FOR_SIGNAL";
-    if (!"CLICKED_NOT_CONVERTED".equals(segmentType)
-        && !"LEAD_NOT_PURCHASED".equals(segmentType)) {
+    String state = triggered ? "AUDIENCE_REFRESH_RECOMMENDED" : "WAITING_FOR_SIGNAL";
+    if (!"CLICKED_NOT_CONVERTED".equals(segmentType) && !"LEAD_NOT_PURCHASED".equals(segmentType)) {
       state = "NEEDS_FIRST_PARTY_DATA";
       triggered = false;
     }
@@ -390,19 +368,10 @@ public class AdOptimizationPolicyService {
     return persistResult(
         policy,
         result(
-            policy,
-            triggered,
-            state,
-            segmentType,
-            candidates,
-            threshold,
-            false,
-            false,
-            message));
+            policy, triggered, state, segmentType, candidates, threshold, false, false, message));
   }
 
-  private void executeStatusAction(
-      AdOptimizationPolicy policy, String action, Long actorUserId) {
+  private void executeStatusAction(AdOptimizationPolicy policy, String action, Long actorUserId) {
     if (policy.getCampaignId() == null) {
       throw new BadRequestException(
           "Automatic campaign status actions require a campaign-scoped rule");
@@ -416,8 +385,7 @@ public class AdOptimizationPolicyService {
       googleCampaignMutationService.setStatus(
           policy.getCompanyId(), campaign.getId(), status, actorUserId);
     } else {
-      metaCampaignMutationService.setStatus(
-          policy.getCompanyId(), campaign.getId(), status);
+      metaCampaignMutationService.setStatus(policy.getCompanyId(), campaign.getId(), status);
     }
   }
 
@@ -439,8 +407,7 @@ public class AdOptimizationPolicyService {
               .findByIdAndCompanyId(policy.getAdAccountId(), policy.getCompanyId())
               .orElseThrow(() -> new NotFoundException("Ad account not found"));
     } else {
-      throw new BadRequestException(
-          "Optimization policy requires an ad account or campaign scope");
+      throw new BadRequestException("Optimization policy requires an ad account or campaign scope");
     }
     if (!account.isManaged() || !account.isAccessible()) {
       throw new BadRequestException(
@@ -487,8 +454,7 @@ public class AdOptimizationPolicyService {
       }
       if (("PAUSE_CAMPAIGN".equals(action) || "ENABLE_CAMPAIGN".equals(action))
           && policy.getCampaignId() == null) {
-        throw new BadRequestException(
-            "Campaign status rules must be scoped to one campaign");
+        throw new BadRequestException("Campaign status rules must be scoped to one campaign");
       }
       integer(config, "lookbackDays", 7, 1, 90);
       integer(config, "cooldownHours", 24, 0, 720);
@@ -514,8 +480,7 @@ public class AdOptimizationPolicyService {
     }
   }
 
-  private void apply(
-      AdOptimizationPolicy policy, AdOptimizationPolicyRequest request) {
+  private void apply(AdOptimizationPolicy policy, AdOptimizationPolicyRequest request) {
     String type = request.policyType().trim().toUpperCase(Locale.ROOT);
     String mode = request.mode().trim().toUpperCase(Locale.ROOT);
     if (!POLICY_TYPES.contains(type)) {
@@ -537,9 +502,7 @@ public class AdOptimizationPolicyService {
   }
 
   private BigDecimal metricValue(
-      String metric,
-      AdAnalyticsResponse.Summary summary,
-      AdAnalyticsResponse.EntityRow row) {
+      String metric, AdAnalyticsResponse.Summary summary, AdAnalyticsResponse.EntityRow row) {
     return switch (metric) {
       case "SPEND" -> row == null ? summary.spend() : row.spend();
       case "CPA" -> nz(row == null ? summary.cpa() : row.cpa());
@@ -670,9 +633,7 @@ public class AdOptimizationPolicyService {
 
   private String upper(JsonNode node, String field, String fallback) {
     String value = node.path(field).asText(null);
-    return value == null || value.isBlank()
-        ? fallback
-        : value.trim().toUpperCase(Locale.ROOT);
+    return value == null || value.isBlank() ? fallback : value.trim().toUpperCase(Locale.ROOT);
   }
 
   private BigDecimal decimal(JsonNode node, String field) {
@@ -685,12 +646,10 @@ public class AdOptimizationPolicyService {
     }
   }
 
-  private int integer(
-      JsonNode node, String field, int fallback, int min, int max) {
+  private int integer(JsonNode node, String field, int fallback, int min, int max) {
     int value = node.has(field) ? node.path(field).asInt(fallback) : fallback;
     if (value < min || value > max) {
-      throw new BadRequestException(
-          field + " must be between " + min + " and " + max);
+      throw new BadRequestException(field + " must be between " + min + " and " + max);
     }
     return value;
   }

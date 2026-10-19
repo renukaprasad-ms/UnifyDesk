@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import PhoneInput from '../ui/PhoneInput'
 import {
   emptyContactDraft,
   emptyContactMarketingPreferences,
@@ -66,7 +67,9 @@ export default function ContactFormDialog({
 
     const hasOptIn = Object.values(marketing).includes('OPTED_IN')
     if (showMarketingPermissions && hasOptIn && !marketingConfirmed) {
-      setMarketingError('Confirm that this person gave permission for the selected marketing channels.')
+      setMarketingError(
+        'Confirm that this person gave permission for the selected marketing channels.',
+      )
       return
     }
 
@@ -75,23 +78,35 @@ export default function ContactFormDialog({
   }
 
   const field = (key: keyof ContactFormDraft, label: string, type = 'text') => (
-    <label className="block text-xs font-semibold text-slate-700">
-      <span className="mb-2 block">{label}</span>
-      <input
-        className="form-input"
-        type={type}
-        autoFocus={key === 'displayName'}
-        value={draft[key]}
-        onChange={(event) => setDraft((current) => ({ ...current, [key]: event.target.value }))}
-        aria-invalid={Boolean(errors[key])}
-        aria-describedby={errors[key] ? 'contact-' + key + '-error' : undefined}
-      />
+    <div className="block text-xs font-semibold text-slate-700">
+      <label htmlFor={`contact-field-${key}`} className="mb-2 block">
+        {label}
+      </label>
+      {key === 'phone' ? (
+        <PhoneInput
+          id={`contact-field-${key}`}
+          value={draft.phone}
+          onChange={(value) => setDraft((current) => ({ ...current, phone: value }))}
+          aria-label={label}
+        />
+      ) : (
+        <input
+          id={`contact-field-${key}`}
+          className="form-input"
+          type={type}
+          autoFocus={key === 'displayName'}
+          value={draft[key]}
+          onChange={(event) => setDraft((current) => ({ ...current, [key]: event.target.value }))}
+          aria-invalid={Boolean(errors[key])}
+          aria-describedby={errors[key] ? 'contact-' + key + '-error' : undefined}
+        />
+      )}
       {errors[key] && (
         <span id={'contact-' + key + '-error'} className="mt-1 block text-xs text-rose-600">
           {errors[key]}
         </span>
       )}
-    </label>
+    </div>
   )
 
   return (
@@ -121,8 +136,8 @@ export default function ContactFormDialog({
           </button>
         </div>
         <p className="mt-3 text-sm text-slate-500">
-          Add the basics now. If display name is blank, UnifyDesk will use the person's name,
-          email or phone automatically.
+          Add the basics now. If display name is blank, UnifyDesk will use the person's name, email
+          or phone automatically.
         </p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {field('displayName', 'Display name (optional)')}
@@ -154,11 +169,13 @@ export default function ContactFormDialog({
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {([
-                ['EMAIL', 'Email', Boolean(draft.email.trim())],
-                ['SMS', 'SMS', Boolean(draft.phone.trim())],
-                ['WHATSAPP', 'WhatsApp', Boolean(draft.phone.trim())],
-              ] as const).map(([channel, label, available]) => (
+              {(
+                [
+                  ['EMAIL', 'Email', Boolean(draft.email.trim())],
+                  ['SMS', 'SMS', Boolean(draft.phone.trim())],
+                  ['WHATSAPP', 'WhatsApp', Boolean(draft.phone.trim())],
+                ] as const
+              ).map(([channel, label, available]) => (
                 <label key={channel} className="text-xs font-semibold text-slate-700">
                   <span className="mb-2 block">{label}</span>
                   <select
@@ -166,7 +183,8 @@ export default function ContactFormDialog({
                     value={marketing[channel]}
                     disabled={!available}
                     onChange={(event) => {
-                      const state = event.target.value as ContactMarketingPreferences[typeof channel]
+                      const state = event.target
+                        .value as ContactMarketingPreferences[typeof channel]
                       setMarketing((current) => ({ ...current, [channel]: state }))
                       setMarketingError('')
                     }}

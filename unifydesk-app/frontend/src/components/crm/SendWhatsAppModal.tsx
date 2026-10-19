@@ -1,3 +1,5 @@
+import PhoneInput from '../ui/PhoneInput'
+import { phoneValidationMessage } from '../../utils/phone'
 import { useEffect, useMemo, useState } from 'react'
 import {
   FiCheck,
@@ -183,6 +185,8 @@ export default function SendWhatsAppModal({
   const targetPhone = isCustomPhone ? customPhone : selectedPhone
 
   async function handleSend() {
+    const phoneError = phoneValidationMessage(targetPhone || '')
+    if (phoneError) { setError(phoneError); return }
     if (!targetPhone) {
       setError('Please select or specify a recipient phone number with country code.')
       return
@@ -347,11 +351,10 @@ export default function SendWhatsAppModal({
               ) : (
                 <div className="space-y-1.5">
                   <div className="relative">
-                    <input
-                      type="tel"
+                    <PhoneInput
                       placeholder="e.g. +919876543210 or 14155552671"
                       value={customPhone}
-                      onChange={(e) => setCustomPhone(e.target.value)}
+                      onChange={(value) => setCustomPhone(value)}
                       className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white shadow-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
                   </div>

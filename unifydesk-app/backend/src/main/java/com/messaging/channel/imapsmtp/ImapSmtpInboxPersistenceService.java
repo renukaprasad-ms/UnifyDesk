@@ -20,7 +20,6 @@ import com.messaging.storage.enums.StorageUsageType;
 import com.messaging.storage.service.MessageStorageMeter;
 import com.messaging.storage.service.StorageQuotaService;
 import com.messaging.storage.service.StorageQuotaService.StorageConsumption;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -177,8 +176,7 @@ public class ImapSmtpInboxPersistenceService {
       else updated++;
     }
 
-    storageQuotaService.consumeBatch(
-        connection.getCompanyId(), StorageUsageType.MESSAGE, storage);
+    storageQuotaService.consumeBatch(connection.getCompanyId(), StorageUsageType.MESSAGE, storage);
     messageRepository.flush();
 
     for (Long conversationId : touchedConversations) {

@@ -43,7 +43,7 @@ public class JdbcContactCoreReadAdapter implements ContactCoreReadPort {
     params.put("contactId", contactId);
     params.put("identityType", identityType(channel));
     params.put("identityId", identityId);
-    String identityPredicate = identityId == null ? "" : " and i.id = :identityId ";
+    String identityPredicate = identityId == null ? "" : " and ci.id = :identityId ";
     return jdbcTemplate
         .query(
             """

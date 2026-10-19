@@ -25,9 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * B1-owned financial boundary for immediate paid upgrades.
  *
- * <p>B2 must resolve this invoice from the immutable {@link SubscriptionChange} snapshot and collect
- * the finalized invoice amount. B2 must not recalculate proration or construct arbitrary upgrade
- * lines.
+ * <p>B2 must resolve this invoice from the immutable {@link SubscriptionChange} snapshot and
+ * collect the finalized invoice amount. B2 must not recalculate proration or construct arbitrary
+ * upgrade lines.
  */
 @Service
 @RequiredArgsConstructor
@@ -104,7 +104,8 @@ public class UpgradeInvoiceService {
     Invoice canonical =
         invoiceRepository
             .findByIdForUpdate(invoice.getId())
-            .orElseThrow(() -> new NotFoundException("Upgrade invoice not found after finalization"));
+            .orElseThrow(
+                () -> new NotFoundException("Upgrade invoice not found after finalization"));
     assertCanonicalSnapshot(canonical, change);
     bindChangeInvoice(change, canonical);
     return toResponse(canonical);
@@ -122,8 +123,7 @@ public class UpgradeInvoiceService {
             .orElseThrow(() -> new NotFoundException("Upgrade invoice not found"));
     assertCanonicalSnapshot(invoice, change);
     if (invoice.getStatus() != InvoiceStatus.PAID || invoice.getPaidAt() == null) {
-      throw new ConflictException(
-          "Upgrade invoice has not crossed the confirmed payment boundary");
+      throw new ConflictException("Upgrade invoice has not crossed the confirmed payment boundary");
     }
   }
 
@@ -203,8 +203,7 @@ public class UpgradeInvoiceService {
         lines.stream()
             .filter(line -> line.getLineType() == InvoiceLineType.PLATFORM_UPGRADE)
             .findFirst()
-            .orElseThrow(
-                () -> new ConflictException("Canonical upgrade target charge is missing"));
+            .orElseThrow(() -> new ConflictException("Canonical upgrade target charge is missing"));
     InvoiceLineItem credit =
         lines.stream()
             .filter(line -> line.getLineType() == InvoiceLineType.CREDIT)
