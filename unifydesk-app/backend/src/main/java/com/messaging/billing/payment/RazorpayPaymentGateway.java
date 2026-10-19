@@ -663,6 +663,13 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
     return "Basic " + Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
   }
 
+  private void assertRecurringEnabled() {
+    assertConfigured();
+    if (!properties.isRecurringEnabled()) {
+      throw new ConflictException("Recurring payments are disabled pending provider enablement");
+    }
+  }
+
   private void assertConfigured() {
     if (!properties.isEnabled()
         || properties.getKeyId() == null
