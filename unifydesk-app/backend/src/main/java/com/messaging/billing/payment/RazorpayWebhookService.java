@@ -39,32 +39,83 @@ public class RazorpayWebhookService {
     String body = new String(rawBody, StandardCharsets.UTF_8);
     String hash = sha256(rawBody);
     String eventKey = "rzp:" + hash;
-    long id = IdGenerator.nextId();
-
-    try {
-      jdbcTemplate.update(
-          """
-          insert into payment_provider_events (
-            id, provider, provider_event_key, payload_hash, raw_payload,
-            signature_verified_at, received_at, processing_status,
-            attempt_count, next_attempt_at
-          ) values (?, 'RAZORPAY', ?, ?, ?, ?, now(), 'RECEIVED', 0, now())
-          on conflict (provider, provider_event_key) do nothing
-          """,
-          id,
-          eventKey,
-          hash,
-          body,
-          Timestamp.from(verifiedAt == null ? Instant.now() : verifiedAt));
-    } catch (Exception ex) {
-      log.debug("Event already recorded: {}", ex.getMessage());
-    }
-
+    jdbcTemplate.update(
+        """
+        insert into payment_provider_events (
+          id, provider, provider_event_key, payload_hash, raw_payload,
+          signature_verified_at, received_at, processing_status,
+          attempt_count, next_attempt_at
+        ) values (?, 'RAZORPAY', ?, ?, ?, ?, now(), 'RECEIVED', 0, now())
+        on conflict (provider, provider_event_key) do nothing
+        """,
+        IdGenerator.nextId(), eventKey, hash, body,
+        Timestamp.from(verifiedAt == null ? Instant.now() : verifiedAt));
+    String status = jdbcTemplate.queryForObject(
+        "select processing_status from payment_provider_events "
+            + "where provider='RAZORPAY' and provider_event_key=?",
+        String.class, eventKey);
+    if ("PROCESSED".equals(status)) return;
     try {
       processPayload(body);
-    } catch (Exception ex) {
-      log.error("Error processing Razorpay webhook payload: {}", ex.getMessage(), ex);
+      markEventProcessed(eventKey);
+    } catch (RuntimeException ex) {
+      markEventRetry(eventKey);
+      throw ex; // Return 5xx so Razorpay can redeliver the signed webhook.
     }
+  }
+
+  @org.springframework.scheduling.annotation.Scheduled(
+      fixedDelayString = "${app.billing.razorpay.webhook-retry-interval-ms:60000}",
+      initialDelayString = "${app.billing.razorpay.webhook-retry-initial-delay-ms:60000}")
+  public void replayUnprocessedEvents() {
+    record Pending(String key, String body) {}
+    var pending = jdbcTemplate.query(
+        """
+        with due as (
+          select id from payment_provider_events
+           where provider='RAZORPAY'
+             and (
+               (processing_status in ('RECEIVED','RETRY') and next_attempt_at<=now())
+               or (processing_status='PROCESSING' and claimed_until < now())
+             )
+           order by received_at
+           limit 50 for update skip locked
+        )
+        update payment_provider_events e
+           set processing_status='PROCESSING',
+               claim_token=null,
+               claimed_until=now()+interval '120 seconds'
+          from due where e.id=due.id
+        returning e.provider_event_key, e.raw_payload
+        """,
+        (rs, row) -> new Pending(
+            rs.getString("provider_event_key"), rs.getString("raw_payload")));
+    for (Pending event : pending) {
+      try {
+        processPayload(event.body());
+        markEventProcessed(event.key());
+      } catch (RuntimeException ex) {
+        log.warn("Razorpay event {} will be retried: {}", event.key(), ex.getClass().getSimpleName());
+        markEventRetry(event.key());
+      }
+    }
+  }
+
+  private void markEventProcessed(String eventKey) {
+    jdbcTemplate.update(
+        "update payment_provider_events set processing_status='PROCESSED', "
+            + "claimed_until=null, next_attempt_at=null where provider='RAZORPAY' "
+            + "and provider_event_key=?",
+        eventKey);
+  }
+
+  private void markEventRetry(String eventKey) {
+    jdbcTemplate.update(
+        "update payment_provider_events "
+            + "set processing_status='RETRY', attempt_count=attempt_count+1, "
+            + "claimed_until=null, next_attempt_at=now()+interval '5 minutes' "
+            + "where provider='RAZORPAY' and provider_event_key=?",
+        eventKey);
   }
 
   public void processPayload(String body) {
@@ -81,7 +132,7 @@ public class RazorpayWebhookService {
         processPaymentFailure(payload);
       }
     } catch (Exception e) {
-      log.error("Failed to parse Razorpay webhook event: {}", e.getMessage());
+      throw new IllegalStateException("Razorpay webhook could not be processed", e);
     }
   }
 
