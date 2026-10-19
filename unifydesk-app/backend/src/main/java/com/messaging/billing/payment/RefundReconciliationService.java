@@ -16,8 +16,8 @@ public class RefundReconciliationService {
   private final PaymentProviderGateway gateway;
 
   @Scheduled(
-      fixedDelayString = "${app.billing.cashfree.reconciliation-interval-ms:300000}",
-      initialDelayString = "${app.billing.cashfree.reconciliation-initial-delay-ms:60000}")
+      fixedDelayString = "${app.billing.razorpay.reconciliation-interval-ms:300000}",
+      initialDelayString = "${app.billing.razorpay.reconciliation-initial-delay-ms:60000}")
   public void reconcilePendingRefunds() {
     List<Long> ids =
         jdbcTemplate.queryForList(
