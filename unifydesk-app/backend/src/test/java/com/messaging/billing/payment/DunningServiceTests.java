@@ -26,7 +26,7 @@ class DunningServiceTests {
     reconciliation = mock(PaymentReconciliationService.class);
     recurringCharges = mock(RecurringChargeService.class);
     lifecycle = mock(SubscriptionLifecycleService.class);
-    CashfreeProperties properties = new CashfreeProperties();
+    RazorpayProperties properties = new RazorpayProperties();
     com.messaging.billing.service.BillingNotificationService notificationService =
         mock(com.messaging.billing.service.BillingNotificationService.class);
     service = new DunningService(jdbc, reconciliation, recurringCharges, lifecycle, properties, notificationService);
