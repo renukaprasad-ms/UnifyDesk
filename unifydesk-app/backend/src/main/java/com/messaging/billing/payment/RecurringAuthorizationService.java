@@ -49,9 +49,6 @@ public class RecurringAuthorizationService {
     if (prepared == null) {
       return null;
     }
-    if ("ACTIVE".equals(prepared.status())) {
-      return result(prepared, null);
-    }
     try {
       PaymentProviderGateway.RecurringAuthorization remote =
           gateway.fetchRecurringAuthorization(prepared.providerSubscriptionId());
@@ -135,6 +132,10 @@ public class RecurringAuthorizationService {
   }
 
   public boolean cancelCompanyAutopay(Long companyId) {
+    RecurringAuthorizationStore.Prepared active = store.findActiveCompanyAutopay(companyId);
+    if (active != null) {
+      gateway.cancelRecurringAuthorization(active.providerSubscriptionId(), active.customerId());
+    }
     return store.cancelCompanyAutopay(companyId);
   }
 
