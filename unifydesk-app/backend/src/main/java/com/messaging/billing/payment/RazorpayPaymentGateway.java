@@ -320,11 +320,14 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
         || amount.compareTo(new BigDecimal("15000")) > 0) {
       throw new ConflictException("Invalid recurring debit command, token, or amount");
     }
-    List<Map<String, Object>> existing = jdbcTemplate.queryForList(
-        "select provider_order_id from razorpay_recurring_charge_intents where command_id = ?",
-        commandId);
-    if (!existing.isEmpty()) {
-      // A command can have at most one provider order. Never submit it a second time.
+    // Commit a unique local command BEFORE contacting Razorpay. Any crash or timeout
+    // before binding the remote order is ambiguous, never an invitation to debit again.
+    int claimed = jdbcTemplate.update(
+        "insert into razorpay_recurring_charge_intents "
+            + "(command_id, provider_token_id, amount, currency) "
+            + "values (?, ?, ?, 'INR') on conflict (command_id) do nothing",
+        commandId, tokenReference, amount);
+    if (claimed == 0) {
       return fetchSubscriptionPayment(tokenReference, commandId);
     }
     List<Map<String, Object>> rows = jdbcTemplate.queryForList(
@@ -367,11 +370,12 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
     if (providerOrderId == null || !providerOrderId.startsWith("order_")) {
       throw new ServiceUnavailableException("Razorpay did not create a recurring charge order");
     }
-    jdbcTemplate.update(
-        "insert into razorpay_recurring_charge_intents "
-            + "(command_id, provider_order_id, provider_token_id, amount, currency) "
-            + "values (?, ?, ?, ?, 'INR')",
-        commandId, providerOrderId, tokenReference, amount);
+    int bound = jdbcTemplate.update(
+        "update razorpay_recurring_charge_intents "
+            + "set provider_order_id=?, updated_at=now() "
+            + "where command_id=? and provider_order_id is null",
+        providerOrderId, commandId);
+    if (bound != 1) throw new ConflictException("Recurring charge order binding conflicted");
 
     try {
       Map<String, Object> charge = new LinkedHashMap<>();
