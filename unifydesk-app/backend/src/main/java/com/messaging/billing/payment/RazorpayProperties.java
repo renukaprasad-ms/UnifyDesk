@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 public class RazorpayProperties {
 
   private boolean enabled = true;
+  /** Explicit opt-in after Razorpay confirms merchant-initiated recurring debit eligibility. */
+  private boolean recurringEnabled = false;
   private String baseUrl = "https://api.razorpay.com/v1";
   private String keyId = "rzp_test_placeholder";
   private String keySecret = "rzp_test_secret_placeholder";
