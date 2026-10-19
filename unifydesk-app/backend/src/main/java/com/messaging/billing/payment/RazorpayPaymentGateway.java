@@ -34,7 +34,6 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
   private final RazorpayProperties properties;
   private final ObjectMapper objectMapper;
   private final JdbcTemplate jdbcTemplate;
-  private final java.util.Set<String> verifiedPlans = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
   @Override
   public Checkout createOrder(
@@ -501,38 +500,6 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
     return new RemoteSubscriptionPayment(
         commandId, knownPaymentId, failed ? "FAILED" : "PENDING", expectedAmount,
         expectedCurrency, Instant.now(), null, failed ? "PROVIDER_DECLINED" : null);
-  }
-
-  private String ensurePlanExists(BigDecimal maxAmount, String currency) {
-    String curr = currency != null && !currency.isBlank() ? currency.toUpperCase() : "INR";
-    int amountVal = maxAmount != null ? maxAmount.intValue() : 15000;
-    String planKey = "PLAN_MANDATE_" + amountVal + "_" + curr;
-    if (verifiedPlans.contains(planKey)) {
-      return planKey;
-    }
-
-    try {
-      Map<String, Object> planBody = new LinkedHashMap<>();
-      planBody.put("period", "monthly");
-      planBody.put("interval", 1);
-      Map<String, Object> item = new LinkedHashMap<>();
-      item.put("name", "UnifyDesk AutoPay " + curr + " " + amountVal);
-      item.put("amount", toPaise(maxAmount != null ? maxAmount : new BigDecimal("15000")));
-      item.put("currency", curr);
-      item.put("description", "UnifyDesk 20-year recurring mandate up to 15k");
-      planBody.put("item", item);
-
-      JsonNode json = post("/plans", planBody);
-      String createdPlanId = text(json, "id");
-      if (createdPlanId != null) {
-        verifiedPlans.add(createdPlanId);
-        return createdPlanId;
-      }
-    } catch (Exception e) {
-      log.warn("Plan creation in Razorpay note: {}", e.getMessage());
-    }
-    verifiedPlans.add(planKey);
-    return planKey;
   }
 
   private long toPaise(BigDecimal amount) {
