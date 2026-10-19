@@ -275,6 +275,23 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
   }
 
   @Override
+  public void cancelRecurringAuthorization(String tokenId, String customerId) {
+    assertRecurringEnabled();
+    if (tokenId == null || !tokenId.startsWith("token_")
+        || customerId == null || !customerId.startsWith("cust_")) {
+      throw new ConflictException("Valid Razorpay token and customer are required");
+    }
+    try {
+      client().delete()
+          .uri("/customers/" + encode(customerId) + "/tokens/" + encode(tokenId))
+          .header("Authorization", basicAuthHeader())
+          .retrieve().toBodilessEntity();
+    } catch (RestClientResponseException ex) {
+      if (ex.getStatusCode().value() != 404) throw ex;
+    }
+  }
+
+  @Override
   public RemoteSubscriptionPayment authorizeRecurringSubscription(
       String subscriptionId,
       String subscriptionSessionId,
