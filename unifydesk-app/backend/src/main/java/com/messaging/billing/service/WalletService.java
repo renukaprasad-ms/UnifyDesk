@@ -360,6 +360,27 @@ public class WalletService {
     return toWalletResponse(wallet);
   }
 
+  /** Recover paid wallet checkouts when browser confirmation or webhooks are lost. */
+  @org.springframework.scheduling.annotation.Scheduled(
+      fixedDelayString = "${app.billing.razorpay.wallet-topup-reconcile-interval-ms:300000}",
+      initialDelayString = "${app.billing.razorpay.wallet-topup-reconcile-initial-delay-ms:60000}")
+  public void reconcileUncreditedTopups() {
+    if (!razorpayProperties.isEnabled()) return;
+    var pending = jdbcTemplate.queryForList(
+        "select company_id, provider_order_id from wallet_topup_intents "
+            + "where status='CREATED' order by created_at limit 50");
+    for (var intent : pending) {
+      try {
+        confirmTopup(
+            ((Number) intent.get("company_id")).longValue(),
+            (String) intent.get("provider_order_id"), null, null);
+      } catch (RuntimeException ex) {
+        // Unpaid or temporarily unverifiable checkouts remain pending without credit.
+        log.debug("Wallet checkout reconciliation pending: {}", ex.getClass().getSimpleName());
+      }
+    }
+  }
+
   private String resolveCustomerPhone(Long companyId, WalletTopupOrderRequest.WalletCustomerDetails customer) {
     if (customer != null && customer.phone() != null && !customer.phone().isBlank()) {
       return sanitizePhone(customer.phone());
