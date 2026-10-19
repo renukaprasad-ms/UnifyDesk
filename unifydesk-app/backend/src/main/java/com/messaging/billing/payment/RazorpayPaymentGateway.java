@@ -204,43 +204,32 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
   }
 
   @Override
-  public RecurringAuthorization fetchRecurringAuthorization(String subscriptionId) {
-    if (subscriptionId != null && subscriptionId.startsWith("order_")) {
-      try {
-        Checkout order = fetchOrder(subscriptionId);
-        boolean paid = "paid".equalsIgnoreCase(order.status());
-        return new RecurringAuthorization(
-            subscriptionId,
-            order.paymentSessionId(),
-            paid ? "ACTIVE" : "PENDING_AUTH",
-            null);
-      } catch (Exception ignored) {
-        return new RecurringAuthorization(
-            subscriptionId,
-            subscriptionId,
-            "PENDING_AUTH",
-            null);
+  public RecurringAuthorization fetchRecurringAuthorization(String tokenReference) {
+    assertRecurringEnabled();
+    // Paid authorization orders are never sufficient evidence of a valid recurring token.
+    if (tokenReference == null || !tokenReference.startsWith("token_")) {
+      return new RecurringAuthorization(tokenReference, tokenReference, "PENDING_AUTH", null);
+    }
+    String customerId = jdbcTemplate.query(
+        "select payment_method_type from payment_provider_authorizations "
+            + "where provider = 'RAZORPAY' and provider_subscription_id = ? "
+            + "and authorization_status = 'ACTIVE' limit 1",
+        rs -> rs.next() ? rs.getString(1) : null, tokenReference);
+    if (customerId == null || !customerId.startsWith("cust_")) {
+      return new RecurringAuthorization(tokenReference, tokenReference, "PENDING_AUTH", null);
+    }
+    JsonNode tokens = get("/customers/" + encode(customerId) + "/tokens").path("items");
+    if (tokens.isArray()) {
+      for (JsonNode token : tokens) {
+        if (tokenReference.equals(text(token, "id"))) {
+          boolean confirmed = token.path("recurring").asBoolean(false)
+              && "confirmed".equalsIgnoreCase(text(token.path("recurring_details"), "status"));
+          return new RecurringAuthorization(tokenReference, tokenReference,
+              confirmed ? "ACTIVE" : "PENDING_AUTH", customerId);
+        }
       }
     }
-    if (subscriptionId != null && subscriptionId.startsWith("sub_")) {
-      try {
-        JsonNode json = get("/subscriptions/" + encode(subscriptionId));
-        String status = text(json, "status");
-        boolean active = "active".equalsIgnoreCase(status) || "authenticated".equalsIgnoreCase(status);
-        return new RecurringAuthorization(
-            subscriptionId,
-            text(json, "id"),
-            active ? "ACTIVE" : (status != null ? status.toUpperCase() : "PENDING_AUTH"),
-            text(json, "short_url"));
-      } catch (Exception ex) {
-        log.warn("Could not fetch remote subscription {}: {}", subscriptionId, ex.getMessage());
-      }
-    }
-    return new RecurringAuthorization(
-        subscriptionId != null ? subscriptionId : "",
-        subscriptionId != null ? subscriptionId : "",
-        "PENDING_AUTH",
-        null);
+    return new RecurringAuthorization(tokenReference, tokenReference, "PENDING_AUTH", customerId);
   }
 
   @Override
