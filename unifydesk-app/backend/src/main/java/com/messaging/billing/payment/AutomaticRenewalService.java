@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
  * Restart-safe automatic paid renewal boundary.
  *
  * <p>This worker never recalculates pricing. It asks B1 for the canonical next period/invoice,
- * creates or resolves one B2 logical renewal Payment, binds the already-authorized Cashfree
+ * creates or resolves one B2 logical renewal Payment, binds the already-authorized Razorpay
  * subscription, and raises the exact canonical invoice amount through the recurring CHARGE path.
  */
 @Service
@@ -33,13 +33,12 @@ public class AutomaticRenewalService {
   private final RecurringChargeService chargeService;
   private final PaymentConfirmationService confirmationService;
   private final SubscriptionLifecycleService lifecycleService;
-  private final CashfreeProperties properties;
+  private final RazorpayProperties properties;
   private final com.messaging.billing.service.BillingNotificationService billingNotificationService;
 
-  @Scheduled(
-      fixedDelayString = "${app.billing.cashfree.automatic-renewal-interval-ms:60000}",
-      initialDelayString = "${app.billing.cashfree.automatic-renewal-initial-delay-ms:60000}")
+  @Scheduled(cron = "0 0 2 * * *", zone = "Asia/Kolkata")
   public void run() {
+    if (!properties.isRecurringEnabled()) return;
     Instant now = Instant.now();
     store.discoverDue(now);
     for (AutomaticRenewalStore.Job job :
@@ -84,7 +83,7 @@ public class AutomaticRenewalService {
       }
       if (subscription.status() != SubscriptionStatus.ACTIVE
           || subscription.cancelAtPeriodEnd()
-          || !"CASHFREE".equals(subscription.paymentPolicy())
+          || !"RAZORPAY".equals(subscription.paymentPolicy())
           || subscription.currentPeriodEnd() == null
           || !subscription.currentPeriodEnd().equals(job.dueBoundary())) {
         store.finish(job, "SKIPPED", invoiceId, paymentId, "SUBSCRIPTION_NOT_DUE");
