@@ -33,6 +33,7 @@ public class RazorpayWebhookService {
   private final RealtimeService realtimeService;
   private final RazorpayProperties properties;
   private final com.messaging.billing.service.WalletService walletService;
+  private final PaymentProviderGateway gateway;
 
   public void receiveVerified(byte[] rawBody, Instant verifiedAt) {
     String body = new String(rawBody, StandardCharsets.UTF_8);
@@ -105,27 +106,33 @@ public class RazorpayWebhookService {
       return;
     }
 
-    Optional<Payment> match = Optional.empty();
-    if (rzpOrderId != null) {
-      match = paymentRepository.findByProviderAndProviderOrderId("RAZORPAY", rzpOrderId);
-      if (match.isEmpty()) {
-        match = paymentRepository.findByProviderAndProviderOrderId("CASHFREE", rzpOrderId);
-      }
-    }
-
+    Optional<Payment> match = rzpOrderId == null ? Optional.empty()
+        : paymentRepository.findByProviderAndProviderCheckoutSessionId("RAZORPAY", rzpOrderId);
     if (match.isEmpty() && rzpOrderId != null) {
-      // Find by provider_checkout_session_id
-      var all = paymentRepository.findAll();
-      for (Payment p : all) {
-        if (rzpOrderId.equals(p.getProviderCheckoutSessionId()) || rzpOrderId.equals(p.getProviderOrderId())) {
-          match = Optional.of(p);
-          break;
-        }
-      }
+      match = paymentRepository.findByProviderAndProviderOrderId("RAZORPAY", rzpOrderId);
     }
 
     if (match.isPresent()) {
       Payment p = match.get();
+      if (rzpOrderId == null || !rzpOrderId.startsWith("order_")) {
+        throw new IllegalArgumentException("Captured payment is missing its Razorpay order");
+      }
+      PaymentProviderGateway.Checkout order = gateway.fetchOrder(rzpOrderId);
+      if (!"paid".equalsIgnoreCase(order.status())
+          || !rzpOrderId.equals(order.paymentSessionId())) {
+        throw new IllegalStateException("Razorpay order is not paid");
+      }
+      var capturedPayments = gateway.fetchOrderPayments(rzpOrderId).stream()
+          .filter(x -> "SUCCESS".equalsIgnoreCase(x.status())).toList();
+      if (capturedPayments.size() != 1
+          || capturedPayments.getFirst().providerPaymentId() == null
+          || (rzpPaymentId != null
+              && !rzpPaymentId.equals(capturedPayments.getFirst().providerPaymentId()))
+          || capturedPayments.getFirst().amount().compareTo(p.getAmount()) != 0
+          || !p.getCurrency().equalsIgnoreCase(capturedPayments.getFirst().currency())) {
+        throw new IllegalStateException("Captured Razorpay payment does not match the canonical invoice");
+      }
+      rzpPaymentId = capturedPayments.getFirst().providerPaymentId();
       confirmationService.confirmSuccessByPaymentId(
           p.getId(), rzpPaymentId, p.getAmount(), p.getCurrency(), createdAt);
 
@@ -152,7 +159,7 @@ public class RazorpayWebhookService {
           String[] parts = internalOrderId.split("-");
           if (parts.length >= 2) {
             Long companyId = Long.valueOf(parts[1]);
-            walletService.confirmTopup(companyId, internalOrderId, amount, 1L);
+            walletService.confirmTopup(companyId, internalOrderId, amount, null);
             realtimeService.sendToCompany(
                 companyId,
                 "billing.wallet.updated",
