@@ -11,6 +11,8 @@ without having an account in UnifyDesk App. The product is currently in R1 devel
 self-service registration, billing, IP warm-up and live deliverability QA
 are still outstanding. This is **not** generally available.
 
+**Architecture guide:** [Email platform architecture, sending/inbound flows, DNS, dedicated IPs and rollout](docs/EMAIL_PLATFORM_ARCHITECTURE.md). This describes the target architecture and release gates; it does not certify a production deployment.
+
 See [product boundary](docs/PRODUCT_BOUNDARY.md) and
 [working API contracts](docs/PRODUCT_API_R1.md) for current implementation and release gates.
 
