@@ -13,6 +13,8 @@ are still outstanding. This is **not** generally available.
 
 **Architecture guide:** [Email platform architecture, sending/inbound flows, DNS, dedicated IPs and rollout](docs/EMAIL_PLATFORM_ARCHITECTURE.md). This describes the target architecture and release gates; it does not certify a production deployment.
 
+For the end-to-end design of hosted mail, API sending, MX/SMTP flows, DNS, dedicated IPs, durability and release phases, read the [Email Platform Architecture & Operational Design](docs/EMAIL_PLATFORM_ARCHITECTURE.md).
+
 See [product boundary](docs/PRODUCT_BOUNDARY.md) and
 [working API contracts](docs/PRODUCT_API_R1.md) for current implementation and release gates.
 
