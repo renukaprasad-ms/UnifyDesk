@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 import com.messaging.common.exception.ApiException;
 import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.repository.CompanyMemberRepository;
-import com.messaging.notification.platform.core.event.NotificationEventRecorder;
+import com.messaging.notification.platform.core.event.NotificationEventService;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.UUID;
@@ -97,7 +97,7 @@ class CrmTaskLifecycleR2PostgresTests {
         insert into crm_tasks(id,company_id,title,assignee_user_id,due_at)
         values (401,101,'Call customer',1,now() + interval '5 minutes')
         """);
-    NotificationEventRecorder events = mock(NotificationEventRecorder.class);
+    NotificationEventService events = mock(NotificationEventService.class);
     CrmTaskReminderScheduler scheduler = new CrmTaskReminderScheduler(jdbc, events);
     scheduler.scan();
     scheduler.scan();

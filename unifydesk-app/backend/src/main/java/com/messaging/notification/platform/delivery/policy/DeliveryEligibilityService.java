@@ -25,7 +25,8 @@ public class DeliveryEligibilityService {
   private final BrowserPushReadiness pushReadiness;
 
   public Decision evaluate(DeliveryIntent intent, Instant now) {
-    RecipientSnapshot recipient = repository.recipientSnapshot(intent.userId(), intent.companyId()).orElse(null);
+    RecipientSnapshot recipient =
+        repository.recipientSnapshot(intent.userId(), intent.companyId()).orElse(null);
     if (recipient == null || !recipient.active()) {
       return Decision.suppress("USER_INACTIVE");
     }
@@ -54,7 +55,8 @@ public class DeliveryEligibilityService {
     }
 
     EffectivePreference preference =
-        repository.effectivePreference(intent.userId(), intent.companyId(), intent.notificationType());
+        repository.effectivePreference(
+            intent.userId(), intent.companyId(), intent.notificationType());
     boolean mandatoryWelcome =
         "COMPANY_CREATED".equals(intent.notificationType())
             && intent.channel() == Channel.EMAIL
@@ -84,7 +86,25 @@ public class DeliveryEligibilityService {
       }
     }
 
-    if (intent.channel() == Channel.EMAIL && (!recipient.verified() || !validEmail(recipient.email()))) {
+    if (mandatoryWelcome) {
+      // The in-app recipient stays the creator; only the company welcome email uses this address.
+      // A user's verification flag does not verify the company's separate business address.
+      String businessEmail = repository.companyBusinessEmail(intent.companyId());
+      if (!validEmail(businessEmail)) return Decision.suppress("COMPANY_EMAIL_MISSING_OR_INVALID");
+      recipient =
+          new RecipientSnapshot(
+              recipient.userId(),
+              businessEmail,
+              recipient.userName(),
+              recipient.active(),
+              recipient.verified(),
+              recipient.companyId(),
+              recipient.companyName(),
+              recipient.companyTimezone(),
+              recipient.companyEligible(),
+              recipient.activeMember());
+    } else if (intent.channel() == Channel.EMAIL
+        && (!recipient.verified() || !validEmail(recipient.email()))) {
       return Decision.suppress("EMAIL_NOT_VERIFIED_OR_INVALID");
     }
 
@@ -98,7 +118,8 @@ public class DeliveryEligibilityService {
         || intent.companyId() == null) {
       return false;
     }
-    RecipientSnapshot recipient = repository.recipientSnapshot(intent.userId(), intent.companyId()).orElse(null);
+    RecipientSnapshot recipient =
+        repository.recipientSnapshot(intent.userId(), intent.companyId()).orElse(null);
     if (recipient == null
         || !recipient.active()
         || !recipient.companyEligible()
@@ -112,7 +133,8 @@ public class DeliveryEligibilityService {
       return false;
     }
     EffectivePreference preference =
-        repository.effectivePreference(intent.userId(), intent.companyId(), intent.notificationType());
+        repository.effectivePreference(
+            intent.userId(), intent.companyId(), intent.notificationType());
     return "DIGEST".equals(preference.emailMode());
   }
 
@@ -122,8 +144,7 @@ public class DeliveryEligibilityService {
     }
     if ("INBOX_ACTIVITY".equals(intent.notificationType())) {
       return (intent.channel() == Channel.EMAIL && intent.deliveryMode() == DeliveryMode.DIGEST)
-          || (intent.channel() == Channel.WEB_PUSH
-              && intent.deliveryMode() != DeliveryMode.DIGEST);
+          || (intent.channel() == Channel.WEB_PUSH && intent.deliveryMode() != DeliveryMode.DIGEST);
     }
     return false;
   }
@@ -140,7 +161,8 @@ public class DeliveryEligibilityService {
         && email.indexOf('\n') < 0;
   }
 
-  public record Decision(Action action, String code, Instant deferUntil, RecipientSnapshot recipient) {
+  public record Decision(
+      Action action, String code, Instant deferUntil, RecipientSnapshot recipient) {
     public enum Action {
       SEND,
       DEFER,

@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class InboxActivityNotificationPostProcessor implements InboxMessagePostProcessor {
 
-  private final NotificationEventRecorder recorder;
+  private final NotificationEventService recorder;
 
   @Override
   @Transactional(propagation = Propagation.MANDATORY)

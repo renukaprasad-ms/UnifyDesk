@@ -5,7 +5,7 @@ import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.*;
 import com.messaging.broadcast.repository.*;
 import com.messaging.common.exception.NotFoundException;
-import com.messaging.notification.platform.core.event.NotificationEventRecorder;
+import com.messaging.notification.platform.core.event.NotificationEventService;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,7 @@ public class BroadcastRunFinalizerService {
   private final BroadcastMessageRepository messageRepository;
   private final BroadcastStatsService statsService;
   private final BroadcastProgressPublisher progressPublisher;
-  private final NotificationEventRecorder notificationEventRecorder;
+  private final NotificationEventService notificationEventService;
 
   @Transactional
   public void tryFinalize(Long runId) {
@@ -59,14 +59,14 @@ public class BroadcastRunFinalizerService {
     messageRepository.save(message);
 
     if (partial) {
-      notificationEventRecorder.recordBroadcastFailed(
+      notificationEventService.recordBroadcastFailed(
           run.getId(),
           message.getId(),
           run.getCompanyId(),
           message.getChannelType().name(),
           run.getCompletedAt());
     } else {
-      notificationEventRecorder.recordBroadcastCompleted(
+      notificationEventService.recordBroadcastCompleted(
           run.getId(),
           message.getId(),
           run.getCompanyId(),

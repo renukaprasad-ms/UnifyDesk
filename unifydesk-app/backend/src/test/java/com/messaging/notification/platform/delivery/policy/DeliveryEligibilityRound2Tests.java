@@ -22,6 +22,64 @@ class DeliveryEligibilityRound2Tests {
   private static final Instant NOW = Instant.parse("2026-09-27T08:00:00Z");
 
   @Test
+  void welcomeUsesCompanyEmailEvenWhenCreatorEmailIsUnverified() {
+    NotificationDeliveryRuntimeRepository repository =
+        mock(NotificationDeliveryRuntimeRepository.class);
+    NotificationDeliveryProperties properties = new NotificationDeliveryProperties();
+    properties.getEmail().setEnabled(true);
+    DeliveryEligibilityService service =
+        new DeliveryEligibilityService(
+            repository,
+            new NotificationDeliveryPolicy(properties),
+            mock(CompanyIamPermissionService.class),
+            properties,
+            mock(BrowserPushReadiness.class));
+    when(repository.recipientSnapshot(7L, 9L))
+        .thenReturn(
+            Optional.of(
+                new RecipientSnapshot(
+                    7L,
+                    "creator@example.com",
+                    "Creator",
+                    true,
+                    false,
+                    9L,
+                    "Acme",
+                    "UTC",
+                    true,
+                    true)));
+    when(repository.companyBusinessEmail(9L)).thenReturn("business@example.com");
+
+    var decision = service.evaluate(welcomeIntent(), NOW);
+
+    assertThat(decision.action()).isEqualTo(DeliveryEligibilityService.Decision.Action.SEND);
+    assertThat(decision.recipient().email()).isEqualTo("business@example.com");
+    assertThat(decision.recipient().userId()).isEqualTo(7L);
+  }
+
+  @Test
+  void welcomeWithoutCompanyEmailDoesNotFallBackToCreatorEmail() {
+    NotificationDeliveryRuntimeRepository repository =
+        mock(NotificationDeliveryRuntimeRepository.class);
+    NotificationDeliveryProperties properties = new NotificationDeliveryProperties();
+    properties.getEmail().setEnabled(true);
+    DeliveryEligibilityService service =
+        new DeliveryEligibilityService(
+            repository,
+            new NotificationDeliveryPolicy(properties),
+            mock(CompanyIamPermissionService.class),
+            properties,
+            mock(BrowserPushReadiness.class));
+    when(repository.recipientSnapshot(7L, 9L))
+        .thenReturn(Optional.of(activeRecipient(7L, 9L, true, true)));
+
+    var decision = service.evaluate(welcomeIntent(), NOW);
+
+    assertThat(decision.action()).isEqualTo(DeliveryEligibilityService.Decision.Action.SUPPRESS);
+    assertThat(decision.code()).isEqualTo("COMPANY_EMAIL_MISSING_OR_INVALID");
+  }
+
+  @Test
   void emailKillSwitchDefersWelcomeInsteadOfCallingChannel() {
     NotificationDeliveryRuntimeRepository repository =
         mock(NotificationDeliveryRuntimeRepository.class);
@@ -38,6 +96,7 @@ class DeliveryEligibilityRound2Tests {
             readiness);
 
     DeliveryIntent intent = welcomeIntent();
+    when(repository.companyBusinessEmail(9L)).thenReturn("company@example.com");
     when(repository.recipientSnapshot(7L, 9L))
         .thenReturn(Optional.of(activeRecipient(7L, 9L, true, true)));
 
@@ -64,6 +123,7 @@ class DeliveryEligibilityRound2Tests {
             properties,
             readiness);
 
+    when(repository.companyBusinessEmail(9L)).thenReturn("company@example.com");
     when(repository.recipientSnapshot(7L, 9L))
         .thenReturn(Optional.of(activeRecipient(7L, 9L, true, true)));
 
@@ -91,6 +151,7 @@ class DeliveryEligibilityRound2Tests {
             properties,
             readiness);
 
+    when(repository.companyBusinessEmail(9L)).thenReturn("company@example.com");
     when(repository.recipientSnapshot(7L, 9L))
         .thenReturn(Optional.of(activeRecipient(7L, null, false, false)));
 
@@ -136,6 +197,7 @@ class DeliveryEligibilityRound2Tests {
             "claim",
             NOW.plusSeconds(60),
             NOW);
+    when(repository.companyBusinessEmail(9L)).thenReturn("company@example.com");
     when(repository.recipientSnapshot(7L, 9L))
         .thenReturn(Optional.of(activeRecipient(7L, 9L, true, true)));
     when(repository.effectivePreference(7L, 9L, "INBOX_ACTIVITY"))

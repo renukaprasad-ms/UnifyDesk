@@ -158,7 +158,10 @@ export const autoPayStatusLabel: Record<AutoPayDetails['status'], string> = {
   NOT_CONFIGURED: 'Not Configured',
 }
 
+export type AutoPayPaymentMethod = 'auto' | 'card' | 'emandate' | 'upi'
+
 export type AutoPaySetupInput = {
+  paymentMethod?: AutoPayPaymentMethod
   name?: string | null
   email?: string | null
   phone?: string | null

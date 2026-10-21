@@ -169,6 +169,13 @@ export default function PaymentVerificationAndAutoPayModal({
         setStep('AUTOTOPUP_SETUP')
         return
       }
+      if (setup.providerSubscriptionId?.startsWith('token_')) {
+        const refreshed = await billingApi.verifyAutoPay(companyId)
+        setAutoPayDetails(refreshed)
+        if (refreshed.status === 'ACTIVE') setStep('AUTOTOPUP_SETUP')
+        else setError('AutoPay authorization is pending. Your bank must confirm the mandate before automatic payments can start.')
+        return
+      }
       // A local mandate reference cannot be used for Razorpay Checkout.
       if (!setup.keyId?.startsWith('rzp_')
         || !setup.subscriptionSessionId?.startsWith('order_')
@@ -302,7 +309,7 @@ export default function PaymentVerificationAndAutoPayModal({
               <div className="flex items-start gap-2.5">
                 <FiShield className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold text-slate-100">₹1 authorization payment:</span> Razorpay uses a small authorization payment for mandate registration. Future debits require an active, approved mandate.
+                  <span className="font-semibold text-slate-100">Authorization:</span> Choose an available recurring payment method in Razorpay and review its authorization amount. Future debits require an active, approved mandate.
                 </div>
               </div>
               <div className="flex items-start gap-2.5">

@@ -1,6 +1,6 @@
 package com.messaging.crm;
 
-import com.messaging.notification.platform.core.event.NotificationEventRecorder;
+import com.messaging.notification.platform.core.event.NotificationEventService;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -26,7 +26,7 @@ public class CrmTaskReminderScheduler {
   private static final int MAX_BATCH = 50;
 
   private final JdbcTemplate jdbc;
-  private final NotificationEventRecorder events;
+  private final NotificationEventService events;
 
   private record Due(long id, long companyId, long assigneeId, long generation, String title) {}
 

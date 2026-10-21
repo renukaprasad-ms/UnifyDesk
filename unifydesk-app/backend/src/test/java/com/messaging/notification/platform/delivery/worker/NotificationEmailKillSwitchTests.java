@@ -19,10 +19,10 @@ import com.messaging.notification.platform.delivery.model.DeliveryModels.DigestB
 import com.messaging.notification.platform.delivery.model.DeliveryModels.RecipientSnapshot;
 import com.messaging.notification.platform.delivery.policy.DeliveryEligibilityService;
 import com.messaging.notification.platform.delivery.policy.NotificationDeliveryPolicy;
-import com.messaging.notification.platform.push.BrowserPushReadiness;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliverySupportRepository;
 import com.messaging.notification.platform.delivery.repository.ProviderAttemptLifecycleRepository;
+import com.messaging.notification.platform.push.BrowserPushReadiness;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -64,8 +64,8 @@ class NotificationEmailKillSwitchTests {
             new ObjectMapper());
 
     DeliveryIntent intent = welcomeIntent();
-    when(repository.recipientSnapshot(7L, 9L))
-        .thenReturn(Optional.of(activeRecipient()));
+    when(repository.companyBusinessEmail(9L)).thenReturn("company@example.com");
+    when(repository.recipientSnapshot(7L, 9L)).thenReturn(Optional.of(activeRecipient()));
 
     worker.processEmail(intent, NOW);
 
@@ -161,15 +161,6 @@ class NotificationEmailKillSwitchTests {
 
   private RecipientSnapshot activeRecipient() {
     return new RecipientSnapshot(
-        7L,
-        "user@example.com",
-        "User",
-        true,
-        true,
-        9L,
-        "Workspace",
-        "UTC",
-        true,
-        true);
+        7L, "user@example.com", "User", true, true, 9L, "Workspace", "UTC", true, true);
   }
 }

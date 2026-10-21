@@ -24,7 +24,7 @@ import com.messaging.contacts.audience.AudienceSnapshotRepository;
 import com.messaging.contacts.audience.AudienceSnapshotService;
 import com.messaging.contacts.consent.ConsentTypes.Channel;
 import com.messaging.contacts.consent.ConsentTypes.Purpose;
-import com.messaging.notification.platform.core.event.NotificationEventRecorder;
+import com.messaging.notification.platform.core.event.NotificationEventService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -83,7 +83,7 @@ class BroadcastTerminalNotificationServiceTests {
     BroadcastMessageRepository messages = mock(BroadcastMessageRepository.class);
     BroadcastStatsService stats = mock(BroadcastStatsService.class);
     BroadcastProgressPublisher progress = mock(BroadcastProgressPublisher.class);
-    NotificationEventRecorder recorder = mock(NotificationEventRecorder.class);
+    NotificationEventService recorder = mock(NotificationEventService.class);
     BroadcastRunFinalizerService finalizer =
         new BroadcastRunFinalizerService(runs, batches, messages, stats, progress, recorder);
 
@@ -113,7 +113,7 @@ class BroadcastTerminalNotificationServiceTests {
     BroadcastStatsService stats = mock(BroadcastStatsService.class);
     BroadcastProgressPublisher progress = mock(BroadcastProgressPublisher.class);
     JdbcTemplate jdbc = mock(JdbcTemplate.class);
-    NotificationEventRecorder recorder = mock(NotificationEventRecorder.class);
+    NotificationEventService recorder = mock(NotificationEventService.class);
     BroadcastRunFailureService failure =
         new BroadcastRunFailureService(runs, messages, stats, progress, jdbc, recorder);
 
@@ -147,7 +147,7 @@ class BroadcastTerminalNotificationServiceTests {
     BroadcastProgressPublisher progress = mock(BroadcastProgressPublisher.class);
     BroadcastRunFailureService failure = mock(BroadcastRunFailureService.class);
     AudienceSnapshotService audienceSnapshots = mock(AudienceSnapshotService.class);
-    NotificationEventRecorder recorder = mock(NotificationEventRecorder.class);
+    NotificationEventService recorder = mock(NotificationEventService.class);
 
     BroadcastPreparationChunkService preparation =
         new BroadcastPreparationChunkService(
@@ -237,5 +237,5 @@ class BroadcastTerminalNotificationServiceTests {
       BroadcastMessage message,
       AudienceSnapshotService audienceSnapshotService,
       BroadcastProgressPublisher progress,
-      NotificationEventRecorder recorder) {}
+      NotificationEventService recorder) {}
 }

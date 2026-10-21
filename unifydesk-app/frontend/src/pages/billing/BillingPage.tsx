@@ -1728,7 +1728,7 @@ export default function BillingPage() {
                       <FiCheckCircle className="text-sm" /> Mandate Active
                     </span>
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-md">
-                      ● UPI AutoPay / e-Mandate
+                      ● AutoPay mandate
                     </span>
                   </div>
                   <div className="space-y-1.5 text-slate-300 text-[11px] pt-1">
@@ -1746,7 +1746,9 @@ export default function BillingPage() {
                     </div>
                     {wallet?.autoRechargePaused && (
                       <div className="p-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px]">
-                        ⚠️ Auto-recharge paused after 3 failed attempts. Check payment method.
+                        {(wallet.autoRechargeFailedAttempts ?? 0) >= 3
+                          ? `Auto-recharge paused after ${wallet.autoRechargeFailedAttempts} failed attempts. Check your payment method.`
+                          : 'Auto-recharge is paused. Check the previous payment status and recharge settings before retrying.'}
                       </div>
                     )}
                     {currentSubscription && (

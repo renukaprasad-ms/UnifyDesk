@@ -26,7 +26,7 @@ import com.messaging.company.repository.CompanyInvitationRepository;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyMemberRoleAssignmentRepository;
 import com.messaging.notification.dto.SendNotificationRequest;
-import com.messaging.notification.platform.core.event.NotificationEventRecorder;
+import com.messaging.notification.platform.core.event.NotificationEventService;
 import com.messaging.notification.service.NotificationService;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.user.entity.User;
@@ -65,7 +65,7 @@ public class CompanyInvitationService {
   private final CurrentUserService currentUserService;
   private final UserRepository userRepository;
   private final NotificationService notificationService;
-  private final NotificationEventRecorder notificationEventRecorder;
+  private final NotificationEventService notificationEventService;
   private final CompanyInvitationProperties properties;
 
   @Transactional
@@ -250,7 +250,7 @@ public class CompanyInvitationService {
     invitationRepository.saveAndFlush(invitation);
 
     if (!invitation.getInvitedByUserId().equals(userId)) {
-      notificationEventRecorder.recordCompanyInvitationAccepted(
+      notificationEventService.recordCompanyInvitationAccepted(
           invitation.getId(),
           company.getId(),
           userId,
@@ -389,7 +389,7 @@ public class CompanyInvitationService {
         .filter(user -> !user.getId().equals(actorUserId))
         .ifPresent(
             user ->
-                notificationEventRecorder.recordCompanyInvitation(
+                notificationEventService.recordCompanyInvitation(
                     invitation.getId(),
                     invitation.getCompany().getId(),
                     actorUserId,

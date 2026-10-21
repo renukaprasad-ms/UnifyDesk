@@ -52,6 +52,12 @@ public class RecurringAuthorizationService {
     try {
       PaymentProviderGateway.RecurringAuthorization remote =
           gateway.fetchRecurringAuthorization(prepared.providerSubscriptionId());
+      if ("auto".equals(prepared.mandateMethod()) && remote.paymentMethod() != null) {
+        prepared = store.recordVerifiedMandateMethod(prepared.id(), remote.paymentMethod());
+      } else if ("auto".equals(prepared.mandateMethod())
+          && "ACTIVE".equalsIgnoreCase(remote.authorizationStatus())) {
+        throw new ConflictException("Razorpay has not returned the verified mandate payment method");
+      }
       prepared = store.applySubscription(prepared.id(), remote);
       return result(prepared, null);
     } catch (RuntimeException exception) {
@@ -73,6 +79,14 @@ public class RecurringAuthorizationService {
     String curr = currency != null && !currency.isBlank() ? currency : "INR";
     RecurringAuthorizationStore.Prepared prepared =
         store.prepareCompanyAutopay(companyId, limit, curr);
+    String method =
+        customer == null || customer.recurringMethod() == null ? "upi" : customer.recurringMethod();
+    if (!java.util.Set.of("auto", "card", "emandate", "upi").contains(method)) {
+      throw new ConflictException("Unsupported recurring payment method");
+    }
+    if (!method.equals(prepared.mandateMethod())
+        && (!"auto".equals(method) || prepared.newlyCreated()))
+      prepared = store.selectMandateMethod(prepared, method);
     if ("ACTIVE".equalsIgnoreCase(prepared.status())) {
       return result(prepared, null);
     }
@@ -134,11 +148,29 @@ public class RecurringAuthorizationService {
         throw new ConflictException("Mandate checkout order does not match the company");
       }
       String customerId = prepared.customerId();
-      String tokenId = gateway.verifyMandateToken(orderId, paymentId, signature, customerId);
+      String tokenId =
+          "upi".equals(prepared.mandateMethod())
+              ? gateway.verifyMandateToken(orderId, paymentId, signature, customerId)
+              : gateway.verifyMandateToken(
+                  orderId, paymentId, signature, customerId, prepared.mandateMethod());
       if (tokenId == null || !tokenId.startsWith("token_")) {
         throw new ConflictException("A verified recurring token is required");
       }
-      prepared = store.activateCompanyAutopay(prepared.id(), tokenId, paymentId, customerId);
+      if ("emandate".equals(prepared.mandateMethod()) || "auto".equals(prepared.mandateMethod())) {
+        prepared = store.bindPendingCompanyAutopay(prepared.id(), tokenId, paymentId, customerId);
+        var remote = gateway.fetchRecurringAuthorization(tokenId);
+        if ("auto".equals(prepared.mandateMethod())) {
+          if (remote.paymentMethod() == null
+              || !java.util.Set.of("card", "emandate", "upi").contains(remote.paymentMethod())) {
+            throw new ConflictException(
+                "Razorpay has not returned the verified mandate payment method");
+          }
+          prepared = store.recordVerifiedMandateMethod(prepared.id(), remote.paymentMethod());
+        }
+        prepared = store.applySubscription(prepared.id(), remote);
+      } else {
+        prepared = store.activateCompanyAutopay(prepared.id(), tokenId, paymentId, customerId);
+      }
       return result(prepared, null);
     } catch (RuntimeException exception) {
       store.markAmbiguous(prepared.id());
@@ -160,6 +192,14 @@ public class RecurringAuthorizationService {
     try {
       PaymentProviderGateway.RecurringAuthorization remote =
           gateway.fetchRecurringAuthorization(prepared.providerSubscriptionId());
+      if ("auto".equals(prepared.mandateMethod())) {
+        if (remote.paymentMethod() != null) {
+          prepared = store.recordVerifiedMandateMethod(prepared.id(), remote.paymentMethod());
+        } else if ("ACTIVE".equalsIgnoreCase(remote.authorizationStatus())) {
+          throw new ConflictException(
+              "Razorpay has not returned the verified mandate payment method");
+        }
+      }
       prepared = store.applySubscription(prepared.id(), remote);
       return result(prepared, null);
     } catch (RuntimeException exception) {
@@ -301,7 +341,8 @@ public class RecurringAuthorizationService {
         prepared.subscriptionSessionId(),
         prepared.status(),
         actionUrl,
-        prepared.customerId());
+        prepared.customerId(),
+        prepared.mandateMethod());
   }
 
   public record AuthorizationResult(
@@ -310,7 +351,25 @@ public class RecurringAuthorizationService {
       String subscriptionSessionId,
       String status,
       String actionUrl,
-      String customerId) {
+      String customerId,
+      String paymentMethodType) {
+    public AuthorizationResult(
+        long authorizationId,
+        String providerSubscriptionId,
+        String subscriptionSessionId,
+        String status,
+        String actionUrl,
+        String customerId) {
+      this(
+          authorizationId,
+          providerSubscriptionId,
+          subscriptionSessionId,
+          status,
+          actionUrl,
+          customerId,
+          "upi");
+    }
+
     public AuthorizationResult(
         long authorizationId,
         String providerSubscriptionId,

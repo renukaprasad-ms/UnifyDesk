@@ -7,7 +7,7 @@ export type RazorpayPaymentSuccess = {
 export type RazorpayOptions = {
   key: string
   order_id?: string
-  amount: number // in paise
+  amount?: number // in paise; authorization checkout can use the order amount
   currency?: string
   name?: string
   description?: string
@@ -181,7 +181,6 @@ export const launchRazorpayMandateCheckout = async (params: {
       order_id: orderId,
       customer_id: customerId,
       recurring: '1',
-      amount: 100,
       currency: 'INR',
       name: 'UnifyDesk AutoPay',
       description: 'Authorize optional recurring payments. Review the mandate terms before approval.',

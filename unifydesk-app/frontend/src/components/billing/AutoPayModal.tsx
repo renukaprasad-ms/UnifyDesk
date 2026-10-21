@@ -66,6 +66,10 @@ export default function AutoPayModal({
         throw new Error('Razorpay has not returned a valid authorization order and customer')
       }
       setMandateResult(result)
+      if (result.providerSubscriptionId?.startsWith('token_')) {
+        await handleVerifyInner()
+        return
+      }
 
       try {
           const mandateRes = await launchRazorpayMandateCheckout({
@@ -101,7 +105,7 @@ export default function AutoPayModal({
       onSuccess(result)
       onClose()
     } else {
-      setError(`AutoPay status is "${autoPayStatusLabel[result.status] ?? result.status}". If you just approved on UPI/Bank, wait a few seconds then verify again.`)
+      setError(`AutoPay status is "${autoPayStatusLabel[result.status] ?? result.status}". If you just approved the mandate, verify again after your bank confirms it.`)
     }
   }
 
@@ -122,6 +126,10 @@ export default function AutoPayModal({
     setSubmitting(true)
     setError('')
     try {
+      if (mandateResult.providerSubscriptionId?.startsWith('token_')) {
+        await handleVerifyInner()
+        return
+      }
       const mandateRes = await launchRazorpayMandateCheckout({
         key: mandateResult.keyId || '',
         subscriptionId: mandateResult.providerSubscriptionId || undefined,
@@ -206,7 +214,7 @@ export default function AutoPayModal({
               <FiCheckCircle className="size-8 text-emerald-400 mx-auto mb-2" />
               <h3 className="font-bold text-white text-sm">Mandate Checkout Ready</h3>
               <p className="text-xs text-slate-400 mt-1">
-                Complete your optional UPI AutoPay mandate using the Razorpay checkout. Your bank may require additional confirmation.
+                Complete your optional recurring payment mandate using the Razorpay checkout. Your bank may require additional confirmation.
               </p>
             </div>
 
@@ -289,7 +297,7 @@ export default function AutoPayModal({
             {/* Mandate Terms Summary */}
             <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-800 text-[11px] text-slate-400 space-y-1">
               <div className="flex justify-between">
-                <span>Maximum Monthly Authorization:</span>
+                <span>Maximum per debit:</span>
                 <span className="font-semibold text-slate-200">₹15,000.00</span>
               </div>
               <div className="flex justify-between">
@@ -298,7 +306,7 @@ export default function AutoPayModal({
               </div>
               <div className="flex justify-between">
                 <span>Supported Methods:</span>
-                <span className="font-semibold text-slate-200">UPI AutoPay (subject to availability)</span>
+                <span className="font-semibold text-slate-200">Choose an available method on Razorpay</span>
               </div>
             </div>
 

@@ -9,7 +9,7 @@ import com.messaging.broadcast.enums.BroadcastRunStatus;
 import com.messaging.broadcast.repository.BroadcastMessageRepository;
 import com.messaging.broadcast.repository.BroadcastRunRepository;
 import com.messaging.common.exception.NotFoundException;
-import com.messaging.notification.platform.core.event.NotificationEventRecorder;
+import com.messaging.notification.platform.core.event.NotificationEventService;
 import java.sql.Timestamp;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,7 @@ public class BroadcastRunFailureService {
   private final BroadcastStatsService statsService;
   private final BroadcastProgressPublisher progressPublisher;
   private final JdbcTemplate jdbcTemplate;
-  private final NotificationEventRecorder notificationEventRecorder;
+  private final NotificationEventService notificationEventService;
 
   @Transactional
   public void fail(Long runId, String code, String reason) {
@@ -50,7 +50,7 @@ public class BroadcastRunFailureService {
     message.setStatus(BroadcastMessageStatus.FAILED);
     messageRepository.save(message);
 
-    notificationEventRecorder.recordBroadcastFailed(
+    notificationEventService.recordBroadcastFailed(
         run.getId(),
         message.getId(),
         run.getCompanyId(),

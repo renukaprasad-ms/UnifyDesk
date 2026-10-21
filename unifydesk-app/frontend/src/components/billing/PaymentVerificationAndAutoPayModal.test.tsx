@@ -58,7 +58,9 @@ describe('AutoPay authorization status', () => {
     await act(async () => {})
     await act(async () => vi.advanceTimersByTime(7000))
     await act(async () => vi.advanceTimersByTime(1200))
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
     await act(async () => fireEvent.click(screen.getByRole('button', { name: /Setup AutoPay/ })))
+    expect(billingApi.setupAutoPay).toHaveBeenCalledWith('10', expect.not.objectContaining({ paymentMethod: expect.anything() }))
     expect(launchRazorpayMandateCheckout).toHaveBeenCalledWith(
       expect.objectContaining({ orderId: 'order_authorization', customerId: 'cust_customer' }),
     )

@@ -1,0 +1,24 @@
+services:
+  monitor:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      PORT: "8080"
+      DATABASE_PATH: /var/lib/unifydesk-monitor/monitor.db
+      MONITOR_API_KEY: ${MONITOR_API_KEY:?Set MONITOR_API_KEY in .env or your environment}
+      EVENT_RETENTION_DAYS: ${EVENT_RETENTION_DAYS:-7}
+      CLEANUP_INTERVAL: ${CLEANUP_INTERVAL:-1h}
+      MAX_BODY_BYTES: ${MAX_BODY_BYTES:-1048576}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      GOMEMLIMIT: 96MiB
+    volumes:
+      - ./data:/var/lib/unifydesk-monitor
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 30s
+    restart: unless-stopped

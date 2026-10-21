@@ -26,14 +26,17 @@ public class BillingAutoPayService {
 
   public AutoPayDetailsResponse setup(Long companyId, AutoPaySetupRequest request) {
     PaymentProviderGateway.Customer customer = resolveCustomer(companyId, request);
-    if (customer.email() == null || customer.email().isBlank()
-        || customer.phone() == null || !customer.phone().matches("[6-9][0-9]{9}")) {
+    if (customer.email() == null
+        || customer.email().isBlank()
+        || customer.phone() == null
+        || !customer.phone().matches("[6-9][0-9]{9}")) {
       throw new BadRequestException(
           "A valid billing email and a real 10-digit Indian mobile number are required for AutoPay");
     }
-    BigDecimal maxAmount = request != null && request.maxAmount() != null
-        ? request.maxAmount()
-        : new BigDecimal("15000.00");
+    BigDecimal maxAmount =
+        request != null && request.maxAmount() != null
+            ? request.maxAmount()
+            : new BigDecimal("15000.00");
 
     var result =
         recurringAuthorizationService.prepareCompanyAutopay(companyId, maxAmount, "INR", customer);
@@ -50,7 +53,7 @@ public class BillingAutoPayService {
         "INR",
         result.providerSubscriptionId(),
         result.subscriptionSessionId(),
-        "UPI_AUTOPAY",
+        result.paymentMethodType(),
         result.actionUrl(),
         razorpayProperties.getKeyId(),
         result.customerId());
@@ -68,7 +71,7 @@ public class BillingAutoPayService {
         "INR",
         result.providerSubscriptionId(),
         result.subscriptionSessionId(),
-        "UPI_AUTOPAY",
+        result.paymentMethodType(),
         result.actionUrl(),
         razorpayProperties.getKeyId(),
         result.customerId());
@@ -91,7 +94,7 @@ public class BillingAutoPayService {
         "INR",
         result.providerSubscriptionId(),
         result.subscriptionSessionId(),
-        "UPI_AUTOPAY",
+        result.paymentMethodType(),
         result.actionUrl(),
         razorpayProperties.getKeyId(),
         result.customerId());
@@ -130,12 +133,20 @@ public class BillingAutoPayService {
                 ? profile.getBillingEmail().trim()
                 : (company.getBusinessEmail() != null ? company.getBusinessEmail().trim() : null));
 
-    String phone = request != null && request.phone() != null && !request.phone().isBlank()
-        ? request.phone().trim()
-        : (profile != null && profile.getBillingPhone() != null && !profile.getBillingPhone().isBlank()
-            ? profile.getBillingPhone().trim()
-            : null);
+    String phone =
+        request != null && request.phone() != null && !request.phone().isBlank()
+            ? request.phone().trim()
+            : (profile != null
+                    && profile.getBillingPhone() != null
+                    && !profile.getBillingPhone().isBlank()
+                ? profile.getBillingPhone().trim()
+                : null);
 
-    return new PaymentProviderGateway.Customer("company-" + companyId, name, email, phone);
+    return new PaymentProviderGateway.Customer(
+        "company-" + companyId,
+        name,
+        email,
+        phone,
+        request == null ? "auto" : request.resolvedPaymentMethod());
   }
 }

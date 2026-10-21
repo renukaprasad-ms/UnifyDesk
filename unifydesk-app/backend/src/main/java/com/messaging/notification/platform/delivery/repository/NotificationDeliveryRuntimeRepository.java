@@ -233,6 +233,14 @@ public class NotificationDeliveryRuntimeRepository {
         OffsetDateTime.ofInstant(leaseUntil, ZoneOffset.UTC));
   }
 
+  public String companyBusinessEmail(Long companyId) {
+    if (companyId == null) return null;
+    return jdbcTemplate.query(
+        "select business_email from companies where id=?",
+        rs -> rs.next() ? rs.getString("business_email") : null,
+        companyId);
+  }
+
   public Optional<RecipientSnapshot> recipientSnapshot(long userId, Long companyId) {
     String sql =
         """
@@ -260,10 +268,8 @@ public class NotificationDeliveryRuntimeRepository {
                   loadedCompanyId,
                   rs.getString("company_name"),
                   rs.getString("company_timezone"),
-                  companyId == null
-                      || (loadedCompanyId != null && "ACTIVE".equals(companyStatus)),
-                  companyId == null
-                      || (loadedCompanyId != null && "ACTIVE".equals(memberStatus)));
+                  companyId == null || (loadedCompanyId != null && "ACTIVE".equals(companyStatus)),
+                  companyId == null || (loadedCompanyId != null && "ACTIVE".equals(memberStatus)));
             },
             companyId,
             userId);
@@ -656,8 +662,7 @@ public class NotificationDeliveryRuntimeRepository {
   }
 
   public void lockUserForPushRegistration(long userId) {
-    jdbcTemplate.queryForObject(
-        "select id from users where id=? for update", Long.class, userId);
+    jdbcTemplate.queryForObject("select id from users where id=? for update", Long.class, userId);
   }
 
   public int activeSubscriptionCount(long userId) {

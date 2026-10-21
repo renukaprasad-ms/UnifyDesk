@@ -12,7 +12,7 @@ describe('Razorpay recurring checkout', () => {
     ).rejects.toThrow('valid authorization order and customer')
   })
 
-  it('passes the saved customer and authorization order to recurring checkout', async () => {
+  it('leaves the payment method and authorization amount to Razorpay checkout', async () => {
     let captured: RazorpayOptions | undefined
     const open = vi.fn()
     window.Razorpay = class {
@@ -34,6 +34,8 @@ describe('Razorpay recurring checkout', () => {
       customer_id: 'cust_customer',
       recurring: '1',
     })
+    expect(captured).not.toHaveProperty('method')
+    expect(captured).not.toHaveProperty('amount')
     const response = {
       razorpay_order_id: 'order_authorization',
       razorpay_payment_id: 'pay_authorization',

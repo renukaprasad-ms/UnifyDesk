@@ -59,6 +59,11 @@ public interface PaymentProviderGateway {
     throw new UnsupportedOperationException("Provider does not support verified mandates");
   }
 
+  default String verifyMandateToken(
+      String orderId, String paymentId, String signature, String customerId, String paymentMethod) {
+    return verifyMandateToken(orderId, paymentId, signature, customerId);
+  }
+
   default void cancelRecurringAuthorization(String tokenId, String customerId) {
     throw new UnsupportedOperationException("Provider does not support mandate cancellation");
   }
@@ -67,7 +72,11 @@ public interface PaymentProviderGateway {
     HOSTED_UPI_LINK
   }
 
-  record Customer(String id, String name, String email, String phone) {}
+  record Customer(String id, String name, String email, String phone, String recurringMethod) {
+    public Customer(String id, String name, String email, String phone) {
+      this(id, name, email, phone, "upi");
+    }
+  }
 
   record Checkout(String orderId, String paymentSessionId, String status) {}
 
@@ -92,7 +101,21 @@ public interface PaymentProviderGateway {
       String subscriptionId,
       String subscriptionSessionId,
       String authorizationStatus,
-      String providerSubscriptionReference) {}
+      String providerSubscriptionReference,
+      String paymentMethod) {
+    public RecurringAuthorization(
+        String subscriptionId,
+        String subscriptionSessionId,
+        String authorizationStatus,
+        String providerSubscriptionReference) {
+      this(
+          subscriptionId,
+          subscriptionSessionId,
+          authorizationStatus,
+          providerSubscriptionReference,
+          null);
+    }
+  }
 
   record RemoteSubscriptionPayment(
       String paymentId,

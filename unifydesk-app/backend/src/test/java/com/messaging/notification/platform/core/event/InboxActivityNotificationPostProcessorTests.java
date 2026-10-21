@@ -15,7 +15,7 @@ class InboxActivityNotificationPostProcessorTests {
 
   @Test
   void recordsOnlyInboundUnreadMessageWithUsefulEmailContext() {
-    NotificationEventRecorder recorder = org.mockito.Mockito.mock(NotificationEventRecorder.class);
+    NotificationEventService recorder = org.mockito.Mockito.mock(NotificationEventService.class);
     InboxActivityNotificationPostProcessor processor =
         new InboxActivityNotificationPostProcessor(recorder);
     InboxMessage message = message(InboxMessageDirection.INBOUND, false);
@@ -36,7 +36,7 @@ class InboxActivityNotificationPostProcessorTests {
 
   @Test
   void ignoresOutboundAndAlreadyReadMessages() {
-    NotificationEventRecorder recorder = org.mockito.Mockito.mock(NotificationEventRecorder.class);
+    NotificationEventService recorder = org.mockito.Mockito.mock(NotificationEventService.class);
     InboxActivityNotificationPostProcessor processor =
         new InboxActivityNotificationPostProcessor(recorder);
 

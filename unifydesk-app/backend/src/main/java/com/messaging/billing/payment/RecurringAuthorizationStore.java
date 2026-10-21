@@ -25,7 +25,7 @@ class RecurringAuthorizationStore {
             """
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
-                   authorization_payment_id, authorization_status, max_amount, currency
+                   authorization_payment_id, authorization_status, max_amount, currency, mandate_method
               from payment_provider_authorizations
              where company_id = ? and subscription_id = ? and provider = 'RAZORPAY'
              for update
@@ -35,13 +35,7 @@ class RecurringAuthorizationStore {
     if (!existing.isEmpty()) {
       return requireCoverage(existing.getFirst(), maxAmount, currency);
     }
-    return insert(
-        companyId,
-        subscriptionId,
-        null,
-        "UDS-" + subscriptionId,
-        maxAmount,
-        currency);
+    return insert(companyId, subscriptionId, null, "UDS-" + subscriptionId, maxAmount, currency);
   }
 
   @Transactional
@@ -52,7 +46,7 @@ class RecurringAuthorizationStore {
             """
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
-                   authorization_payment_id, authorization_status, max_amount, currency
+                   authorization_payment_id, authorization_status, max_amount, currency, mandate_method
               from payment_provider_authorizations
              where company_id = ? and checkout_intent_id = ? and provider = 'RAZORPAY'
              for update
@@ -63,12 +57,7 @@ class RecurringAuthorizationStore {
       return requireCoverage(existing.getFirst(), maxAmount, currency);
     }
     return insert(
-        companyId,
-        null,
-        checkoutIntentId,
-        "UDS-I-" + checkoutIntentId,
-        maxAmount,
-        currency);
+        companyId, null, checkoutIntentId, "UDS-I-" + checkoutIntentId, maxAmount, currency);
   }
 
   @Transactional
@@ -78,7 +67,7 @@ class RecurringAuthorizationStore {
             """
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
-                   authorization_payment_id, authorization_status, max_amount, currency,
+                   authorization_payment_id, authorization_status, max_amount, currency, mandate_method,
                    provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where company_id = ? and is_company_autopay = true and provider = 'RAZORPAY'
@@ -93,7 +82,8 @@ class RecurringAuthorizationStore {
       }
       // A pending Razorpay order is a real provider operation. Reuse it rather than
       // creating a second authorization order when the user retries setup.
-      if (current.subscriptionSessionId() != null
+      if (!"CANCELLED".equalsIgnoreCase(current.status())
+          && current.subscriptionSessionId() != null
           && current.subscriptionSessionId().startsWith("order_")) {
         if (current.customerId() == null || !current.customerId().startsWith("cust_")) {
           throw new ConflictException(
@@ -118,6 +108,7 @@ class RecurringAuthorizationStore {
                  provider_subscription_session_id = null,
                  provider_authorization_payment_id = null,
                  payment_method_type = null,
+                 mandate_method = 'upi',
                  authorization_status = 'CREATE_PENDING',
                  provider_status = 'CREATE_PENDING',
                  max_amount = ?,
@@ -130,15 +121,64 @@ class RecurringAuthorizationStore {
           currency,
           current.id());
       return new Prepared(
-          current.id(), companyId, null, null, newSubId, null,
-          current.authorizationPaymentId(), null, "CREATE_PENDING", maxAmount,
-          currency, true);
+          current.id(),
+          companyId,
+          null,
+          null,
+          newSubId,
+          null,
+          current.authorizationPaymentId(),
+          null,
+          "CREATE_PENDING",
+          maxAmount,
+          currency,
+          true);
     }
     return insertCompanyAutopay(
-        companyId,
-        "UDS-AP-" + companyId + "-" + IdGenerator.nextId(),
-        maxAmount,
-        currency);
+        companyId, "UDS-AP-" + companyId + "-" + IdGenerator.nextId(), maxAmount, currency);
+  }
+
+  @Transactional
+  Prepared selectMandateMethod(Prepared prepared, String method) {
+    Prepared current = requireForUpdate(prepared.id());
+    if (!prepared.newlyCreated()) {
+      if (!method.equals(current.mandateMethod())) {
+        throw new ConflictException(
+            "An existing mandate uses "
+                + current.mandateMethod()
+                + ". Cancel that mandate before choosing another method.");
+      }
+      return prepared;
+    }
+    jdbcTemplate.update(
+        "update payment_provider_authorizations set mandate_method=?, updated_at=now() where id=?",
+        method,
+        prepared.id());
+    return prepared.withMandateMethod(method);
+  }
+
+  @Transactional
+  Prepared recordVerifiedMandateMethod(long id, String method) {
+    Prepared current = requireForUpdate(id);
+    if (!java.util.Set.of("card", "emandate", "upi").contains(method)
+        || !("auto".equals(current.mandateMethod()) || method.equals(current.mandateMethod()))) {
+      throw new ConflictException(
+          "Verified mandate payment method conflicts with the authorization");
+    }
+    jdbcTemplate.update(
+        "update payment_provider_authorizations set mandate_method=?, updated_at=now() where id=?",
+        method,
+        id);
+    return requireForUpdate(id);
+  }
+
+  @Transactional
+  Prepared bindPendingCompanyAutopay(long id, String tokenId, String paymentId, String customerId) {
+    activateCompanyAutopay(id, tokenId, paymentId, customerId);
+    jdbcTemplate.update(
+        "update payment_provider_authorizations set authorization_status='PENDING_AUTH', provider_status='PENDING_AUTH' where id=?",
+        id);
+    return requireForUpdate(id);
   }
 
   @Transactional(readOnly = true)
@@ -148,7 +188,7 @@ class RecurringAuthorizationStore {
             """
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
-                   authorization_payment_id, authorization_status, max_amount, currency,
+                   authorization_payment_id, authorization_status, max_amount, currency, mandate_method,
                    provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where company_id = ? and is_company_autopay = true and provider = 'RAZORPAY'
@@ -166,7 +206,7 @@ class RecurringAuthorizationStore {
             """
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
-                   authorization_payment_id, authorization_status, max_amount, currency,
+                   authorization_payment_id, authorization_status, max_amount, currency, mandate_method,
                    provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where company_id = ? and is_company_autopay = true and provider = 'RAZORPAY'
@@ -191,16 +231,19 @@ class RecurringAuthorizationStore {
   }
 
   @Transactional
-  Prepared activateCompanyAutopay(
-      long id, String tokenId, String paymentId, String customerId) {
+  Prepared activateCompanyAutopay(long id, String tokenId, String paymentId, String customerId) {
     Prepared local = requireForUpdate(id);
-    if (tokenId == null || !tokenId.startsWith("token_")
-        || paymentId == null || !paymentId.startsWith("pay_")
-        || customerId == null || !customerId.startsWith("cust_")
+    if (tokenId == null
+        || !tokenId.startsWith("token_")
+        || paymentId == null
+        || !paymentId.startsWith("pay_")
+        || customerId == null
+        || !customerId.startsWith("cust_")
         || "CANCELLED".equalsIgnoreCase(local.status())
         || local.subscriptionSessionId() == null
         || !local.subscriptionSessionId().startsWith("order_")) {
-      throw new ConflictException("Cannot activate a missing, cancelled or unverified Razorpay mandate");
+      throw new ConflictException(
+          "Cannot activate a missing, cancelled or unverified Razorpay mandate");
     }
     String effectiveSubId = tokenId;
     jdbcTemplate.update(
@@ -241,7 +284,10 @@ class RecurringAuthorizationStore {
                updated_at = now()
          where id = ?
         """,
-        remote.subscriptionSessionId(),
+        remote.subscriptionSessionId() != null
+                && remote.subscriptionSessionId().startsWith("order_")
+            ? remote.subscriptionSessionId()
+            : null,
         remote.providerSubscriptionReference(),
         status,
         remote.authorizationStatus(),
@@ -308,7 +354,7 @@ class RecurringAuthorizationStore {
             """
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
-                   authorization_payment_id, authorization_status, max_amount, currency,
+                   authorization_payment_id, authorization_status, max_amount, currency, mandate_method,
                    provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where company_id = ? and checkout_intent_id = ? and provider = 'RAZORPAY'
@@ -322,7 +368,8 @@ class RecurringAuthorizationStore {
     Prepared authorization = rows.getFirst();
     if (authorization.subscriptionId() != null) {
       if (!authorization.subscriptionId().equals(subscriptionId)) {
-        throw new ConflictException("Initial recurring authorization is bound to another subscription");
+        throw new ConflictException(
+            "Initial recurring authorization is bound to another subscription");
       }
       return;
     }
@@ -379,7 +426,7 @@ class RecurringAuthorizationStore {
             """
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
-                   authorization_payment_id, authorization_status, max_amount, currency,
+                   authorization_payment_id, authorization_status, max_amount, currency, mandate_method,
                    provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where company_id = ? and subscription_id = ? and provider = 'RAZORPAY'
@@ -397,7 +444,7 @@ class RecurringAuthorizationStore {
             """
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
-                   authorization_payment_id, authorization_status, max_amount, currency,
+                   authorization_payment_id, authorization_status, max_amount, currency, mandate_method,
                    provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where company_id = ? and subscription_id = ? and provider = 'RAZORPAY'
@@ -411,10 +458,7 @@ class RecurringAuthorizationStore {
   }
 
   private Prepared insertCompanyAutopay(
-      Long companyId,
-      String providerSubscriptionId,
-      BigDecimal maxAmount,
-      String currency) {
+      Long companyId, String providerSubscriptionId, BigDecimal maxAmount, String currency) {
     long id = IdGenerator.nextId();
     String authorizationPaymentId = "UDA-" + id;
     jdbcTemplate.update(
@@ -503,7 +547,7 @@ class RecurringAuthorizationStore {
             """
             select id, company_id, subscription_id, checkout_intent_id,
                    provider_subscription_id, provider_subscription_session_id,
-                   authorization_payment_id, authorization_status, max_amount, currency,
+                   authorization_payment_id, authorization_status, max_amount, currency, mandate_method,
                    provider_authorization_payment_id, payment_method_type
               from payment_provider_authorizations
              where id = ?
@@ -540,9 +584,10 @@ class RecurringAuthorizationStore {
         rs.getBigDecimal("max_amount"),
         rs.getString("currency"),
         false,
-        hasColumn(rs, "payment_method_type")
-            ? rs.getString("payment_method_type")
-            : null);
+        hasColumn(rs, "payment_method_type") ? rs.getString("payment_method_type") : null,
+        hasColumn(rs, "mandate_method") && rs.getString("mandate_method") != null
+            ? rs.getString("mandate_method")
+            : "upi");
   }
 
   private Long nullableLong(ResultSet rs, String column) throws SQLException {
@@ -572,7 +617,57 @@ class RecurringAuthorizationStore {
       BigDecimal maxAmount,
       String currency,
       boolean newlyCreated,
-      String customerId) {
+      String customerId,
+      String mandateMethod) {
+    Prepared withMandateMethod(String method) {
+      return new Prepared(
+          id,
+          companyId,
+          subscriptionId,
+          checkoutIntentId,
+          providerSubscriptionId,
+          subscriptionSessionId,
+          authorizationPaymentId,
+          providerAuthorizationPaymentId,
+          status,
+          maxAmount,
+          currency,
+          newlyCreated,
+          customerId,
+          method);
+    }
+
+    public Prepared(
+        long id,
+        Long companyId,
+        Long subscriptionId,
+        Long checkoutIntentId,
+        String providerSubscriptionId,
+        String subscriptionSessionId,
+        String authorizationPaymentId,
+        String providerAuthorizationPaymentId,
+        String status,
+        BigDecimal maxAmount,
+        String currency,
+        boolean newlyCreated,
+        String customerId) {
+      this(
+          id,
+          companyId,
+          subscriptionId,
+          checkoutIntentId,
+          providerSubscriptionId,
+          subscriptionSessionId,
+          authorizationPaymentId,
+          providerAuthorizationPaymentId,
+          status,
+          maxAmount,
+          currency,
+          newlyCreated,
+          customerId,
+          "upi");
+    }
+
     public Prepared(
         long id,
         Long companyId,
@@ -586,7 +681,20 @@ class RecurringAuthorizationStore {
         BigDecimal maxAmount,
         String currency,
         boolean newlyCreated) {
-      this(id, companyId, subscriptionId, checkoutIntentId, providerSubscriptionId, subscriptionSessionId, authorizationPaymentId, providerAuthorizationPaymentId, status, maxAmount, currency, newlyCreated, null);
+      this(
+          id,
+          companyId,
+          subscriptionId,
+          checkoutIntentId,
+          providerSubscriptionId,
+          subscriptionSessionId,
+          authorizationPaymentId,
+          providerAuthorizationPaymentId,
+          status,
+          maxAmount,
+          currency,
+          newlyCreated,
+          null);
     }
   }
 }

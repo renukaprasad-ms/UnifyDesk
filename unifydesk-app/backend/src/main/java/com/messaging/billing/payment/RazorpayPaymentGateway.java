@@ -191,17 +191,21 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
       throw new ConflictException("Razorpay customer registration is incomplete");
     }
     Map<String, Object> orderBody = new LinkedHashMap<>();
-    orderBody.put("amount", 100L);
+    String method = customer.recurringMethod() == null ? "auto" : customer.recurringMethod();
+    if (!java.util.Set.of("auto", "card", "emandate", "upi").contains(method)) {
+      throw new ConflictException("Unsupported recurring payment method");
+    }
+    orderBody.put("amount", "emandate".equals(method) ? 0L : 100L);
+    orderBody.put("payment_capture", true);
     orderBody.put("currency", "INR");
-    orderBody.put("method", "upi");
+    if (!"auto".equals(method)) orderBody.put("method", method);
     orderBody.put("customer_id", customerId);
     orderBody.put("receipt", "mandate-" + sanitizeReceipt(subscriptionId));
-    orderBody.put(
-        "token",
-        Map.of(
-            "max_amount", toPaise(maxAmount),
-            "expire_at", Instant.now().plus(java.time.Duration.ofDays(365 * 3)).getEpochSecond(),
-            "frequency", "as_presented"));
+    Map<String, Object> token = new LinkedHashMap<>();
+    token.put("max_amount", toPaise(maxAmount));
+    token.put("expire_at", Instant.now().plus(java.time.Duration.ofDays(365 * 3)).getEpochSecond());
+    if (!"emandate".equals(method)) token.put("frequency", "as_presented");
+    orderBody.put("token", token);
     orderBody.put("notes", Map.of("type", "MANDATE_AUTH", "mandate_id", subscriptionId));
     String orderId = text(post("/orders", orderBody), "id");
     if (orderId == null || !orderId.startsWith("order_")) {
@@ -221,7 +225,7 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
         jdbcTemplate.query(
             "select payment_method_type from payment_provider_authorizations "
                 + "where provider = 'RAZORPAY' and provider_subscription_id = ? "
-                + "and authorization_status = 'ACTIVE' limit 1",
+                + "and authorization_status in ('ACTIVE','PENDING_AUTH','AMBIGUOUS') limit 1",
             rs -> rs.next() ? rs.getString(1) : null,
             tokenReference);
     if (customerId == null || !customerId.startsWith("cust_")) {
@@ -235,7 +239,11 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
               token.path("recurring").asBoolean(false)
                   && "confirmed".equalsIgnoreCase(text(token.path("recurring_details"), "status"));
           return new RecurringAuthorization(
-              tokenReference, tokenReference, confirmed ? "ACTIVE" : "PENDING_AUTH", customerId);
+              tokenReference,
+              tokenReference,
+              confirmed ? "ACTIVE" : "PENDING_AUTH",
+              customerId,
+              text(token, "method"));
         }
       }
     }
@@ -245,6 +253,15 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
   @Override
   public String verifyMandateToken(
       String orderId, String paymentId, String signature, String customerId) {
+    return verifyMandateToken(orderId, paymentId, signature, customerId, "upi");
+  }
+
+  @Override
+  public String verifyMandateToken(
+      String orderId, String paymentId, String signature, String customerId, String paymentMethod) {
+    if (!java.util.Set.of("auto", "card", "emandate", "upi").contains(paymentMethod)) {
+      throw new ConflictException("Unsupported recurring payment method");
+    }
     assertRecurringEnabled();
     if (orderId == null
         || !orderId.startsWith("order_")
@@ -263,14 +280,21 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
       throw new ConflictException("Invalid recurring mandate checkout signature");
     }
     JsonNode payment = get("/payments/" + encode(paymentId));
+    String actualMethod = "auto".equals(paymentMethod) ? text(payment, "method") : paymentMethod;
+    if (actualMethod == null
+        || !java.util.Set.of("card", "emandate", "upi").contains(actualMethod)) {
+      throw new ConflictException("Razorpay returned an unsupported recurring payment method");
+    }
     if (!orderId.equals(text(payment, "order_id"))
         || !customerId.equals(text(payment, "customer_id"))
-        || payment.path("amount").asLong(-1) != 100
+        || payment.path("amount").asLong(-1) != ("emandate".equals(actualMethod) ? 0 : 100)
         || !"INR".equalsIgnoreCase(text(payment, "currency"))
-        || !"captured".equalsIgnoreCase(text(payment, "status"))
-        || !"upi".equalsIgnoreCase(text(payment, "method"))) {
+        || !("captured".equalsIgnoreCase(text(payment, "status"))
+            || ("emandate".equals(actualMethod)
+                && "authorized".equalsIgnoreCase(text(payment, "status"))))
+        || !actualMethod.equalsIgnoreCase(text(payment, "method"))) {
       throw new ConflictException(
-          "Mandate payment does not match the expected captured UPI authorization");
+          "Mandate payment does not match the expected authorization method, amount or customer");
     }
     String tokenId = text(payment, "token_id");
     if (tokenId == null || !tokenId.startsWith("token_")) {
@@ -279,9 +303,17 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
     JsonNode tokens = get("/customers/" + encode(customerId) + "/tokens").path("items");
     if (tokens.isArray()) {
       for (JsonNode token : tokens) {
+        String status = text(token.path("recurring_details"), "status");
+        boolean confirmed =
+            token.path("recurring").asBoolean(false) && "confirmed".equalsIgnoreCase(status);
+        boolean bankPending =
+            "emandate".equals(actualMethod)
+                && java.util.Set.of("initiated", "created", "pending")
+                    .contains(status == null ? "" : status.toLowerCase(java.util.Locale.ROOT));
         if (tokenId.equals(text(token, "id"))
-            && token.path("recurring").asBoolean(false)
-            && "confirmed".equalsIgnoreCase(text(token.path("recurring_details"), "status"))) {
+            && (text(token, "method") == null
+                || actualMethod.equalsIgnoreCase(text(token, "method")))
+            && (confirmed || bankPending)) {
           return tokenId;
         }
       }
@@ -426,7 +458,12 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
       charge.put("recurring", true);
       charge.put("description", "UnifyDesk authorized recurring payment");
       JsonNode response = post("/payments/create/recurring", charge);
-      String providerPaymentId = text(response, "id");
+      // The recurring endpoint returns razorpay_payment_id, unlike the payment entity APIs.
+      String providerPaymentId = text(response, "razorpay_payment_id");
+      if (providerPaymentId == null) providerPaymentId = text(response, "id");
+      if (providerPaymentId == null || !providerPaymentId.startsWith("pay_")) {
+        throw new ConflictException("Razorpay did not return a recurring payment identity");
+      }
       if (providerPaymentId != null) {
         jdbcTemplate.update(
             "update razorpay_recurring_charge_intents "
@@ -452,17 +489,31 @@ public class RazorpayPaymentGateway implements PaymentProviderGateway {
     } catch (RuntimeException ex) {
       // A timeout after provider submission is ambiguous. Poll the persisted provider
       // order for capture; never create a new order or debit for the same command.
-      log.warn("Recurring debit {} has an uncertain provider outcome", commandId);
+      String failureCode = "PROVIDER_OUTCOME_UNCERTAIN";
+      if (recurringApiUnavailable(ex)) {
+        failureCode = "PROVIDER_RECURRING_API_UNAVAILABLE";
+        log.error(
+            "Recurring debit {} was rejected because the recurring API is unavailable. "
+                + "Verify the Razorpay base URL and merchant recurring API access for this key's "
+                + "test/live mode. Keep the command paused until its order is reconciled.",
+            commandId);
+      } else {
+        log.warn("Recurring debit {} has an uncertain provider outcome", commandId);
+      }
       return new RemoteSubscriptionPayment(
-          commandId,
-          null,
-          "PENDING",
-          amount,
-          "INR",
-          Instant.now(),
-          null,
-          "PROVIDER_OUTCOME_UNCERTAIN");
+          commandId, null, "PENDING", amount, "INR", Instant.now(), null, failureCode);
     }
+  }
+
+  private boolean recurringApiUnavailable(RuntimeException exception) {
+    for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+      if (cause instanceof RestClientResponseException response
+          && (response.getStatusCode().value() == 400 || response.getStatusCode().value() == 404)
+          && response.getResponseBodyAsString().contains("The requested URL was not found")) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private String getOrCreateRazorpayCustomer(Customer customer) {
