@@ -17,11 +17,15 @@ public class UnsubscribeTokenService {
 
   public UnsubscribeTokenService(
       @Value("${app.product.unsubscribe.signing-key:}") String key,
-      @Value("${app.product.unsubscribe.public-base-url:https://api.email.unifydesk.in}") String base) {
+      @Value("${app.product.unsubscribe.public-base-url:https://api.email.unifydesk.in}")
+          String base) {
     this.secret = key == null ? new byte[0] : key.getBytes(StandardCharsets.UTF_8);
     URI uri = URI.create(base);
-    if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null
-        || uri.getUserInfo() != null || uri.getPort() != -1 || uri.getQuery() != null
+    if (!"https".equalsIgnoreCase(uri.getScheme())
+        || uri.getHost() == null
+        || uri.getUserInfo() != null
+        || uri.getPort() != -1
+        || uri.getQuery() != null
         || uri.getFragment() != null) {
       throw new IllegalArgumentException("Unsubscribe public URL must be a valid HTTPS origin");
     }
@@ -47,8 +51,7 @@ public class UnsubscribeTokenService {
 
   public Verified verify(String token) {
     requireConfigured();
-    if (token == null || token.length() > 200
-        || !token.matches("[0-9]+\\.[0-9]+\\.[a-f0-9]{64}")) {
+    if (token == null || token.length() > 200 || !token.matches("[0-9]+\\.[0-9]+\\.[a-f0-9]{64}")) {
       throw new BadRequestException("Invalid unsubscribe link");
     }
     int last = token.lastIndexOf('.');
@@ -74,8 +77,7 @@ public class UnsubscribeTokenService {
     try {
       Mac hmac = Mac.getInstance("HmacSHA256");
       hmac.init(new SecretKeySpec(secret, "HmacSHA256"));
-      return HexFormat.of().formatHex(
-          hmac.doFinal(payload.getBytes(StandardCharsets.US_ASCII)));
+      return HexFormat.of().formatHex(hmac.doFinal(payload.getBytes(StandardCharsets.US_ASCII)));
     } catch (Exception error) {
       throw new IllegalStateException("Unsubscribe signature unavailable", error);
     }

@@ -123,8 +123,7 @@ public class DkimSigner {
   }
 
   private String canonicalizeHeader(String name, String value) {
-    String normalized =
-        value.replaceAll("\r?\n[ \\t]+", " ").trim().replaceAll("[ \\t]+", " ");
+    String normalized = value.replaceAll("\r?\n[ \\t]+", " ").trim().replaceAll("[ \\t]+", " ");
     return name.toLowerCase(Locale.ROOT) + ":" + normalized + "\r\n";
   }
 

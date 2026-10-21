@@ -10,15 +10,17 @@ import org.junit.jupiter.api.Test;
 
 class MailHeaderSummaryTests {
   private MailHeaderSummary.Summary parse(String raw) throws Exception {
-    return MailHeaderSummary.read(new ByteArrayInputStream(
-        raw.getBytes(StandardCharsets.ISO_8859_1)));
+    return MailHeaderSummary.read(
+        new ByteArrayInputStream(raw.getBytes(StandardCharsets.ISO_8859_1)));
   }
 
   @Test
   void extractsBoundedHeadersWithoutReadingBody() throws Exception {
-    var result = parse("From: Alice <alice@example.com>\r\n"
-        + "Subject: Quarterly\r\n results\r\n"
-        + "Message-ID: <a.1@example.com>\r\n\r\nbody");
+    var result =
+        parse(
+            "From: Alice <alice@example.com>\r\n"
+                + "Subject: Quarterly\r\n results\r\n"
+                + "Message-ID: <a.1@example.com>\r\n\r\nbody");
     assertEquals("Alice <alice@example.com>", result.from());
     assertEquals("Quarterly results", result.subject());
     assertEquals("<a.1@example.com>", result.messageId());
@@ -34,9 +36,7 @@ class MailHeaderSummaryTests {
   @Test
   void refusesBadOrUnboundedHeaders() {
     assertThrows(Exception.class, () -> parse("From: x@example.com\n\nbody"));
-    assertThrows(Exception.class, () -> parse(
-        "Subject: " + "A".repeat(1000) + "\r\n\r\nbody"));
-    assertThrows(Exception.class, () -> parse(
-        "X-Test: " + "a".repeat(32768) + "\r\n\r\nbody"));
+    assertThrows(Exception.class, () -> parse("Subject: " + "A".repeat(1000) + "\r\n\r\nbody"));
+    assertThrows(Exception.class, () -> parse("X-Test: " + "a".repeat(32768) + "\r\n\r\nbody"));
   }
 }

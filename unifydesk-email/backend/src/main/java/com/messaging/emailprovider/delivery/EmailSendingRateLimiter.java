@@ -42,19 +42,24 @@ public class EmailSendingRateLimiter {
   }
 
   public boolean permit(Long companyId, Long domainId) {
-    if (companyId == null || domainId == null
-        || platform <= 0 || company <= 0 || domain <= 0) {
+    if (companyId == null || domainId == null || platform <= 0 || company <= 0 || domain <= 0) {
       return false;
     }
     String tick = Long.toString(Instant.now().getEpochSecond());
-    var keys = List.of(
-        "unifydesk:email:rate:global:" + tick,
-        "unifydesk:email:rate:company:" + companyId + ":" + tick,
-        "unifydesk:email:rate:domain:" + domainId + ":" + tick);
+    var keys =
+        List.of(
+            "unifydesk:email:rate:global:" + tick,
+            "unifydesk:email:rate:company:" + companyId + ":" + tick,
+            "unifydesk:email:rate:domain:" + domainId + ":" + tick);
     try {
-      return Long.valueOf(1L).equals(
-          redis.execute(script, keys, Integer.toString(platform),
-              Integer.toString(company), Integer.toString(domain)));
+      return Long.valueOf(1L)
+          .equals(
+              redis.execute(
+                  script,
+                  keys,
+                  Integer.toString(platform),
+                  Integer.toString(company),
+                  Integer.toString(domain)));
     } catch (RuntimeException unavailable) {
       return false;
     }

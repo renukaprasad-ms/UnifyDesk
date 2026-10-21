@@ -23,7 +23,8 @@ public class EmailProductSendController {
   private final com.messaging.emailprovider.feedback.EmailEventQueryService events;
   private final com.messaging.emailprovider.product.service.ProductAdmissionQuota quota;
 
-  public EmailProductSendController(EmailMessageService emails,
+  public EmailProductSendController(
+      EmailMessageService emails,
       com.messaging.emailprovider.product.service.ProductAdmissionQuota quota,
       com.messaging.emailprovider.feedback.EmailEventQueryService events) {
     this.emails = emails;
@@ -39,33 +40,39 @@ public class EmailProductSendController {
     if (idempotencyKey == null || idempotencyKey.isBlank()) {
       throw new BadRequestException("Idempotency-Key is required for public API sends");
     }
-    if (!request.marketing() || request.consentReference() == null
+    if (!request.marketing()
+        || request.consentReference() == null
         || request.consentReference().isBlank()) {
       throw new BadRequestException(
           "Public sends require marketing consent evidence and unsubscribe support");
     }
     Long projectId = EmailProductKeyFilter.require(context).projectId();
-    int recipients = (request.to() == null ? 0 : request.to().size())
-        + (request.cc() == null ? 0 : request.cc().size())
-        + (request.bcc() == null ? 0 : request.bcc().size());
+    int recipients =
+        (request.to() == null ? 0 : request.to().size())
+            + (request.cc() == null ? 0 : request.cc().size())
+            + (request.bcc() == null ? 0 : request.bcc().size());
     if (recipients == 0 || recipients > 100) {
       throw new BadRequestException("Single send requires 1-100 recipients");
     }
     quota.reserve(projectId, "single:" + idempotencyKey, recipients);
     return ResponseEntity.status(HttpStatus.ACCEPTED)
-        .body(ApiResponse.success(202, emails.accept(projectId, idempotencyKey, request),
-            "Email accepted for asynchronous delivery"));
+        .body(
+            ApiResponse.success(
+                202,
+                emails.accept(projectId, idempotencyKey, request),
+                "Email accepted for asynchronous delivery"));
   }
 
   @GetMapping("/{messageId}")
-  public ApiResponse<EmailMessageResponse> get(HttpServletRequest context,
-      @PathVariable @Positive Long messageId) {
+  public ApiResponse<EmailMessageResponse> get(
+      HttpServletRequest context, @PathVariable @Positive Long messageId) {
     Long projectId = EmailProductKeyFilter.require(context).projectId();
     return ApiResponse.success(200, emails.get(projectId, messageId), "Email details");
   }
+
   @GetMapping("/{messageId}/events")
-  public ApiResponse<java.util.List<com.messaging.emailprovider.feedback.dto.EmailEventResponse>> events(
-      HttpServletRequest context, @PathVariable @Positive Long messageId) {
+  public ApiResponse<java.util.List<com.messaging.emailprovider.feedback.dto.EmailEventResponse>>
+      events(HttpServletRequest context, @PathVariable @Positive Long messageId) {
     Long projectId = EmailProductKeyFilter.require(context).projectId();
     return ApiResponse.success(200, events.list(projectId, messageId), "Email events");
   }

@@ -39,8 +39,7 @@ public class EmailValidationEngine {
     this.catchAllEnabled = catchAllEnabled;
   }
 
-  public ValidationDecision validate(
-      NormalizedEmail email, DomainValidationSnapshot domain) {
+  public ValidationDecision validate(NormalizedEmail email, DomainValidationSnapshot domain) {
     boolean role = roleAddressPolicy.isRoleAddress(email.localPart());
 
     if (domain.dnsLookupFailed()) {
@@ -131,8 +130,7 @@ public class EmailValidationEngine {
     }
   }
 
-  private Boolean detectCatchAll(
-      NormalizedEmail email, DomainValidationSnapshot domain) {
+  private Boolean detectCatchAll(NormalizedEmail email, DomainValidationSnapshot domain) {
     String randomRecipient =
         "__unifydesk_probe_" + UUID.randomUUID().toString().replace("-", "") + "@" + email.domain();
     try (DomainProbeLimiter.Lease lease = limiter.tryAcquire(domain.domain())) {

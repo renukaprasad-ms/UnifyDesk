@@ -19,9 +19,7 @@ import lombok.Setter;
 @Table(
     name = "email_outbox",
     indexes = {
-      @Index(
-          name = "idx_email_outbox_dispatch",
-          columnList = "status,next_attempt_at,created_at")
+      @Index(name = "idx_email_outbox_dispatch", columnList = "status,next_attempt_at,created_at")
     })
 public class EmailOutbox extends BaseEntity {
 

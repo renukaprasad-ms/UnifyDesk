@@ -6,5 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DkimKeyRepository extends JpaRepository<DkimKey, Long> {
 
-  Optional<DkimKey> findFirstBySendingDomainIdAndActiveTrueOrderByCreatedAtDesc(Long sendingDomainId);
+  Optional<DkimKey> findFirstBySendingDomainIdAndActiveTrueOrderByCreatedAtDesc(
+      Long sendingDomainId);
 }

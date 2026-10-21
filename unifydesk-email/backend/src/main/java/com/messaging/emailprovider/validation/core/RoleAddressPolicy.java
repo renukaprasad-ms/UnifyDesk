@@ -9,8 +9,21 @@ public class RoleAddressPolicy {
 
   private static final Set<String> ROLE_LOCAL_PARTS =
       Set.of(
-          "abuse", "admin", "billing", "contact", "help", "hostmaster", "info", "marketing",
-          "noreply", "no-reply", "postmaster", "privacy", "sales", "security", "support",
+          "abuse",
+          "admin",
+          "billing",
+          "contact",
+          "help",
+          "hostmaster",
+          "info",
+          "marketing",
+          "noreply",
+          "no-reply",
+          "postmaster",
+          "privacy",
+          "sales",
+          "security",
+          "support",
           "webmaster");
 
   public boolean isRoleAddress(String localPart) {

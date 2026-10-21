@@ -7,6 +7,13 @@ public final class BulkEmailResponses {
   private BulkEmailResponses() {}
 
   public record Chunk(String messageId, int recipients, EmailMessageStatus status) {}
-  public record Batch(String batchId, String projectId, int totalRecipients, int suppressedRecipients,
-                      int chunksCount, boolean idempotentReplay, List<Chunk> chunks) {}
+
+  public record Batch(
+      String batchId,
+      String projectId,
+      int totalRecipients,
+      int suppressedRecipients,
+      int chunksCount,
+      boolean idempotentReplay,
+      List<Chunk> chunks) {}
 }

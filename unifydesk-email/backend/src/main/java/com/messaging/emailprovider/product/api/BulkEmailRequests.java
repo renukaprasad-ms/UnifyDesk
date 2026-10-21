@@ -12,8 +12,8 @@ public final class BulkEmailRequests {
   private BulkEmailRequests() {}
 
   /**
-   * Bounded async bulk API. A batch creates per-chunk BCC-only messages, preventing
-   * accidental disclosure of a whole marketing audience in visible To/Cc fields.
+   * Bounded async bulk API. A batch creates per-chunk BCC-only messages, preventing accidental
+   * disclosure of a whole marketing audience in visible To/Cc fields.
    */
   public record NewBatch(
       @NotNull @Positive Long sendingDomainId,
@@ -22,7 +22,6 @@ public final class BulkEmailRequests {
       @NotBlank @Size(max = 998) String subject,
       String text,
       String html,
-      @NotEmpty @Size(max = 1000)
-          List<@NotBlank @Email @Size(max = 320) String> recipients,
+      @NotEmpty @Size(max = 1000) List<@NotBlank @Email @Size(max = 320) String> recipients,
       @NotBlank @Size(max = 128) String consentReference) {}
 }

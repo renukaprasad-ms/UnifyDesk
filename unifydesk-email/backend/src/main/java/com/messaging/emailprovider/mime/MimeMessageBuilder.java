@@ -4,6 +4,7 @@ import com.messaging.emailprovider.mail.entity.EmailMessage;
 import com.messaging.emailprovider.mail.entity.EmailRecipient;
 import com.messaging.emailprovider.mail.enums.EmailRecipientStatus;
 import com.messaging.emailprovider.mail.enums.EmailRecipientType;
+import com.messaging.emailprovider.product.unsubscribe.UnsubscribeTokenService;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -11,9 +12,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
-import com.messaging.emailprovider.product.unsubscribe.UnsubscribeTokenService;
+import org.springframework.stereotype.Component;
 
 @Component
 public class MimeMessageBuilder {
@@ -51,9 +51,13 @@ public class MimeMessageBuilder {
             .toList();
 
     // Bulk BCC-only sending personalizes the visible recipient without exposing a list.
-    appendAddressHeader(headers, "To",
+    appendAddressHeader(
+        headers,
+        "To",
         to.isEmpty() && target.getRecipientType() == EmailRecipientType.BCC
-            ? List.of(target.getRecipientAddress()) : to, true);
+            ? List.of(target.getRecipientAddress())
+            : to,
+        true);
     if (!cc.isEmpty()) {
       appendAddressHeader(headers, "Cc", cc, false);
     }
@@ -85,11 +89,18 @@ public class MimeMessageBuilder {
       headers.append("List-Unsubscribe: <").append(unsubscribeUrl).append(">\r\n");
       headers.append("List-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n");
     }
-    String textBody = message.getTextBody() == null ? null : message.getTextBody()
-        + (unsubscribeUrl == null ? "" : "\n\nUnsubscribe: " + unsubscribeUrl);
-    String htmlBody = message.getHtmlBody() == null ? null : message.getHtmlBody()
-        + (unsubscribeUrl == null ? "" :
-            "<p><a href=\"" + unsubscribeUrl + "\">Unsubscribe</a></p>");
+    String textBody =
+        message.getTextBody() == null
+            ? null
+            : message.getTextBody()
+                + (unsubscribeUrl == null ? "" : "\n\nUnsubscribe: " + unsubscribeUrl);
+    String htmlBody =
+        message.getHtmlBody() == null
+            ? null
+            : message.getHtmlBody()
+                + (unsubscribeUrl == null
+                    ? ""
+                    : "<p><a href=\"" + unsubscribeUrl + "\">Unsubscribe</a></p>");
     String body;
     if (textBody != null && htmlBody != null) {
       String boundary =

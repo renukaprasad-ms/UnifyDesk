@@ -30,12 +30,8 @@ public class ReputationController {
   public ApiResponse<List<ReputationDailyResponse>> query(
       @PathVariable @Positive Long companyId,
       @RequestParam(required = false) @Positive Long sendingDomainId,
-      @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-          LocalDate from,
-      @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-          LocalDate to) {
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
     LocalDate resolvedTo = to == null ? LocalDate.now() : to;
     LocalDate resolvedFrom = from == null ? resolvedTo.minusDays(29) : from;
     return ApiResponse.success(

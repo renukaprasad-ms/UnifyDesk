@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, Long> {
 
@@ -21,13 +21,16 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
 
   @Modifying
   @Transactional
-  @Query(value = """
+  @Query(
+      value =
+          """
       UPDATE email_recipients SET status = 'DEFERRED', next_attempt_at = :until,
           updated_at = :now
       WHERE message_id = :messageId AND status IN ('QUEUED', 'DEFERRED')
-      """, nativeQuery = true)
-  int deferForProductPause(@Param("messageId") Long messageId, @Param("until") Instant until,
-                           @Param("now") Instant now);
+      """,
+      nativeQuery = true)
+  int deferForProductPause(
+      @Param("messageId") Long messageId, @Param("until") Instant until, @Param("now") Instant now);
 
   @Query(
       value =
@@ -90,6 +93,5 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
             AND last_attempt_at < :staleBefore
           """,
       nativeQuery = true)
-  int recoverStale(
-      @Param("staleBefore") Instant staleBefore, @Param("now") Instant now);
+  int recoverStale(@Param("staleBefore") Instant staleBefore, @Param("now") Instant now);
 }

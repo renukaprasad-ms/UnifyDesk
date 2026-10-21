@@ -33,8 +33,7 @@ public class PostfixSmtpClient {
     this.ehloHost = ehloHost;
   }
 
-  public SmtpDeliveryResult handoff(
-      String envelopeFrom, String recipient, byte[] rawMessage) {
+  public SmtpDeliveryResult handoff(String envelopeFrom, String recipient, byte[] rawMessage) {
     validateCommandValue(envelopeFrom, "Envelope sender");
     validateCommandValue(recipient, "Recipient");
 
@@ -84,15 +83,14 @@ public class PostfixSmtpClient {
       }
       if (accepted.code() / 100 == 2) {
         return new SmtpDeliveryResult(
-            SmtpDeliveryOutcome.HANDED_OFF,
-            Integer.toString(accepted.code()),
-            accepted.message());
+            SmtpDeliveryOutcome.HANDED_OFF, Integer.toString(accepted.code()), accepted.message());
       }
       return classify(accepted);
     } catch (IOException exception) {
       return new SmtpDeliveryResult(
           acceptanceUncertain ? SmtpDeliveryOutcome.UNKNOWN : SmtpDeliveryOutcome.DEFERRED,
-          null, safeMessage(exception));
+          null,
+          safeMessage(exception));
     }
   }
 
@@ -152,15 +150,11 @@ public class PostfixSmtpClient {
         response.code() >= 400 && response.code() < 500
             ? SmtpDeliveryOutcome.DEFERRED
             : SmtpDeliveryOutcome.FAILED;
-    return new SmtpDeliveryResult(
-        outcome, Integer.toString(response.code()), response.message());
+    return new SmtpDeliveryResult(outcome, Integer.toString(response.code()), response.message());
   }
 
   private void validateCommandValue(String value, String label) {
-    if (value == null
-        || value.isBlank()
-        || value.indexOf('\r') >= 0
-        || value.indexOf('\n') >= 0) {
+    if (value == null || value.isBlank() || value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0) {
       throw new IllegalArgumentException(label + " is invalid");
     }
   }

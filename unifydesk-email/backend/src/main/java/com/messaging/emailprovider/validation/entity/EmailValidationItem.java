@@ -53,8 +53,7 @@ public class EmailValidationItem extends BaseEntity {
   @Column(length = 64)
   private ValidationReason reason;
 
-  @Column
-  private Integer score;
+  @Column private Integer score;
 
   @Column(name = "syntax_valid")
   private Boolean syntaxValid;
@@ -65,8 +64,7 @@ public class EmailValidationItem extends BaseEntity {
   @Column(name = "mx_found")
   private Boolean mxFound;
 
-  @Column
-  private Boolean disposable;
+  @Column private Boolean disposable;
 
   @Column(name = "role_address")
   private Boolean roleAddress;

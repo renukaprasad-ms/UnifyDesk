@@ -13,7 +13,8 @@ public class EmailProductProjectController {
   @GetMapping("/v1/project")
   public ApiResponse<Status> status(HttpServletRequest request) {
     var project = EmailProductKeyFilter.require(request);
-    return ApiResponse.success(200,
+    return ApiResponse.success(
+        200,
         new Status(project.projectId().toString(), project.sendingEnabled()),
         "Email project availability");
   }

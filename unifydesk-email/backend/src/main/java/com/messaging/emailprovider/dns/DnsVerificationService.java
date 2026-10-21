@@ -17,8 +17,7 @@ public class DnsVerificationService {
   }
 
   public DnsVerificationResult verify(SendingDomain domain, DkimKey key) {
-    String ownershipExpected =
-        recordService.ownershipRecordValue(domain.getVerificationToken());
+    String ownershipExpected = recordService.ownershipRecordValue(domain.getVerificationToken());
     Set<String> ownershipRecords =
         dnsResolver.findTxtRecords(recordService.ownershipRecordName(domain.getDomainName()));
 

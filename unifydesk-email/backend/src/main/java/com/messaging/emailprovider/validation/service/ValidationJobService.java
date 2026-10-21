@@ -304,8 +304,7 @@ public class ValidationJobService {
   }
 
   private EmailValidationJob requireJob(Long companyId, Long jobId) {
-    return jobs
-        .findByIdAndCompanyId(jobId, companyId)
+    return jobs.findByIdAndCompanyId(jobId, companyId)
         .orElseThrow(() -> new NotFoundException("Validation job not found"));
   }
 

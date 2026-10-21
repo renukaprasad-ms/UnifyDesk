@@ -44,9 +44,6 @@ public class KafkaTopicConfig {
   }
 
   private NewTopic topic(String name, int partitions, short replicationFactor) {
-    return TopicBuilder.name(name)
-        .partitions(partitions)
-        .replicas(replicationFactor)
-        .build();
+    return TopicBuilder.name(name).partitions(partitions).replicas(replicationFactor).build();
   }
 }

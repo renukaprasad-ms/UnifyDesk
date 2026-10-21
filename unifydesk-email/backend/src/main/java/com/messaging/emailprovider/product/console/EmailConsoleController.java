@@ -29,8 +29,10 @@ public class EmailConsoleController {
   private final SendingDomainService domains;
   private final com.messaging.emailprovider.product.webhook.WebhookService webhooks;
 
-  public EmailConsoleController(EmailProjectRepository projects,
-      EmailProductAdminService admin, SendingDomainService domains,
+  public EmailConsoleController(
+      EmailProjectRepository projects,
+      EmailProductAdminService admin,
+      SendingDomainService domains,
       com.messaging.emailprovider.product.webhook.WebhookService webhooks) {
     this.projects = projects;
     this.admin = admin;
@@ -40,8 +42,8 @@ public class EmailConsoleController {
 
   @GetMapping("/projects")
   public ApiResponse<List<ProductResponses.Project>> projects(HttpServletRequest req) {
-    return ApiResponse.success(200,
-        admin.projects(ConsoleAuthFilter.require(req).organizationId()), "Projects");
+    return ApiResponse.success(
+        200, admin.projects(ConsoleAuthFilter.require(req).organizationId()), "Projects");
   }
 
   @PostMapping("/projects")
@@ -49,9 +51,12 @@ public class EmailConsoleController {
       HttpServletRequest req, @Valid @RequestBody ProductRequests.NewProject body) {
     var user = ConsoleAuthFilter.require(req);
     checkManage(user);
-    return ResponseEntity.status(HttpStatus.CREATED).body(
-        ApiResponse.success(201, admin.createProject(user.organizationId(), body),
-            "Project created with sending disabled"));
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                admin.createProject(user.organizationId(), body),
+                "Project created with sending disabled"));
   }
 
   @GetMapping("/projects/{projectId}/keys")
@@ -63,70 +68,88 @@ public class EmailConsoleController {
 
   @PostMapping("/projects/{projectId}/keys")
   public ResponseEntity<ApiResponse<ProductResponses.IssuedKey>> issueKey(
-      HttpServletRequest req, @PathVariable @Positive Long projectId,
+      HttpServletRequest req,
+      @PathVariable @Positive Long projectId,
       @Valid @RequestBody ProductRequests.NewKey body) {
     checkManage(own(req, projectId));
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ApiResponse.success(201, admin.issue(projectId, body),
-            "Store the secret now; it cannot be retrieved later"));
+        .body(
+            ApiResponse.success(
+                201,
+                admin.issue(projectId, body),
+                "Store the secret now; it cannot be retrieved later"));
   }
 
   @DeleteMapping("/projects/{projectId}/keys/{keyId}")
-  public ApiResponse<Void> revokeKey(HttpServletRequest req,
-      @PathVariable @Positive Long projectId, @PathVariable @Positive Long keyId) {
+  public ApiResponse<Void> revokeKey(
+      HttpServletRequest req,
+      @PathVariable @Positive Long projectId,
+      @PathVariable @Positive Long keyId) {
     checkManage(own(req, projectId));
     admin.revoke(projectId, keyId);
     return ApiResponse.success(200, "Key revoked");
   }
 
   @GetMapping("/projects/{projectId}/domains")
-  public ApiResponse<List<SendingDomainResponse>> domains(HttpServletRequest req,
-      @PathVariable @Positive Long projectId) {
+  public ApiResponse<List<SendingDomainResponse>> domains(
+      HttpServletRequest req, @PathVariable @Positive Long projectId) {
     own(req, projectId);
     return ApiResponse.success(200, domains.list(projectId), "Sender domains");
   }
 
   @PostMapping("/projects/{projectId}/domains")
   public ResponseEntity<ApiResponse<SendingDomainResponse>> createDomain(
-      HttpServletRequest req, @PathVariable @Positive Long projectId,
+      HttpServletRequest req,
+      @PathVariable @Positive Long projectId,
       @Valid @RequestBody CreateSendingDomainRequest body) {
     checkManage(own(req, projectId));
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ApiResponse.success(201, domains.create(projectId, body),
-            "Add the returned DNS records before verification"));
+        .body(
+            ApiResponse.success(
+                201,
+                domains.create(projectId, body),
+                "Add the returned DNS records before verification"));
   }
 
   @PostMapping("/projects/{projectId}/domains/{domainId}/verify")
-  public ApiResponse<SendingDomainResponse> verifyDomain(HttpServletRequest req,
-      @PathVariable @Positive Long projectId, @PathVariable @Positive Long domainId) {
+  public ApiResponse<SendingDomainResponse> verifyDomain(
+      HttpServletRequest req,
+      @PathVariable @Positive Long projectId,
+      @PathVariable @Positive Long domainId) {
     checkManage(own(req, projectId));
     return ApiResponse.success(200, domains.verify(projectId, domainId), "DNS verification");
   }
 
-
-  public record WebhookRequest(@jakarta.validation.constraints.NotBlank
-      @jakarta.validation.constraints.Size(max=1024) String url) {}
+  public record WebhookRequest(
+      @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 1024)
+          String url) {}
 
   @GetMapping("/projects/{projectId}/webhooks")
-  public ApiResponse<List<com.messaging.emailprovider.product.webhook.WebhookService.View>> webhooks(
-      HttpServletRequest req, @PathVariable @Positive Long projectId) {
+  public ApiResponse<List<com.messaging.emailprovider.product.webhook.WebhookService.View>>
+      webhooks(HttpServletRequest req, @PathVariable @Positive Long projectId) {
     own(req, projectId);
     return ApiResponse.success(200, webhooks.list(projectId), "Webhook endpoints");
   }
 
   @PostMapping("/projects/{projectId}/webhooks")
-  public ResponseEntity<ApiResponse<com.messaging.emailprovider.product.webhook.WebhookService.Created>>
-      createWebhook(HttpServletRequest req, @PathVariable @Positive Long projectId,
-      @Valid @RequestBody WebhookRequest body) {
+  public ResponseEntity<
+          ApiResponse<com.messaging.emailprovider.product.webhook.WebhookService.Created>>
+      createWebhook(
+          HttpServletRequest req,
+          @PathVariable @Positive Long projectId,
+          @Valid @RequestBody WebhookRequest body) {
     checkManage(own(req, projectId));
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ApiResponse.success(201, webhooks.create(projectId, body.url()),
-            "Signing secret returned once"));
+        .body(
+            ApiResponse.success(
+                201, webhooks.create(projectId, body.url()), "Signing secret returned once"));
   }
 
   @DeleteMapping("/projects/{projectId}/webhooks/{endpointId}")
-  public ApiResponse<Void> disableWebhook(HttpServletRequest req,
-      @PathVariable @Positive Long projectId, @PathVariable @Positive Long endpointId) {
+  public ApiResponse<Void> disableWebhook(
+      HttpServletRequest req,
+      @PathVariable @Positive Long projectId,
+      @PathVariable @Positive Long endpointId) {
     checkManage(own(req, projectId));
     webhooks.disable(projectId, endpointId);
     return ApiResponse.success(200, "Webhook disabled");
@@ -134,8 +157,8 @@ public class EmailConsoleController {
 
   private ConsoleAuthService.Principal own(HttpServletRequest req, Long projectId) {
     var user = ConsoleAuthFilter.require(req);
-    EmailProject project = projects.findById(projectId)
-        .orElseThrow(() -> new NotFoundException("Project not found"));
+    EmailProject project =
+        projects.findById(projectId).orElseThrow(() -> new NotFoundException("Project not found"));
     if (!user.organizationId().equals(project.getOrganizationId())) {
       throw new NotFoundException("Project not found");
     }

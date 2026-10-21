@@ -15,13 +15,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Independent mailbox outbound worker. SMTP occurs outside DB transactions.
- * Crashed/in-doubt PROCESSING attempts become UNKNOWN, NEVER blind retries.
+ * Independent mailbox outbound worker. SMTP occurs outside DB transactions. Crashed/in-doubt
+ * PROCESSING attempts become UNKNOWN, NEVER blind retries.
  */
 @Component
-@ConditionalOnProperty(prefix="app.mail.outbound",name="enabled",havingValue="true")
+@ConditionalOnProperty(prefix = "app.mail.outbound", name = "enabled", havingValue = "true")
 public class MailboxOutboundWorker {
-  private static final int MAX_ATTEMPTS=3;
+  private static final int MAX_ATTEMPTS = 3;
   private final JdbcTemplate jdbc;
   private final TransactionTemplate transactions;
   private final MailboxMimeBuilder mime;
@@ -32,35 +32,56 @@ public class MailboxOutboundWorker {
   private final MailBounceAddress bounce;
   private final MailboxSendingRateLimiter limiter;
 
-  record Claim(long recipientId,long intentId,long organizationId,
-      long mailboxId,String recipient,UUID lease,int attempt) {}
+  record Claim(
+      long recipientId,
+      long intentId,
+      long organizationId,
+      long mailboxId,
+      String recipient,
+      UUID lease,
+      int attempt) {}
 
-  private record Context(long sendingDomainId,String domain,String sender,
-      String subject,String body,String to,String cc,Instant acceptedAt,
+  private record Context(
+      long sendingDomainId,
+      String domain,
+      String sender,
+      String subject,
+      String body,
+      String to,
+      String cc,
+      Instant acceptedAt,
       String replyMessageId) {}
 
-  private record Counts(long total,long pending,long handed,long failed,long unknown) {}
+  private record Counts(long total, long pending, long handed, long failed, long unknown) {}
 
-  public MailboxOutboundWorker(JdbcTemplate jdbc,TransactionTemplate transactions,
-      MailboxMimeBuilder mime,DkimKeyService dkimKeys,DkimSigner signer,
-      MailboxSmtpRelay relay,MailboxSendingRateLimiter limiter,
-      MailSentArchiveStore archive,MailBounceAddress bounce) {
-    this.jdbc=jdbc;
-    this.transactions=transactions;
-    this.mime=mime;
-    this.dkimKeys=dkimKeys;
-    this.signer=signer;
-    this.relay=relay;
-    this.limiter=limiter;
-    this.archive=archive;
-    this.bounce=bounce;
+  public MailboxOutboundWorker(
+      JdbcTemplate jdbc,
+      TransactionTemplate transactions,
+      MailboxMimeBuilder mime,
+      DkimKeyService dkimKeys,
+      DkimSigner signer,
+      MailboxSmtpRelay relay,
+      MailboxSendingRateLimiter limiter,
+      MailSentArchiveStore archive,
+      MailBounceAddress bounce) {
+    this.jdbc = jdbc;
+    this.transactions = transactions;
+    this.mime = mime;
+    this.dkimKeys = dkimKeys;
+    this.signer = signer;
+    this.relay = relay;
+    this.limiter = limiter;
+    this.archive = archive;
+    this.bounce = bounce;
   }
 
-  @Scheduled(fixedDelayString="${app.mail.outbound.interval-ms:5000}")
+  @Scheduled(fixedDelayString = "${app.mail.outbound.interval-ms:5000}")
   public void poll() {
     // Any timed-out attempt might already have been accepted after SMTP DATA.
     // Never silently resend. Operator investigation must decide recovery.
-    List<Long> expired=jdbc.query("""
+    List<Long> expired =
+        jdbc.query(
+            """
         WITH stale AS (
           SELECT id FROM email_mail_outbound_recipients
           WHERE state='PROCESSING'
@@ -73,20 +94,23 @@ public class MailboxOutboundWorker {
             updated_at=now()
         WHERE r.id IN(SELECT id FROM stale)
         RETURNING r.intent_id
-        """,(rs,row)->rs.getLong(1));
-    for(Long intentId:expired) refreshIntent(intentId);
+        """,
+            (rs, row) -> rs.getLong(1));
+    for (Long intentId : expired) refreshIntent(intentId);
 
     // Sequential, bounded dispatch keeps CPU, sockets and memory predictable.
-    for(int i=0;i<4;i++) {
-      Claim claim=claim();
-      if(claim==null) return;
+    for (int i = 0; i < 4; i++) {
+      Claim claim = claim();
+      if (claim == null) return;
       process(claim);
     }
   }
 
   private Claim claim() {
-    UUID lease=UUID.randomUUID();
-    List<Claim> rows=jdbc.query("""
+    UUID lease = UUID.randomUUID();
+    List<Claim> rows =
+        jdbc.query(
+            """
         WITH candidate AS (
           SELECT id FROM email_mail_outbound_recipients
           WHERE state IN ('PENDING','DEFERRED') AND attempts<3
@@ -100,21 +124,35 @@ public class MailboxOutboundWorker {
         WHERE r.id IN(SELECT id FROM candidate)
         RETURNING r.id,r.intent_id,r.organization_id,r.mailbox_id,
           r.recipient_address,r.claim_token,r.attempts
-        """,(rs,row)->new Claim(rs.getLong(1),rs.getLong(2),
-            rs.getLong(3),rs.getLong(4),rs.getString(5),
-            (UUID)rs.getObject(6),rs.getInt(7)),lease);
-    if(rows.isEmpty()) return null;
-    Claim claim=rows.get(0);
-    jdbc.update("""
+        """,
+            (rs, row) ->
+                new Claim(
+                    rs.getLong(1),
+                    rs.getLong(2),
+                    rs.getLong(3),
+                    rs.getLong(4),
+                    rs.getString(5),
+                    (UUID) rs.getObject(6),
+                    rs.getInt(7)),
+            lease);
+    if (rows.isEmpty()) return null;
+    Claim claim = rows.get(0);
+    jdbc.update(
+        """
         UPDATE email_mail_outbound_intents SET state='PROCESSING',updated_at=now()
         WHERE id=? AND organization_id=? AND mailbox_id=?
           AND state IN ('HELD','PROCESSING')
-        """,claim.intentId(),claim.organizationId(),claim.mailboxId());
+        """,
+        claim.intentId(),
+        claim.organizationId(),
+        claim.mailboxId());
     return claim;
   }
 
   private void process(Claim job) {
-    List<Context> matches=jdbc.query("""
+    List<Context> matches =
+        jdbc.query(
+            """
         SELECT sd.id,d.domain_name,m.local_part || '@' || d.domain_name,
           dr.subject,dr.body_text,dr.recipients_to,dr.recipients_cc,
           intent.created_at,source.message_id_header
@@ -148,48 +186,76 @@ public class MailboxOutboundWorker {
           AND d.outbound_enabled=true AND org.status='ACTIVE'
           AND dr.status='PENDING_TRANSPORT'
         LIMIT 1
-        """,(rs,row)->new Context(rs.getLong(1),rs.getString(2),rs.getString(3),
-            rs.getString(4),rs.getString(5),rs.getString(6),rs.getString(7),
-            rs.getTimestamp(8).toInstant(),rs.getString(9)),
-        job.recipientId(),job.organizationId(),job.mailboxId(),job.lease());
-    if(matches.isEmpty()) {
-      complete(job,"FAILED",null,"SENDER_DOMAIN_NOT_AUTHORIZED");
+        """,
+            (rs, row) ->
+                new Context(
+                    rs.getLong(1),
+                    rs.getString(2),
+                    rs.getString(3),
+                    rs.getString(4),
+                    rs.getString(5),
+                    rs.getString(6),
+                    rs.getString(7),
+                    rs.getTimestamp(8).toInstant(),
+                    rs.getString(9)),
+            job.recipientId(),
+            job.organizationId(),
+            job.mailboxId(),
+            job.lease());
+    if (matches.isEmpty()) {
+      complete(job, "FAILED", null, "SENDER_DOMAIN_NOT_AUTHORIZED");
       return;
     }
-    Context context=matches.get(0);
-    Boolean suppressed=jdbc.queryForObject("""
+    Context context = matches.get(0);
+    Boolean suppressed =
+        jdbc.queryForObject(
+            """
         SELECT EXISTS(SELECT 1 FROM email_mail_outbound_suppressions
           WHERE organization_id=? AND recipient_address=?)
-        """,Boolean.class,job.organizationId(),job.recipient());
-    if(Boolean.TRUE.equals(suppressed)) {
-      complete(job,"FAILED",null,"RECIPIENT_SUPPRESSED_BY_BOUNCE_OR_COMPLAINT");
+        """,
+            Boolean.class,
+            job.organizationId(),
+            job.recipient());
+    if (Boolean.TRUE.equals(suppressed)) {
+      complete(job, "FAILED", null, "RECIPIENT_SUPPRESSED_BY_BOUNCE_OR_COMPLAINT");
       return;
     }
 
     // Prepare/sign before SMTP I/O: preflight failures may safely be retried.
     byte[] signed;
     try {
-      DkimKey key=dkimKeys.getActiveForDomain(context.sendingDomainId());
-      if(key.getVerifiedAt()==null) {
-        complete(job,"DEFERRED",null,"MAILBOX_DKIM_NOT_VERIFIED");
+      DkimKey key = dkimKeys.getActiveForDomain(context.sendingDomainId());
+      if (key.getVerifiedAt() == null) {
+        complete(job, "DEFERRED", null, "MAILBOX_DKIM_NOT_VERIFIED");
         return;
       }
-      if(!limiter.permit(job.organizationId(),job.mailboxId())) {
-        complete(job,"DEFERRED",null,"MAILBOX_RATE_LIMITED_OR_UNAVAILABLE");
+      if (!limiter.permit(job.organizationId(), job.mailboxId())) {
+        complete(job, "DEFERRED", null, "MAILBOX_RATE_LIMITED_OR_UNAVAILABLE");
         return;
       }
-      byte[] unsigned=mime.build(new MailboxMimeBuilder.Message(job.intentId(),
-          context.domain(),context.sender(),addresses(context.to()),
-          addresses(context.cc()),context.subject(),context.body(),
-          context.acceptedAt(),context.replyMessageId()));
-      signed=signer.sign(unsigned,context.domain(),key.getSelector(),
-          dkimKeys.loadPrivateKey(context.sendingDomainId()));
+      byte[] unsigned =
+          mime.build(
+              new MailboxMimeBuilder.Message(
+                  job.intentId(),
+                  context.domain(),
+                  context.sender(),
+                  addresses(context.to()),
+                  addresses(context.cc()),
+                  context.subject(),
+                  context.body(),
+                  context.acceptedAt(),
+                  context.replyMessageId()));
+      signed =
+          signer.sign(
+              unsigned,
+              context.domain(),
+              key.getSelector(),
+              dkimKeys.loadPrivateKey(context.sendingDomainId()));
       // Immutable and fsync'd before the first SMTP DATA handoff.
-      signed=archive.prepare(job.organizationId(),job.mailboxId(),
-          job.intentId(),signed);
-    } catch(Exception preflightFailed) {
+      signed = archive.prepare(job.organizationId(), job.mailboxId(), job.intentId(), signed);
+    } catch (Exception preflightFailed) {
       // If recording this fails, the lease expires into UNKNOWN; no send occurred.
-      complete(job,"DEFERRED",null,"MAILBOX_OUTBOUND_PREFLIGHT_FAILED");
+      complete(job, "DEFERRED", null, "MAILBOX_OUTBOUND_PREFLIGHT_FAILED");
       return;
     }
 
@@ -197,20 +263,25 @@ public class MailboxOutboundWorker {
     // outcome persistence in a catch that changes HANDED_OFF/UNKNOWN into DEFERRED.
     SmtpDeliveryResult result;
     try {
-      result=relay.submit(bounce.envelopeFrom(job.intentId(),job.recipientId()),
-          job.recipient(),signed);
-    } catch(Exception uncertain) {
-      result=new SmtpDeliveryResult(SmtpDeliveryOutcome.UNKNOWN,null,
-          "SMTP_HANDOFF_RESULT_UNCERTAIN");
+      result =
+          relay.submit(
+              bounce.envelopeFrom(job.intentId(), job.recipientId()), job.recipient(), signed);
+    } catch (Exception uncertain) {
+      result =
+          new SmtpDeliveryResult(
+              SmtpDeliveryOutcome.UNKNOWN, null, "SMTP_HANDOFF_RESULT_UNCERTAIN");
     }
-    complete(job,mapOutcome(result),result==null?null:result.statusCode(),
-        "SMTP_HANDOFF_"+(result==null || result.outcome()==null
-            ?"UNKNOWN":result.outcome().name()));
+    complete(
+        job,
+        mapOutcome(result),
+        result == null ? null : result.statusCode(),
+        "SMTP_HANDOFF_"
+            + (result == null || result.outcome() == null ? "UNKNOWN" : result.outcome().name()));
   }
 
   static String mapOutcome(SmtpDeliveryResult result) {
-    if(result==null || result.outcome()==null) return "UNKNOWN";
-    return switch(result.outcome()) {
+    if (result == null || result.outcome() == null) return "UNKNOWN";
+    return switch (result.outcome()) {
       case HANDED_OFF -> "HANDED_OFF";
       case UNKNOWN -> "UNKNOWN";
       case DEFERRED -> "DEFERRED";
@@ -219,16 +290,20 @@ public class MailboxOutboundWorker {
   }
 
   private static List<String> addresses(String commaSeparated) {
-    return commaSeparated==null || commaSeparated.isBlank()
-        ?List.of():List.of(commaSeparated.split(","));
+    return commaSeparated == null || commaSeparated.isBlank()
+        ? List.of()
+        : List.of(commaSeparated.split(","));
   }
 
-  private void complete(Claim claim,String target,String smtpCode,String error) {
-    String state=("DEFERRED".equals(target) && claim.attempt()>=MAX_ATTEMPTS)
-        ?"FAILED":target;
-    int backoff=Math.min(1800,60*(1<<Math.min(claim.attempt()-1,4)));
-    transactions.executeWithoutResult(ignored->{
-      int done=jdbc.update("""
+  private void complete(Claim claim, String target, String smtpCode, String error) {
+    String state =
+        ("DEFERRED".equals(target) && claim.attempt() >= MAX_ATTEMPTS) ? "FAILED" : target;
+    int backoff = Math.min(1800, 60 * (1 << Math.min(claim.attempt() - 1, 4)));
+    transactions.executeWithoutResult(
+        ignored -> {
+          int done =
+              jdbc.update(
+                  """
           UPDATE email_mail_outbound_recipients SET state=?,
             claim_token=NULL,claimed_at=NULL,updated_at=now(),
             retry_after=CASE WHEN ?='DEFERRED'
@@ -237,19 +312,30 @@ public class MailboxOutboundWorker {
             handed_off_at=CASE WHEN ?='HANDED_OFF' THEN now() ELSE handed_off_at END
           WHERE id=? AND intent_id=? AND organization_id=? AND mailbox_id=?
             AND claim_token=? AND state='PROCESSING'
-          """,state,state,backoff,smtpCode,error,state,
-          claim.recipientId(),claim.intentId(),claim.organizationId(),
-          claim.mailboxId(),claim.lease());
-      if(done==1) {
-        if ("HANDED_OFF".equals(state)) archiveSent(claim);
-        refreshIntent(claim.intentId());
-      }
-    });
+          """,
+                  state,
+                  state,
+                  backoff,
+                  smtpCode,
+                  error,
+                  state,
+                  claim.recipientId(),
+                  claim.intentId(),
+                  claim.organizationId(),
+                  claim.mailboxId(),
+                  claim.lease());
+          if (done == 1) {
+            if ("HANDED_OFF".equals(state)) archiveSent(claim);
+            refreshIntent(claim.intentId());
+          }
+        });
   }
 
   /** Materialize one Sent-folder pointer only after known Postfix acceptance. */
   private void archiveSent(Claim claim) {
-    int archived = jdbc.update("""
+    int archived =
+        jdbc.update(
+            """
         INSERT INTO email_mailbox_messages
           (id,organization_id,mailbox_id,direction,folder,
            mime_object_key,mime_size_bytes,message_id_header,
@@ -270,16 +356,25 @@ public class MailboxOutboundWorker {
           AND d.organization_id=m.organization_id
         WHERE i.id=? AND i.organization_id=? AND i.mailbox_id=?
         ON CONFLICT (outbound_intent_id) DO NOTHING
-        """, com.messaging.emailprovider.common.id.IdGenerator.nextId(),
-        claim.intentId(),claim.organizationId(),claim.mailboxId());
+        """,
+            com.messaging.emailprovider.common.id.IdGenerator.nextId(),
+            claim.intentId(),
+            claim.organizationId(),
+            claim.mailboxId());
     // A zero-row write is okay only when the intent already has its Sent row.
     // The enclosing transaction rolls back a 250 handoff receipt on missing MIME;
     // then the stale attempt becomes UNKNOWN and is NOT retried automatically.
     if (archived == 0) {
-      Boolean exists = jdbc.queryForObject("""
+      Boolean exists =
+          jdbc.queryForObject(
+              """
           SELECT EXISTS(SELECT 1 FROM email_mailbox_messages
             WHERE outbound_intent_id=? AND organization_id=? AND mailbox_id=?)
-          """, Boolean.class,claim.intentId(),claim.organizationId(),claim.mailboxId());
+          """,
+              Boolean.class,
+              claim.intentId(),
+              claim.organizationId(),
+              claim.mailboxId());
       if (!Boolean.TRUE.equals(exists)) {
         throw new IllegalStateException("SMTP-accepted MIME archive is missing");
       }
@@ -287,24 +382,36 @@ public class MailboxOutboundWorker {
   }
 
   private void refreshIntent(long intentId) {
-    List<Counts> counts=jdbc.query("""
+    List<Counts> counts =
+        jdbc.query(
+            """
         SELECT count(*),
           count(*) FILTER(WHERE state IN('PENDING','PROCESSING','DEFERRED')),
           count(*) FILTER(WHERE state='HANDED_OFF'),
           count(*) FILTER(WHERE state='FAILED'),
           count(*) FILTER(WHERE state='UNKNOWN')
         FROM email_mail_outbound_recipients WHERE intent_id=?
-        """,(rs,row)->new Counts(rs.getLong(1),rs.getLong(2),rs.getLong(3),
-          rs.getLong(4),rs.getLong(5)),intentId);
-    if(counts.isEmpty() || counts.get(0).total()==0) return;
-    Counts c=counts.get(0);
-    String state=c.pending()>0?"PROCESSING"
-        :c.unknown()>0?"UNKNOWN"
-        :c.handed()==c.total()?"HANDOFF_COMPLETED"
-        :c.handed()>0?"PARTIAL":"FAILED";
-    jdbc.update("""
+        """,
+            (rs, row) ->
+                new Counts(
+                    rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), rs.getLong(5)),
+            intentId);
+    if (counts.isEmpty() || counts.get(0).total() == 0) return;
+    Counts c = counts.get(0);
+    String state =
+        c.pending() > 0
+            ? "PROCESSING"
+            : c.unknown() > 0
+                ? "UNKNOWN"
+                : c.handed() == c.total()
+                    ? "HANDOFF_COMPLETED"
+                    : c.handed() > 0 ? "PARTIAL" : "FAILED";
+    jdbc.update(
+        """
         UPDATE email_mail_outbound_intents SET state=?,updated_at=now()
         WHERE id=?
-        """,state,intentId);
+        """,
+        state,
+        intentId);
   }
 }

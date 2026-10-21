@@ -12,8 +12,9 @@ public class WebhookSigning {
     try {
       Mac mac = Mac.getInstance("HmacSHA256");
       mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-      return "v1=" + HexFormat.of().formatHex(
-          mac.doFinal((timestamp + "." + payload).getBytes(StandardCharsets.UTF_8)));
+      return "v1="
+          + HexFormat.of()
+              .formatHex(mac.doFinal((timestamp + "." + payload).getBytes(StandardCharsets.UTF_8)));
     } catch (Exception e) {
       throw new IllegalStateException("Unable to sign webhook", e);
     }

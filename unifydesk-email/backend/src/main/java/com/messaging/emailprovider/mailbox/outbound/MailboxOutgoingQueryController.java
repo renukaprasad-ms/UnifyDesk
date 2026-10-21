@@ -14,26 +14,38 @@ import org.springframework.web.bind.annotation.*;
 /** User-scoped SMTP handoff status. No marketing API key access. */
 @Validated
 @RestController
-@ConditionalOnProperty(prefix="app.mail.compose",name="enabled",havingValue="true")
+@ConditionalOnProperty(prefix = "app.mail.compose", name = "enabled", havingValue = "true")
 @RequestMapping("/console/v1/mail/mailboxes/{mailboxId}/outgoing")
 public class MailboxOutgoingQueryController {
   private final MailboxOutgoingQueryService query;
+
   public MailboxOutgoingQueryController(MailboxOutgoingQueryService query) {
-    this.query=query;
+    this.query = query;
   }
+
   @GetMapping
   public ResponseEntity<ApiResponse<List<MailboxOutgoingQueryService.Outgoing>>> list(
-      HttpServletRequest context,@PathVariable @Positive long mailboxId) {
-    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-        .body(ApiResponse.success(200,query.list(
-            ConsoleAuthFilter.require(context),mailboxId),"Outgoing handoff status"));
+      HttpServletRequest context, @PathVariable @Positive long mailboxId) {
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.noStore())
+        .body(
+            ApiResponse.success(
+                200,
+                query.list(ConsoleAuthFilter.require(context), mailboxId),
+                "Outgoing handoff status"));
   }
+
   @GetMapping("/{intentId}/recipients")
   public ResponseEntity<ApiResponse<List<MailboxOutgoingQueryService.Recipient>>> recipients(
-      HttpServletRequest context,@PathVariable @Positive long mailboxId,
+      HttpServletRequest context,
+      @PathVariable @Positive long mailboxId,
       @PathVariable @Positive long intentId) {
-    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-        .body(ApiResponse.success(200,query.recipients(
-            ConsoleAuthFilter.require(context),mailboxId,intentId),"Recipient handoff state"));
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.noStore())
+        .body(
+            ApiResponse.success(
+                200,
+                query.recipients(ConsoleAuthFilter.require(context), mailboxId, intentId),
+                "Recipient handoff state"));
   }
 }

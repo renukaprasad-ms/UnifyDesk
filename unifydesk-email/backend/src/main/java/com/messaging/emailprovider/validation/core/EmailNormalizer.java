@@ -13,8 +13,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class EmailNormalizer {
 
-  private static final Pattern LOCAL_PART =
-      Pattern.compile("^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+$");
+  private static final Pattern LOCAL_PART = Pattern.compile("^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+$");
 
   public Optional<NormalizedEmail> normalize(String raw) {
     if (raw == null) {
@@ -33,8 +32,7 @@ public class EmailNormalizer {
     String domain;
     try {
       domain =
-          IDN.toASCII(value.substring(at + 1), IDN.USE_STD3_ASCII_RULES)
-              .toLowerCase(Locale.ROOT);
+          IDN.toASCII(value.substring(at + 1), IDN.USE_STD3_ASCII_RULES).toLowerCase(Locale.ROOT);
     } catch (IllegalArgumentException exception) {
       return Optional.empty();
     }

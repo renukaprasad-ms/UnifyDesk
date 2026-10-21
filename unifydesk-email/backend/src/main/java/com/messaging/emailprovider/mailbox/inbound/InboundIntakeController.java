@@ -9,8 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Disabled by default. The existing InternalApiTokenFilter authenticates this
- * private endpoint; never route /internal/v1/ from a public proxy.
+ * Disabled by default. The existing InternalApiTokenFilter authenticates this private endpoint;
+ * never route /internal/v1/ from a public proxy.
  */
 @RestController
 @ConditionalOnProperty(prefix = "app.mail.inbound", name = "enabled", havingValue = "true")
@@ -25,9 +25,10 @@ public class InboundIntakeController {
   public ResponseEntity<ApiResponse<InboundIntakeService.Intake>> receive(
       HttpServletRequest request,
       @RequestHeader("X-UnifyDesk-Envelope-To") String envelopeTo,
-      @RequestHeader("X-UnifyDesk-Delivery-Key") String deliveryKey) throws IOException {
-    InboundIntakeService.Intake job = intake.accept(
-        envelopeTo, deliveryKey, request.getInputStream());
+      @RequestHeader("X-UnifyDesk-Delivery-Key") String deliveryKey)
+      throws IOException {
+    InboundIntakeService.Intake job =
+        intake.accept(envelopeTo, deliveryKey, request.getInputStream());
     return ResponseEntity.status(HttpStatus.ACCEPTED)
         .body(ApiResponse.success(202, job, "MIME durably staged for security scanning"));
   }

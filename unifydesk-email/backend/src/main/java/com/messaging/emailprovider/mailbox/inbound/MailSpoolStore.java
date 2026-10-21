@@ -39,7 +39,8 @@ public class MailSpoolStore {
     this.root = Path.of(rootPath).toAbsolutePath().normalize();
     this.maxBytes = maxBytes;
     if (!Files.isDirectory(root) || Files.isSymbolicLink(root) || !Files.isWritable(root)) {
-      throw new IllegalStateException("Mail spool must be an existing writable persistent directory");
+      throw new IllegalStateException(
+          "Mail spool must be an existing writable persistent directory");
     }
   }
 

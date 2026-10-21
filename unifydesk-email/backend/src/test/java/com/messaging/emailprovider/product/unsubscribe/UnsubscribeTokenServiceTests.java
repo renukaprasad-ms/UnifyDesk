@@ -1,11 +1,13 @@
 package com.messaging.emailprovider.product.unsubscribe;
 
 import static org.junit.jupiter.api.Assertions.*;
+
 import org.junit.jupiter.api.Test;
 
 class UnsubscribeTokenServiceTests {
-  private final UnsubscribeTokenService signer = new UnsubscribeTokenService(
-      "testing-only-32-character-unsubscribe-signing-key", "https://email.unifydesk.in");
+  private final UnsubscribeTokenService signer =
+      new UnsubscribeTokenService(
+          "testing-only-32-character-unsubscribe-signing-key", "https://email.unifydesk.in");
 
   @Test
   void verifiesSignedIdsAndRejectsTampering() {
@@ -14,8 +16,7 @@ class UnsubscribeTokenServiceTests {
     assertEquals(120L, match.messageId());
     assertEquals(450L, match.recipientId());
     assertTrue(signer.url(120L, 450L).startsWith("https://email.unifydesk.in/v1/unsubscribe/"));
-    assertThrows(RuntimeException.class,
-        () -> signer.verify(token.replace("120.", "121.")));
+    assertThrows(RuntimeException.class, () -> signer.verify(token.replace("120.", "121.")));
   }
 
   @Test

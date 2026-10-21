@@ -14,14 +14,15 @@ import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Test;
 
 /**
- * Real PostgreSQL Flyway tests, executed by mail-qa.yml with a disposable DB.
- * The normal unit suite skips these checks when MAIL_QA_PG_URL is absent.
+ * Real PostgreSQL Flyway tests, executed by mail-qa.yml with a disposable DB. The normal unit suite
+ * skips these checks when MAIL_QA_PG_URL is absent.
  */
 class MailPostgresMigrationTests {
   @Test
   void newDatabaseAndUpgradePathsApplyV1ThroughV22() throws Exception {
     String url = System.getenv("MAIL_QA_PG_URL");
-    assumeTrue(url != null && url.startsWith("jdbc:postgresql:"),
+    assumeTrue(
+        url != null && url.startsWith("jdbc:postgresql:"),
         "Requires a disposable local PostgreSQL instance");
     String user = System.getenv().getOrDefault("MAIL_QA_PG_USER", "postgres");
     String password = System.getenv().getOrDefault("MAIL_QA_PG_PASSWORD", "postgres");
@@ -34,24 +35,34 @@ class MailPostgresMigrationTests {
       }
       try {
         if (!"0".equals(starting)) {
-          Flyway.configure().dataSource(url, user, password)
-              .schemas(schema).defaultSchema(schema)
+          Flyway.configure()
+              .dataSource(url, user, password)
+              .schemas(schema)
+              .defaultSchema(schema)
               .target(MigrationVersion.fromVersion(starting))
-              .load().migrate();
+              .load()
+              .migrate();
         }
-        Flyway flyway = Flyway.configure().dataSource(url, user, password)
-            .schemas(schema).defaultSchema(schema).load();
+        Flyway flyway =
+            Flyway.configure()
+                .dataSource(url, user, password)
+                .schemas(schema)
+                .defaultSchema(schema)
+                .load();
         flyway.migrate();
         flyway.validate();
         try (Connection connection = DriverManager.getConnection(url, user, password);
             Statement statement = connection.createStatement()) {
           statement.execute("SET search_path TO " + schema);
-          try (ResultSet result = statement.executeQuery(
-              "SELECT count(*) FROM flyway_schema_history WHERE success=true")) {
+          try (ResultSet result =
+              statement.executeQuery(
+                  "SELECT count(*) FROM flyway_schema_history WHERE success=true")) {
             assertTrue(result.next());
             assertEquals(22, result.getInt(1));
           }
-          try (ResultSet result = statement.executeQuery("""
+          try (ResultSet result =
+              statement.executeQuery(
+                  """
               SELECT is_nullable,column_default
               FROM information_schema.columns
               WHERE table_schema=current_schema()
@@ -62,7 +73,9 @@ class MailPostgresMigrationTests {
             assertEquals("NO", result.getString(1));
             assertTrue(result.getString(2).contains("false"));
           }
-          try (ResultSet result = statement.executeQuery("""
+          try (ResultSet result =
+              statement.executeQuery(
+                  """
               SELECT count(*) FROM information_schema.tables
               WHERE table_schema=current_schema()
                 AND table_name IN (

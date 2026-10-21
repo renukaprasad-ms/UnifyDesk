@@ -12,8 +12,8 @@ public class ProductDeliveryGate {
   private final EmailProjectRepository projects;
   private final EmailOrganizationRepository organizations;
 
-  public ProductDeliveryGate(EmailProjectRepository projects,
-      EmailOrganizationRepository organizations) {
+  public ProductDeliveryGate(
+      EmailProjectRepository projects, EmailOrganizationRepository organizations) {
     this.projects = projects;
     this.organizations = organizations;
   }

@@ -7,6 +7,4 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 
 public record AddSuppressionRequest(
-    @NotBlank @Email String email,
-    @NotNull SuppressionReason reason,
-    Instant expiresAt) {}
+    @NotBlank @Email String email, @NotNull SuppressionReason reason, Instant expiresAt) {}

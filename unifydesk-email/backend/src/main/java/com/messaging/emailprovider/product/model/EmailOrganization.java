@@ -8,7 +8,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter @Setter @NoArgsConstructor @Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@Entity
 @Table(name = "email_product_organizations")
 public class EmailOrganization extends BaseEntity {
   @Column(nullable = false, length = 120)

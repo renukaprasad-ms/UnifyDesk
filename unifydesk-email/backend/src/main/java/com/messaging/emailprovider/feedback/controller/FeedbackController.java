@@ -42,7 +42,9 @@ public class FeedbackController {
         HttpStatus.OK.value(), service.apply(request, null), "Feedback processed");
   }
 
-  @PostMapping(value = "/dsn", consumes = {"text/plain", "message/rfc822", "application/octet-stream"})
+  @PostMapping(
+      value = "/dsn",
+      consumes = {"text/plain", "message/rfc822", "application/octet-stream"})
   public ApiResponse<FeedbackResultResponse> dsn(
       @RequestHeader("X-UnifyDesk-Feedback-Token") String token,
       @RequestHeader("X-UnifyDesk-Envelope-Recipient") String envelopeRecipient,

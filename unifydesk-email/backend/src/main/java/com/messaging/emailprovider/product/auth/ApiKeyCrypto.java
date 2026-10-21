@@ -9,6 +9,7 @@ import java.util.HexFormat;
 
 public final class ApiKeyCrypto {
   private static final SecureRandom RANDOM = new SecureRandom();
+
   private ApiKeyCrypto() {}
 
   public static String random(int bytes) {
@@ -26,8 +27,8 @@ public final class ApiKeyCrypto {
 
   public static String hash(String token) {
     try {
-      byte[] digest = MessageDigest.getInstance("SHA-256")
-          .digest(token.getBytes(StandardCharsets.UTF_8));
+      byte[] digest =
+          MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8));
       return HexFormat.of().formatHex(digest);
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException("SHA-256 unavailable", e);

@@ -1,11 +1,11 @@
 package com.messaging.emailprovider.mailbox;
 
-import com.messaging.emailprovider.common.response.ApiResponse;
 import com.messaging.emailprovider.common.exception.BadRequestException;
-import jakarta.validation.constraints.NotBlank;
+import com.messaging.emailprovider.common.response.ApiResponse;
 import com.messaging.emailprovider.product.console.ConsoleAuthFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import java.io.InputStream;
 import java.util.List;
@@ -36,10 +36,13 @@ public class MailboxReadController {
 
   @PostMapping("/{mailboxId}/activate")
   public ApiResponse<MailboxReadService.MailboxView> activate(
-      HttpServletRequest req,@PathVariable @Positive long mailboxId,
+      HttpServletRequest req,
+      @PathVariable @Positive long mailboxId,
       @Valid @RequestBody Activate body) {
-    return ApiResponse.success(200,mailbox.activate(ConsoleAuthFilter.require(req),
-        mailboxId,parseId(body.userId())),"Mailbox activated with explicit owner grant");
+    return ApiResponse.success(
+        200,
+        mailbox.activate(ConsoleAuthFilter.require(req), mailboxId, parseId(body.userId())),
+        "Mailbox activated with explicit owner grant");
   }
 
   static long parseId(String value) {
@@ -55,37 +58,45 @@ public class MailboxReadController {
 
   @GetMapping("/{mailboxId}/messages")
   public ApiResponse<List<MailboxReadService.Message>> messages(
-      HttpServletRequest req,@PathVariable @Positive long mailboxId,
-      @RequestParam(defaultValue="INBOX") String folder,
-      @RequestParam(required=false) Long beforeId,
-      @RequestParam(defaultValue="30") int limit) {
-    return ApiResponse.success(200,
-        mailbox.list(ConsoleAuthFilter.require(req),mailboxId,folder,beforeId,limit),
+      HttpServletRequest req,
+      @PathVariable @Positive long mailboxId,
+      @RequestParam(defaultValue = "INBOX") String folder,
+      @RequestParam(required = false) Long beforeId,
+      @RequestParam(defaultValue = "30") int limit) {
+    return ApiResponse.success(
+        200,
+        mailbox.list(ConsoleAuthFilter.require(req), mailboxId, folder, beforeId, limit),
         "Mail messages");
   }
 
   @GetMapping("/{mailboxId}/messages/{messageId}/preview")
   public ResponseEntity<ApiResponse<MailboxReadService.MessagePreview>> preview(
-      HttpServletRequest req, @PathVariable @Positive long mailboxId,
+      HttpServletRequest req,
+      @PathVariable @Positive long mailboxId,
       @PathVariable @Positive long messageId) {
-    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.noStore())
         .header("X-Content-Type-Options", "nosniff")
-        .body(ApiResponse.success(200,
-            mailbox.preview(ConsoleAuthFilter.require(req), mailboxId, messageId),
-            "Safe plain-text message preview"));
+        .body(
+            ApiResponse.success(
+                200,
+                mailbox.preview(ConsoleAuthFilter.require(req), mailboxId, messageId),
+                "Safe plain-text message preview"));
   }
 
   @GetMapping("/{mailboxId}/messages/{messageId}/raw")
   public ResponseEntity<StreamingResponseBody> raw(
-      HttpServletRequest req,@PathVariable @Positive long mailboxId,
+      HttpServletRequest req,
+      @PathVariable @Positive long mailboxId,
       @PathVariable @Positive long messageId) {
-    MailboxReadService.RawMail file=mailbox.raw(ConsoleAuthFilter.require(req),
-        mailboxId,messageId);
-    StreamingResponseBody body=out -> {
-      try (InputStream stream=file.body()) {
-        stream.transferTo(out);
-      }
-    };
+    MailboxReadService.RawMail file =
+        mailbox.raw(ConsoleAuthFilter.require(req), mailboxId, messageId);
+    StreamingResponseBody body =
+        out -> {
+          try (InputStream stream = file.body()) {
+            stream.transferTo(out);
+          }
+        };
     return ResponseEntity.status(HttpStatus.OK)
         .contentType(MediaType.APPLICATION_OCTET_STREAM)
         .contentLength(file.sizeBytes())

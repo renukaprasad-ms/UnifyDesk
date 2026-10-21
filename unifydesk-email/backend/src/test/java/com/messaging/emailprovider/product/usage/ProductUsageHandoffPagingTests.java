@@ -46,13 +46,14 @@ class ProductUsageHandoffPagingTests {
   @SuppressWarnings("unchecked")
   void paginationReturnsLimitedRowsAndLastVisibleCursor() {
     when(jdbc.query(anyString(), any(RowMapper.class), eq(123L), eq(10L), eq(3)))
-        .thenReturn(List.of(
-            new ProductUsageService.HandoffEntry("11", "101", "201",
-                Instant.parse("2026-10-09T12:00:00Z"), 12000L),
-            new ProductUsageService.HandoffEntry("12", "102", "202",
-                Instant.parse("2026-10-09T12:01:00Z"), 12000L),
-            new ProductUsageService.HandoffEntry("13", "103", "203",
-                Instant.parse("2026-10-09T12:02:00Z"), 12000L)));
+        .thenReturn(
+            List.of(
+                new ProductUsageService.HandoffEntry(
+                    "11", "101", "201", Instant.parse("2026-10-09T12:00:00Z"), 12000L),
+                new ProductUsageService.HandoffEntry(
+                    "12", "102", "202", Instant.parse("2026-10-09T12:01:00Z"), 12000L),
+                new ProductUsageService.HandoffEntry(
+                    "13", "103", "203", Instant.parse("2026-10-09T12:02:00Z"), 12000L)));
 
     var page = service.handoffs(123L, 10L, 2);
     assertEquals("123", page.projectId());
@@ -64,19 +65,17 @@ class ProductUsageHandoffPagingTests {
   @Test
   void dateBoundedReplayRejectsMissingOrOversizedIntervals() {
     var from = Instant.parse("2026-10-01T00:00:00Z");
-    assertThrows(BadRequestException.class,
-        () -> service.handoffs(123L, 0L, 50, from, null));
-    assertThrows(BadRequestException.class,
-        () -> service.handoffs(123L, 0L, 50, from, from));
-    assertThrows(BadRequestException.class,
+    assertThrows(BadRequestException.class, () -> service.handoffs(123L, 0L, 50, from, null));
+    assertThrows(BadRequestException.class, () -> service.handoffs(123L, 0L, 50, from, from));
+    assertThrows(
+        BadRequestException.class,
         () -> service.handoffs(123L, 0L, 50, from, from.plusSeconds(32L * 86400)));
     verifyNoInteractions(jdbc);
   }
 
   @Test
   void highWaterMarkIsProjectScoped() {
-    when(jdbc.queryForObject(anyString(), eq(Long.class), eq(123L)))
-        .thenReturn(9007199254740993L);
+    when(jdbc.queryForObject(anyString(), eq(Long.class), eq(123L))).thenReturn(9007199254740993L);
     assertEquals("9007199254740993", service.latestUsageId(123L));
   }
 }

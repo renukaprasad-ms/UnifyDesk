@@ -15,21 +15,32 @@ class MailboxProvisioningServiceTests {
 
   @Test
   void rejectsUnsafeDomainNames() {
-    for (String value : new String[]{"localhost", "-bad.example", "bad..example",
-        "example.com.", " example.com", "exa mple.com", "bad_.example.com"}) {
-      assertThrows(BadRequestException.class,
-          () -> MailboxProvisioningService.normalizeDomain(value), value);
+    for (String value :
+        new String[] {
+          "localhost",
+          "-bad.example",
+          "bad..example",
+          "example.com.",
+          " example.com",
+          "exa mple.com",
+          "bad_.example.com"
+        }) {
+      assertThrows(
+          BadRequestException.class,
+          () -> MailboxProvisioningService.normalizeDomain(value),
+          value);
     }
   }
 
   @Test
   void mailboxAddressIsConservativeAndCanonical() {
-    assertEquals("support+alerts",
-        MailboxProvisioningService.normalizeLocalPart("Support+Alerts"));
-    for (String value : new String[]{"", ".admin", "a..b", "a.", "bad space",
-        "foo@bar", "with/slash", "üser"}) {
-      assertThrows(BadRequestException.class,
-          () -> MailboxProvisioningService.normalizeLocalPart(value), value);
+    assertEquals("support+alerts", MailboxProvisioningService.normalizeLocalPart("Support+Alerts"));
+    for (String value :
+        new String[] {"", ".admin", "a..b", "a.", "bad space", "foo@bar", "with/slash", "üser"}) {
+      assertThrows(
+          BadRequestException.class,
+          () -> MailboxProvisioningService.normalizeLocalPart(value),
+          value);
     }
   }
 }

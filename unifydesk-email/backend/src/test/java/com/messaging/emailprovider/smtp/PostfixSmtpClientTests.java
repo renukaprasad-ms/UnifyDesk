@@ -69,7 +69,6 @@ class PostfixSmtpClientTests {
     }
   }
 
-
   @Test
   void doesNotRetryWhenPostfixMayHaveAcceptedData() throws Exception {
     try (ServerSocket server = new ServerSocket(0)) {

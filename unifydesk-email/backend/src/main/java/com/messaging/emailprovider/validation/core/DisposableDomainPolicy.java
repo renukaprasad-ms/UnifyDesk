@@ -33,7 +33,8 @@ public class DisposableDomainPolicy {
     try (BufferedReader reader =
         new BufferedReader(
             new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
-      reader.lines()
+      reader
+          .lines()
           .map(String::trim)
           .filter(line -> !line.isEmpty())
           .filter(line -> !line.startsWith("#"))

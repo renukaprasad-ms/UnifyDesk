@@ -1,6 +1,5 @@
 package com.messaging.emailprovider.product.console;
 
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -20,8 +19,11 @@ public class PasswordHasher {
     }
     byte[] salt = new byte[16];
     RANDOM.nextBytes(salt);
-    return "pbkdf2-sha256$" + ITERATIONS + "$"
-        + Base64.getEncoder().encodeToString(salt) + "$"
+    return "pbkdf2-sha256$"
+        + ITERATIONS
+        + "$"
+        + Base64.getEncoder().encodeToString(salt)
+        + "$"
         + Base64.getEncoder().encodeToString(derive(password, salt, ITERATIONS));
   }
 

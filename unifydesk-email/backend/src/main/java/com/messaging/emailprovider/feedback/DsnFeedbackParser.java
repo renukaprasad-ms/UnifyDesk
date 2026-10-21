@@ -15,12 +15,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class DsnFeedbackParser {
 
-  private static final Pattern VERP =
-      Pattern.compile("(?i)^bounce\\+(\\d+)\\.(\\d+)@[^@]+$");
-  private static final Pattern ACTION =
-      Pattern.compile("(?im)^Action:\\s*([^\\r\\n]+)");
-  private static final Pattern STATUS =
-      Pattern.compile("(?im)^Status:\\s*([^\\s\\r\\n]+)");
+  private static final Pattern VERP = Pattern.compile("(?i)^bounce\\+(\\d+)\\.(\\d+)@[^@]+$");
+  private static final Pattern ACTION = Pattern.compile("(?im)^Action:\\s*([^\\r\\n]+)");
+  private static final Pattern STATUS = Pattern.compile("(?im)^Status:\\s*([^\\s\\r\\n]+)");
   private static final Pattern DIAGNOSTIC =
       Pattern.compile("(?im)^Diagnostic-Code:\\s*([^\\r\\n]+)");
 
@@ -80,8 +77,7 @@ public class DsnFeedbackParser {
     try {
       return HexFormat.of()
           .formatHex(
-              MessageDigest.getInstance("SHA-256")
-                  .digest(value.getBytes(StandardCharsets.UTF_8)));
+              MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
     } catch (NoSuchAlgorithmException exception) {
       throw new IllegalStateException("SHA-256 is not available", exception);
     }

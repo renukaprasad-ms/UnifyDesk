@@ -29,15 +29,13 @@ public class EmailProductValidationController {
 
   @PostMapping("/jobs")
   public ResponseEntity<ApiResponse<ValidationJobResponse>> create(
-      HttpServletRequest context,
-      @Valid @RequestBody CreateValidationJobRequest request) {
+      HttpServletRequest context, @Valid @RequestBody CreateValidationJobRequest request) {
     if (request.emails().size() > 1000) {
       throw new BadRequestException("Maximum 1000 addresses per public validation job");
     }
     Long projectId = EmailProductKeyFilter.require(context).projectId();
     return ResponseEntity.status(HttpStatus.ACCEPTED)
-        .body(ApiResponse.success(202, validation.create(projectId, request),
-            "Validation queued"));
+        .body(ApiResponse.success(202, validation.create(projectId, request), "Validation queued"));
   }
 
   @GetMapping("/jobs/{jobId}")
@@ -49,11 +47,12 @@ public class EmailProductValidationController {
 
   @GetMapping("/jobs/{jobId}/results")
   public ApiResponse<ValidationResultsResponse> results(
-      HttpServletRequest context, @PathVariable @Positive Long jobId,
+      HttpServletRequest context,
+      @PathVariable @Positive Long jobId,
       @RequestParam(defaultValue = "0") @Min(0) int page,
       @RequestParam(defaultValue = "100") @Min(1) @Max(200) int size) {
     Long projectId = EmailProductKeyFilter.require(context).projectId();
-    return ApiResponse.success(200, validation.results(projectId, jobId, page, size),
-        "Validation results");
+    return ApiResponse.success(
+        200, validation.results(projectId, jobId, page, size), "Validation results");
   }
 }

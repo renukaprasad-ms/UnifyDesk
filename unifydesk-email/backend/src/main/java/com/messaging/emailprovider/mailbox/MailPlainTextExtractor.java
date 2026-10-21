@@ -13,9 +13,9 @@ import org.apache.james.mime4j.stream.RecursionMode;
 import org.springframework.stereotype.Component;
 
 /**
- * Conservative RFC 5322 reader. Only text/plain body parts can enter the UI.
- * Scriptable HTML, remote images and attached text files are NEVER rendered.
- * The parser does not materialize the message or attachments in memory.
+ * Conservative RFC 5322 reader. Only text/plain body parts can enter the UI. Scriptable HTML,
+ * remote images and attached text files are NEVER rendered. The parser does not materialize the
+ * message or attachments in memory.
  */
 @Component
 public class MailPlainTextExtractor {
@@ -37,8 +37,8 @@ public class MailPlainTextExtractor {
     try {
       parser.parse(raw);
       for (EntityState state = parser.getState();
-           state != EntityState.T_END_OF_STREAM;
-           state = parser.next()) {
+          state != EntityState.T_END_OF_STREAM;
+          state = parser.next()) {
         switch (state) {
           case T_START_HEADER -> {
             // An attached multipart cannot smuggle a text body through its
@@ -52,11 +52,10 @@ public class MailPlainTextExtractor {
             Field field = parser.getField();
             if (field == null) break;
             String name = field.getName().toLowerCase(Locale.ROOT);
-            String value = field.getBody() == null ? ""
-                : field.getBody().toLowerCase(Locale.ROOT);
+            String value = field.getBody() == null ? "" : field.getBody().toLowerCase(Locale.ROOT);
             // Treat any named/dispositioned file as an attachment, not a body.
             if (("content-disposition".equals(name)
-                && (value.contains("attachment") || value.contains("filename")))
+                    && (value.contains("attachment") || value.contains("filename")))
                 || ("content-type".equals(name) && value.contains("name="))) {
               attachment = true;
             }

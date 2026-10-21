@@ -8,8 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class PostfixQueueIdExtractor {
 
-  private static final Pattern QUEUED_AS =
-      Pattern.compile("(?i)\\bqueued\\s+as\\s+([A-Z0-9]+)\\b");
+  private static final Pattern QUEUED_AS = Pattern.compile("(?i)\\bqueued\\s+as\\s+([A-Z0-9]+)\\b");
 
   public Optional<String> extract(String response) {
     if (response == null || response.isBlank()) {

@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Single-record claims with lease tokens. Scan outside transactions; never
- * publish raw MIME without both malware and spam checks succeeding.
+ * Single-record claims with lease tokens. Scan outside transactions; never publish raw MIME without
+ * both malware and spam checks succeeding.
  */
 @Component
 @ConditionalOnProperty(prefix = "app.mail.scanner", name = "enabled", havingValue = "true")
@@ -25,11 +25,23 @@ public class InboundScanWorker {
   private final ClamdMalwareScanner malware;
   private final RspamdSpamScanner spam;
 
-  record Job(long id, long organizationId, long mailboxId, String objectKey,
-             long bytes, String digest, Instant receivedAt, UUID lease, int attempts) {}
+  record Job(
+      long id,
+      long organizationId,
+      long mailboxId,
+      String objectKey,
+      long bytes,
+      String digest,
+      Instant receivedAt,
+      UUID lease,
+      int attempts) {}
 
-  public InboundScanWorker(JdbcTemplate jdbc, TransactionTemplate transactions,
-      MailSpoolStore spool, ClamdMalwareScanner malware, RspamdSpamScanner spam) {
+  public InboundScanWorker(
+      JdbcTemplate jdbc,
+      TransactionTemplate transactions,
+      MailSpoolStore spool,
+      ClamdMalwareScanner malware,
+      RspamdSpamScanner spam) {
     this.jdbc = jdbc;
     this.transactions = transactions;
     this.spool = spool;
@@ -40,7 +52,8 @@ public class InboundScanWorker {
   @Scheduled(fixedDelayString = "${app.mail.scanner.interval-ms:5000}")
   public void poll() {
     // A worker may die on its last lease; quarantine rather than retry forever.
-    jdbc.update("""
+    jdbc.update(
+        """
         UPDATE email_mail_inbound_jobs
         SET status='QUARANTINED',claim_token=NULL,claimed_at=NULL,
             scan_error='SCAN_LEASE_EXHAUSTED',updated_at=now()
@@ -57,7 +70,9 @@ public class InboundScanWorker {
 
   private Job claim() {
     UUID lease = UUID.randomUUID();
-    List<Job> jobs = jdbc.query("""
+    List<Job> jobs =
+        jdbc.query(
+            """
         WITH picked AS (
           SELECT id FROM email_mail_inbound_jobs
           WHERE scan_attempts < 6 AND
@@ -74,9 +89,19 @@ public class InboundScanWorker {
         WHERE j.id IN (SELECT id FROM picked)
         RETURNING j.id,j.organization_id,j.mailbox_id,j.mime_object_key,
           j.mime_size_bytes,j.sha256,j.received_at,j.claim_token,j.scan_attempts
-        """, (rs, row) -> new Job(rs.getLong(1),rs.getLong(2),rs.getLong(3),
-        rs.getString(4),rs.getLong(5),rs.getString(6),
-        rs.getTimestamp(7).toInstant(),(UUID) rs.getObject(8),rs.getInt(9)), lease);
+        """,
+            (rs, row) ->
+                new Job(
+                    rs.getLong(1),
+                    rs.getLong(2),
+                    rs.getLong(3),
+                    rs.getString(4),
+                    rs.getLong(5),
+                    rs.getString(6),
+                    rs.getTimestamp(7).toInstant(),
+                    (UUID) rs.getObject(8),
+                    rs.getInt(9)),
+            lease);
     return jobs.isEmpty() ? null : jobs.get(0);
   }
 
@@ -101,8 +126,11 @@ public class InboundScanWorker {
         try (InputStream data = spool.open(job.objectKey())) {
           summary = MailHeaderSummary.read(data);
         }
-        finish(job, "READY",
-            disposition == RspamdSpamScanner.Decision.SPAM ? "SPAM" : "INBOX", summary);
+        finish(
+            job,
+            "READY",
+            disposition == RspamdSpamScanner.Decision.SPAM ? "SPAM" : "INBOX",
+            summary);
       }
     } catch (Exception unavailable) {
       fail(job);
@@ -110,9 +138,12 @@ public class InboundScanWorker {
   }
 
   private void finish(Job job, String status, String folder, MailHeaderSummary.Summary summary) {
-    transactions.executeWithoutResult(ignored -> {
-      // Recheck tenant/domain/mailbox state under the same transaction.
-      Boolean active = jdbc.queryForObject("""
+    transactions.executeWithoutResult(
+        ignored -> {
+          // Recheck tenant/domain/mailbox state under the same transaction.
+          Boolean active =
+              jdbc.queryForObject(
+                  """
           SELECT EXISTS (
             SELECT 1 FROM email_mailboxes m
             JOIN email_mail_domains d ON d.id=m.domain_id
@@ -121,39 +152,62 @@ public class InboundScanWorker {
             WHERE m.id=? AND m.organization_id=? AND m.status='ACTIVE'
               AND d.status='VERIFIED' AND d.inbound_enabled=TRUE
               AND o.status='ACTIVE')
-          """, Boolean.class, job.mailboxId(), job.organizationId());
-      String destination = Boolean.TRUE.equals(active) ? status : "QUARANTINED";
-      int updated = jdbc.update("""
+          """,
+                  Boolean.class,
+                  job.mailboxId(),
+                  job.organizationId());
+          String destination = Boolean.TRUE.equals(active) ? status : "QUARANTINED";
+          int updated =
+              jdbc.update(
+                  """
           UPDATE email_mail_inbound_jobs
           SET status=?,claim_token=NULL,claimed_at=NULL,updated_at=now(),
               scan_error=NULL,scan_retry_after=NULL
           WHERE id=? AND claim_token=? AND status='SCANNING'
-          """, destination,job.id(),job.lease());
-      if (updated != 1 || !"READY".equals(destination)) return;
-      // Unique inbound_job_id makes recovery/replays exactly-once in the mailbox.
-      jdbc.update("""
+          """,
+                  destination,
+                  job.id(),
+                  job.lease());
+          if (updated != 1 || !"READY".equals(destination)) return;
+          // Unique inbound_job_id makes recovery/replays exactly-once in the mailbox.
+          jdbc.update(
+              """
           INSERT INTO email_mailbox_messages (
             id,organization_id,mailbox_id,inbound_job_id,direction,folder,
             mime_object_key,mime_size_bytes,received_at,
             from_address,subject,message_id_header)
           VALUES (?,?,?,?,'INBOUND',?,?,?,?,?,?,?)
           ON CONFLICT (inbound_job_id) DO NOTHING
-          """, IdGenerator.nextId(),job.organizationId(),job.mailboxId(),
-          job.id(),folder,job.objectKey(),job.bytes(),job.receivedAt(),
-          summary.from(),summary.subject(),summary.messageId());
-    });
+          """,
+              IdGenerator.nextId(),
+              job.organizationId(),
+              job.mailboxId(),
+              job.id(),
+              folder,
+              job.objectKey(),
+              job.bytes(),
+              job.receivedAt(),
+              summary.from(),
+              summary.subject(),
+              summary.messageId());
+        });
   }
 
   private void fail(Job job) {
     int attempts = job.attempts();
     int seconds = Math.min(3600, 30 * (1 << Math.min(attempts, 6)));
-    jdbc.update("""
+    jdbc.update(
+        """
         UPDATE email_mail_inbound_jobs
         SET status=?,claim_token=NULL,claimed_at=NULL,updated_at=now(),
             scan_retry_after=CASE WHEN ? THEN NULL ELSE now() + (? * INTERVAL '1 second') END,
             scan_error='SECURITY_SCANNER_UNAVAILABLE'
         WHERE id=? AND claim_token=? AND status='SCANNING'
-        """, attempts >= MAX_ATTEMPTS ? "QUARANTINED" : "PENDING_SCAN",
-        attempts >= MAX_ATTEMPTS, seconds, job.id(), job.lease());
+        """,
+        attempts >= MAX_ATTEMPTS ? "QUARANTINED" : "PENDING_SCAN",
+        attempts >= MAX_ATTEMPTS,
+        seconds,
+        job.id(),
+        job.lease());
   }
 }

@@ -27,6 +27,5 @@ public interface EmailValidationBatchRepository extends JpaRepository<EmailValid
           FOR UPDATE SKIP LOCKED
           """,
       nativeQuery = true)
-  List<EmailValidationBatch> findDueRetries(
-      @Param("now") Instant now, @Param("limit") int limit);
+  List<EmailValidationBatch> findDueRetries(@Param("now") Instant now, @Param("limit") int limit);
 }

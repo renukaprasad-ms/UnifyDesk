@@ -55,7 +55,8 @@ public class EmailProductAdminService {
   public List<ProductResponses.Project> projects(Long orgId) {
     requireOrg(orgId);
     return projects.findAllByOrganizationIdOrderByCreatedAtDesc(orgId).stream()
-        .map(this::project).toList();
+        .map(this::project)
+        .toList();
   }
 
   @Transactional(readOnly = true)
@@ -104,8 +105,11 @@ public class EmailProductAdminService {
     key.setName(req.name().trim());
     key.setLookupPrefix(prefix);
     key.setSecretHash(ApiKeyCrypto.hash(secret));
-    key.setScopes(req.scopes().stream().map(ApiKeyScope::name)
-        .sorted(Comparator.naturalOrder()).collect(Collectors.joining(",")));
+    key.setScopes(
+        req.scopes().stream()
+            .map(ApiKeyScope::name)
+            .sorted(Comparator.naturalOrder())
+            .collect(Collectors.joining(",")));
     key.setExpiresAt(req.expiresAt());
     key = keys.save(key);
     return new ProductResponses.IssuedKey(key(key), secret);
@@ -114,15 +118,15 @@ public class EmailProductAdminService {
   @Transactional(readOnly = true)
   public List<ProductResponses.ApiKey> keys(Long projectId) {
     requireProject(projectId);
-    return keys.findAllByProjectIdOrderByCreatedAtDesc(projectId).stream()
-        .map(this::key).toList();
+    return keys.findAllByProjectIdOrderByCreatedAtDesc(projectId).stream().map(this::key).toList();
   }
 
   @Transactional
   public void revoke(Long projectId, Long keyId) {
     requireProject(projectId);
-    EmailApiKey key = keys.findByIdAndProjectId(keyId, projectId)
-        .orElseThrow(() -> new NotFoundException("API key not found"));
+    EmailApiKey key =
+        keys.findByIdAndProjectId(keyId, projectId)
+            .orElseThrow(() -> new NotFoundException("API key not found"));
     key.setRevokedAt(Instant.now());
     keys.save(key);
   }
@@ -130,8 +134,9 @@ public class EmailProductAdminService {
   @Transactional
   public ProductResponses.Project setSending(Long projectId, boolean enabled) {
     EmailProject project = requireProject(projectId);
-    if (enabled && (!"ACTIVE".equals(requireOrg(project.getOrganizationId()).getStatus())
-        || !"ACTIVE".equals(project.getStatus()))) {
+    if (enabled
+        && (!"ACTIVE".equals(requireOrg(project.getOrganizationId()).getStatus())
+            || !"ACTIVE".equals(project.getStatus()))) {
       throw new BadRequestException("Organization is not active");
     }
     project.setSendingEnabled(enabled);
@@ -139,28 +144,40 @@ public class EmailProductAdminService {
   }
 
   private EmailProject requireProject(Long id) {
-    return projects.findById(id)
+    return projects
+        .findById(id)
         .orElseThrow(() -> new NotFoundException("Email project not found"));
   }
 
   private EmailOrganization requireOrg(Long id) {
-    return organizations.findById(id)
+    return organizations
+        .findById(id)
         .orElseThrow(() -> new NotFoundException("Email organization not found"));
   }
 
   private ProductResponses.Organization organization(EmailOrganization o) {
-    return new ProductResponses.Organization(o.getId().toString(), o.getName(),
-        o.getContactEmail(), o.getStatus());
+    return new ProductResponses.Organization(
+        o.getId().toString(), o.getName(), o.getContactEmail(), o.getStatus());
   }
 
   private ProductResponses.Project project(EmailProject p) {
-    return new ProductResponses.Project(p.getId().toString(),
-        p.getOrganizationId().toString(), p.getName(), p.getStatus(), p.isSendingEnabled());
+    return new ProductResponses.Project(
+        p.getId().toString(),
+        p.getOrganizationId().toString(),
+        p.getName(),
+        p.getStatus(),
+        p.isSendingEnabled());
   }
 
   private ProductResponses.ApiKey key(EmailApiKey k) {
-    return new ProductResponses.ApiKey(k.getId().toString(), k.getProjectId().toString(),
-        k.getName(), k.getLookupPrefix(), k.getScopes(), k.getExpiresAt(),
-        k.getRevokedAt(), k.getCreatedAt());
+    return new ProductResponses.ApiKey(
+        k.getId().toString(),
+        k.getProjectId().toString(),
+        k.getName(),
+        k.getLookupPrefix(),
+        k.getScopes(),
+        k.getExpiresAt(),
+        k.getRevokedAt(),
+        k.getCreatedAt());
   }
 }

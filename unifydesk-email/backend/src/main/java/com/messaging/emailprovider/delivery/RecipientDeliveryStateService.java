@@ -41,8 +41,7 @@ public class RecipientDeliveryStateService {
   }
 
   @Transactional
-  public void handedOff(
-      EmailRecipient recipient, SmtpDeliveryResult result, Instant startedAt) {
+  public void handedOff(EmailRecipient recipient, SmtpDeliveryResult result, Instant startedAt) {
     EmailRecipient current = require(recipient.getId());
     current.setStatus(EmailRecipientStatus.HANDED_OFF);
     current.setSmtpStatusCode(result.statusCode());
@@ -56,8 +55,7 @@ public class RecipientDeliveryStateService {
   }
 
   @Transactional
-  public void unknown(
-      EmailRecipient recipient, SmtpDeliveryResult result, Instant startedAt) {
+  public void unknown(EmailRecipient recipient, SmtpDeliveryResult result, Instant startedAt) {
     EmailRecipient current = require(recipient.getId());
     current.setStatus(EmailRecipientStatus.UNKNOWN);
     current.setSmtpStatusCode(result.statusCode());
@@ -96,8 +94,7 @@ public class RecipientDeliveryStateService {
   }
 
   @Transactional
-  public void failed(
-      EmailRecipient recipient, SmtpDeliveryResult result, Instant startedAt) {
+  public void failed(EmailRecipient recipient, SmtpDeliveryResult result, Instant startedAt) {
     EmailRecipient current = require(recipient.getId());
     current.setStatus(EmailRecipientStatus.FAILED);
     current.setSmtpStatusCode(result.statusCode());

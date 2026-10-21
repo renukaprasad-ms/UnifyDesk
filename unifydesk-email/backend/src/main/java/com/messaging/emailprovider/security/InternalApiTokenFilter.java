@@ -43,7 +43,8 @@ public class InternalApiTokenFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
     if (expected.length < 32) {
-      response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+      response.sendError(
+          HttpServletResponse.SC_SERVICE_UNAVAILABLE,
           "Email provider internal API is not configured");
       return;
     }

@@ -54,7 +54,8 @@ public class EmailMessageService {
       EmailRequestHasher requestHasher,
       EmailOutboxService outboxService,
       ReputationService reputationService,
-      @Value("${app.kafka.topics.delivery-requested:email.delivery.requested}") String deliveryTopic,
+      @Value("${app.kafka.topics.delivery-requested:email.delivery.requested}")
+          String deliveryTopic,
       @Value("${app.delivery.max-recipients-per-message:100}") int maxRecipients,
       @Value("${app.delivery.max-body-bytes:5242880}") int maxBodyBytes,
       com.messaging.emailprovider.product.unsubscribe.UnsubscribeTokenService unsubscribe) {
@@ -170,8 +171,7 @@ public class EmailMessageService {
       message.setStatus(EmailMessageStatus.SUPPRESSED);
     } else {
       message.setStatus(EmailMessageStatus.QUEUED);
-      reputationService.recordAccepted(
-          companyId, domain.getId(), queued, message.getAcceptedAt());
+      reputationService.recordAccepted(companyId, domain.getId(), queued, message.getAcceptedAt());
       outboxService.enqueue(deliveryTopic, message.getId().toString(), message.getId().toString());
     }
     message = messageRepository.save(message);
@@ -258,9 +258,7 @@ public class EmailMessageService {
     }
     int bytes =
         (request.text() == null ? 0 : request.text().getBytes(StandardCharsets.UTF_8).length)
-            + (request.html() == null
-                ? 0
-                : request.html().getBytes(StandardCharsets.UTF_8).length);
+            + (request.html() == null ? 0 : request.html().getBytes(StandardCharsets.UTF_8).length);
     if (bytes > maxBodyBytes) {
       throw new BadRequestException("Email body exceeds the configured size limit");
     }

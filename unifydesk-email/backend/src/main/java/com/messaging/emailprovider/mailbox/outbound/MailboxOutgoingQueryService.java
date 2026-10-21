@@ -10,22 +10,41 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Mailbox-user-owned history. Handoff is not proof of final inbox delivery. */
 @Service
-@ConditionalOnProperty(prefix="app.mail.compose",name="enabled",havingValue="true")
+@ConditionalOnProperty(prefix = "app.mail.compose", name = "enabled", havingValue = "true")
 public class MailboxOutgoingQueryService {
   private final JdbcTemplate jdbc;
 
-  public record Outgoing(String intentId,String draftId,String state,String subject,
-      long acceptedByPostfix,long pending,long failed,long unknown,
-      long remotelyDelivered,long bounced,long complained,String createdAt) {}
+  public record Outgoing(
+      String intentId,
+      String draftId,
+      String state,
+      String subject,
+      long acceptedByPostfix,
+      long pending,
+      long failed,
+      long unknown,
+      long remotelyDelivered,
+      long bounced,
+      long complained,
+      String createdAt) {}
 
-  public record Recipient(String address,String type,String state,int attempts,
-      String smtpCode,String remoteStatus,String remoteCode) {}
+  public record Recipient(
+      String address,
+      String type,
+      String state,
+      int attempts,
+      String smtpCode,
+      String remoteStatus,
+      String remoteCode) {}
 
-  public MailboxOutgoingQueryService(JdbcTemplate jdbc) { this.jdbc=jdbc; }
+  public MailboxOutgoingQueryService(JdbcTemplate jdbc) {
+    this.jdbc = jdbc;
+  }
 
-  @Transactional(readOnly=true)
-  public List<Outgoing> list(ConsoleAuthService.Principal principal,long mailboxId) {
-    return jdbc.query("""
+  @Transactional(readOnly = true)
+  public List<Outgoing> list(ConsoleAuthService.Principal principal, long mailboxId) {
+    return jdbc.query(
+        """
         SELECT intent.id,intent.draft_id,intent.state,d.subject,intent.created_at,
           count(*) FILTER(WHERE r.state='HANDED_OFF'),
           count(*) FILTER(WHERE r.state IN('PENDING','PROCESSING','DEFERRED')),
@@ -54,18 +73,33 @@ public class MailboxOutgoingQueryService {
           AND d.author_user_id=?
         GROUP BY intent.id,intent.draft_id,intent.state,d.subject,intent.created_at
         ORDER BY intent.id DESC LIMIT 50
-        """,(rs,row)->new Outgoing(Long.toString(rs.getLong(1)),
-          Long.toString(rs.getLong(2)),rs.getString(3),rs.getString(4),
-          rs.getLong(6),rs.getLong(7),rs.getLong(8),rs.getLong(9),
-          rs.getLong(10),rs.getLong(11),rs.getLong(12),
-          rs.getTimestamp(5).toInstant().toString()),
-        principal.userId(),principal.organizationId(),mailboxId,principal.userId());
+        """,
+        (rs, row) ->
+            new Outgoing(
+                Long.toString(rs.getLong(1)),
+                Long.toString(rs.getLong(2)),
+                rs.getString(3),
+                rs.getString(4),
+                rs.getLong(6),
+                rs.getLong(7),
+                rs.getLong(8),
+                rs.getLong(9),
+                rs.getLong(10),
+                rs.getLong(11),
+                rs.getLong(12),
+                rs.getTimestamp(5).toInstant().toString()),
+        principal.userId(),
+        principal.organizationId(),
+        mailboxId,
+        principal.userId());
   }
 
-  @Transactional(readOnly=true)
-  public List<Recipient> recipients(ConsoleAuthService.Principal principal,
-      long mailboxId,long intentId) {
-    Boolean owns=jdbc.queryForObject("""
+  @Transactional(readOnly = true)
+  public List<Recipient> recipients(
+      ConsoleAuthService.Principal principal, long mailboxId, long intentId) {
+    Boolean owns =
+        jdbc.queryForObject(
+            """
         SELECT EXISTS(SELECT 1 FROM email_mail_outbound_intents i
           JOIN email_mail_drafts d ON d.id=i.draft_id
             AND d.organization_id=i.organization_id AND d.mailbox_id=i.mailbox_id
@@ -79,18 +113,33 @@ public class MailboxOutgoingQueryService {
             AND org.status='ACTIVE'
           WHERE i.id=? AND i.organization_id=? AND i.mailbox_id=?
             AND d.author_user_id=?)
-        """,Boolean.class,principal.userId(),intentId,
-        principal.organizationId(),mailboxId,principal.userId());
-    if(!Boolean.TRUE.equals(owns)) throw new NotFoundException("Outgoing message not found");
-    return jdbc.query("""
+        """,
+            Boolean.class,
+            principal.userId(),
+            intentId,
+            principal.organizationId(),
+            mailboxId,
+            principal.userId());
+    if (!Boolean.TRUE.equals(owns)) throw new NotFoundException("Outgoing message not found");
+    return jdbc.query(
+        """
         SELECT recipient_address,recipient_type,state,attempts,last_smtp_code,
           remote_status,remote_status_code
         FROM email_mail_outbound_recipients
         WHERE intent_id=? AND organization_id=? AND mailbox_id=?
         ORDER BY id LIMIT 20
-        """,(rs,row)->new Recipient(rs.getString(1),rs.getString(2),
-            rs.getString(3),rs.getInt(4),rs.getString(5),
-            rs.getString(6),rs.getString(7)),
-        intentId,principal.organizationId(),mailboxId);
+        """,
+        (rs, row) ->
+            new Recipient(
+                rs.getString(1),
+                rs.getString(2),
+                rs.getString(3),
+                rs.getInt(4),
+                rs.getString(5),
+                rs.getString(6),
+                rs.getString(7)),
+        intentId,
+        principal.organizationId(),
+        mailboxId);
   }
 }

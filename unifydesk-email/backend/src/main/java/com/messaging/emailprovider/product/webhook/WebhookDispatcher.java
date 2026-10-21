@@ -8,7 +8,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -21,12 +20,17 @@ public class WebhookDispatcher {
   private final WebhookEndpointRepository endpoints;
   private final CredentialCipher cipher;
   private final WebhookSigning signing;
-  private final HttpClient http = HttpClient.newBuilder()
-      .connectTimeout(Duration.ofSeconds(5))
-      .followRedirects(HttpClient.Redirect.NEVER).build();
+  private final HttpClient http =
+      HttpClient.newBuilder()
+          .connectTimeout(Duration.ofSeconds(5))
+          .followRedirects(HttpClient.Redirect.NEVER)
+          .build();
 
-  public WebhookDispatcher(WebhookDeliveryRepository deliveries,
-      WebhookEndpointRepository endpoints, CredentialCipher cipher, WebhookSigning signing) {
+  public WebhookDispatcher(
+      WebhookDeliveryRepository deliveries,
+      WebhookEndpointRepository endpoints,
+      CredentialCipher cipher,
+      WebhookSigning signing) {
     this.deliveries = deliveries;
     this.endpoints = endpoints;
     this.cipher = cipher;
@@ -56,22 +60,25 @@ public class WebhookDispatcher {
     try {
       // This worker is gated behind an operator-approved hostname allowlist at registration.
       String timestamp = Long.toString(Instant.now().getEpochSecond());
-      String signature = signing.sign(cipher.decrypt(endpoint.getEncryptedSecret()),
-          timestamp, job.getPayload());
-      HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint.getEndpointUrl()))
-          .timeout(Duration.ofSeconds(10))
-          .header("Content-Type", "application/json")
-          .header("X-UnifyDesk-Timestamp", timestamp)
-          .header("X-UnifyDesk-Signature", signature)
-          .header("X-UnifyDesk-Event-ID", job.getEventId().toString())
-          .POST(HttpRequest.BodyPublishers.ofString(job.getPayload(), StandardCharsets.UTF_8))
-          .build();
+      String signature =
+          signing.sign(cipher.decrypt(endpoint.getEncryptedSecret()), timestamp, job.getPayload());
+      HttpRequest request =
+          HttpRequest.newBuilder(URI.create(endpoint.getEndpointUrl()))
+              .timeout(Duration.ofSeconds(10))
+              .header("Content-Type", "application/json")
+              .header("X-UnifyDesk-Timestamp", timestamp)
+              .header("X-UnifyDesk-Signature", signature)
+              .header("X-UnifyDesk-Event-ID", job.getEventId().toString())
+              .POST(HttpRequest.BodyPublishers.ofString(job.getPayload(), StandardCharsets.UTF_8))
+              .build();
       HttpResponse<Void> response = http.send(request, HttpResponse.BodyHandlers.discarding());
       if (response.statusCode() >= 200 && response.statusCode() < 300) {
         job.setStatus("DELIVERED");
         job.setDeliveredAt(Instant.now());
-      } else if (response.statusCode() >= 400 && response.statusCode() < 500
-          && response.statusCode() != 408 && response.statusCode() != 429) {
+      } else if (response.statusCode() >= 400
+          && response.statusCode() < 500
+          && response.statusCode() != 408
+          && response.statusCode() != 429) {
         job.setStatus("FAILED");
         job.setLastError("Webhook rejected with HTTP " + response.statusCode());
       } else {

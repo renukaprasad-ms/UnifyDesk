@@ -27,9 +27,9 @@ public class MailboxProvisioningController {
   }
 
   public record NewDomain(@NotBlank @Size(max = 253) String domain) {}
+
   public record NewMailbox(
-      @NotBlank @Size(max = 64) String localPart,
-      @Size(max = 160) String displayName) {}
+      @NotBlank @Size(max = 64) String localPart, @Size(max = 160) String displayName) {}
 
   @GetMapping("/domains")
   public ApiResponse<List<MailboxProvisioningService.Domain>> domains(HttpServletRequest req) {
@@ -40,16 +40,20 @@ public class MailboxProvisioningController {
   public ResponseEntity<ApiResponse<MailboxProvisioningService.DomainChallenge>> createDomain(
       HttpServletRequest req, @Valid @RequestBody NewDomain body) {
     var principal = manager(req);
-    return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(201,
-        service.registerDomain(principal.organizationId(), body.domain()),
-        "Domain staged pending ownership verification"));
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                service.registerDomain(principal.organizationId(), body.domain()),
+                "Domain staged pending ownership verification"));
   }
 
   @PostMapping("/domains/{domainId}/challenge")
   public ApiResponse<MailboxProvisioningService.DomainChallenge> rotateChallenge(
       HttpServletRequest req, @PathVariable @Positive long domainId) {
     var principal = manager(req);
-    return ApiResponse.success(200,
+    return ApiResponse.success(
+        200,
         service.rotateChallenge(principal.organizationId(), domainId),
         "Publish the new TXT value; previous challenge is invalid");
   }
@@ -58,7 +62,8 @@ public class MailboxProvisioningController {
   public ApiResponse<MailboxProvisioningService.Domain> verifyDomain(
       HttpServletRequest req, @PathVariable @Positive long domainId) {
     var principal = manager(req);
-    return ApiResponse.success(200,
+    return ApiResponse.success(
+        200,
         service.verifyDomain(principal.organizationId(), domainId),
         "Mail domain ownership verified; inbound mail remains disabled");
   }
@@ -66,19 +71,23 @@ public class MailboxProvisioningController {
   @GetMapping("/domains/{domainId}/mailboxes")
   public ApiResponse<List<MailboxProvisioningService.Mailbox>> mailboxes(
       HttpServletRequest req, @PathVariable @Positive long domainId) {
-    return ApiResponse.success(200,
-        service.mailboxes(user(req).organizationId(), domainId), "Mailboxes");
+    return ApiResponse.success(
+        200, service.mailboxes(user(req).organizationId(), domainId), "Mailboxes");
   }
 
   @PostMapping("/domains/{domainId}/mailboxes")
   public ResponseEntity<ApiResponse<MailboxProvisioningService.Mailbox>> createMailbox(
-      HttpServletRequest req, @PathVariable @Positive long domainId,
+      HttpServletRequest req,
+      @PathVariable @Positive long domainId,
       @Valid @RequestBody NewMailbox body) {
     var principal = manager(req);
-    return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(201,
-        service.createMailbox(principal.organizationId(), domainId,
-            body.localPart(), body.displayName()),
-        "Mailbox staged disabled until verification and security QA"));
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                service.createMailbox(
+                    principal.organizationId(), domainId, body.localPart(), body.displayName()),
+                "Mailbox staged disabled until verification and security QA"));
   }
 
   private static ConsoleAuthService.Principal user(HttpServletRequest req) {

@@ -47,8 +47,7 @@ public class EmailValidationController {
 
   @PostMapping("/single")
   public ResponseEntity<ApiResponse<ValidationJobResponse>> single(
-      @PathVariable @Positive Long companyId,
-      @Valid @RequestBody SingleValidationRequest request) {
+      @PathVariable @Positive Long companyId, @Valid @RequestBody SingleValidationRequest request) {
     CreateValidationJobRequest jobRequest =
         new CreateValidationJobRequest(List.of(request.email()));
     return ResponseEntity.status(HttpStatus.ACCEPTED)

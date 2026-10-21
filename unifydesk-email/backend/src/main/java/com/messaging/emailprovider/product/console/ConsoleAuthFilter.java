@@ -26,8 +26,9 @@ public class ConsoleAuthFilter extends OncePerRequestFilter {
   }
 
   @Override
-  protected void doFilterInternal(HttpServletRequest req, HttpServletResponse resp,
-      FilterChain chain) throws IOException, ServletException {
+  protected void doFilterInternal(
+      HttpServletRequest req, HttpServletResponse resp, FilterChain chain)
+      throws IOException, ServletException {
     ConsoleAuthService.Principal principal;
     try {
       principal = auth.authenticate(req.getHeader("Authorization"));

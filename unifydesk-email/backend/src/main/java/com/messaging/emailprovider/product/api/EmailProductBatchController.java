@@ -28,8 +28,11 @@ public class EmailProductBatchController {
       @Valid @RequestBody BulkEmailRequests.NewBatch request) {
     Long projectId = EmailProductKeyFilter.require(context).projectId();
     return ResponseEntity.status(HttpStatus.ACCEPTED)
-        .body(ApiResponse.success(202, batches.submit(projectId, key, request),
-            "Batch accepted for asynchronous delivery"));
+        .body(
+            ApiResponse.success(
+                202,
+                batches.submit(projectId, key, request),
+                "Batch accepted for asynchronous delivery"));
   }
 
   @GetMapping("/{batchId}")

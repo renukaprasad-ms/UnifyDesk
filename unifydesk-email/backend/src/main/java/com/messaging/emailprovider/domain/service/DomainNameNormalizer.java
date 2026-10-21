@@ -39,10 +39,7 @@ public class DomainNameNormalizer {
 
     String[] labels = ascii.split("\\.");
     for (String label : labels) {
-      if (label.isBlank()
-          || label.length() > 63
-          || label.startsWith("-")
-          || label.endsWith("-")) {
+      if (label.isBlank() || label.length() > 63 || label.startsWith("-") || label.endsWith("-")) {
         throw new BadRequestException("Invalid domain");
       }
     }

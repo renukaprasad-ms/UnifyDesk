@@ -49,11 +49,15 @@ class MimeMessageBuilderTests {
     message.setTextBody("Hello");
     message.setMarketing(true);
     EmailRecipient recipient = recipient(22L, "a@example.net", EmailRecipientType.BCC);
-    var signer = new UnsubscribeTokenService(
-        "long-testing-only-signature-key-of-32-plus-characters",
-        "https://api.email.unifydesk.in");
-    String source = new String(new MimeMessageBuilder(signer).build(message,
-        recipient, List.of(recipient), "example.com"), StandardCharsets.ISO_8859_1);
+    var signer =
+        new UnsubscribeTokenService(
+            "long-testing-only-signature-key-of-32-plus-characters",
+            "https://api.email.unifydesk.in");
+    String source =
+        new String(
+            new MimeMessageBuilder(signer)
+                .build(message, recipient, List.of(recipient), "example.com"),
+            StandardCharsets.ISO_8859_1);
     assertTrue(source.contains("List-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n"));
     assertTrue(source.contains("List-Unsubscribe: <https://api.email.unifydesk.in/"));
     assertTrue(source.contains("Message-ID: <101.22@example.com>"));

@@ -12,8 +12,7 @@ public class FeedbackAuthenticator {
 
   private final String configuredToken;
 
-  public FeedbackAuthenticator(
-      @Value("${app.feedback.token:}") String configuredToken) {
+  public FeedbackAuthenticator(@Value("${app.feedback.token:}") String configuredToken) {
     this.configuredToken = configuredToken;
   }
 

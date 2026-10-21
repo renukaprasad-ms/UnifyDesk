@@ -21,7 +21,11 @@ public class RspamdSpamScanner {
   private final URI url;
   private final JsonMapper json;
 
-  public enum Decision { INBOX, SPAM, QUARANTINE }
+  public enum Decision {
+    INBOX,
+    SPAM,
+    QUARANTINE
+  }
 
   public RspamdSpamScanner(
       @Value("${app.mail.scanner.rspamd-url:http://127.0.0.1:11333/checkv2}") String target,
@@ -29,7 +33,8 @@ public class RspamdSpamScanner {
     this.url = URI.create(target);
     if (!"http".equals(url.getScheme())
         || !"/checkv2".equals(url.getPath())
-        || url.getQuery() != null || url.getUserInfo() != null
+        || url.getQuery() != null
+        || url.getUserInfo() != null
         || !("127.0.0.1".equals(url.getHost()) || "localhost".equals(url.getHost()))) {
       throw new IllegalStateException("Rspamd must be on a private loopback-only listener");
     }
@@ -37,21 +42,24 @@ public class RspamdSpamScanner {
   }
 
   static Decision classify(JsonNode node) {
-    if (node == null || !node.isObject()
-        || node.path("is_skipped").asBoolean(false)) {
+    if (node == null || !node.isObject() || node.path("is_skipped").asBoolean(false)) {
       throw new ServiceUnavailableException("Spam scan was skipped");
     }
     JsonNode actionNode = node.get("action");
     JsonNode score = node.get("score");
     JsonNode threshold = node.get("required_score");
-    if (actionNode == null || !actionNode.isTextual()
-        || score == null || !score.isNumber()
-        || threshold == null || !threshold.isNumber()) {
+    if (actionNode == null
+        || !actionNode.isTextual()
+        || score == null
+        || !score.isNumber()
+        || threshold == null
+        || !threshold.isNumber()) {
       throw new ServiceUnavailableException("Incomplete spam scan result");
     }
     String action = actionNode.asText();
     if ("reject".equals(action) || "discard".equals(action)) return Decision.QUARANTINE;
-    if ("add header".equals(action) || "rewrite subject".equals(action)
+    if ("add header".equals(action)
+        || "rewrite subject".equals(action)
         || score.doubleValue() >= threshold.doubleValue()) return Decision.SPAM;
     if ("no action".equals(action) && score.doubleValue() < threshold.doubleValue()) {
       return Decision.INBOX;
@@ -60,7 +68,9 @@ public class RspamdSpamScanner {
   }
 
   public Decision scan(InputStream mime, long bytes, String expectedSha256) {
-    if (bytes < 1 || bytes > 10485760L || expectedSha256 == null
+    if (bytes < 1
+        || bytes > 10485760L
+        || expectedSha256 == null
         || !expectedSha256.matches("[0-9a-f]{64}")) {
       throw new ServiceUnavailableException("Invalid MIME integrity metadata for spam scan");
     }

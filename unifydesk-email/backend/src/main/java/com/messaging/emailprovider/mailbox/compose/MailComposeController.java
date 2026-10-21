@@ -26,79 +26,103 @@ public class MailComposeController {
   private final MailComposeService compose;
 
   public MailComposeController(MailComposeService compose) {
-    this.compose=compose;
+    this.compose = compose;
   }
 
   public record DraftRequest(
-      @Size(max=20) List<String> to,
-      @Size(max=20) List<String> cc,
-      @Size(max=20) List<String> bcc,
-      @Size(max=998) String subject,
-      @Size(max=65536) String bodyText,
+      @Size(max = 20) List<String> to,
+      @Size(max = 20) List<String> cc,
+      @Size(max = 20) List<String> bcc,
+      @Size(max = 998) String subject,
+      @Size(max = 65536) String bodyText,
       String replyToMessageId) {
     MailComposeService.DraftInput toInput() {
-      return new MailComposeService.DraftInput(to,cc,bcc,subject,bodyText,replyToMessageId);
+      return new MailComposeService.DraftInput(to, cc, bcc, subject, bodyText, replyToMessageId);
     }
   }
 
-  public record UpdateRequest(@NotNull @Positive Long revision,
-      @NotNull @Valid DraftRequest draft) {}
+  public record UpdateRequest(
+      @NotNull @Positive Long revision, @NotNull @Valid DraftRequest draft) {}
 
   @PostMapping
   public ResponseEntity<ApiResponse<MailComposeService.Draft>> create(
-      HttpServletRequest context,@PathVariable @Positive long mailboxId,
+      HttpServletRequest context,
+      @PathVariable @Positive long mailboxId,
       @Valid @RequestBody DraftRequest body) {
-    return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore())
-        .body(ApiResponse.success(201,
-            compose.create(principal(context),mailboxId,body.toInput()),
-            "Draft saved; no email was sent"));
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .cacheControl(CacheControl.noStore())
+        .body(
+            ApiResponse.success(
+                201,
+                compose.create(principal(context), mailboxId, body.toInput()),
+                "Draft saved; no email was sent"));
   }
 
   @GetMapping
   public ResponseEntity<ApiResponse<List<MailComposeService.DraftSummary>>> list(
-      HttpServletRequest context,@PathVariable @Positive long mailboxId) {
-    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-        .body(ApiResponse.success(200,compose.list(principal(context),mailboxId),
-            "Your drafts"));
+      HttpServletRequest context, @PathVariable @Positive long mailboxId) {
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.noStore())
+        .body(ApiResponse.success(200, compose.list(principal(context), mailboxId), "Your drafts"));
   }
 
   @GetMapping("/{draftId}")
   public ResponseEntity<ApiResponse<MailComposeService.Draft>> get(
-      HttpServletRequest context,@PathVariable @Positive long mailboxId,
+      HttpServletRequest context,
+      @PathVariable @Positive long mailboxId,
       @PathVariable @Positive long draftId) {
-    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-        .body(ApiResponse.success(200,compose.get(principal(context),mailboxId,draftId),
-            "Draft details"));
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.noStore())
+        .body(
+            ApiResponse.success(
+                200, compose.get(principal(context), mailboxId, draftId), "Draft details"));
   }
 
   @PutMapping("/{draftId}")
   public ResponseEntity<ApiResponse<MailComposeService.Draft>> update(
-      HttpServletRequest context,@PathVariable @Positive long mailboxId,
-      @PathVariable @Positive long draftId,@Valid @RequestBody UpdateRequest body) {
-    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-        .body(ApiResponse.success(200,compose.update(principal(context),mailboxId,
-            draftId,body.revision(),body.draft().toInput()),"Draft saved"));
+      HttpServletRequest context,
+      @PathVariable @Positive long mailboxId,
+      @PathVariable @Positive long draftId,
+      @Valid @RequestBody UpdateRequest body) {
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.noStore())
+        .body(
+            ApiResponse.success(
+                200,
+                compose.update(
+                    principal(context),
+                    mailboxId,
+                    draftId,
+                    body.revision(),
+                    body.draft().toInput()),
+                "Draft saved"));
   }
 
   @DeleteMapping("/{draftId}")
   public ResponseEntity<ApiResponse<Void>> delete(
-      HttpServletRequest context,@PathVariable @Positive long mailboxId,
+      HttpServletRequest context,
+      @PathVariable @Positive long mailboxId,
       @PathVariable @Positive long draftId) {
-    compose.delete(principal(context),mailboxId,draftId);
-    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-        .body(ApiResponse.success(200,"Draft deleted"));
+    compose.delete(principal(context), mailboxId, draftId);
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.noStore())
+        .body(ApiResponse.success(200, "Draft deleted"));
   }
 
   @PostMapping("/{draftId}/hold")
   public ResponseEntity<ApiResponse<MailComposeService.HeldSubmission>> hold(
-      HttpServletRequest context,@PathVariable @Positive long mailboxId,
+      HttpServletRequest context,
+      @PathVariable @Positive long mailboxId,
       @PathVariable @Positive long draftId,
-      @RequestHeader(value="Idempotency-Key",required=false) String key) {
-    if(key==null || key.isBlank()) throw new BadRequestException("Idempotency-Key required");
-    return ResponseEntity.status(HttpStatus.ACCEPTED).cacheControl(CacheControl.noStore())
-        .body(ApiResponse.success(202,
-            compose.hold(principal(context),mailboxId,draftId,key),
-            "Held for future transport: email has NOT been sent"));
+      @RequestHeader(value = "Idempotency-Key", required = false) String key) {
+    if (key == null || key.isBlank()) throw new BadRequestException("Idempotency-Key required");
+    return ResponseEntity.status(HttpStatus.ACCEPTED)
+        .cacheControl(CacheControl.noStore())
+        .body(
+            ApiResponse.success(
+                202,
+                compose.hold(principal(context), mailboxId, draftId, key),
+                "Held for future transport: email has NOT been sent"));
   }
 
   private static ConsoleAuthService.Principal principal(HttpServletRequest context) {

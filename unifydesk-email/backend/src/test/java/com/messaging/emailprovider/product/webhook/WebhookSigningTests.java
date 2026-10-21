@@ -1,10 +1,12 @@
 package com.messaging.emailprovider.product.webhook;
 
 import static org.junit.jupiter.api.Assertions.*;
+
 import org.junit.jupiter.api.Test;
 
 class WebhookSigningTests {
   private final WebhookSigning signer = new WebhookSigning();
+
   @Test
   void signsTimestampAndPayloadAndInvalidatesTampering() {
     String valid = signer.sign("secret", "1760000000", "{\"status\":\"DELIVERED\"}");

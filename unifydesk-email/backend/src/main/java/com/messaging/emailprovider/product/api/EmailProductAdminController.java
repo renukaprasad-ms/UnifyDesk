@@ -37,16 +37,20 @@ public class EmailProductAdminController {
   public ApiResponse<ProductResponses.Organization> organizationStatus(
       @PathVariable @Positive Long organizationId,
       @Valid @RequestBody ProductRequests.StatusSwitch request) {
-    return ApiResponse.success(200,
+    return ApiResponse.success(
+        200,
         admin.updateOrganizationStatus(organizationId, request.status()),
         "Organization status updated");
   }
 
   @PostMapping("/organizations/{organizationId}/projects")
   public ResponseEntity<ApiResponse<ProductResponses.Project>> project(
-      @PathVariable @Positive Long organizationId, @Valid @RequestBody ProductRequests.NewProject request) {
+      @PathVariable @Positive Long organizationId,
+      @Valid @RequestBody ProductRequests.NewProject request) {
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ApiResponse.success(201, admin.createProject(organizationId, request), "Project created"));
+        .body(
+            ApiResponse.success(
+                201, admin.createProject(organizationId, request), "Project created"));
   }
 
   @GetMapping("/organizations/{organizationId}/projects")
@@ -56,8 +60,7 @@ public class EmailProductAdminController {
   }
 
   @GetMapping("/projects/{projectId}")
-  public ApiResponse<ProductResponses.Project> project(
-      @PathVariable @Positive Long projectId) {
+  public ApiResponse<ProductResponses.Project> project(@PathVariable @Positive Long projectId) {
     return ApiResponse.success(200, admin.project(projectId), "Project");
   }
 
@@ -65,16 +68,17 @@ public class EmailProductAdminController {
   public ApiResponse<ProductResponses.Project> projectStatus(
       @PathVariable @Positive Long projectId,
       @Valid @RequestBody ProductRequests.StatusSwitch request) {
-    return ApiResponse.success(200, admin.updateProjectStatus(projectId, request.status()),
-        "Project status updated");
+    return ApiResponse.success(
+        200, admin.updateProjectStatus(projectId, request.status()), "Project status updated");
   }
 
   @PostMapping("/projects/{projectId}/keys")
   public ResponseEntity<ApiResponse<ProductResponses.IssuedKey>> issueKey(
       @PathVariable @Positive Long projectId, @Valid @RequestBody ProductRequests.NewKey request) {
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ApiResponse.success(201, admin.issue(projectId, request),
-            "Secret returned once; store it securely"));
+        .body(
+            ApiResponse.success(
+                201, admin.issue(projectId, request), "Secret returned once; store it securely"));
   }
 
   @GetMapping("/projects/{projectId}/keys")
@@ -83,8 +87,8 @@ public class EmailProductAdminController {
   }
 
   @DeleteMapping("/projects/{projectId}/keys/{keyId}")
-  public ApiResponse<Void> revoke(@PathVariable @Positive Long projectId,
-                                  @PathVariable @Positive Long keyId) {
+  public ApiResponse<Void> revoke(
+      @PathVariable @Positive Long projectId, @PathVariable @Positive Long keyId) {
     admin.revoke(projectId, keyId);
     return ApiResponse.success(200, "API key revoked");
   }
@@ -93,7 +97,7 @@ public class EmailProductAdminController {
   public ApiResponse<ProductResponses.Project> sending(
       @PathVariable @Positive Long projectId,
       @Valid @RequestBody ProductRequests.SendingSwitch request) {
-    return ApiResponse.success(200, admin.setSending(projectId, request.enabled()),
-        "Project sending setting updated");
+    return ApiResponse.success(
+        200, admin.setSending(projectId, request.enabled()), "Project sending setting updated");
   }
 }

@@ -83,7 +83,8 @@ public class EmailDeliveryWorkerService {
 
     // Independent product projects are not allowed to dispatch while disabled/suspended.
     if (!productDeliveryGate.permitted(message.getCompanyId())) {
-      recipientRepository.deferForProductPause(messageId, Instant.now().plusSeconds(3600), Instant.now());
+      recipientRepository.deferForProductPause(
+          messageId, Instant.now().plusSeconds(3600), Instant.now());
       messageState.refresh(messageId);
       return;
     }
@@ -127,7 +128,8 @@ public class EmailDeliveryWorkerService {
       }
 
       Instant startedAt = Instant.now();
-      if (suppressionService.isSuppressed(message.getCompanyId(), recipient.getRecipientAddress())) {
+      if (suppressionService.isSuppressed(
+          message.getCompanyId(), recipient.getRecipientAddress())) {
         recipientState.suppressed(recipient, startedAt);
         continue;
       }
@@ -136,7 +138,8 @@ public class EmailDeliveryWorkerService {
       if (!sendingRateLimiter.permit(message.getCompanyId(), domain.getId())) {
         recipientState.deferred(
             recipient,
-            new SmtpDeliveryResult(SmtpDeliveryOutcome.DEFERRED, null, "Sending rate limit reached or unavailable"),
+            new SmtpDeliveryResult(
+                SmtpDeliveryOutcome.DEFERRED, null, "Sending rate limit reached or unavailable"),
             startedAt,
             maxAttempts,
             initialRetrySeconds,
@@ -147,8 +150,7 @@ public class EmailDeliveryWorkerService {
       final byte[] signed;
       try {
         byte[] raw = mimeBuilder.build(message, recipient, allRecipients, domain.getDomainName());
-        signed =
-            dkimSigner.sign(raw, domain.getDomainName(), dkimKey.getSelector(), privateKey);
+        signed = dkimSigner.sign(raw, domain.getDomainName(), dkimKey.getSelector(), privateKey);
       } catch (RuntimeException exception) {
         recipientState.deferred(
             recipient,
@@ -178,12 +180,7 @@ public class EmailDeliveryWorkerService {
         recipientState.unknown(recipient, result, startedAt);
       } else if (result.outcome() == SmtpDeliveryOutcome.DEFERRED) {
         recipientState.deferred(
-            recipient,
-            result,
-            startedAt,
-            maxAttempts,
-            initialRetrySeconds,
-            maxRetrySeconds);
+            recipient, result, startedAt, maxAttempts, initialRetrySeconds, maxRetrySeconds);
       } else {
         recipientState.failed(recipient, result, startedAt);
       }
@@ -197,12 +194,7 @@ public class EmailDeliveryWorkerService {
       EmailRecipient recipient = recipientState.claim(recipientId);
       if (recipient != null) {
         recipientState.deferred(
-            recipient,
-            result,
-            Instant.now(),
-            maxAttempts,
-            initialRetrySeconds,
-            maxRetrySeconds);
+            recipient, result, Instant.now(), maxAttempts, initialRetrySeconds, maxRetrySeconds);
       }
     }
   }

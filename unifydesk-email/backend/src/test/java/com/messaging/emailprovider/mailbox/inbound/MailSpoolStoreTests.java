@@ -7,20 +7,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.messaging.emailprovider.common.exception.BadRequestException;
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 class MailSpoolStoreTests {
   @TempDir Path persistent;
 
   @Test
+  @EnabledOnOs(value = OS.LINUX, disabledReason = "Durable spool requires Linux directory fsync")
   void streamsMIMEToDurableObjectAndDeletesDuplicates() throws Exception {
     MailSpoolStore store = new MailSpoolStore(persistent.toString(), 4096);
-    byte[] mime = "From: a@example.com\r\nTo: b@example.com\r\n\r\nhello"
-        .getBytes(StandardCharsets.US_ASCII);
+    byte[] mime =
+        "From: a@example.com\r\nTo: b@example.com\r\n\r\nhello".getBytes(StandardCharsets.US_ASCII);
     MailSpoolStore.Stored file = store.write(new ByteArrayInputStream(mime));
     assertEquals(mime.length, file.bytes());
     assertEquals(64, file.sha256().length());
@@ -32,10 +35,10 @@ class MailSpoolStoreTests {
   @Test
   void rejectsOversizedAndEmptyStreamsWithoutLeavingPartialFiles() throws Exception {
     MailSpoolStore store = new MailSpoolStore(persistent.toString(), 4);
-    assertThrows(BadRequestException.class,
-        () -> store.write(new ByteArrayInputStream(new byte[5])));
-    assertThrows(BadRequestException.class,
-        () -> store.write(new ByteArrayInputStream(new byte[0])));
+    assertThrows(
+        BadRequestException.class, () -> store.write(new ByteArrayInputStream(new byte[5])));
+    assertThrows(
+        BadRequestException.class, () -> store.write(new ByteArrayInputStream(new byte[0])));
     try (var files = Files.list(persistent)) {
       assertEquals(0, files.count());
     }

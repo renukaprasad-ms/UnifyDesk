@@ -23,9 +23,12 @@ public class ConsoleAuthService {
   private final PasswordHasher passwords;
   private final StringRedisTemplate redis;
 
-  public ConsoleAuthService(ConsoleUserRepository users,
-      ConsoleInvitationRepository invitations, ConsoleSessionRepository sessions,
-      EmailOrganizationRepository organizations, PasswordHasher passwords,
+  public ConsoleAuthService(
+      ConsoleUserRepository users,
+      ConsoleInvitationRepository invitations,
+      ConsoleSessionRepository sessions,
+      EmailOrganizationRepository organizations,
+      PasswordHasher passwords,
       StringRedisTemplate redis) {
     this.users = users;
     this.invitations = invitations;
@@ -36,10 +39,17 @@ public class ConsoleAuthService {
   }
 
   public record Invite(String userId, String invitationToken, Instant expiresAt) {}
-  public record Login(String sessionToken, Instant expiresAt, String userId,
-                      String organizationId, String role, String email) {}
-  public record Principal(Long userId, Long organizationId, ConsoleRole role,
-                          String email, Long sessionId) {}
+
+  public record Login(
+      String sessionToken,
+      Instant expiresAt,
+      String userId,
+      String organizationId,
+      String role,
+      String email) {}
+
+  public record Principal(
+      Long userId, Long organizationId, ConsoleRole role, String email, Long sessionId) {}
 
   @Transactional
   public Invite invite(Long organizationId, String email, String displayName, ConsoleRole role) {
@@ -47,8 +57,11 @@ public class ConsoleAuthService {
       throw new NotFoundException("Email organization not found");
     }
     String normalized = normalize(email);
-    if (normalized.length() > 320 || displayName == null || displayName.isBlank()
-        || displayName.length() > 120 || role == null) {
+    if (normalized.length() > 320
+        || displayName == null
+        || displayName.isBlank()
+        || displayName.length() > 120
+        || role == null) {
       throw new BadRequestException("Invalid invitation");
     }
     ConsoleUser user = users.findByOrganizationIdAndEmail(organizationId, normalized).orElse(null);
@@ -78,14 +91,17 @@ public class ConsoleAuthService {
     if (invitationToken == null || !invitationToken.startsWith("ude_inv_")) {
       throw new BadRequestException("Invalid invitation");
     }
-    ConsoleInvitation invitation = invitations
-        .findByTokenHash(ApiKeyCrypto.hash(invitationToken)).orElse(null);
-    if (invitation == null || invitation.getAcceptedAt() != null
+    ConsoleInvitation invitation =
+        invitations.findByTokenHash(ApiKeyCrypto.hash(invitationToken)).orElse(null);
+    if (invitation == null
+        || invitation.getAcceptedAt() != null
         || !invitation.getExpiresAt().isAfter(Instant.now())) {
       throw new BadRequestException("Invitation expired or already used");
     }
-    ConsoleUser user = users.findById(invitation.getUserId())
-        .orElseThrow(() -> new NotFoundException("Account not found"));
+    ConsoleUser user =
+        users
+            .findById(invitation.getUserId())
+            .orElseThrow(() -> new NotFoundException("Account not found"));
     if (!"PENDING".equals(user.getStatus())) {
       throw new BadRequestException("Account already activated");
     }
@@ -101,7 +117,8 @@ public class ConsoleAuthService {
     String normalized = normalize(email);
     limitLogin(organizationId, normalized, address);
     ConsoleUser user = users.findByOrganizationIdAndEmail(organizationId, normalized).orElse(null);
-    if (user == null || !"ACTIVE".equals(user.getStatus())
+    if (user == null
+        || !"ACTIVE".equals(user.getStatus())
         || !passwords.verify(password, user.getPasswordHash())) {
       throw new BadRequestException("Invalid email or password");
     }
@@ -115,37 +132,45 @@ public class ConsoleAuthService {
     session.setTokenHash(ApiKeyCrypto.hash(token));
     session.setExpiresAt(Instant.now().plus(Duration.ofHours(8)));
     sessions.save(session);
-    return new Login(token, session.getExpiresAt(), user.getId().toString(),
-        organizationId.toString(), user.getRole().name(), user.getEmail());
+    return new Login(
+        token,
+        session.getExpiresAt(),
+        user.getId().toString(),
+        organizationId.toString(),
+        user.getRole().name(),
+        user.getEmail());
   }
 
   @Transactional(readOnly = true)
   public Principal authenticate(String bearer) {
-    if (bearer == null || !bearer.startsWith("Bearer ude_session_")
-        || bearer.length() > 160) return null;
+    if (bearer == null || !bearer.startsWith("Bearer ude_session_") || bearer.length() > 160)
+      return null;
     String hash = ApiKeyCrypto.hash(bearer.substring(7));
     ConsoleSession session = sessions.findByTokenHash(hash).orElse(null);
-    if (session == null || session.getRevokedAt() != null
+    if (session == null
+        || session.getRevokedAt() != null
         || !session.getExpiresAt().isAfter(Instant.now())) return null;
     ConsoleUser user = users.findById(session.getUserId()).orElse(null);
     if (user == null || !"ACTIVE".equals(user.getStatus())) return null;
     EmailOrganization org = organizations.findById(user.getOrganizationId()).orElse(null);
     if (org == null || !"ACTIVE".equals(org.getStatus())) return null;
-    return new Principal(user.getId(), org.getId(), user.getRole(),
-        user.getEmail(), session.getId());
+    return new Principal(
+        user.getId(), org.getId(), user.getRole(), user.getEmail(), session.getId());
   }
 
   @Transactional
   public void logout(Principal user) {
-    sessions.findById(user.sessionId()).ifPresent(session -> {
-      session.setRevokedAt(Instant.now());
-      sessions.save(session);
-    });
+    sessions
+        .findById(user.sessionId())
+        .ifPresent(
+            session -> {
+              session.setRevokedAt(Instant.now());
+              sessions.save(session);
+            });
   }
 
   private void limitLogin(Long orgId, String email, String address) {
-    String key = "ud:email:console:login:" + orgId + ":"
-        + ApiKeyCrypto.hash(email + "|" + address);
+    String key = "ud:email:console:login:" + orgId + ":" + ApiKeyCrypto.hash(email + "|" + address);
     try {
       Long count = redis.opsForValue().increment(key);
       if (count == null) throw new IllegalStateException("Redis rejected increment");

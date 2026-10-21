@@ -14,6 +14,8 @@ are still outstanding. This is **not** generally available.
 See [product boundary](docs/PRODUCT_BOUNDARY.md) and
 [working API contracts](docs/PRODUCT_API_R1.md) for current implementation and release gates.
 
+For hosted-mail development, follow the [ordered Mail work queue](docs/MAIL_WORK_QUEUE.md).
+
 ## Backend and frontend structure
 
 - `backend/` — all Java 25 / Spring Boot 4, Maven wrapper, SQL migrations, tests and backend Dockerfile.

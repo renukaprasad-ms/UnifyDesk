@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 
 /** Dedicated local Postfix submission instance, NOT marketing/bulk SMTP. */
 @Component
-@ConditionalOnProperty(prefix="app.mail.outbound",name="enabled",havingValue="true")
+@ConditionalOnProperty(prefix = "app.mail.outbound", name = "enabled", havingValue = "true")
 public class MailboxSmtpRelay {
   private final PostfixSmtpClient smtp;
 
@@ -20,22 +20,26 @@ public class MailboxSmtpRelay {
     if (!"127.0.0.1".equals(host) && !"localhost".equals(host) && !"::1".equals(host)) {
       throw new IllegalStateException("Mailbox SMTP must use a local private relay");
     }
-    if(port<=0 || port>65535 || port==bulkPort) {
+    if (port <= 0 || port > 65535 || port == bulkPort) {
       throw new IllegalStateException("Mailbox SMTP requires a separate local relay port");
     }
-    if(ehlo==null || !ehlo.matches("[a-zA-Z0-9.-]{3,253}") || !ehlo.contains(".")
-        || ehlo.endsWith(".") || ehlo.contains("..")) {
+    if (ehlo == null
+        || !ehlo.matches("[a-zA-Z0-9.-]{3,253}")
+        || !ehlo.contains(".")
+        || ehlo.endsWith(".")
+        || ehlo.contains("..")) {
       throw new IllegalStateException("A valid mailbox EHLO host is required");
     }
-    smtp=new PostfixSmtpClient(host,port,5000,10000,ehlo);
+    smtp = new PostfixSmtpClient(host, port, 5000, 10000, ehlo);
   }
 
-  public SmtpDeliveryResult submit(String sender,String recipient,byte[] dkimSignedMime) {
-    if(sender==null || recipient==null
+  public SmtpDeliveryResult submit(String sender, String recipient, byte[] dkimSignedMime) {
+    if (sender == null
+        || recipient == null
         || !sender.matches("[a-z0-9][a-z0-9._%+-]{0,63}@[a-z0-9-]+(\\.[a-z0-9-]+)+")
         || !recipient.matches("[a-z0-9][a-z0-9._%+-]{0,63}@[a-z0-9-]+(\\.[a-z0-9-]+)+")) {
       throw new IllegalArgumentException("Invalid outgoing SMTP envelope");
     }
-    return smtp.handoff(sender,recipient,dkimSignedMime);
+    return smtp.handoff(sender, recipient, dkimSignedMime);
   }
 }

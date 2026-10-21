@@ -19,10 +19,16 @@ public record SendEmailRequest(
     String html,
     boolean marketing,
     @Size(max = 128) String consentReference) {
-  public SendEmailRequest(Long sendingDomainId, String from, String replyTo,
-      List<String> to, List<String> cc, List<String> bcc, String subject,
-      String text, String html) {
-    this(sendingDomainId, from, replyTo, to, cc, bcc, subject, text, html,
-        false, null);
+  public SendEmailRequest(
+      Long sendingDomainId,
+      String from,
+      String replyTo,
+      List<String> to,
+      List<String> cc,
+      List<String> bcc,
+      String subject,
+      String text,
+      String html) {
+    this(sendingDomainId, from, replyTo, to, cc, bcc, subject, text, html, false, null);
   }
 }

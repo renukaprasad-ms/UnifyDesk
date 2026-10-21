@@ -18,7 +18,8 @@ public class EmailProjectApiKeyService {
   private final EmailOrganizationRepository organizations;
 
   public EmailProjectApiKeyService(
-      EmailApiKeyRepository keys, EmailProjectRepository projects,
+      EmailApiKeyRepository keys,
+      EmailProjectRepository projects,
       EmailOrganizationRepository organizations) {
     this.keys = keys;
     this.projects = projects;
@@ -36,20 +37,21 @@ public class EmailProjectApiKeyService {
     if (lookupPrefix.length() != 12 || secret.length() - separator - 1 < 40) return null;
 
     EmailApiKey key = keys.findByLookupPrefix(lookupPrefix).orElse(null);
-    if (key == null || key.getRevokedAt() != null
+    if (key == null
+        || key.getRevokedAt() != null
         || (key.getExpiresAt() != null && !key.getExpiresAt().isAfter(Instant.now()))
         || !ApiKeyCrypto.matches(secret, key.getSecretHash())) {
       return null;
     }
-    boolean allowed = java.util.Arrays.stream(key.getScopes().split(","))
-        .anyMatch(s -> s.equals(scope.name()));
+    boolean allowed =
+        java.util.Arrays.stream(key.getScopes().split(",")).anyMatch(s -> s.equals(scope.name()));
     if (!allowed) return null;
 
     EmailProject project = projects.findById(key.getProjectId()).orElse(null);
     if (project == null || !"ACTIVE".equals(project.getStatus())) return null;
     EmailOrganization org = organizations.findById(project.getOrganizationId()).orElse(null);
     if (org == null || !"ACTIVE".equals(org.getStatus())) return null;
-    return new AuthenticatedProject(project.getId(), org.getId(), key.getId(),
-        project.isSendingEnabled());
+    return new AuthenticatedProject(
+        project.getId(), org.getId(), key.getId(), project.isSendingEnabled());
   }
 }

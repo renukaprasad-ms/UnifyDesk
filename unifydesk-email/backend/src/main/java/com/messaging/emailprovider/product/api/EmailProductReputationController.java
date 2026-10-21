@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/v1/reputation")
 public class EmailProductReputationController {
   private final ReputationQueryService reputation;
+
   public EmailProductReputationController(ReputationQueryService reputation) {
     this.reputation = reputation;
   }
@@ -26,14 +27,12 @@ public class EmailProductReputationController {
   public ApiResponse<List<ReputationDailyResponse>> get(
       HttpServletRequest context,
       @RequestParam(required = false) @Positive Long sendingDomainId,
-      @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-      @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
     Long projectId = EmailProductKeyFilter.require(context).projectId();
     LocalDate last = to == null ? LocalDate.now(ZoneOffset.UTC) : to;
     LocalDate first = from == null ? last.minusDays(29) : from;
-    return ApiResponse.success(200, reputation.query(projectId, sendingDomainId, first, last),
-        "Project reputation");
+    return ApiResponse.success(
+        200, reputation.query(projectId, sendingDomainId, first, last), "Project reputation");
   }
 }

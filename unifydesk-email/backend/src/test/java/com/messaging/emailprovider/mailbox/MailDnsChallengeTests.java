@@ -12,17 +12,17 @@ class MailDnsChallengeTests {
   void acceptsExactDnsProofIncludingQuotedTxt() {
     String token = ApiKeyCrypto.random(32);
     String hash = ApiKeyCrypto.hash(token);
-    assertTrue(MailboxProvisioningService.matchesChallenge(
-        Set.of("\"ud-mail-verification=" + token + "\""), hash));
-    assertFalse(MailboxProvisioningService.matchesChallenge(
-        Set.of("ud-mail-verification=" + ApiKeyCrypto.random(32)), hash));
-    assertFalse(MailboxProvisioningService.matchesChallenge(
-        Set.of("other-key=" + token), hash));
+    assertTrue(
+        MailboxProvisioningService.matchesChallenge(
+            Set.of("\"ud-mail-verification=" + token + "\""), hash));
+    assertFalse(
+        MailboxProvisioningService.matchesChallenge(
+            Set.of("ud-mail-verification=" + ApiKeyCrypto.random(32)), hash));
+    assertFalse(MailboxProvisioningService.matchesChallenge(Set.of("other-key=" + token), hash));
   }
 
   @Test
   void rejectsAbsentProof() {
-    assertFalse(MailboxProvisioningService.matchesChallenge(
-        Set.of(), ApiKeyCrypto.hash("secret")));
+    assertFalse(MailboxProvisioningService.matchesChallenge(Set.of(), ApiKeyCrypto.hash("secret")));
   }
 }

@@ -1,7 +1,5 @@
 package com.messaging.emailprovider.product.service;
 
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.json.JsonMapper;
 import com.messaging.emailprovider.common.exception.BadRequestException;
 import com.messaging.emailprovider.common.exception.ConflictException;
 import com.messaging.emailprovider.common.exception.NotFoundException;
@@ -22,6 +20,8 @@ import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 @Service
 public class EmailBatchService {
@@ -32,9 +32,12 @@ public class EmailBatchService {
   private final JsonMapper mapper;
   private final ProductAdmissionQuota quota;
 
-  public EmailBatchService(EmailBatchRepository batches, EmailBatchChunkRepository chunks,
-                           EmailMessageService emails, JsonMapper mapper,
-                           ProductAdmissionQuota quota) {
+  public EmailBatchService(
+      EmailBatchRepository batches,
+      EmailBatchChunkRepository chunks,
+      EmailMessageService emails,
+      JsonMapper mapper,
+      ProductAdmissionQuota quota) {
     this.batches = batches;
     this.chunks = chunks;
     this.emails = emails;
@@ -45,8 +48,7 @@ public class EmailBatchService {
   @Transactional
   public BulkEmailResponses.Batch submit(
       Long projectId, String idempotencyKey, BulkEmailRequests.NewBatch request) {
-    if (idempotencyKey == null || idempotencyKey.isBlank()
-        || idempotencyKey.length() > 128) {
+    if (idempotencyKey == null || idempotencyKey.isBlank() || idempotencyKey.length() > 128) {
       throw new BadRequestException("Valid Idempotency-Key (1-128 chars) is required");
     }
     String key = idempotencyKey.trim();
@@ -60,8 +62,8 @@ public class EmailBatchService {
       return describe(projectId, replay.get(), true);
     }
 
-    List<String> addresses = request.recipients().stream()
-        .map(s -> s.trim().toLowerCase(Locale.ROOT)).toList();
+    List<String> addresses =
+        request.recipients().stream().map(s -> s.trim().toLowerCase(Locale.ROOT)).toList();
     if (new LinkedHashSet<>(addresses).size() != addresses.size()) {
       throw new BadRequestException("Bulk recipients must be unique");
     }
@@ -80,13 +82,21 @@ public class EmailBatchService {
 
     for (int offset = 0; offset < addresses.size(); offset += CHUNK_SIZE) {
       int number = offset / CHUNK_SIZE;
-      var payload = new SendEmailRequest(
-          request.sendingDomainId(), request.from(), request.replyTo(),
-          List.of(), List.of(),
-          addresses.subList(offset, Math.min(offset + CHUNK_SIZE, addresses.size())),
-          request.subject(), request.text(), request.html(), true, request.consentReference());
-      EmailAcceptedResponse result = emails.accept(
-          projectId, "email-batch:" + batch.getId() + ":" + number, payload);
+      var payload =
+          new SendEmailRequest(
+              request.sendingDomainId(),
+              request.from(),
+              request.replyTo(),
+              List.of(),
+              List.of(),
+              addresses.subList(offset, Math.min(offset + CHUNK_SIZE, addresses.size())),
+              request.subject(),
+              request.text(),
+              request.html(),
+              true,
+              request.consentReference());
+      EmailAcceptedResponse result =
+          emails.accept(projectId, "email-batch:" + batch.getId() + ":" + number, payload);
       EmailBatchChunk chunk = new EmailBatchChunk();
       chunk.setBatchId(batch.getId());
       chunk.setChunkNumber(number);
@@ -102,8 +112,10 @@ public class EmailBatchService {
 
   @Transactional(readOnly = true)
   public BulkEmailResponses.Batch get(Long projectId, Long batchId) {
-    EmailBatch batch = batches.findByIdAndProjectId(batchId, projectId)
-        .orElseThrow(() -> new NotFoundException("Email batch not found"));
+    EmailBatch batch =
+        batches
+            .findByIdAndProjectId(batchId, projectId)
+            .orElseThrow(() -> new NotFoundException("Email batch not found"));
     return describe(projectId, batch, false);
   }
 
@@ -111,17 +123,24 @@ public class EmailBatchService {
     List<BulkEmailResponses.Chunk> statuses = new ArrayList<>();
     for (EmailBatchChunk chunk : chunks.findAllByBatchIdOrderByChunkNumber(batch.getId())) {
       var message = emails.get(projectId, chunk.getMessageId());
-      statuses.add(new BulkEmailResponses.Chunk(
-          chunk.getMessageId().toString(), chunk.getRecipientCount(), message.status()));
+      statuses.add(
+          new BulkEmailResponses.Chunk(
+              chunk.getMessageId().toString(), chunk.getRecipientCount(), message.status()));
     }
-    return new BulkEmailResponses.Batch(batch.getId().toString(),
-        batch.getProjectId().toString(), batch.getTotalRecipients(),
-        batch.getSuppressedRecipients(), batch.getChunksCount(), replay, statuses);
+    return new BulkEmailResponses.Batch(
+        batch.getId().toString(),
+        batch.getProjectId().toString(),
+        batch.getTotalRecipients(),
+        batch.getSuppressedRecipients(),
+        batch.getChunksCount(),
+        replay,
+        statuses);
   }
 
   private String hashRequest(BulkEmailRequests.NewBatch request) {
     try {
-      return ApiKeyCrypto.hash(new String(mapper.writeValueAsBytes(request), StandardCharsets.UTF_8));
+      return ApiKeyCrypto.hash(
+          new String(mapper.writeValueAsBytes(request), StandardCharsets.UTF_8));
     } catch (JacksonException e) {
       throw new BadRequestException("Unable to validate batch request");
     }

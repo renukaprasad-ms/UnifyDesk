@@ -59,7 +59,8 @@ public class FeedbackService {
   public FeedbackResultResponse apply(PostfixFeedbackRequest request, String rawPayload) {
     EmailEventSource source = request.resolvedSource();
     String externalId = blankToNull(request.externalEventId());
-    if (externalId != null && eventRepository.existsBySourceAndExternalEventId(source, externalId)) {
+    if (externalId != null
+        && eventRepository.existsBySourceAndExternalEventId(source, externalId)) {
       EmailRecipient duplicateRecipient = resolveRecipient(request);
       return new FeedbackResultResponse(
           true,
@@ -134,7 +135,8 @@ public class FeedbackService {
       recipient.setStatus(EmailRecipientStatus.REMOTE_DEFERRED);
       recipient.setNextAttemptAt(null);
     } else if (request.eventType() == EmailEventType.BOUNCED) {
-      if (previous == EmailRecipientStatus.DELIVERED || previous == EmailRecipientStatus.COMPLAINED) {
+      if (previous == EmailRecipientStatus.DELIVERED
+          || previous == EmailRecipientStatus.COMPLAINED) {
         return false;
       }
       recipient.setStatus(EmailRecipientStatus.BOUNCED);

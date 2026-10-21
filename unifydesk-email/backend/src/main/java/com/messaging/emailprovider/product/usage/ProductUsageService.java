@@ -20,8 +20,8 @@ public class ProductUsageService {
   private final EmailProjectRepository projects;
   private final EmailMessageRepository messages;
 
-  public ProductUsageService(JdbcTemplate jdbc, EmailProjectRepository projects,
-      EmailMessageRepository messages) {
+  public ProductUsageService(
+      JdbcTemplate jdbc, EmailProjectRepository projects, EmailMessageRepository messages) {
     this.jdbc = jdbc;
     this.projects = projects;
     this.messages = messages;
@@ -32,7 +32,8 @@ public class ProductUsageService {
     var message = messages.findById(recipient.getMessageId()).orElse(null);
     if (message == null || !projects.existsById(message.getCompanyId())) return;
     // One billable unit per unique recipient handoff, even on Kafka replay.
-    jdbc.update("""
+    jdbc.update(
+        """
       INSERT INTO email_product_usage_entries
         (id,recipient_id,project_id,message_id,unit_price_micro_inr,
          occurred_at,created_at,updated_at)
@@ -42,21 +43,32 @@ public class ProductUsageService {
         ?, now(), now())
       ON CONFLICT (recipient_id) DO NOTHING
       """,
-      com.messaging.emailprovider.common.id.IdGenerator.nextId(),
-      recipient.getId(), message.getCompanyId(), message.getId(),
-      message.getCompanyId(), Instant.now());
+        com.messaging.emailprovider.common.id.IdGenerator.nextId(),
+        recipient.getId(),
+        message.getCompanyId(),
+        message.getId(),
+        message.getCompanyId(),
+        Instant.now());
   }
 
-  public record Usage(String projectId, LocalDate from, LocalDate to,
-      long handedOff, long chargedMicroInr, String currency) {}
+  public record Usage(
+      String projectId,
+      LocalDate from,
+      LocalDate to,
+      long handedOff,
+      long chargedMicroInr,
+      String currency) {}
 
   /**
-   * Signed-id cursor paging for internal reconciliation. This returns immutable Postfix
-   * handoff records, not final delivery signals, and not central UnifyDesk invoice lines.
-   * String IDs retain precision when transferred to JavaScript dashboards.
+   * Signed-id cursor paging for internal reconciliation. This returns immutable Postfix handoff
+   * records, not final delivery signals, and not central UnifyDesk invoice lines. String IDs retain
+   * precision when transferred to JavaScript dashboards.
    */
   public record HandoffEntry(
-      String usageId, String recipientId, String messageId, Instant occurredAt,
+      String usageId,
+      String recipientId,
+      String messageId,
+      Instant occurredAt,
       long productPriceMicroInr) {}
 
   public record HandoffPage(
@@ -67,9 +79,11 @@ public class ProductUsageService {
     if (projectId == null || projectId <= 0 || !projects.existsById(projectId)) {
       throw new NotFoundException("Email project not found");
     }
-    Long latest = jdbc.queryForObject(
-        "select coalesce(max(id),0) from email_product_usage_entries where project_id = ?",
-        Long.class, projectId);
+    Long latest =
+        jdbc.queryForObject(
+            "select coalesce(max(id),0) from email_product_usage_entries where project_id = ?",
+            Long.class,
+            projectId);
     return Long.toString(latest == null ? 0L : latest);
   }
 
@@ -79,8 +93,7 @@ public class ProductUsageService {
   }
 
   @Transactional(readOnly = true)
-  public HandoffPage handoffs(Long projectId, long afterId, int limit,
-                              Instant from, Instant to) {
+  public HandoffPage handoffs(Long projectId, long afterId, int limit, Instant from, Instant to) {
     if (projectId == null || projectId <= 0 || !projects.existsById(projectId)) {
       throw new NotFoundException("Email project not found");
     }
@@ -88,41 +101,56 @@ public class ProductUsageService {
       throw new BadRequestException("Invalid usage cursor or page size");
     }
     if ((from == null) != (to == null)
-        || (from != null && (!from.isBefore(to)
-            || from.isBefore(to.minusSeconds(31L * 86400))
-            || to.isAfter(Instant.now().plusSeconds(60))))) {
+        || (from != null
+            && (!from.isBefore(to)
+                || from.isBefore(to.minusSeconds(31L * 86400))
+                || to.isAfter(Instant.now().plusSeconds(60))))) {
       throw new BadRequestException("Bounded handoff replay requires a valid 31-day UTC window");
     }
-    org.springframework.jdbc.core.RowMapper<HandoffEntry> mapper = (rs, row) ->
-        new HandoffEntry(Long.toString(rs.getLong("id")),
-            Long.toString(rs.getLong("recipient_id")),
-            Long.toString(rs.getLong("message_id")),
-            rs.getTimestamp("occurred_at").toInstant(),
-            rs.getLong("unit_price_micro_inr"));
+    org.springframework.jdbc.core.RowMapper<HandoffEntry> mapper =
+        (rs, row) ->
+            new HandoffEntry(
+                Long.toString(rs.getLong("id")),
+                Long.toString(rs.getLong("recipient_id")),
+                Long.toString(rs.getLong("message_id")),
+                rs.getTimestamp("occurred_at").toInstant(),
+                rs.getLong("unit_price_micro_inr"));
     List<HandoffEntry> page;
     if (from == null) {
-      page = jdbc.query("""
+      page =
+          jdbc.query(
+              """
           select id, recipient_id, message_id, occurred_at, unit_price_micro_inr
             from email_product_usage_entries
            where project_id = ? and id > ?
            order by id asc
            limit ?
-          """, mapper, projectId, afterId, limit + 1);
+          """,
+              mapper,
+              projectId,
+              afterId,
+              limit + 1);
     } else {
-      page = jdbc.query("""
+      page =
+          jdbc.query(
+              """
           select id, recipient_id, message_id, occurred_at, unit_price_micro_inr
             from email_product_usage_entries
            where project_id = ? and id > ?
              and occurred_at >= ? and occurred_at < ?
            order by id asc
            limit ?
-          """, mapper, projectId, afterId,
-          java.sql.Timestamp.from(from), java.sql.Timestamp.from(to), limit + 1);
+          """,
+              mapper,
+              projectId,
+              afterId,
+              java.sql.Timestamp.from(from),
+              java.sql.Timestamp.from(to),
+              limit + 1);
     }
     boolean more = page.size() > limit;
     List<HandoffEntry> entries = more ? page.subList(0, limit) : page;
-    String cursor = entries.isEmpty()
-        ? Long.toString(afterId) : entries.getLast().usageId();
+    String cursor = entries.isEmpty() ? Long.toString(afterId) : entries.getLast().usageId();
     return new HandoffPage(projectId.toString(), List.copyOf(entries), cursor, more);
   }
 
@@ -134,13 +162,16 @@ public class ProductUsageService {
     }
     Instant fromAt = from.atStartOfDay(ZoneOffset.UTC).toInstant();
     Instant toAt = to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-    return jdbc.queryForObject("""
+    return jdbc.queryForObject(
+        """
       SELECT COUNT(*), COALESCE(SUM(unit_price_micro_inr),0)
       FROM email_product_usage_entries
       WHERE project_id=? AND occurred_at>=? AND occurred_at<?
       """,
-      (rs,row)->new Usage(projectId.toString(), from, to,
-          rs.getLong(1), rs.getLong(2), "INR"), projectId, fromAt, toAt);
+        (rs, row) -> new Usage(projectId.toString(), from, to, rs.getLong(1), rs.getLong(2), "INR"),
+        projectId,
+        fromAt,
+        toAt);
   }
 
   @Transactional
@@ -149,12 +180,15 @@ public class ProductUsageService {
     if (unitPriceMicroInr < 0 || unitPriceMicroInr > 10_000_000L) {
       throw new BadRequestException("Per-recipient price outside configured safety range");
     }
-    jdbc.update("""
+    jdbc.update(
+        """
       INSERT INTO email_product_rates (project_id,price_micro_inr_per_recipient,updated_at)
       VALUES (?,?,now())
       ON CONFLICT(project_id) DO UPDATE
       SET price_micro_inr_per_recipient=EXCLUDED.price_micro_inr_per_recipient,
           updated_at=now()
-      """, projectId, unitPriceMicroInr);
+      """,
+        projectId,
+        unitPriceMicroInr);
   }
 }

@@ -49,7 +49,8 @@ public class EmailMessageStateService {
                 r ->
                     r.getStatus() == EmailRecipientStatus.PROCESSING
                         || r.getStatus() == EmailRecipientStatus.QUEUED);
-    boolean unknown = recipients.stream().anyMatch(r -> r.getStatus() == EmailRecipientStatus.UNKNOWN);
+    boolean unknown =
+        recipients.stream().anyMatch(r -> r.getStatus() == EmailRecipientStatus.UNKNOWN);
     boolean deferred =
         recipients.stream()
             .anyMatch(

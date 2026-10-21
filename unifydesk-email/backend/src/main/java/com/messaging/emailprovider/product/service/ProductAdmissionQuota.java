@@ -11,12 +11,13 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 /**
- * Atomic fail-closed daily admission budget. Quota reservations intentionally remain
- * consumed if the subsequent database transaction fails, pending a reconciler.
+ * Atomic fail-closed daily admission budget. Quota reservations intentionally remain consumed if
+ * the subsequent database transaction fails, pending a reconciler.
  */
 @Component
 public class ProductAdmissionQuota {
-  private static final String SCRIPT = """
+  private static final String SCRIPT =
+      """
       if redis.call('EXISTS',KEYS[3]) == 1 then return 2 end
       if tonumber(redis.call('GET',KEYS[1]) or '0') + tonumber(ARGV[1]) > tonumber(ARGV[2])
           or tonumber(redis.call('GET',KEYS[2]) or '0') + tonumber(ARGV[1]) > tonumber(ARGV[3])
@@ -44,20 +45,29 @@ public class ProductAdmissionQuota {
   }
 
   public void reserve(Long projectId, String idempotencyId, int recipients) {
-    if (projectId == null || idempotencyId == null || idempotencyId.isBlank()
-        || recipients <= 0 || projectLimit <= 0 || platformLimit <= 0) {
+    if (projectId == null
+        || idempotencyId == null
+        || idempotencyId.isBlank()
+        || recipients <= 0
+        || projectLimit <= 0
+        || platformLimit <= 0) {
       throw new TooManyRequestsException("Invalid or disabled email admission quota");
     }
     String date = LocalDate.now(ZoneOffset.UTC).toString();
-    List<String> keys = List.of(
-        "ud:email:quota:project:" + projectId + ":" + date,
-        "ud:email:quota:platform:" + date,
-        "ud:email:quota:reservation:" + projectId + ":"
-            + ApiKeyCrypto.hash(idempotencyId));
+    List<String> keys =
+        List.of(
+            "ud:email:quota:project:" + projectId + ":" + date,
+            "ud:email:quota:platform:" + date,
+            "ud:email:quota:reservation:" + projectId + ":" + ApiKeyCrypto.hash(idempotencyId));
     Long result;
     try {
-      result = redis.execute(script, keys, Integer.toString(recipients),
-          Long.toString(projectLimit), Long.toString(platformLimit));
+      result =
+          redis.execute(
+              script,
+              keys,
+              Integer.toString(recipients),
+              Long.toString(projectLimit),
+              Long.toString(platformLimit));
     } catch (RuntimeException e) {
       throw new TooManyRequestsException("Email quota service is unavailable");
     }

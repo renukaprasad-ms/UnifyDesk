@@ -9,7 +9,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter @Setter @NoArgsConstructor @Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@Entity
 @Table(name = "email_product_api_keys")
 public class EmailApiKey extends BaseEntity {
   @Column(name = "project_id", nullable = false)

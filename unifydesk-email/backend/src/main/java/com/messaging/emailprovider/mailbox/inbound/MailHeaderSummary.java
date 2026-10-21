@@ -7,6 +7,7 @@ import java.util.Locale;
 /** Bounded metadata extraction. This is not a full MIME renderer or HTML sanitizer. */
 public final class MailHeaderSummary {
   private static final int MAX_HEADER_BYTES = 32768;
+
   private MailHeaderSummary() {}
 
   public record Summary(String from, String subject, String messageId) {}
@@ -40,14 +41,16 @@ public final class MailHeaderSummary {
     return new Summary(trim(from, 320), trim(subject, 998), trim(messageId, 998));
   }
 
-  private static void append(String key, StringBuilder from, StringBuilder subject,
-      StringBuilder id, String value) throws IOException {
-    StringBuilder destination = switch (key) {
-      case "from" -> from;
-      case "subject" -> subject;
-      case "message-id" -> id;
-      default -> null;
-    };
+  private static void append(
+      String key, StringBuilder from, StringBuilder subject, StringBuilder id, String value)
+      throws IOException {
+    StringBuilder destination =
+        switch (key) {
+          case "from" -> from;
+          case "subject" -> subject;
+          case "message-id" -> id;
+          default -> null;
+        };
     if (destination == null) return;
     if (destination.length() + value.length() > 998) {
       throw new IOException("Header metadata too large");

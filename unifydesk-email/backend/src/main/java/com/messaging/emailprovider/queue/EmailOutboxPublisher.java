@@ -36,10 +36,13 @@ public class EmailOutboxPublisher {
   public void publish() {
     for (EmailOutbox row : service.claim(batchSize, staleAfterSeconds)) {
       try {
-        kafkaTemplate.send(row.getTopic(), row.getEventKey(), row.getPayload()).get(10, TimeUnit.SECONDS);
+        kafkaTemplate
+            .send(row.getTopic(), row.getEventKey(), row.getPayload())
+            .get(10, TimeUnit.SECONDS);
         service.markPublished(row.getId());
       } catch (Exception exception) {
-        log.warn("outbox_publish_failed outboxId={} topic={}", row.getId(), row.getTopic(), exception);
+        log.warn(
+            "outbox_publish_failed outboxId={} topic={}", row.getId(), row.getTopic(), exception);
         service.markFailure(row.getId(), exception.getMessage(), maxAttempts);
       }
     }
