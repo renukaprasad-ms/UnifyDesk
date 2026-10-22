@@ -15,6 +15,8 @@ See [product boundary](docs/PRODUCT_BOUNDARY.md) and
 [working API contracts](docs/PRODUCT_API_R1.md) for current implementation and release gates.
 
 For hosted-mail development, follow the [ordered Mail work queue](docs/MAIL_WORK_QUEUE.md).
+Current features, local verification and remaining release gates are recorded in
+[Mail local implementation and QA](docs/MAIL_LOCAL_IMPLEMENTATION_AND_QA.md).
 
 ## Backend and frontend structure
 

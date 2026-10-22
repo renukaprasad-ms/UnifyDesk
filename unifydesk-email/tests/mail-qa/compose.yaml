@@ -1,0 +1,36 @@
+name: unifydesk-email-qa
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_DB: mail_qa
+      POSTGRES_USER: mail_qa
+      POSTGRES_PASSWORD: local-disposable-qa-only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mail_qa -d mail_qa"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    # No ports, host storage or customer databases are used.
+  runner:
+    build:
+      context: ../..
+      dockerfile: tests/mail-qa/Dockerfile
+    network_mode: service:postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MAIL_QA_DISPOSABLE: "YES"
+      MAIL_QA_PG_URL: jdbc:postgresql://127.0.0.1:5432/mail_qa
+      MAIL_QA_PG_USER: mail_qa
+      MAIL_QA_PG_PASSWORD: local-disposable-qa-only
+      PGHOST: 127.0.0.1
+      PGDATABASE: mail_qa
+      PGUSER: mail_qa
+      PGPASSWORD: local-disposable-qa-only
+    volumes:
+      - maven:/root/.m2
+volumes:
+  maven:
+    name: unifydesk-email-qa-m2

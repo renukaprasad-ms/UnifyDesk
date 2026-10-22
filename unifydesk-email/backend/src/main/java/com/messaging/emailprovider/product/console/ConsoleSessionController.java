@@ -22,7 +22,8 @@ public class ConsoleSessionController {
   public record Credentials(
       @NotNull @Positive Long organizationId,
       @Email @NotBlank String email,
-      @NotBlank String password) {}
+      @NotBlank @Size(max = 128) String password,
+      @Size(max = 80) String mfaCode) {}
 
   public record Activation(
       @NotBlank String invitationToken, @NotBlank @Size(min = 12, max = 128) String password) {}
@@ -39,7 +40,11 @@ public class ConsoleSessionController {
     return ApiResponse.success(
         200,
         auth.login(
-            request.organizationId(), request.email(), request.password(), context.getRemoteAddr()),
+            request.organizationId(),
+            request.email(),
+            request.password(),
+            context.getRemoteAddr(),
+            request.mfaCode()),
         "Signed in");
   }
 

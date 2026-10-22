@@ -22,6 +22,8 @@ public class ConsoleAuthService {
   private final EmailOrganizationRepository organizations;
   private final PasswordHasher passwords;
   private final StringRedisTemplate redis;
+  private final ConsoleSecurityService security;
+  private final ConsoleRoleService roles;
 
   public ConsoleAuthService(
       ConsoleUserRepository users,
@@ -29,13 +31,17 @@ public class ConsoleAuthService {
       ConsoleSessionRepository sessions,
       EmailOrganizationRepository organizations,
       PasswordHasher passwords,
-      StringRedisTemplate redis) {
+      StringRedisTemplate redis,
+      ConsoleSecurityService security,
+      ConsoleRoleService roles) {
     this.users = users;
     this.invitations = invitations;
     this.sessions = sessions;
     this.organizations = organizations;
     this.passwords = passwords;
     this.redis = redis;
+    this.security = security;
+    this.roles = roles;
   }
 
   public record Invite(String userId, String invitationToken, Instant expiresAt) {}
@@ -46,10 +52,25 @@ public class ConsoleAuthService {
       String userId,
       String organizationId,
       String role,
-      String email) {}
+      String email,
+      java.util.Set<ConsolePermission> permissions) {}
 
   public record Principal(
-      Long userId, Long organizationId, ConsoleRole role, String email, Long sessionId) {}
+      Long userId,
+      Long organizationId,
+      ConsoleRole role,
+      String email,
+      Long sessionId,
+      java.util.Set<ConsolePermission> permissions) {
+    public Principal(
+        Long userId, Long organizationId, ConsoleRole role, String email, Long sessionId) {
+      this(userId, organizationId, role, email, sessionId, ConsolePermission.defaults(role));
+    }
+
+    public boolean permits(ConsolePermission permission) {
+      return permissions != null && permissions.contains(permission);
+    }
+  }
 
   @Transactional
   public Invite invite(Long organizationId, String email, String displayName, ConsoleRole role) {
@@ -100,7 +121,7 @@ public class ConsoleAuthService {
     }
     ConsoleUser user =
         users
-            .findById(invitation.getUserId())
+            .findLockedById(invitation.getUserId())
             .orElseThrow(() -> new NotFoundException("Account not found"));
     if (!"PENDING".equals(user.getStatus())) {
       throw new BadRequestException("Account already activated");
@@ -114,9 +135,16 @@ public class ConsoleAuthService {
 
   @Transactional
   public Login login(Long organizationId, String email, String password, String address) {
+    return login(organizationId, email, password, address, null);
+  }
+
+  @Transactional
+  public Login login(
+      Long organizationId, String email, String password, String address, String mfaCode) {
     String normalized = normalize(email);
     limitLogin(organizationId, normalized, address);
-    ConsoleUser user = users.findByOrganizationIdAndEmail(organizationId, normalized).orElse(null);
+    ConsoleUser user =
+        users.findLockedByOrganizationIdAndEmail(organizationId, normalized).orElse(null);
     if (user == null
         || !"ACTIVE".equals(user.getStatus())
         || !passwords.verify(password, user.getPasswordHash())) {
@@ -126,6 +154,7 @@ public class ConsoleAuthService {
     if (org == null || !"ACTIVE".equals(org.getStatus())) {
       throw new BadRequestException("Account unavailable");
     }
+    security.verifyLogin(user.getId(), organizationId, mfaCode);
     String token = "ude_session_" + ApiKeyCrypto.random(32);
     ConsoleSession session = new ConsoleSession();
     session.setUserId(user.getId());
@@ -138,7 +167,8 @@ public class ConsoleAuthService {
         user.getId().toString(),
         organizationId.toString(),
         user.getRole().name(),
-        user.getEmail());
+        user.getEmail(),
+        roles.permissions(organizationId, user.getId(), user.getRole()));
   }
 
   @Transactional(readOnly = true)
@@ -155,7 +185,12 @@ public class ConsoleAuthService {
     EmailOrganization org = organizations.findById(user.getOrganizationId()).orElse(null);
     if (org == null || !"ACTIVE".equals(org.getStatus())) return null;
     return new Principal(
-        user.getId(), org.getId(), user.getRole(), user.getEmail(), session.getId());
+        user.getId(),
+        org.getId(),
+        user.getRole(),
+        user.getEmail(),
+        session.getId(),
+        roles.permissions(org.getId(), user.getId(), user.getRole()));
   }
 
   @Transactional

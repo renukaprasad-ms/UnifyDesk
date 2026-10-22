@@ -168,7 +168,7 @@ public class MailboxOutboundWorker {
         JOIN email_console_users author ON author.id=dr.author_user_id
           AND author.organization_id=dr.organization_id AND author.status='ACTIVE'
         JOIN email_mailbox_access acl ON acl.mailbox_id=m.id
-          AND acl.organization_id=m.organization_id AND acl.user_id=author.id
+          AND acl.organization_id=m.organization_id AND acl.user_id=author.id AND acl.can_send=TRUE
         JOIN email_mail_domains d ON d.id=m.domain_id
           AND d.organization_id=m.organization_id
         JOIN email_product_organizations org ON org.id=m.organization_id
@@ -256,6 +256,33 @@ public class MailboxOutboundWorker {
     } catch (Exception preflightFailed) {
       // If recording this fails, the lease expires into UNKNOWN; no send occurred.
       complete(job, "DEFERRED", null, "MAILBOX_OUTBOUND_PREFLIGHT_FAILED");
+      return;
+    }
+
+    // Signing and durable archiving may take time. Recheck current grants and
+    // tenant/suppression controls immediately before starting SMTP.
+    Boolean permitted =
+        jdbc.queryForObject(
+            """
+        SELECT EXISTS(SELECT 1 FROM email_mail_outbound_recipients r
+          JOIN email_mail_outbound_intents i ON i.id=r.intent_id
+          JOIN email_mail_drafts dr ON dr.id=i.draft_id
+          JOIN email_mailboxes m ON m.id=r.mailbox_id AND m.organization_id=r.organization_id
+          JOIN email_mail_domains d ON d.id=m.domain_id AND d.organization_id=m.organization_id
+          JOIN email_product_organizations org ON org.id=m.organization_id
+          JOIN email_console_users u ON u.id=dr.author_user_id AND u.organization_id=m.organization_id
+          JOIN email_mailbox_access a ON a.mailbox_id=m.id AND a.organization_id=m.organization_id AND a.user_id=u.id
+          WHERE r.id=? AND r.claim_token=? AND r.state='PROCESSING'
+            AND m.status='ACTIVE' AND d.status='VERIFIED' AND d.outbound_enabled=TRUE
+            AND org.status='ACTIVE' AND u.status='ACTIVE' AND a.can_send=TRUE
+            AND NOT EXISTS(SELECT 1 FROM email_mail_outbound_suppressions s
+              WHERE s.organization_id=m.organization_id AND s.recipient_address=r.recipient_address))
+        """,
+            Boolean.class,
+            job.recipientId(),
+            job.lease());
+    if (!Boolean.TRUE.equals(permitted)) {
+      complete(job, "FAILED", null, "MAILBOX_AUTHORIZATION_REVOKED_BEFORE_SMTP");
       return;
     }
 

@@ -2,6 +2,12 @@
 
 Status: **not ready to merge to dev or expose production SMTP** (October 9, 2026).
 
+For subsequent local implementation and executable verification, see
+[October 21 local implementation and QA](MAIL_LOCAL_IMPLEMENTATION_AND_QA.md).
+The identity decision is independent Email accounts with optional SSO.
+Local MFA/recovery, custom organization roles and explicit mailbox grants
+do not establish production acceptance or independent security approval.
+
 ## Active delivery priority
 
 Finish UnifyDesk Mail core, including reliable inbound receipt, secure storage, Inbox, replies/compose, outgoing mailbox submission, attachments and operational recovery, **before** expanding the separate mail-specific IAM implementation.

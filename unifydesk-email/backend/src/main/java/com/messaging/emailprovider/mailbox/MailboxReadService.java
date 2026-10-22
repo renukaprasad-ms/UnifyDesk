@@ -6,8 +6,10 @@ import com.messaging.emailprovider.common.exception.NotFoundException;
 import com.messaging.emailprovider.common.exception.ServiceUnavailableException;
 import com.messaging.emailprovider.mailbox.inbound.MailSpoolStore;
 import com.messaging.emailprovider.product.console.ConsoleAuthService;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
@@ -25,6 +27,8 @@ public class MailboxReadService {
   private final JdbcTemplate jdbc;
   private final MailSpoolStore spool;
   private final MailPlainTextExtractor textExtractor;
+  private final MailAttachmentReader attachmentReader;
+  private final MailAuditService audit;
   private final boolean activationEnabled;
   private final boolean scanningEnabled;
 
@@ -32,11 +36,15 @@ public class MailboxReadService {
       JdbcTemplate jdbc,
       MailSpoolStore spool,
       MailPlainTextExtractor textExtractor,
+      MailAttachmentReader attachmentReader,
+      MailAuditService audit,
       @Value("${app.mail.activation.enabled:false}") boolean activationEnabled,
       @Value("${app.mail.scanner.enabled:false}") boolean scanningEnabled) {
     this.jdbc = jdbc;
     this.spool = spool;
     this.textExtractor = textExtractor;
+    this.attachmentReader = attachmentReader;
+    this.audit = audit;
     this.activationEnabled = activationEnabled;
     this.scanningEnabled = scanningEnabled;
   }
@@ -44,7 +52,13 @@ public class MailboxReadService {
   public record MailboxView(String id, String status) {}
 
   public record Message(
-      String id, String folder, String from, String subject, long sizeBytes, String receivedAt) {}
+      String id,
+      String folder,
+      String from,
+      String subject,
+      long sizeBytes,
+      String receivedAt,
+      String direction) {}
 
   public record RawMail(InputStream body, long sizeBytes) {}
 
@@ -59,7 +73,8 @@ public class MailboxReadService {
   @Transactional
   public MailboxView activate(
       ConsoleAuthService.Principal principal, long mailboxId, long ownerUserId) {
-    if (!principal.role().canManage()) {
+    if (!principal.permits(
+        com.messaging.emailprovider.product.console.ConsolePermission.MANAGE_MAILBOXES)) {
       throw new ForbiddenException("Admin permission required");
     }
     if (!activationEnabled || !scanningEnabled) {
@@ -72,7 +87,7 @@ public class MailboxReadService {
         SELECT m.id FROM email_mailboxes m
         JOIN email_mail_domains d ON d.id=m.domain_id AND d.organization_id=m.organization_id
         WHERE m.id=? AND m.organization_id=? AND d.status='VERIFIED'
-          AND m.status IN ('DISABLED','ACTIVE')
+          AND m.status='DISABLED'
         FOR UPDATE OF m
         """,
             (rs, row) -> rs.getLong(1),
@@ -92,8 +107,9 @@ public class MailboxReadService {
       throw new NotFoundException("Active mailbox user not found");
     jdbc.update(
         """
-        INSERT INTO email_mailbox_access(organization_id,mailbox_id,user_id)
-        VALUES (?,?,?) ON CONFLICT(mailbox_id,user_id) DO NOTHING
+        INSERT INTO email_mailbox_access(organization_id,mailbox_id,user_id,can_delegate)
+        VALUES (?,?,?,TRUE) ON CONFLICT(mailbox_id,user_id)
+        DO UPDATE SET can_read=TRUE,can_send=TRUE,can_delegate=TRUE
         """,
         principal.organizationId(),
         mailboxId,
@@ -105,6 +121,7 @@ public class MailboxReadService {
         """,
         mailboxId,
         principal.organizationId());
+    audit.record(principal, mailboxId, null, "ACTIVATE", ownerUserId);
     return new MailboxView(Long.toString(mailboxId), "ACTIVE");
   }
 
@@ -113,7 +130,11 @@ public class MailboxReadService {
       ConsoleAuthService.Principal user, long mailboxId, String folder, Long beforeId, int limit) {
     requireGrant(user, mailboxId);
     String normalized = folder == null ? "INBOX" : folder;
-    if (!("INBOX".equals(normalized) || "SPAM".equals(normalized) || "SENT".equals(normalized))
+    if (!("INBOX".equals(normalized)
+            || "SPAM".equals(normalized)
+            || "SENT".equals(normalized)
+            || "ARCHIVE".equals(normalized)
+            || "TRASH".equals(normalized))
         || limit < 1
         || limit > 100
         || (beforeId != null && beforeId <= 0)) {
@@ -122,9 +143,10 @@ public class MailboxReadService {
     return jdbc.query(
         """
         SELECT id,folder,from_address,subject,mime_size_bytes,
-          COALESCE(received_at,sent_at)
+          COALESCE(received_at,sent_at),direction
         FROM email_mailbox_messages
-        WHERE organization_id=? AND mailbox_id=? AND folder=? AND deleted_at IS NULL
+        WHERE organization_id=? AND mailbox_id=? AND folder=? AND purged_at IS NULL
+          AND (deleted_at IS NULL OR folder='TRASH')
           AND id < ?
         ORDER BY id DESC LIMIT ?
         """,
@@ -135,7 +157,8 @@ public class MailboxReadService {
                 rs.getString(3),
                 rs.getString(4),
                 rs.getLong(5),
-                rs.getTimestamp(6).toInstant().toString()),
+                rs.getTimestamp(6).toInstant().toString(),
+                rs.getString(7)),
         user.organizationId(),
         mailboxId,
         normalized,
@@ -144,8 +167,12 @@ public class MailboxReadService {
   }
 
   /** Download-only untrusted MIME. NEVER inline it as HTML or execute attachments. */
-  @Transactional(readOnly = true)
   public RawMail raw(ConsoleAuthService.Principal user, long mailboxId, long messageId) {
+    return openVerified(user, mailboxId, messageId, "DOWNLOAD_RAW");
+  }
+
+  private RawMail openVerified(
+      ConsoleAuthService.Principal user, long mailboxId, long messageId, String action) {
     requireGrant(user, mailboxId);
     List<ObjectRecord> messages =
         jdbc.query(
@@ -161,9 +188,9 @@ public class MailboxReadService {
           AND a.organization_id=msg.organization_id AND a.mailbox_id=msg.mailbox_id
         WHERE msg.id=? AND msg.mailbox_id=? AND msg.organization_id=?
           AND msg.deleted_at IS NULL
-          AND ((msg.direction='INBOUND' AND msg.folder IN ('INBOX','SPAM')
+          AND ((msg.direction='INBOUND' AND msg.folder IN ('INBOX','SPAM','ARCHIVE')
                 AND j.id IS NOT NULL)
-             OR (msg.direction='OUTBOUND' AND msg.folder='SENT'
+             OR (msg.direction='OUTBOUND' AND msg.folder IN ('SENT','ARCHIVE')
                 AND a.intent_id IS NOT NULL))
         """,
             (rs, row) -> new ObjectRecord(rs.getString(1), rs.getLong(2), rs.getString(3)),
@@ -173,7 +200,54 @@ public class MailboxReadService {
     if (messages.isEmpty()) throw new NotFoundException("Mail message not found");
     ObjectRecord message = messages.get(0);
     verifyObjectIntegrity(new PreviewObject(message.key(), message.size(), message.digest()));
-    return new RawMail(spool.open(message.key()), message.size());
+    requireGrant(user, mailboxId);
+    audit.record(user, mailboxId, messageId, action, null);
+    return new RawMail(authorized(spool.open(message.key()), user, mailboxId), message.size());
+  }
+
+  public List<MailAttachmentReader.Attachment> attachments(
+      ConsoleAuthService.Principal user, long mailboxId, long messageId) {
+    RawMail mail = openVerified(user, mailboxId, messageId, "LIST_ATTACHMENTS");
+    try (InputStream source = mail.body()) {
+      List<MailAttachmentReader.Attachment> result = attachmentReader.list(source);
+      requireGrant(user, mailboxId);
+      return result;
+    } catch (IOException failure) {
+      throw new ServiceUnavailableException("Attachment listing unavailable", failure);
+    }
+  }
+
+  public void downloadAttachment(
+      ConsoleAuthService.Principal user,
+      long mailboxId,
+      long messageId,
+      int part,
+      OutputStream output) {
+    RawMail mail = openVerified(user, mailboxId, messageId, "DOWNLOAD_ATTACHMENT");
+    try (InputStream source = mail.body()) {
+      attachmentReader.download(source, part, output);
+    } catch (IOException failure) {
+      throw new ServiceUnavailableException("Attachment download unavailable", failure);
+    }
+  }
+
+  private InputStream authorized(
+      InputStream source, ConsoleAuthService.Principal user, long mailboxId) {
+    // An HTTP filter only authenticates the initial request. A long download must
+    // also stop when its session, user, mailbox or explicit grant is revoked.
+    return new FilterInputStream(source) {
+      @Override
+      public int read() throws IOException {
+        requireGrant(user, mailboxId);
+        return super.read();
+      }
+
+      @Override
+      public int read(byte[] buffer, int offset, int length) throws IOException {
+        requireGrant(user, mailboxId);
+        return in.read(buffer, offset, Math.min(length, 8192));
+      }
+    };
   }
 
   /**
@@ -181,6 +255,7 @@ public class MailboxReadService {
    * user+org+mailbox+message association first.
    */
   public MessagePreview preview(ConsoleAuthService.Principal user, long mailboxId, long messageId) {
+    requireGrant(user, mailboxId);
     List<PreviewObject> matches =
         jdbc.query(
             """
@@ -199,7 +274,7 @@ public class MailboxReadService {
           AND a.user_id=? AND m.status='ACTIVE'
           AND d.status='VERIFIED' AND o.status='ACTIVE'
           AND j.status='READY' AND msg.direction='INBOUND'
-          AND msg.deleted_at IS NULL AND msg.folder IN ('INBOX','SPAM')
+          AND msg.deleted_at IS NULL AND msg.folder IN ('INBOX','SPAM','ARCHIVE')
         """,
             (rs, row) -> new PreviewObject(rs.getString(1), rs.getLong(2), rs.getString(3)),
             messageId,
@@ -211,6 +286,8 @@ public class MailboxReadService {
     verifyObjectIntegrity(object);
     try (InputStream mime = spool.open(object.key())) {
       MailPlainTextExtractor.PlainText text = textExtractor.extract(mime);
+      requireGrant(user, mailboxId);
+      audit.record(user, mailboxId, messageId, "READ_PREVIEW", null);
       return new MessagePreview(
           Long.toString(messageId), text.text(), text.truncated(), text.available());
     } catch (IOException failure) {
@@ -258,10 +335,14 @@ public class MailboxReadService {
           JOIN email_mail_domains d ON d.id=m.domain_id
             AND d.organization_id=m.organization_id
           JOIN email_product_organizations o ON o.id=m.organization_id
+          JOIN email_console_users u ON u.id=a.user_id AND u.organization_id=a.organization_id
+          JOIN email_console_sessions s ON s.user_id=u.id AND s.id=?
           WHERE a.organization_id=? AND a.mailbox_id=? AND a.user_id=?
-            AND m.status='ACTIVE' AND d.status='VERIFIED' AND o.status='ACTIVE')
+            AND a.can_read=TRUE AND m.status='ACTIVE' AND d.status='VERIFIED' AND o.status='ACTIVE'
+            AND u.status='ACTIVE' AND s.revoked_at IS NULL AND s.expires_at>now())
         """,
             Boolean.class,
+            user.sessionId(),
             user.organizationId(),
             mailboxId,
             user.userId());

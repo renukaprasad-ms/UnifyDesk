@@ -5,6 +5,8 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,6 +20,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Component
 @ConditionalOnProperty(prefix = "app.mail.scanner", name = "enabled", havingValue = "true")
 public class InboundScanWorker {
+  private static final Logger log = LoggerFactory.getLogger(InboundScanWorker.class);
   private static final int MAX_ATTEMPTS = 5;
   private final JdbcTemplate jdbc;
   private final TransactionTemplate transactions;
@@ -133,6 +136,10 @@ public class InboundScanWorker {
             summary);
       }
     } catch (Exception unavailable) {
+      log.warn(
+          "Mail scan failed: job={}, failureType={}",
+          job.id(),
+          unavailable.getClass().getSimpleName());
       fail(job);
     }
   }
@@ -186,7 +193,7 @@ public class InboundScanWorker {
               folder,
               job.objectKey(),
               job.bytes(),
-              job.receivedAt(),
+              java.sql.Timestamp.from(job.receivedAt()),
               summary.from(),
               summary.subject(),
               summary.messageId());

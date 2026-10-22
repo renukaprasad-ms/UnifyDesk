@@ -4,13 +4,14 @@ import { request, downloadMail } from './api'
 import { Badge, Button, Empty, Field, Notice, Panel } from './components'
 import './mail.css'
 import MailDrafts from './MailDrafts'
+import MailboxAccess from './MailboxAccess'
 
 /**
  * Operator-controlled mail UI. Every request uses an authenticated console
  * session; there are no project keys, raw MIME HTML previews, or fake sends.
  */
 export default function MailConsole({ session }) {
-  const canManage = ['OWNER', 'ADMIN'].includes(session.role)
+  const canManage = ['OWNER', 'ADMIN'].includes(session.role) || session.permissions?.includes('MANAGE_MAILBOXES')
   const composeEnabled = import.meta.env.VITE_MAIL_COMPOSE_UI_ENABLED === 'true'
   const [domains, setDomains] = useState([])
   const [domainId, setDomainId] = useState('')
@@ -33,6 +34,10 @@ export default function MailConsole({ session }) {
   const [plainPreview, setPlainPreview] = useState(null)
   const [plainLoading, setPlainLoading] = useState(false)
   const [plainError, setPlainError] = useState('')
+  const [attachments, setAttachments] = useState([])
+  const [attachmentError, setAttachmentError] = useState('')
+  const [canDelegate, setCanDelegate] = useState(false)
+  const [trashConfirm, setTrashConfirm] = useState(false)
   const [replySeed, setReplySeed] = useState(null)
   const [revision, setRevision] = useState(0)
 
@@ -66,6 +71,7 @@ export default function MailConsole({ session }) {
     setCursor(null)
     setPages([])
     setSelectedMessage(null)
+    setTrashConfirm(false)
     setReplySeed(null)
     if (!domainId) return () => { active = false }
     request('/mail/domains/' + domainId + '/mailboxes')
@@ -99,7 +105,7 @@ export default function MailConsole({ session }) {
     let active = true
     setPlainPreview(null)
     setPlainError('')
-    if (!selectedMessage || !mailboxId || folder === 'SENT') {
+    if (!selectedMessage || !mailboxId || selectedMessage.direction === 'OUTBOUND' || folder === 'SENT' || folder === 'TRASH') {
       setPlainLoading(false)
       return () => { active = false }
     }
@@ -108,6 +114,19 @@ export default function MailConsole({ session }) {
       .then(result => { if (active) setPlainPreview(result) })
       .catch(failure => { if (active) setPlainError(failure.message) })
       .finally(() => { if (active) setPlainLoading(false) })
+    return () => { active = false }
+  }, [mailboxId, selectedMessage?.id, folder])
+
+  useEffect(() => { setTrashConfirm(false) }, [selectedMessage?.id])
+
+  useEffect(() => {
+    let active = true
+    setAttachments([])
+    setAttachmentError('')
+    if (!mailboxId || !selectedMessage || folder === 'TRASH') return () => { active = false }
+    request('/mail/mailboxes/' + mailboxId + '/messages/' + selectedMessage.id + '/attachments')
+      .then(files => { if (active) setAttachments(Array.isArray(files) ? files : []) })
+      .catch(failure => { if (active) setAttachmentError(failure.message) })
     return () => { active = false }
   }, [mailboxId, selectedMessage?.id, folder])
 
@@ -164,11 +183,11 @@ export default function MailConsole({ session }) {
     }), 'Mailbox activated for your account. Incoming SMTP remains separately gated.')
   }
 
-  async function saveRaw(message) {
+  async function saveRaw(message, attachment) {
     setError('')
     setBusy(true)
     try {
-      await downloadMail(mailboxId, message.id)
+      await downloadMail(mailboxId, message.id, attachment)
     } catch (failure) {
       setError(failure.message)
     } finally {
@@ -271,7 +290,7 @@ export default function MailConsole({ session }) {
           <Empty icon={Inbox} title="No active mailbox selected" body="Verify your domain and activate a mailbox to view its Inbox."/> :
           <div className="mail-reader">
             <div className="mail-folders" aria-label="Mail folders">
-              {['INBOX','SENT','SPAM'].map(name => <button key={name} type="button" className={folder === name ? 'selected' : ''} onClick={() => changeFolder(name)}>{name === 'INBOX' ? 'Inbox' : name === 'SENT' ? 'Sent' : 'Spam'}</button>)}
+              {['INBOX','SENT','SPAM','ARCHIVE','TRASH'].map(name => <button key={name} type="button" className={folder === name ? 'selected' : ''} onClick={() => changeFolder(name)}>{name.charAt(0) + name.slice(1).toLowerCase()}</button>)}
             </div>
             <div className="mail-message-list">
               {messageLoading ? <div className="mail-reader-empty">Loading messages…</div> :
@@ -288,7 +307,7 @@ export default function MailConsole({ session }) {
                 <h3>{selectedMessage.subject || '(No subject)'}</h3>
                 <p><strong>From:</strong> {selectedMessage.from || 'Unknown sender'}</p>
                 <p><strong>Received:</strong> {selectedMessage.receivedAt ? new Date(selectedMessage.receivedAt).toLocaleString() : '—'}</p>
-                {folder === 'SENT'
+                {folder === 'TRASH' ? <div className="mail-preview-placeholder">Restore this message to read or download it.</div> : folder === 'SENT' || selectedMessage.direction === 'OUTBOUND'
                   ? <div className="mail-preview-placeholder">This message was accepted by the outgoing SMTP relay. This does not prove delivery to the recipient. Download the signed original to inspect the archived message.</div>
                   : plainLoading ? <div className="mail-preview-placeholder">Loading safe text preview…</div> :
                   plainError ? <Notice tone="error">{plainError}</Notice> :
@@ -298,15 +317,34 @@ export default function MailConsole({ session }) {
                   </> :
                   <div className="mail-preview-placeholder"><ShieldCheck size={21}/><span>This message has no supported plain-text body. For safety, HTML and attachments are never rendered inline. You can download the original message for a trusted mail client.</span></div>}
                 <div className="mail-actions">
-                  <Button variant="outline" icon={Download} disabled={busy} onClick={() => saveRaw(selectedMessage)}>Download original (.eml)</Button>
+                  {folder !== 'TRASH' && <Button variant="outline" icon={Download} disabled={busy} onClick={() => saveRaw(selectedMessage)}>Download original (.eml)</Button>}
                   {composeEnabled && folder === 'INBOX' && <Button variant="outline" disabled={busy}
                     onClick={() => setReplySeed({id: selectedMessage.id, from: selectedMessage.from,
                       subject: selectedMessage.subject, nonce: Date.now()})}>Prepare reply draft</Button>}
+                  {canDelegate && folder !== 'ARCHIVE' && folder !== 'TRASH' && <Button variant="outline" disabled={busy}
+                    onClick={() => run(() => request('/mail/mailboxes/' + mailboxId + '/messages/' + selectedMessage.id + '/move', 'POST', { folder: 'ARCHIVE' }), 'Message archived')}>Archive</Button>}
+                  {canDelegate && ['ARCHIVE','TRASH'].includes(folder) && <Button variant="outline" disabled={busy}
+                    onClick={() => run(() => request('/mail/mailboxes/' + mailboxId + '/messages/' + selectedMessage.id + '/restore', 'POST'), 'Message restored')}>Restore</Button>}
+                  {canDelegate && folder !== 'TRASH' && (trashConfirm ? <>
+                    <Button disabled={busy} onClick={() => run(() => request('/mail/mailboxes/' + mailboxId + '/messages/' + selectedMessage.id + '/move', 'POST', { folder: 'TRASH' }), 'Message moved to Trash')}>Confirm move to Trash</Button>
+                    <Button variant="ghost" onClick={() => setTrashConfirm(false)}>Cancel</Button>
+                  </> : <Button variant="outline" disabled={busy} onClick={() => setTrashConfirm(true)}>Move to Trash</Button>)}
                 </div>
+                {attachmentError && <Notice tone="error">{attachmentError}</Notice>}
+                {attachments.length > 0 && <div className="mail-attachments">
+                  <h4>Attachments</h4>
+                  <p className="mail-muted">Download files to inspect them in a trusted application.</p>
+                  {attachments.map(file => <Button key={file.part} variant="outline" icon={Download}
+                    disabled={busy} onClick={() => saveRaw(selectedMessage, file)}>
+                    {file.filename} ({Math.ceil(file.sizeBytes / 1024)} KB)
+                  </Button>)}
+                </div>}
               </> : <div className="mail-reader-empty">Select an email to view its details.</div>}
             </div>
           </div>}
       </Panel>
+      {currentMailbox?.status === 'ACTIVE' && <MailboxAccess key={'access-' + mailboxId} mailboxId={mailboxId}
+        currentUserId={session.userId} onCapability={setCanDelegate}/>}
       {composeEnabled && currentMailbox?.status === 'ACTIVE' &&
         <MailDrafts key={mailboxId} mailboxId={mailboxId} mailboxAddress={currentMailbox.address}
           replySeed={replySeed}/>}

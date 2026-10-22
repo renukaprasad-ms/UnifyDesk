@@ -1,0 +1,33 @@
+# Import into the existing private Prometheus rules configuration after review.
+# /actuator/prometheus remains behind InternalApiTokenFilter; do not publicize it.
+groups:
+  - name: unifydesk-mail
+    rules:
+      - alert: MailSmtpOutcomeUncertain
+        expr: mail_outbound_unknown > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Mail has uncertain SMTP handoffs; do not retry automatically"
+      - alert: MailScannerBacklogStalled
+        expr: mail_inbound_oldest_pending_seconds > 300 and mail_inbound_pending > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Oldest mail scan has waited more than five minutes"
+      - alert: MailStorageNearlyFull
+        expr: mail_storage_free_bytes < 134217728
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Mail storage is below 128 MiB free; investigate admission and capacity"
+      - alert: MailMetricsCollectionFailed
+        expr: mail_ops_collection_ok == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mail operational metrics are stale or unavailable"

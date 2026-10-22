@@ -108,7 +108,7 @@ public class BillingCustomerController {
         ApiResponse.success(
             HttpStatus.OK.value(),
             walletService.triggerAutoRecharge(companyId),
-            "Wallet auto-recharge triggered successfully"));
+            "Wallet auto-recharge completed successfully"));
   }
 
   @GetMapping("/profile")

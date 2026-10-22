@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+**/node_modules
+**/target
+**/bin
+**/dist
+*.log
+**/*.pem
+**/*.key
+qa-reports

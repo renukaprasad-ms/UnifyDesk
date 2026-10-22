@@ -96,7 +96,8 @@ public class MailboxProvisioningController {
 
   private static ConsoleAuthService.Principal manager(HttpServletRequest req) {
     var principal = user(req);
-    if (!principal.role().canManage()) {
+    if (!principal.permits(
+        com.messaging.emailprovider.product.console.ConsolePermission.MANAGE_MAILBOXES)) {
       throw new ForbiddenException("Admin or owner permission required");
     }
     return principal;

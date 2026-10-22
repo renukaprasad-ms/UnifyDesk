@@ -22,7 +22,8 @@ public class ConsoleAuthFilter extends OncePerRequestFilter {
     if (!req.getRequestURI().startsWith("/console/v1/")) return true;
     return "POST".equals(req.getMethod())
         && (req.getRequestURI().equals("/console/v1/sessions")
-            || req.getRequestURI().equals("/console/v1/activate"));
+            || req.getRequestURI().equals("/console/v1/activate")
+            || req.getRequestURI().equals("/console/v1/password-reset"));
   }
 
   @Override

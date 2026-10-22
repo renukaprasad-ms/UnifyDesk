@@ -8,6 +8,8 @@ import com.messaging.billing.payment.RecurringAuthorizationService;
 import com.messaging.billing.repository.CompanyWalletRepository;
 import com.messaging.billing.repository.WalletTransactionRepository;
 import com.messaging.common.id.IdGenerator;
+import com.messaging.common.exception.ConflictException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
@@ -50,10 +52,35 @@ public class WalletAutoRechargeService {
     }
   }
 
-  public void executeAutoRecharge(Long companyId) {
-    if (!properties.isRecurringEnabled()) return;
+  public enum RechargeOutcome {
+    SUCCESS,
+    SKIPPED,
+    FAILED,
+    UNRESOLVED
+  }
+
+  /** Only report success to a manual caller after a captured payment is credited. */
+  public void rechargeNow(Long companyId) {
+    switch (executeAutoRecharge(companyId)) {
+      case SUCCESS -> {}
+      case SKIPPED ->
+          throw new ConflictException(
+              "Auto-recharge cannot run. Check that it is enabled, not paused, has an active mandate, "
+                  + "and the balance is below the threshold. Recent attempts must finish before retrying.");
+      case FAILED ->
+          throw new ConflictException(
+              "Razorpay declined the wallet recharge. The wallet was not credited.");
+      case UNRESOLVED ->
+          throw new ServiceUnavailableException(
+              "Wallet recharge could not be confirmed with Razorpay. Auto-recharge is paused pending "
+                  + "reconciliation. Check the previous payment before retrying.");
+    }
+  }
+
+  public RechargeOutcome executeAutoRecharge(Long companyId) {
+    if (!properties.isRecurringEnabled()) return RechargeOutcome.SKIPPED;
     ChargeRequest request = transactions.execute(status -> claim(companyId));
-    if (request == null) return;
+    if (request == null) return RechargeOutcome.SKIPPED;
     try {
       PaymentProviderGateway.RemoteSubscriptionPayment response =
           gateway.chargeAuthorizedSubscription(
@@ -67,17 +94,18 @@ public class WalletAutoRechargeService {
           gateway.fetchSubscriptionPayment(request.token(), request.commandId());
       if ("SUCCESS".equalsIgnoreCase(verified.status())) {
         postVerifiedCredit(request.companyId(), request.commandId(), request.amount(), verified);
-        return;
+        return RechargeOutcome.SUCCESS;
       }
       if ("FAILED".equalsIgnoreCase(verified.status())) {
         markDefinitiveFailure(companyId, request.amount());
-        return;
+        return RechargeOutcome.FAILED;
       }
       markUnknownOutcome(companyId, request.commandId());
     } catch (RuntimeException ex) {
       markUnknownOutcome(companyId, request.commandId());
       log.warn("Wallet recharge {} needs provider reconciliation", request.commandId());
     }
+    return RechargeOutcome.UNRESOLVED;
   }
 
   /** Poll orders, including those submitted before a crash or a timeout. */

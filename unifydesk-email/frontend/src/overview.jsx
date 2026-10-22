@@ -1,3 +1,5 @@
+import AccountSecurity from './AccountSecurity'
+import OrganizationRoles from './OrganizationRoles'
 import React,{useState} from 'react'
 import {Activity,ArrowRight,ArrowUpRight,Check,CheckCircle2,Copy,FolderKanban,Globe2,KeyRound,Plus,Send,ShieldCheck,Webhook,LogOut,LockKeyhole} from 'lucide-react'
 import {Badge,Button,Empty,Field,Heading,Notice,Panel,money,date} from './components'
@@ -48,5 +50,5 @@ export function Usage({project,data}) {
   </>
 }
 export function Account({session,logout}) {
-  return <><Heading eyebrow="IDENTITY" title="Account settings" description="Review your organization and authenticated session."/><Panel><div className="account-card"><span className="account-big-avatar">{session.email?.[0]?.toUpperCase()||'U'}</span><div><h3>{session.email}</h3><p>Independent Email Console account</p><Badge value={session.role}/></div></div><div className="settings-row"><span><b>Organization ID</b><small>{session.organizationId}</small></span><ShieldCheck size={22}/></div><div className="settings-row"><span><b>Session expires</b><small>{date(session.expiresAt)}</small></span><LockKeyhole size={22}/></div><div className="settings-row"><span><b>Sign out of this browser tab</b><small>Revokes your current console session.</small></span><Button variant="outline" icon={LogOut} onClick={logout}>Sign out</Button></div></Panel></>
+  return <><Heading eyebrow="IDENTITY" title="Account settings" description="Review your organization and authenticated session."/><Panel><div className="account-card"><span className="account-big-avatar">{session.email?.[0]?.toUpperCase()||'U'}</span><div><h3>{session.email}</h3><p>Independent Email Console account</p><Badge value={session.role}/></div></div><div className="settings-row"><span><b>Organization ID</b><small>{session.organizationId}</small></span><ShieldCheck size={22}/></div><div className="settings-row"><span><b>Session expires</b><small>{date(session.expiresAt)}</small></span><LockKeyhole size={22}/></div><div className="settings-row"><span><b>Sign out of this browser tab</b><small>Revokes your current console session.</small></span><Button variant="outline" icon={LogOut} onClick={logout}>Sign out</Button></div></Panel><AccountSecurity/><OrganizationRoles session={session}/></>
 }

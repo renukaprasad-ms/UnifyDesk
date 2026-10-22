@@ -58,6 +58,9 @@ server:
 
 app:
   mail:
+    retention:
+      enabled: ${EMAIL_MAIL_RETENTION_ENABLED:false}
+      interval-ms: ${EMAIL_MAIL_RETENTION_INTERVAL_MS:60000}
     bounce:
       domain: ${EMAIL_MAIL_BOUNCE_DOMAIN:}
       hmac-secret: ${EMAIL_MAIL_BOUNCE_HMAC_SECRET:}
@@ -99,6 +102,8 @@ app:
       project-daily: ${EMAIL_PROVIDER_PRODUCT_PROJECT_DAILY_QUOTA:1000}
       platform-daily: ${EMAIL_PROVIDER_PRODUCT_PLATFORM_DAILY_QUOTA:10000}
   security:
+    console:
+      mfa-enrollment-enabled: ${EMAIL_CONSOLE_MFA_ENROLLMENT_ENABLED:false}
     api:
       internal-token: ${EMAIL_PROVIDER_INTERNAL_API_TOKEN:}
     credentials:

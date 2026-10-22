@@ -1,46 +1,27 @@
 # Mail work queue
 
-Updated: October 21, 2026. Work proceeds one item at a time, following
-`MAIL_RELEASE_GATES_AND_IAM_PLAN.md`: finish core mail before expanding IAM.
-Historical QA documents describe the evidence available on their audit date;
-they are not current test results.
+Updated October 21, 2026. Local implementation and QA are complete for this
+increment. The detailed evidence, operating contract and remaining release
+work are in [Mail local implementation and QA](MAIL_LOCAL_IMPLEMENTATION_AND_QA.md).
 
-1. **Local build and unit verification (completed with platform skips).** Run
-   `tests/mail-verify.sh`, fix formatting and executable failures, and record
-   results. Java 25 and Node 24 are available on this Windows workstation.
-   Spotless corrected 144 Java files. The scanner integrity test now checks
-   the actual integrity error rather than depending on HTTP server scheduling.
-   The durable spool success test requires Linux directory fsync and is
-   explicitly Linux-only; production storage still fails closed on Windows.
-2. **Real PostgreSQL migrations.** Run `MailPostgresMigrationTests` against a
-   disposable PostgreSQL database: fresh V1-V22 and upgrades from V13, V16,
-   V19 and V21. H2 unit tests do not establish migration correctness.
-3. **Linux storage and inbound integration.** Run the durable-spool test on
-   Linux, then R10 readiness, private API intake/idempotency, actual scanners
-   and the isolated Postfix listener. Verify quota, ACL and failure recovery.
-4. **Remaining core features.** Assess attachments, retention, backups/restore,
-   orphan reconciliation and operational monitoring against source and tests;
-   implement the first confirmed gap.
-5. **IAM and release acceptance.** Complete identity/RBAC parity, MFA,
-   recovery, delegation/revocation and audit requirements before GA, then
-   obtain the remaining security, infrastructure and deliverability evidence.
+| Item | Status |
+| --- | --- |
+| Local builds and unit tests | Passed: 113 Linux tests, zero failures/errors/skips; both Node 24 frontend flag variants built. |
+| PostgreSQL migration gate | Passed: fresh V1-V26 and upgrades from every historical version V1-V25. |
+| Linux storage and inbound integration | Passed: directory fsync, real ClamAV/Rspamd, HTTP authentication/idempotency, Postfix RCPT/relay controls and SMTP-to-mailbox promotion. |
+| Core reliability | Implemented/tested: bounded inbound attachment downloads, archive/trash/restore, explicit grants, current-session checks during downloads, Sent archive quota accounting and crash-safe opt-in retention. |
+| Backup and recovery | Local encrypted snapshot restored to a separate database/storage location with every referenced MIME size/hash verified. Production off-node recovery remains a separate gate. |
+| IAM | Implemented/tested: independent Email accounts, authenticator MFA/recovery, password recovery/change, session revocation, scoped custom organization roles, mailbox read/send/delegation and content-free audits. SSO remains optional. |
+| Monitoring | Private aggregate gauges and example alert rules added; production alert installation remains pending. |
 
-No deployment or production readiness is implied by local verification.
+The local stack is reproducible with:
 
-## Local verification evidence (October 21)
+```sh
+docker compose -f tests/mail-qa/compose.yaml up --build --abort-on-container-exit --exit-code-from runner
+```
 
-- R10 offline pipe contract: passed.
-- Spotless: passed after applying the configured formatter.
-- Java 25 compilation and backend packaging: passed.
-- Backend suite: 100 discovered, 98 passed, zero failures/errors, two skipped.
-  The skipped checks are real PostgreSQL migrations (no disposable database
-  supplied) and Linux directory-fsync durability (Windows workstation).
-- Frontend production builds: passed with mail UI flags all off and all on.
-  Added `frontend/package-lock.json` to pin the resolved dependency graph.
-- Full backend output and the initial frontend installation failure are in
-  `../mail-verification.log`. The npm failure came from a local shell path
-  pointing to an OpenSSL directory; frontend verification passed after
-  process-local `ComSpec` and `npm_config_script_shell` overrides.
-
-Next item: disposable PostgreSQL migration verification, followed by the
-Linux durability check. Neither has passed in this session.
+No production deployment, DNS/MX change, public sending or SES replacement
+was performed. Optional SSO configuration, outgoing attachment uploads,
+HTML rendering, IMAP and the independent production/security acceptance
+requirements remain explicitly listed in the detailed report. Do not
+interpret local completion as general availability.

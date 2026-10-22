@@ -4,5 +4,5 @@
 # 'n' disables chroot for the pipe script; external stdout is never a reply.
 # ${queue_id} is stable for Postfix queue retries; one recipient per process.
 udmail-inbound unix - n n - 4 pipe
-  flags=Rq user=udmail-inbound size=10000000
+  flags=Rq eol=\r\n user=udmail-inbound size=10000000
   argv=/usr/local/libexec/udmail-inbound-pipe.sh ${queue_id} ${recipient}

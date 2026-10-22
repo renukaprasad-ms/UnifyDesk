@@ -351,22 +351,14 @@ public class WalletService {
     return toWalletResponse(wallet);
   }
 
-  @Transactional
+  @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
   public CompanyWalletResponse triggerAutoRecharge(Long companyId) {
-    CompanyWallet wallet =
-        walletRepository
-            .findByCompanyIdForUpdate(companyId)
-            .orElseGet(() -> getOrCreateWallet(companyId));
-
-    wallet.setAutoRechargeEnabled(true);
-    wallet.setAutoRechargePaused(false);
-    wallet.setAutoRechargeFailedAttempts(0);
-    wallet.setAutoRechargeLastAttemptAt(null);
-    wallet = walletRepository.saveAndFlush(wallet);
-
     log.info("Manual/On-demand wallet auto-recharge triggered for company {}", companyId);
-    walletAutoRechargeService.triggerAutoRechargeIfEligibleAsync(companyId);
-    return toWalletResponse(wallet);
+    walletAutoRechargeService.rechargeNow(companyId);
+    return toWalletResponse(
+        walletRepository
+            .findByCompanyId(companyId)
+            .orElseThrow(() -> new NotFoundException("Wallet not found for company: " + companyId)));
   }
 
   /** Recover paid wallet checkouts when browser confirmation or webhooks are lost. */

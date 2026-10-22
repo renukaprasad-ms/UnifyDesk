@@ -50,7 +50,7 @@ public class EmailConsoleController {
   public ResponseEntity<ApiResponse<ProductResponses.Project>> createProject(
       HttpServletRequest req, @Valid @RequestBody ProductRequests.NewProject body) {
     var user = ConsoleAuthFilter.require(req);
-    checkManage(user);
+    checkManage(user, ConsolePermission.MANAGE_PROJECTS);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResponse.success(
@@ -71,7 +71,7 @@ public class EmailConsoleController {
       HttpServletRequest req,
       @PathVariable @Positive Long projectId,
       @Valid @RequestBody ProductRequests.NewKey body) {
-    checkManage(own(req, projectId));
+    checkManage(own(req, projectId), ConsolePermission.MANAGE_API_KEYS);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResponse.success(
@@ -85,7 +85,7 @@ public class EmailConsoleController {
       HttpServletRequest req,
       @PathVariable @Positive Long projectId,
       @PathVariable @Positive Long keyId) {
-    checkManage(own(req, projectId));
+    checkManage(own(req, projectId), ConsolePermission.MANAGE_API_KEYS);
     admin.revoke(projectId, keyId);
     return ApiResponse.success(200, "Key revoked");
   }
@@ -102,7 +102,7 @@ public class EmailConsoleController {
       HttpServletRequest req,
       @PathVariable @Positive Long projectId,
       @Valid @RequestBody CreateSendingDomainRequest body) {
-    checkManage(own(req, projectId));
+    checkManage(own(req, projectId), ConsolePermission.MANAGE_DOMAINS);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResponse.success(
@@ -116,7 +116,7 @@ public class EmailConsoleController {
       HttpServletRequest req,
       @PathVariable @Positive Long projectId,
       @PathVariable @Positive Long domainId) {
-    checkManage(own(req, projectId));
+    checkManage(own(req, projectId), ConsolePermission.MANAGE_DOMAINS);
     return ApiResponse.success(200, domains.verify(projectId, domainId), "DNS verification");
   }
 
@@ -138,7 +138,7 @@ public class EmailConsoleController {
           HttpServletRequest req,
           @PathVariable @Positive Long projectId,
           @Valid @RequestBody WebhookRequest body) {
-    checkManage(own(req, projectId));
+    checkManage(own(req, projectId), ConsolePermission.MANAGE_WEBHOOKS);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResponse.success(
@@ -150,7 +150,7 @@ public class EmailConsoleController {
       HttpServletRequest req,
       @PathVariable @Positive Long projectId,
       @PathVariable @Positive Long endpointId) {
-    checkManage(own(req, projectId));
+    checkManage(own(req, projectId), ConsolePermission.MANAGE_WEBHOOKS);
     webhooks.disable(projectId, endpointId);
     return ApiResponse.success(200, "Webhook disabled");
   }
@@ -165,8 +165,8 @@ public class EmailConsoleController {
     return user;
   }
 
-  private void checkManage(ConsoleAuthService.Principal user) {
-    if (!user.role().canManage()) {
+  private void checkManage(ConsoleAuthService.Principal user, ConsolePermission permission) {
+    if (!user.permits(permission)) {
       throw new ForbiddenException("Admin or owner permission required");
     }
   }

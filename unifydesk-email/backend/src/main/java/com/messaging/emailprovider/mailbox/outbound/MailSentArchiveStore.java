@@ -1,5 +1,7 @@
 package com.messaging.emailprovider.mailbox.outbound;
 
+import com.messaging.emailprovider.common.exception.ConflictException;
+import com.messaging.emailprovider.common.exception.NotFoundException;
 import com.messaging.emailprovider.common.exception.ServiceUnavailableException;
 import com.messaging.emailprovider.mailbox.inbound.MailSpoolStore;
 import java.io.ByteArrayInputStream;
@@ -12,6 +14,7 @@ import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Stores an immutable signed MIME image once per outgoing intent.
@@ -27,12 +30,15 @@ public class MailSentArchiveStore {
 
   private final JdbcTemplate jdbc;
   private final MailSpoolStore spool;
+  private final TransactionTemplate transactions;
 
   record Archive(String key, long bytes, String digest) {}
 
-  public MailSentArchiveStore(JdbcTemplate jdbc, MailSpoolStore spool) {
+  public MailSentArchiveStore(
+      JdbcTemplate jdbc, MailSpoolStore spool, TransactionTemplate transactions) {
     this.jdbc = jdbc;
     this.spool = spool;
+    this.transactions = transactions;
   }
 
   /**
@@ -49,21 +55,57 @@ public class MailSentArchiveStore {
     MailSpoolStore.Stored staged = spool.write(new ByteArrayInputStream(signedMime));
     // The spool is durable before the database reference is inserted. On an
     // ambiguous database error, preserve the object for operator reconciliation.
-    int inserted =
-        jdbc.update(
-            """
+    Boolean inserted;
+    try {
+      inserted =
+          transactions.execute(
+              ignored -> {
+                var mailbox =
+                    jdbc.query(
+                        "SELECT id FROM email_mailboxes WHERE id=? AND organization_id=? AND status='ACTIVE' FOR UPDATE",
+                        (rs, row) -> rs.getLong(1),
+                        mailboxId,
+                        organizationId);
+                if (mailbox.isEmpty()) throw new NotFoundException("Active mailbox not found");
+                if (lookup(organizationId, mailboxId, intentId) != null) return false;
+                int reserved =
+                    jdbc.update(
+                        """
+            UPDATE email_mailboxes SET storage_used_bytes=storage_used_bytes+?,updated_at=now()
+            WHERE id=? AND organization_id=? AND storage_used_bytes<=storage_quota_bytes-?
+            """,
+                        staged.bytes(),
+                        mailboxId,
+                        organizationId,
+                        staged.bytes());
+                if (reserved != 1) throw new ConflictException("Mailbox storage quota reached");
+                int written =
+                    jdbc.update(
+                        """
         INSERT INTO email_mail_outbound_archives
           (intent_id,organization_id,mailbox_id,mime_object_key,mime_size_bytes,sha256)
         VALUES (?,?,?,?,?,?)
         ON CONFLICT (intent_id) DO NOTHING
         """,
-            intentId,
-            organizationId,
-            mailboxId,
-            staged.key(),
-            staged.bytes(),
-            staged.sha256());
-    if (inserted == 0) {
+                        intentId,
+                        organizationId,
+                        mailboxId,
+                        staged.key(),
+                        staged.bytes(),
+                        staged.sha256());
+                if (written == 0)
+                  jdbc.update(
+                      "UPDATE email_mailboxes SET storage_used_bytes=storage_used_bytes-? WHERE id=? AND organization_id=?",
+                      staged.bytes(),
+                      mailboxId,
+                      organizationId);
+                return written == 1;
+              });
+    } catch (ConflictException | NotFoundException rejected) {
+      spool.delete(staged);
+      throw rejected;
+    }
+    if (Boolean.FALSE.equals(inserted)) {
       // Another concurrent SMTP worker won; discard only our temporary copy.
       spool.delete(staged);
     }

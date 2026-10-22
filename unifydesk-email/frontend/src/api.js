@@ -58,13 +58,17 @@ export async function request(path, method = 'GET', body, idempotencyKey) {
  * Download original untrusted RFC 5322 bytes as a file, never as an HTML
  * document. Browser navigation links cannot supply our session bearer token.
  */
-export async function downloadMail(mailboxId, messageId) {
+export async function downloadMail(mailboxId, messageId, attachment) {
   for (const value of [mailboxId, messageId]) {
     if (!/^[1-9][0-9]*$/.test(String(value))) throw new Error('Invalid message identifier')
   }
   const session = readSession()
   if (!session) throw new Error('Session expired. Please sign in.')
-  const path = '/console/v1/mail/mailboxes/' + mailboxId + '/messages/' + messageId + '/raw'
+  if (attachment && (!Number.isInteger(attachment.part) || attachment.part < 1 || attachment.part > 128)) {
+    throw new Error('Invalid attachment identifier')
+  }
+  const path = '/console/v1/mail/mailboxes/' + mailboxId + '/messages/' + messageId
+    + (attachment ? '/attachments/' + attachment.part : '/raw')
   let response
   try {
     response = await fetch(path, {
@@ -87,7 +91,7 @@ export async function downloadMail(mailboxId, messageId) {
   try {
     const link = document.createElement('a')
     link.href = objectUrl
-    link.download = 'unifydesk-message-' + messageId + '.eml'
+    link.download = attachment?.filename || ('unifydesk-message-' + messageId + '.eml')
     document.body.appendChild(link)
     link.click()
     link.remove()

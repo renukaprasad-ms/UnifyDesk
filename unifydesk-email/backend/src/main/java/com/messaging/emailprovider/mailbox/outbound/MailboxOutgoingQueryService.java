@@ -65,7 +65,7 @@ public class MailboxOutgoingQueryService {
           AND org.status='ACTIVE'
         JOIN email_mailbox_access access ON access.mailbox_id=m.id
           AND access.organization_id=m.organization_id
-          AND access.user_id=?
+          AND access.user_id=? AND access.can_send=TRUE
         JOIN email_mail_outbound_recipients r ON r.intent_id=intent.id
           AND r.organization_id=intent.organization_id
           AND r.mailbox_id=intent.mailbox_id
@@ -104,7 +104,7 @@ public class MailboxOutgoingQueryService {
           JOIN email_mail_drafts d ON d.id=i.draft_id
             AND d.organization_id=i.organization_id AND d.mailbox_id=i.mailbox_id
           JOIN email_mailbox_access a ON a.mailbox_id=i.mailbox_id
-            AND a.organization_id=i.organization_id AND a.user_id=?
+            AND a.organization_id=i.organization_id AND a.user_id=? AND a.can_send=TRUE
           JOIN email_mailboxes m ON m.id=i.mailbox_id
             AND m.organization_id=i.organization_id AND m.status='ACTIVE'
           JOIN email_mail_domains domain ON domain.id=m.domain_id

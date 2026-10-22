@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -104,5 +105,49 @@ public class MailboxReadController {
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"message.eml\"")
         .header("X-Content-Type-Options", "nosniff")
         .body(body);
+  }
+
+  @GetMapping("/{mailboxId}/messages/{messageId}/attachments")
+  public ResponseEntity<ApiResponse<List<MailAttachmentReader.Attachment>>> attachments(
+      HttpServletRequest req,
+      @PathVariable @Positive long mailboxId,
+      @PathVariable @Positive long messageId) {
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.noStore())
+        .header("X-Content-Type-Options", "nosniff")
+        .body(
+            ApiResponse.success(
+                200,
+                mailbox.attachments(ConsoleAuthFilter.require(req), mailboxId, messageId),
+                "Attachments"));
+  }
+
+  @GetMapping("/{mailboxId}/messages/{messageId}/attachments/{part}")
+  public ResponseEntity<StreamingResponseBody> attachment(
+      HttpServletRequest req,
+      @PathVariable @Positive long mailboxId,
+      @PathVariable @Positive long messageId,
+      @PathVariable @Positive int part) {
+    var user = ConsoleAuthFilter.require(req);
+    var attachment =
+        mailbox.attachments(user, mailboxId, messageId).stream()
+            .filter(file -> file.part() == part)
+            .findFirst()
+            .orElseThrow(
+                () ->
+                    new com.messaging.emailprovider.common.exception.NotFoundException(
+                        "Attachment not found"));
+    return ResponseEntity.ok()
+        .contentType(MediaType.APPLICATION_OCTET_STREAM)
+        .cacheControl(CacheControl.noStore())
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION,
+            ContentDisposition.attachment()
+                .filename(attachment.filename(), java.nio.charset.StandardCharsets.UTF_8)
+                .build()
+                .toString())
+        .header("X-Content-Type-Options", "nosniff")
+        .header("Content-Security-Policy", "sandbox; default-src 'none'")
+        .body(output -> mailbox.downloadAttachment(user, mailboxId, messageId, part, output));
   }
 }

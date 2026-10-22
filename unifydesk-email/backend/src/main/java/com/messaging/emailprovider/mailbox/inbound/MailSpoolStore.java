@@ -109,6 +109,17 @@ public class MailSpoolStore {
   }
 
   /** Only server-generated immutable object keys can be deleted. */
+  public void purge(Stored stored) {
+    delete(stored);
+    try (FileChannel directory = FileChannel.open(root, StandardOpenOption.READ)) {
+      directory.force(true);
+    } catch (IOException failure) {
+      throw new ServiceUnavailableException(
+          "Unable to durably remove retained mail object", failure);
+    }
+  }
+
+  /** Only server-generated immutable object keys can be deleted. */
   public void delete(Stored stored) {
     if (stored == null || !stored.key().matches("[0-9a-f-]{36}\\.eml")) {
       throw new IllegalArgumentException("Invalid spool key");

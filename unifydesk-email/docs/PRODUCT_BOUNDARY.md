@@ -6,7 +6,7 @@
 
 - **UnifyDesk App:** marketing/inbox/contacts/broadcast workflows. Remains a separate product with its own tenant/workspace model and product entitlements. It uses a securely stored **UnifyDesk Email project API key** to send permitted bulk email. It must not read or write the email product's private database directly.
 - **UnifyDesk Email:** first-party email sending as a product. Own tenant organizations, projects, verified sender domains, API keys, security, send APIs, tracking, limits, reputation, usage ledger, billing, webhooks, operator console and infrastructure.
-- **Future UnifyDesk Mail:** business mailboxes/inbound SMTP, storage, IMAP/webmail. This is **not** the same as bulk delivery, and is not implemented by the current code. It may share parent branding/account SSO, but should use its own delivery/reputation isolation.
+- **UnifyDesk Mail (gated development):** business mailboxes, inbound SMTP, durable storage and a webmail console are implemented in source. Mail has separate mailbox grants and delivery controls. IMAP and the remaining release features are still pending; see [current local implementation and QA](MAIL_LOCAL_IMPLEMENTATION_AND_QA.md). Account federation is optional; independent Email accounts remain supported.
 
 Avoid confusion: the email product **can be deployed as multiple services internally**; "product" describes independent ownership and external contracts, not necessarily a single process or a separate source repository.
 
@@ -66,11 +66,18 @@ The `InternalApiTokenFilter` in draft PR #347 is a temporary private-service bar
 3. **Safety:** hard fail-closed tenant/IP/account budgets, suppression and unsubscribe, abuse investigation, rate controls, Postfix UNKNOWN reconciliation, complaint/bounce resilience, deliverability dashboards.
 4. **Infrastructure:** real mail nodes, static IP/PTR/EHLO, SPF/DKIM/DMARC, TLS, isolated IP pools, IP warm-up, inbound feedback, runbooks and reliability tests.
 5. **App connector:** treat UnifyDesk Email like a third-party provider using API credentials, provider selection, events/metering and operational rollback.
-6. **Future:** standalone business mailbox hosting and webmail (separate product milestone).
+6. **Mail development:** standalone business mailbox hosting and webmail are a separate, gated milestone. Local source and QA do not imply public availability.
 
 ## Existing scope
 
-The current repository contains a useful delivery engine and DB schema, Postfix integration, sender-domain verification, DKIM, validation and feedback components. It now has operator-provisioned organizations/projects, project API keys, scoped public APIs, bounded bulk batches and Redis-based admission limits in draft PR #348. It **does not** implement customer self-service onboarding, a standalone product console, independent billing or signed delivery webhooks. Do not infer production readiness from this architecture document.
+The repository contains the delivery engine, sender-domain verification, DKIM,
+validation, feedback, scoped public APIs, operator-provisioned organizations,
+projects, console accounts, project API keys, bounded batches, signed outgoing
+webhooks and a usage ledger. The independent console and gated hosted-mail
+features are present in source. Public self-service onboarding, independent
+payment collection/invoices and production acceptance remain outstanding.
+Refer to the [current local QA report](MAIL_LOCAL_IMPLEMENTATION_AND_QA.md)
+for verified work rather than inferring production readiness from this document.
 
 ## Scope boundary for PR #347
 

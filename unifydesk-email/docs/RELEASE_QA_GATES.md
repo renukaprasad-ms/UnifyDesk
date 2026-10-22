@@ -2,6 +2,11 @@
 
 Status: **source implemented, no executable verification or production readiness evidence in this GitHub-only session**.
 
+This is the historical GitHub-only audit. For October 21 local builds,
+database tests and the current independent-account MFA/recovery and role
+implementation, see [local implementation and QA](MAIL_LOCAL_IMPLEMENTATION_AND_QA.md).
+Production acceptance and commercial release gates below still apply.
+
 ## Git integration order
 
 1. #347 — `fix/email-provider-security-delivery-r1`, based on frozen dev `c0526cce`

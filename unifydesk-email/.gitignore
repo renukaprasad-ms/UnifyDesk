@@ -13,3 +13,5 @@ frontend/dist/
 frontend/.vite/
 frontend/.env*
 .remote-k8s.conf
+qa-reports/
+mail-*.log

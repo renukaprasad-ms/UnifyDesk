@@ -479,13 +479,21 @@ public class MailComposeService {
         JOIN email_mail_domains d ON d.id=m.domain_id AND d.organization_id=m.organization_id
         JOIN email_product_organizations o ON o.id=m.organization_id
         JOIN email_mailbox_access a ON a.mailbox_id=m.id AND a.organization_id=m.organization_id
+        JOIN email_console_users u ON u.id=a.user_id AND u.organization_id=a.organization_id
+        JOIN email_console_sessions s ON s.user_id=u.id AND s.id=?
         WHERE m.id=? AND m.organization_id=? AND a.user_id=?
+          AND a.can_send=TRUE AND u.status='ACTIVE' AND s.revoked_at IS NULL AND s.expires_at>now()
           AND m.status='ACTIVE' AND d.status='VERIFIED' AND o.status='ACTIVE'
         """
             + (lock ? " FOR UPDATE OF m" : "");
     List<Long> found =
         jdbc.query(
-            query, (rs, row) -> rs.getLong(1), mailboxId, user.organizationId(), user.userId());
+            query,
+            (rs, row) -> rs.getLong(1),
+            user.sessionId(),
+            mailboxId,
+            user.organizationId(),
+            user.userId());
     if (found.isEmpty()) throw new NotFoundException("Mailbox not found");
   }
 }
